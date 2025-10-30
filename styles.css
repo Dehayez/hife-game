@@ -10,4 +10,8 @@ html, body { height: 100%; margin: 0; }
 .ui__title { font-size: 16px; margin: 0 0 6px 0; }
 .ui__hint { font-size: 13px; opacity: 0.85; margin: 0; }
 
+.ui__control { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.ui__label { font-size: 13px; opacity: 0.9; }
+.ui__select { background: #0f141c; color: #e7ebf0; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+
 
