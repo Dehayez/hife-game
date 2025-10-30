@@ -1,3 +1,5 @@
+import { getHighScore, setHighScore, getBestTime, setBestTime } from '../utils/StorageUtils.js';
+
 export class GameModeManager {
   constructor(entityManager = null) {
     this.currentMode = 'free-play';
@@ -38,8 +40,16 @@ export class GameModeManager {
       lastTime: null,
       isComplete: false,
       isPaused: false,
-      isStarted: false
+      isStarted: false,
+      highScore: 0
     };
+    
+    // Load high score and best time for current mode
+    this.modeState.highScore = getHighScore(this.currentMode);
+    const savedBestTime = getBestTime(this.currentMode);
+    if (savedBestTime !== null) {
+      this.modeState.bestTime = savedBestTime;
+    }
   }
 
   setEntityManager(entityManager) {
@@ -62,6 +72,13 @@ export class GameModeManager {
     const previousMode = this.currentMode;
     this.currentMode = mode;
     this.resetModeState();
+    
+    // Load high score and best time for the new mode
+    this.modeState.highScore = getHighScore(this.currentMode);
+    const savedBestTime = getBestTime(this.currentMode);
+    if (savedBestTime !== null) {
+      this.modeState.bestTime = savedBestTime;
+    }
     
     if (this.entityManager) {
       this._spawnModeEntities();
@@ -162,6 +179,7 @@ export class GameModeManager {
               const finishTime = this.modeState.timer;
               if (!this.modeState.bestTime || finishTime < this.modeState.bestTime) {
                 this.modeState.bestTime = finishTime;
+                setBestTime(this.currentMode, finishTime);
               }
             }
           }
@@ -197,9 +215,12 @@ export class GameModeManager {
           ? `${this.entityManager.getActivatedCheckpoints()}/${this.entityManager.getAllCheckpoints()}`
           : '';
         const completeText = this.modeState.isComplete ? ' ✓ Complete!' : '';
+        const bestTimeText = this.modeState.bestTime 
+          ? ` | Best: ${this.formatTime(this.modeState.bestTime)}` 
+          : '';
         return {
           mode: config.name,
-          primary: this.formatTime(this.modeState.timer) + completeText,
+          primary: this.formatTime(this.modeState.timer) + completeText + bestTimeText,
           secondary: checkpointsInfo ? `Checkpoints: ${checkpointsInfo}` : null
         };
       case 'collection':
@@ -207,22 +228,24 @@ export class GameModeManager {
         const total = this.entityManager ? this.entityManager.getAllCollectibles() : 0;
         const collectInfo = total > 0 ? `${total - remaining}/${total}` : '';
         const completeCollect = remaining === 0 && total > 0 ? ' ✓ Complete!' : '';
+        const highScoreText = this.modeState.highScore > 0 ? ` | High: ${this.modeState.highScore}` : '';
         return {
           mode: config.name,
           primary: collectInfo ? `Items: ${collectInfo}${completeCollect}` : `Items: ${this.modeState.items.length}`,
-          secondary: `Score: ${this.modeState.score}`
+          secondary: `Score: ${this.modeState.score}${highScoreText}`
         };
       case 'survival':
-        const bestTimeText = this.modeState.bestTime 
+        const survivalBestTimeText = this.modeState.bestTime 
           ? ` | Best: ${this.formatTime(this.modeState.bestTime)}` 
           : '';
         const lastTimeText = this.modeState.lastTime 
           ? ` | Last: ${this.formatTime(this.modeState.lastTime)}` 
           : '';
+        const survivalHighScoreText = this.modeState.highScore > 0 ? ` | High: ${this.modeState.highScore}` : '';
         return {
           mode: config.name,
-          primary: this.formatTime(this.modeState.timer) + bestTimeText + lastTimeText,
-          secondary: `Score: ${this.modeState.score}`
+          primary: this.formatTime(this.modeState.timer) + survivalBestTimeText + lastTimeText,
+          secondary: `Score: ${this.modeState.score}${survivalHighScoreText}`
         };
       default:
         return {
@@ -242,6 +265,11 @@ export class GameModeManager {
 
   addScore(points) {
     this.modeState.score += points;
+    // Update high score if current score exceeds it
+    if (this.modeState.score > this.modeState.highScore) {
+      this.modeState.highScore = this.modeState.score;
+      setHighScore(this.currentMode, this.modeState.highScore);
+    }
   }
 
   collectItem(itemId) {
@@ -283,9 +311,10 @@ export class GameModeManager {
           // Save the current time
           this.modeState.lastTime = this.modeState.timer;
           
-          // Update best time if this is better
+          // Update best time if this is better (higher is better in survival)
           if (!this.modeState.bestTime || this.modeState.timer > this.modeState.bestTime) {
             this.modeState.bestTime = this.modeState.timer;
+            setBestTime(this.currentMode, this.modeState.bestTime);
           }
           
           // Pause and mark as complete temporarily
