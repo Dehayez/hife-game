@@ -171,13 +171,19 @@ scene.add(player);
 let lastFacing = 'front'; // 'front' or 'back'
 let currentAnimKey = 'idle_front';
 
-function setCurrentAnim(key) {
+function setCurrentAnim(key, force = false) {
   if (!animations) return;
-  if (currentAnimKey === key) return;
+  if (!force && currentAnimKey === key) return;
   currentAnimKey = key;
   const anim = animations[key];
   if (!anim) return;
-  spriteMat.map = anim.mode === 'frames' ? anim.textures[anim.frameIndex || 0] : anim.texture;
+  // Reset timing so first frame shows immediately
+  anim.frameIndex = 0;
+  anim.timeAcc = 0;
+  spriteMat.map = anim.mode === 'frames' ? anim.textures[0] : anim.texture;
+  if (anim.mode === 'sheet') {
+    anim.texture.offset.x = 0;
+  }
   spriteMat.needsUpdate = true;
 }
 
@@ -215,7 +221,8 @@ async function loadCharacter(name) {
   animations = loaded;
   currentAnimKey = 'idle_front';
   lastFacing = 'front';
-  setCurrentAnim(currentAnimKey);
+  // Force refresh so sprite updates immediately on character change
+  setCurrentAnim(currentAnimKey, true);
 }
 
 // Simple walls (obstacles)
