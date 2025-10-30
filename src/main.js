@@ -192,7 +192,12 @@ function updateAnimation(dt) {
   const anim = animations[currentAnimKey];
   if (!anim || anim.frameCount <= 1) return; // single-frame, nothing to do
   anim.timeAcc += dt;
-  const frameDuration = 1 / anim.fps;
+  
+  // Use higher FPS when running (shift held) for walk animations
+  const isRunning = inputState.shift && (currentAnimKey === 'walk_front' || currentAnimKey === 'walk_back');
+  const currentFps = isRunning ? anim.fps * 1.5 : anim.fps; // 1.5x faster animation when running
+  
+  const frameDuration = 1 / currentFps;
   while (anim.timeAcc >= frameDuration) {
     anim.timeAcc -= frameDuration;
     anim.frameIndex = (anim.frameIndex + 1) % anim.frameCount;
@@ -252,7 +257,7 @@ addWall(3, 3, 0.4, 6);
 addWall(-2, 5, 4, 0.4);
 
 // Keyboard input (supports Arrow keys, WASD and ZQSD via .code)
-const inputState = { up: false, down: false, left: false, right: false };
+const inputState = { up: false, down: false, left: false, right: false, shift: false };
 function setKeyState(e, pressed) {
   // Arrow keys by value
   switch (e.key) {
@@ -275,12 +280,17 @@ function setKeyState(e, pressed) {
     case 'a': case 'A': case 'q': case 'Q': inputState.left = pressed; break; // Q on AZERTY
     case 'd': case 'D': inputState.right = pressed; break;
   }
+  // Shift key for running
+  switch (e.key) {
+    case 'Shift': inputState.shift = pressed; break;
+  }
 }
 window.addEventListener('keydown', (e) => { setKeyState(e, true); });
 window.addEventListener('keyup', (e) => { setKeyState(e, false); });
 
 // Movement parameters
 const moveSpeed = 4; // units per second
+const runSpeedMultiplier = 1.8; // speed multiplier when running
 const turnLerp = 0.18; // smooth facing rotation
 
 // Simple AABB collision helper
@@ -331,7 +341,8 @@ function tick(now) {
   if (input.lengthSq() > 1) input.normalize();
 
   // Calculate intended next position on XZ plane
-  const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(moveSpeed * dt);
+  const currentSpeed = inputState.shift ? moveSpeed * runSpeedMultiplier : moveSpeed;
+  const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
   const nextPos = player.position.clone().add(velocity);
 
   // Collision check against walls and boundaries
