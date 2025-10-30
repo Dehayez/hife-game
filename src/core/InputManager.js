@@ -7,7 +7,8 @@ export class InputManager {
       down: false, 
       left: false, 
       right: false, 
-      shift: false 
+      shift: false,
+      jump: false
     };
     
     this.moveSpeed = 4; // units per second
@@ -50,6 +51,11 @@ export class InputManager {
     switch (e.key) {
       case 'Shift': this.inputState.shift = pressed; break;
     }
+    
+    // Space key for jumping
+    switch (e.key) {
+      case ' ': this.inputState.jump = pressed; break;
+    }
   }
 
   getInputVector() {
@@ -74,5 +80,9 @@ export class InputManager {
   hasMovement() {
     const input = this.getInputVector();
     return input.x !== 0 || input.y !== 0;
+  }
+
+  isJumpPressed() {
+    return this.inputState.jump;
   }
 }

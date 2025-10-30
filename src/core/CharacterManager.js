@@ -12,6 +12,15 @@ export class CharacterManager {
     this.playerHeight = 1.2;
     this.characterName = 'lucy';
     
+    // Jump physics properties
+    this.velocityY = 0;
+    this.gravity = -15; // negative gravity pulls down
+    this.jumpForce = 8; // upward velocity when jumping
+    this.groundY = 0.6; // ground level (half of playerHeight)
+    this.isGrounded = true;
+    this.jumpCooldown = 0;
+    this.jumpCooldownTime = 0.1; // prevent rapid jumping
+    
     // Only setup player if scene is available
     if (this.scene) {
       this._setupPlayer();
@@ -107,8 +116,11 @@ export class CharacterManager {
     const camYaw = camera.rotation.y;
     this.player.rotation.set(0, camYaw, 0);
 
-    // Choose animation based on movement and last facing (front/back)
-    if (input.lengthSq() > 0.0001) {
+    // Choose animation based on movement, jumping state, and last facing (front/back)
+    if (this.isJumping()) {
+      // Use idle animation when jumping (can be replaced with jump animations later)
+      this.setCurrentAnim(this.lastFacing === 'back' ? 'idle_back' : 'idle_front');
+    } else if (input.lengthSq() > 0.0001) {
       // Only change facing when moving along Z (forward/back). Sideways should not flip facing.
       if (Math.abs(velocity.z) > 1e-4) {
         this.lastFacing = velocity.z < 0 ? 'back' : 'front';
@@ -129,5 +141,39 @@ export class CharacterManager {
 
   getCharacterName() {
     return this.characterName;
+  }
+
+  jump() {
+    if (this.isGrounded && this.jumpCooldown <= 0) {
+      this.velocityY = this.jumpForce;
+      this.isGrounded = false;
+      this.jumpCooldown = this.jumpCooldownTime;
+    }
+  }
+
+  updateJumpPhysics(dt) {
+    // Update jump cooldown
+    if (this.jumpCooldown > 0) {
+      this.jumpCooldown -= dt;
+    }
+
+    // Apply gravity
+    this.velocityY += this.gravity * dt;
+
+    // Update vertical position
+    this.player.position.y += this.velocityY * dt;
+
+    // Check for ground collision
+    if (this.player.position.y <= this.groundY) {
+      this.player.position.y = this.groundY;
+      this.velocityY = 0;
+      this.isGrounded = true;
+    } else {
+      this.isGrounded = false;
+    }
+  }
+
+  isJumping() {
+    return !this.isGrounded;
   }
 }

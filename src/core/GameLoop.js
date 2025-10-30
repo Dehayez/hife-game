@@ -38,6 +38,14 @@ export class GameLoop {
     const player = this.characterManager.getPlayer();
     const input = this.inputManager.getInputVector();
     
+    // Handle jump input
+    if (this.inputManager.isJumpPressed()) {
+      this.characterManager.jump();
+    }
+    
+    // Update jump physics
+    this.characterManager.updateJumpPhysics(dt);
+    
     // Calculate intended next position on XZ plane
     const currentSpeed = this.inputManager.getCurrentSpeed();
     const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
@@ -47,7 +55,9 @@ export class GameLoop {
     this.collisionManager.constrainToArena(nextPos, this.characterManager.getPlayerSize());
 
     if (!this.collisionManager.willCollide(nextPos, this.characterManager.getPlayerSize())) {
-      player.position.copy(nextPos);
+      player.position.x = nextPos.x;
+      player.position.z = nextPos.z;
+      // Y position is handled by jump physics
     }
 
     // Update character movement and animation
