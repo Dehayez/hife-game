@@ -2,14 +2,15 @@ export function initControlsLegend({ mount }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'ui__legend-panel';
 
+  // Legend title
+  const legendTitle = document.createElement('h3');
+  legendTitle.className = 'ui__legend-title';
+  legendTitle.textContent = 'Legend';
+  wrapper.appendChild(legendTitle);
+
   // Movement keys section
   const movementSection = document.createElement('div');
   movementSection.className = 'ui__legend-section';
-
-  const movementTitle = document.createElement('h3');
-  movementTitle.className = 'ui__legend-title';
-  movementTitle.textContent = 'Movement';
-  movementSection.appendChild(movementTitle);
 
   // Arrow keys layout
   const arrowGroup = document.createElement('div');
@@ -44,17 +45,17 @@ export function initControlsLegend({ mount }) {
 
   wrapper.appendChild(movementSection);
 
-  // Running section
-  const runningSection = document.createElement('div');
-  runningSection.className = 'ui__legend-section';
-
-  const runningTitle = document.createElement('h3');
-  runningTitle.className = 'ui__legend-title';
-  runningTitle.textContent = 'Actions';
-  runningSection.appendChild(runningTitle);
+  // Actions section
+  const actionsSection = document.createElement('div');
+  actionsSection.className = 'ui__legend-section';
 
   const runGroup = document.createElement('div');
   runGroup.className = 'ui__legend-group';
+  
+  const runLabel = document.createElement('span');
+  runLabel.className = 'ui__legend-label';
+  runLabel.textContent = 'Run:';
+  runGroup.appendChild(runLabel);
   
   const runKeys = document.createElement('div');
   runKeys.className = 'ui__legend-keys ui__legend-keys--run';
@@ -64,17 +65,17 @@ export function initControlsLegend({ mount }) {
   shiftKey.innerHTML = '⇧ Shift';
   runKeys.appendChild(shiftKey);
   
-  const runLabel = document.createElement('span');
-  runLabel.className = 'ui__legend-label';
-  runLabel.textContent = 'Run';
-  runKeys.appendChild(runLabel);
-  
   runGroup.appendChild(runKeys);
-  runningSection.appendChild(runGroup);
+  actionsSection.appendChild(runGroup);
 
   // Jump action
   const jumpGroup = document.createElement('div');
   jumpGroup.className = 'ui__legend-group';
+  
+  const jumpLabel = document.createElement('span');
+  jumpLabel.className = 'ui__legend-label';
+  jumpLabel.textContent = 'Jump:';
+  jumpGroup.appendChild(jumpLabel);
   
   const jumpKeys = document.createElement('div');
   jumpKeys.className = 'ui__legend-keys ui__legend-keys--jump';
@@ -84,15 +85,10 @@ export function initControlsLegend({ mount }) {
   spaceKey.innerHTML = 'Space';
   jumpKeys.appendChild(spaceKey);
   
-  const jumpLabel = document.createElement('span');
-  jumpLabel.className = 'ui__legend-label';
-  jumpLabel.textContent = 'Jump';
-  jumpKeys.appendChild(jumpLabel);
-  
   jumpGroup.appendChild(jumpKeys);
-  runningSection.appendChild(jumpGroup);
+  actionsSection.appendChild(jumpGroup);
 
-  wrapper.appendChild(runningSection);
+  wrapper.appendChild(actionsSection);
 
   mount.appendChild(wrapper);
 
