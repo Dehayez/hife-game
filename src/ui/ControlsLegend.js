@@ -72,6 +72,26 @@ export function initControlsLegend({ mount }) {
   runGroup.appendChild(runKeys);
   runningSection.appendChild(runGroup);
 
+  // Jump action
+  const jumpGroup = document.createElement('div');
+  jumpGroup.className = 'ui__legend-group';
+  
+  const jumpKeys = document.createElement('div');
+  jumpKeys.className = 'ui__legend-keys ui__legend-keys--jump';
+  
+  const spaceKey = document.createElement('div');
+  spaceKey.className = 'ui__legend-key ui__legend-key--space';
+  spaceKey.innerHTML = 'Space';
+  jumpKeys.appendChild(spaceKey);
+  
+  const jumpLabel = document.createElement('span');
+  jumpLabel.className = 'ui__legend-label';
+  jumpLabel.textContent = 'Jump';
+  jumpKeys.appendChild(jumpLabel);
+  
+  jumpGroup.appendChild(jumpKeys);
+  runningSection.appendChild(jumpGroup);
+
   wrapper.appendChild(runningSection);
 
   mount.appendChild(wrapper);

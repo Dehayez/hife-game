@@ -46,6 +46,11 @@ html, body { height: 100%; margin: 0; }
   gap: 8px; 
   align-items: center;
 }
+.ui__legend-keys--jump { 
+  display: flex; 
+  gap: 8px; 
+  align-items: center;
+}
 .ui__legend-key { 
   background: #0f141c; 
   border: 1px solid rgba(255,255,255,0.15); 
@@ -69,6 +74,12 @@ html, body { height: 100%; margin: 0; }
   font-weight: 600;
   justify-content: flex-start; /* Align shift arrow to the left */
   padding-left: 4px; /* Add some left padding */
+}
+.ui__legend-key--space { 
+  min-width: 100px; 
+  font-size: 11px; 
+  font-weight: 600;
+  justify-content: center; /* Center space text */
 }
 
 /* Arrow keys positioning */
