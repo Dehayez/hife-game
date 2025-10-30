@@ -125,6 +125,9 @@ export class GameLoop {
     
     this.characterManager.updateAnimation(dt, this.inputManager.isRunning());
 
+    // Update magical particle animations
+    this.sceneManager.updateParticles(dt);
+
     // Camera follows player
     this.sceneManager.updateCamera(player.position);
   }
