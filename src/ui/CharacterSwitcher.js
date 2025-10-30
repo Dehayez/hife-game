@@ -1,33 +1,62 @@
 export function initCharacterSwitcher({ mount, options, value, onChange }) {
   const wrapper = document.createElement('div');
-  wrapper.className = 'ui__control';
+  wrapper.className = 'ui__choices';
 
-  const label = document.createElement('label');
-  label.className = 'ui__label';
-  label.textContent = 'Character';
-  label.setAttribute('for', 'char-select');
+  const buttons = new Map();
 
-  const select = document.createElement('select');
-  select.className = 'ui__select';
-  select.id = 'char-select';
+  function toTitleCase(str) {
+    if (!str) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  function createChoice(name) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ui__choice';
+    btn.setAttribute('aria-pressed', String(name === value));
+    btn.dataset.name = name;
+
+    const img = document.createElement('img');
+    img.className = 'ui__choice-img';
+    img.alt = name;
+    img.src = `/assets/characters/${name}/idle_front.png`;
+
+    const caption = document.createElement('span');
+    caption.className = 'ui__choice-caption';
+    caption.textContent = toTitleCase(name);
+
+    btn.appendChild(img);
+    btn.appendChild(caption);
+
+    btn.addEventListener('click', () => {
+      selectValue(name);
+      onChange(name);
+    });
+
+    return btn;
+  }
+
+  function selectValue(name) {
+    value = name;
+    for (const [, b] of buttons) {
+      const isActive = b.dataset.name === name;
+      b.classList.toggle('is-active', isActive);
+      b.setAttribute('aria-pressed', String(isActive));
+    }
+  }
 
   options.forEach((name) => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    if (name === value) opt.selected = true;
-    select.appendChild(opt);
+    const btn = createChoice(name);
+    if (name === value) btn.classList.add('is-active');
+    buttons.set(name, btn);
+    wrapper.appendChild(btn);
   });
 
-  select.addEventListener('change', () => onChange(select.value));
-
-  wrapper.appendChild(label);
-  wrapper.appendChild(select);
   mount.appendChild(wrapper);
 
   return {
     setValue(next) {
-      select.value = next;
+      if (buttons.has(next)) selectValue(next);
     }
   };
 }
