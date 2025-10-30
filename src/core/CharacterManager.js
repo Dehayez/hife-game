@@ -15,7 +15,7 @@ export class CharacterManager {
     // Jump physics properties
     this.velocityY = 0;
     this.gravity = -15; // negative gravity pulls down
-    this.jumpForce = 8; // upward velocity when jumping
+    this.jumpForce = 6; // upward velocity when jumping
     this.groundY = 0.6; // ground level (half of playerHeight)
     this.isGrounded = true;
     this.jumpCooldown = 0;
