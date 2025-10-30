@@ -6,7 +6,9 @@ html, body { height: 100%; margin: 0; }
 
 .ui { position: fixed; inset: 0; pointer-events: none; }
 .ui--overlay { display: flex; align-items: flex-start; justify-content: center; padding: 16px; }
+.ui--legend { display: flex; align-items: flex-start; justify-content: flex-end; padding: 16px; }
 .ui__panel { background: rgba(8, 12, 18, 0.6); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px; pointer-events: auto; }
+.ui__legend-panel { background: rgba(8, 12, 18, 0.6); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px; pointer-events: auto; max-width: 280px; }
 .ui__title { font-size: 16px; margin: 0 0 6px 0; text-align: center; }
 .ui__hint { font-size: 13px; opacity: 0.85; margin: 0; }
 
@@ -22,5 +24,69 @@ html, body { height: 100%; margin: 0; }
 .ui__choice.is-active { outline: none; border-color: #3c8ce7; background: #0f141c; box-shadow: 0 0 0 2px rgba(60,140,231,0.25) inset; }
 .ui__choice-img { width: 56px; height: 56px; image-rendering: pixelated; object-fit: contain; }
 .ui__choice-caption { font-size: 12px; opacity: 0.9; }
+
+/* Controls legend */
+.ui__legend { margin-top: 16px; }
+.ui__legend-section { margin-bottom: 12px; }
+.ui__legend-section:last-child { margin-bottom: 0; }
+.ui__legend-title { font-size: 13px; font-weight: 600; margin: 0 0 8px 0; color: #e7ebf0; opacity: 0.9; }
+.ui__legend-group { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ui__legend-group:last-child { margin-bottom: 0; }
+.ui__legend-label { font-size: 12px; color: #e7ebf0; opacity: 0.8; min-width: 80px; }
+.ui__legend-keys { display: flex; gap: 4px; }
+.ui__legend-keys--arrows { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr 1fr; 
+  grid-template-rows: 1fr 1fr; 
+  gap: 2px; 
+  width: fit-content;
+}
+.ui__legend-keys--run { 
+  display: flex; 
+  gap: 8px; 
+  align-items: center;
+}
+.ui__legend-key { 
+  background: #0f141c; 
+  border: 1px solid rgba(255,255,255,0.15); 
+  border-radius: 4px; 
+  padding: 4px 6px; 
+  font-size: 11px; 
+  font-weight: 500; 
+  color: #3c8ce7; 
+  text-align: center; 
+  min-width: 24px; 
+  height: 20px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+  opacity: 0.9;
+}
+.ui__legend-key--shift { 
+  min-width: 60px; 
+  font-size: 11px; 
+  font-weight: 600;
+  justify-content: flex-start; /* Align shift arrow to the left */
+  padding-left: 4px; /* Add some left padding */
+}
+
+/* Arrow keys positioning */
+.ui__legend-key--up {
+  grid-column: 2; /* Center Up */
+  grid-row: 1;
+}
+.ui__legend-key--left {
+  grid-column: 1; /* Left Left */
+  grid-row: 2;
+}
+.ui__legend-key--down {
+  grid-column: 2; /* Center Down */
+  grid-row: 2;
+}
+.ui__legend-key--right {
+  grid-column: 3; /* Right Right */
+  grid-row: 2;
+}
 
 

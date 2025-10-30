@@ -1,6 +1,7 @@
 // Minimal dependencies via CDN ESM
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { initCharacterSwitcher } from './ui/CharacterSwitcher.js';
+import { initControlsLegend } from './ui/ControlsLegend.js';
 
 const canvas = document.getElementById('app-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -390,6 +391,12 @@ initCharacterSwitcher({
   options: AVAILABLE_CHARACTERS,
   value: initialChar,
   onChange: (val) => { loadCharacter(val); }
+});
+
+// Initialize controls legend
+const legendMount = document.getElementById('controls-legend') || document.body;
+initControlsLegend({
+  mount: legendMount
 });
 
 // First character load (wrapped to avoid top-level await in build targets)
