@@ -1,6 +1,7 @@
 // Minimal dependencies via CDN ESM
 import { initCharacterSwitcher } from './ui/CharacterSwitcher.js';
 import { initControlsLegend } from './ui/ControlsLegend.js';
+import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { SceneManager } from './core/SceneManager.js';
 import { CharacterManager } from './core/CharacterManager.js';
@@ -15,10 +16,13 @@ const sceneManager = new SceneManager();
 // Initialize scene first
 sceneManager.init(canvas);
 
+// Create respawn overlay
+const respawnOverlay = new RespawnOverlay();
+
 // Now create other components that depend on the scene
 const characterManager = new CharacterManager(null); // Initialize without scene first
 const inputManager = new InputManager();
-const collisionManager = new CollisionManager(sceneManager.getScene(), sceneManager.getArenaSize());
+const collisionManager = new CollisionManager(sceneManager.getScene(), sceneManager.getArenaSize(), respawnOverlay);
 
 // Initialize character manager with the scene
 characterManager.initializePlayer(sceneManager.getScene());

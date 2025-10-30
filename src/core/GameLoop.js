@@ -46,6 +46,20 @@ export class GameLoop {
     // Update jump physics
     this.characterManager.updateJumpPhysics(dt, this.collisionManager);
     
+    // Check for respawn system
+    const shouldRespawn = this.collisionManager.updateRespawnSystem(
+      player.position.x, 
+      player.position.z, 
+      player.position.y, 
+      this.characterManager.getPlayerSize(), 
+      dt
+    );
+    
+    if (shouldRespawn) {
+      this.characterManager.respawn();
+      this.collisionManager.resetRespawn();
+    }
+    
     // Calculate intended next position on XZ plane
     const currentSpeed = this.inputManager.getCurrentSpeed();
     const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);

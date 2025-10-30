@@ -1,10 +1,16 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
 export class CollisionManager {
-  constructor(scene, arenaSize) {
+  constructor(scene, arenaSize, respawnOverlay = null) {
     this.scene = scene;
     this.arenaSize = arenaSize;
     this.walls = [];
+    
+    // Respawn system
+    this.isFallingOutside = false;
+    this.respawnCountdown = 0;
+    this.respawnTime = 3; // 3 seconds countdown
+    this.respawnOverlay = respawnOverlay;
     
     this._createWalls();
   }
@@ -95,6 +101,69 @@ export class CollisionManager {
   isOnGround(x, z, y, playerSize, tolerance = 0.1) {
     const groundHeight = this.getGroundHeight(x, z, playerSize);
     return Math.abs(y - groundHeight) <= tolerance;
+  }
+
+  updateRespawnSystem(x, z, y, playerSize, dt) {
+    const halfArena = this.arenaSize / 2;
+    const isWithinArena = Math.abs(x) < halfArena && Math.abs(z) < halfArena;
+    
+    // Check if player is falling outside arena
+    if (!isWithinArena && y < 0) {
+      if (!this.isFallingOutside) {
+        // Just started falling outside
+        this.isFallingOutside = true;
+        this.respawnCountdown = this.respawnTime;
+        console.log(`Falling outside arena! Respawning in ${this.respawnTime} seconds...`);
+        
+        // Show respawn overlay
+        if (this.respawnOverlay) {
+          this.respawnOverlay.show(this.respawnCountdown);
+        }
+      } else {
+        // Continue countdown
+        this.respawnCountdown -= dt;
+        
+        // Update overlay countdown
+        if (this.respawnOverlay) {
+          this.respawnOverlay.updateCountdown(this.respawnCountdown);
+        }
+        
+        if (this.respawnCountdown <= 0) {
+          this.respawnCountdown = 0;
+          return true; // Signal to respawn
+        }
+      }
+    } else if (isWithinArena && this.isFallingOutside) {
+      // Player is back in arena, cancel respawn
+      this.isFallingOutside = false;
+      this.respawnCountdown = 0;
+      console.log("Back in arena! Respawn cancelled.");
+      
+      // Hide respawn overlay
+      if (this.respawnOverlay) {
+        this.respawnOverlay.hide();
+      }
+    }
+    
+    return false; // No respawn needed
+  }
+
+  getRespawnCountdown() {
+    return this.respawnCountdown;
+  }
+
+  isRespawnPending() {
+    return this.isFallingOutside && this.respawnCountdown > 0;
+  }
+
+  resetRespawn() {
+    this.isFallingOutside = false;
+    this.respawnCountdown = 0;
+    
+    // Reset the overlay
+    if (this.respawnOverlay) {
+      this.respawnOverlay.reset();
+    }
   }
 
   constrainToArena(position, playerSize) {

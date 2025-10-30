@@ -185,4 +185,16 @@ export class CharacterManager {
   isJumping() {
     return !this.isGrounded;
   }
+
+  respawn() {
+    // Reset position to center of arena
+    this.player.position.set(0, this.playerHeight * 0.5, 0);
+    
+    // Reset physics
+    this.velocityY = 0;
+    this.isGrounded = true;
+    this.jumpCooldown = 0;
+    
+    console.log("Player respawned at center of arena!");
+  }
 }
