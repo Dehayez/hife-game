@@ -160,9 +160,9 @@ export class CollisionManager {
     this.isFallingOutside = false;
     this.respawnCountdown = 0;
     
-    // Reset the overlay
+    // Immediately reset the overlay (no fade transition)
     if (this.respawnOverlay) {
-      this.respawnOverlay.reset();
+      this.respawnOverlay.immediateReset();
     }
   }
 

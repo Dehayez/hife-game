@@ -56,8 +56,9 @@ export class GameLoop {
     );
     
     if (shouldRespawn) {
-      this.characterManager.respawn();
+      // Reset overlay immediately before respawning
       this.collisionManager.resetRespawn();
+      this.characterManager.respawn();
     }
     
     // Calculate intended next position on XZ plane

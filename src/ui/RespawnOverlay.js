@@ -85,6 +85,13 @@ export class RespawnOverlay {
     this.countdownText.textContent = '';
   }
 
+  immediateReset() {
+    this.isVisible = false;
+    this.overlay.style.opacity = '0';
+    this.overlay.style.display = 'none';
+    this.countdownText.textContent = '';
+  }
+
   destroy() {
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
