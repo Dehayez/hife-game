@@ -18,6 +18,13 @@ export function initGameModeDisplay({ mount, gameModeManager }) {
   function update() {
     const info = gameModeManager.getDisplayInfo();
     
+    // Hide entire panel if no mode info (free-play mode)
+    if (!info.mode) {
+      wrapper.style.display = 'none';
+      return;
+    }
+    
+    wrapper.style.display = 'block';
     modeLabel.textContent = info.mode;
     primaryInfo.textContent = info.primary || '';
     secondaryInfo.textContent = info.secondary || '';

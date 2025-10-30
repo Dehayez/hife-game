@@ -240,7 +240,7 @@ export class EntityManager {
     return positions;
   }
 
-  updateAnims(dt) {
+  updateAnims(dt, canMove = true) {
     for (const item of this.collectibles) {
       if (item.userData.collected) continue;
       item.rotation.y += dt * 2;
@@ -256,6 +256,9 @@ export class EntityManager {
       // Pulse animation
       const pulse = Math.sin(performance.now() * 0.005 + hazard.position.x) * 0.5 + 0.5;
       hazard.material.emissiveIntensity = 0.3 + pulse * 0.4;
+      
+      // Only move hazards if countdown is complete
+      if (!canMove) continue;
       
       // Random movement
       const userData = hazard.userData;

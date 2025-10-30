@@ -1,13 +1,14 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
 export class GameLoop {
-  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, startButton = null) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
     this.collisionManager = collisionManager;
     this.gameModeManager = gameModeManager;
     this.entityManager = entityManager;
+    this.startButton = startButton;
     
     this.lastTime = performance.now();
     this.isRunning = false;
@@ -46,6 +47,15 @@ export class GameLoop {
       return;
     }
     
+    // Check if countdown is running - prevent movement during countdown
+    // Only enforce countdown for time-trial and survival modes
+    const mode = this.gameModeManager ? this.gameModeManager.getMode() : 'free-play';
+    const requiresCountdown = mode === 'time-trial' || mode === 'survival';
+    const isCountdownRunning = this.startButton && this.startButton.isCountdownRunning();
+    const isCountdownComplete = !requiresCountdown || !this.startButton || this.startButton.isCountdownFinished();
+    const isModeStarted = !requiresCountdown || !this.gameModeManager || !this.gameModeManager.modeState || this.gameModeManager.modeState.isStarted;
+    const canMove = !isCountdownRunning && isCountdownComplete && isModeStarted;
+    
     const player = this.characterManager.getPlayer();
     const input = this.inputManager.getInputVector();
     
@@ -60,8 +70,8 @@ export class GameLoop {
         this.gameModeManager.handleEntityCollision(collision);
       }
       
-      // Update entity animations
-      this.entityManager.updateAnims(dt);
+      // Update entity animations (but don't move hazards during countdown)
+      this.entityManager.updateAnims(dt, canMove);
     }
     
     // Update game mode
@@ -69,8 +79,8 @@ export class GameLoop {
       this.gameModeManager.update(dt, this.entityManager);
     }
     
-    // Handle jump input
-    if (this.inputManager.isJumpPressed()) {
+    // Handle jump input (only if countdown is complete)
+    if (canMove && this.inputManager.isJumpPressed()) {
       this.characterManager.jump();
     }
     
@@ -92,20 +102,27 @@ export class GameLoop {
       this.characterManager.respawn();
     }
     
-    // Calculate intended next position on XZ plane
-    const currentSpeed = this.inputManager.getCurrentSpeed();
-    const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
-    const nextPos = player.position.clone().add(velocity);
+    // Only allow movement if countdown is complete
+    if (canMove) {
+      // Calculate intended next position on XZ plane
+      const currentSpeed = this.inputManager.getCurrentSpeed();
+      const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
+      const nextPos = player.position.clone().add(velocity);
 
-    // Collision check against walls only (no invisible boundaries)
-    if (!this.collisionManager.willCollide(nextPos, this.characterManager.getPlayerSize())) {
-      player.position.x = nextPos.x;
-      player.position.z = nextPos.z;
-      // Y position is handled by jump physics
+      // Collision check against walls only (no invisible boundaries)
+      if (!this.collisionManager.willCollide(nextPos, this.characterManager.getPlayerSize())) {
+        player.position.x = nextPos.x;
+        player.position.z = nextPos.z;
+        // Y position is handled by jump physics
+      }
+
+      // Update character movement and animation
+      this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera());
+    } else {
+      // During countdown, keep character idle
+      this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera());
     }
-
-    // Update character movement and animation
-    this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera());
+    
     this.characterManager.updateAnimation(dt, this.inputManager.isRunning());
 
     // Camera follows player

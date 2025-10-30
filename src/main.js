@@ -44,19 +44,14 @@ gameModeManager.setOnRestartCallback(() => {
   checkStartButton();
 });
 
-const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager);
+// Create start button before game loop
+const startButton = new StartButton(() => {
+  // On start
+  gameModeManager.startMode();
+  startButton.hide();
+});
 
-// Create start button
-const startButton = new StartButton(
-  () => {
-    // On start
-    gameModeManager.startMode();
-    startButton.hide();
-  },
-  () => {
-    // On cancel - just hide, do nothing
-  }
-);
+const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, startButton);
 
 // Show start button when mode changes or when mode is not started
 const checkStartButton = () => {
@@ -86,6 +81,13 @@ initCharacterSwitcher({
   value: characterName,
   onChange: (val) => { characterManager.loadCharacter(val); }
 });
+
+// Mount start button below character switcher
+const charSwitcherPanel = switcherMount.closest('.ui__panel');
+if (charSwitcherPanel) {
+  charSwitcherPanel.appendChild(startButton.getElement());
+  startButton.hide(); // Initially hidden, shown by checkStartButton
+}
 
 // Game mode selection via URL param ?mode=free-play (defaults to 'free-play')
 const gameMode = getParam('mode', 'free-play');

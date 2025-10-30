@@ -226,7 +226,7 @@ export class GameModeManager {
         };
       default:
         return {
-          mode: config.name,
+          mode: null,
           primary: null,
           secondary: null
         };
