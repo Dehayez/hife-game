@@ -381,7 +381,9 @@ initCharacterSwitcher({
   onChange: (val) => { loadCharacter(val); }
 });
 
-// First character load
-await loadCharacter(initialChar);
+// First character load (wrapped to avoid top-level await in build targets)
+(async () => {
+  await loadCharacter(initialChar);
+})();
 
 
