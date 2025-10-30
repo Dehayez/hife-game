@@ -1,12 +1,20 @@
-export function initGameModeSwitcher({ mount, options, value, onChange }) {
+export function initGameModeSwitcher({ mount, options, value, onChange, gameModeManager = null }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'ui__choices';
 
   const buttons = new Map();
 
-  function toTitleCase(str) {
-    if (!str) return str;
-    return str.split('-').map(word => 
+  function getModeName(mode) {
+    // Use themed name from GameModeManager if available
+    if (gameModeManager) {
+      const config = gameModeManager.getModeConfigByKey(mode);
+      if (config && config.name) {
+        return config.name;
+      }
+    }
+    // Fallback to title case
+    if (!mode) return mode;
+    return mode.split('-').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   }
@@ -20,7 +28,7 @@ export function initGameModeSwitcher({ mount, options, value, onChange }) {
 
     const caption = document.createElement('span');
     caption.className = 'ui__choice-caption';
-    caption.textContent = toTitleCase(mode);
+    caption.textContent = getModeName(mode);
 
     btn.appendChild(caption);
 

@@ -12,7 +12,7 @@ export class StartButton {
     // Create start button
     this.button = document.createElement('button');
     this.button.className = 'ui__start-button';
-    this.button.textContent = 'Start';
+    this.button.textContent = 'Enter Forest';
     this.button.type = 'button';
 
     this.button.addEventListener('click', () => {
@@ -35,7 +35,7 @@ export class StartButton {
     if (this.button) {
       this.button.style.display = 'block';
       this.button.disabled = false;
-      this.button.textContent = 'Start';
+      this.button.textContent = 'Enter Forest';
       this.button.classList.remove('is-counting');
     }
     this.countdown = 3;

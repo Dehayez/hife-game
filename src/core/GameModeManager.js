@@ -8,23 +8,23 @@ export class GameModeManager {
     this.onRestartCallback = null;
     this.modes = {
       'free-play': {
-        name: 'Free Play',
-        description: 'Explore freely',
+        name: 'Forest Wander',
+        description: 'Explore the magical forest freely',
         enabled: true
       },
       'time-trial': {
-        name: 'Time Trial',
-        description: 'Complete challenges against the clock',
+        name: 'Crystal Shrine',
+        description: 'Activate mystical shrines before time runs out',
         enabled: true
       },
       'collection': {
-        name: 'Collection',
-        description: 'Collect items across the arena',
+        name: 'Gem Gathering',
+        description: 'Collect enchanted crystals scattered throughout',
         enabled: true
       },
       'survival': {
-        name: 'Survival',
-        description: 'Survive as long as possible',
+        name: 'Shadow Escape',
+        description: 'Survive the cursed thorns as long as possible',
         enabled: true
       }
     };
@@ -143,6 +143,10 @@ export class GameModeManager {
     return this.modes[this.currentMode];
   }
 
+  getModeConfigByKey(modeKey) {
+    return this.modes[modeKey] || null;
+  }
+
   resetModeState() {
     this.modeState = {
       timer: 0,
@@ -228,25 +232,25 @@ export class GameModeManager {
         const checkpointsInfo = this.entityManager 
           ? `${this.entityManager.getActivatedCheckpoints()}/${this.entityManager.getAllCheckpoints()}`
           : '';
-        const completeText = this.modeState.isComplete ? ' ✓ Complete!' : '';
+        const completeText = this.modeState.isComplete ? ' ✓ All Shrines Activated!' : '';
         const bestTimeText = this.modeState.bestTime 
           ? ` | Best: ${this.formatTime(this.modeState.bestTime)}` 
           : '';
         return {
           mode: config.name,
           primary: this.formatTime(this.modeState.timer) + completeText + bestTimeText,
-          secondary: checkpointsInfo ? `Checkpoints: ${checkpointsInfo}` : null
+          secondary: checkpointsInfo ? `Shrines: ${checkpointsInfo}` : null
         };
       case 'collection':
         const remaining = this.entityManager ? this.entityManager.getRemainingCollectibles() : 0;
         const total = this.entityManager ? this.entityManager.getAllCollectibles() : 0;
         const collectInfo = total > 0 ? `${total - remaining}/${total}` : '';
-        const completeCollect = remaining === 0 && total > 0 ? ' ✓ Complete!' : '';
+        const completeCollect = remaining === 0 && total > 0 ? ' ✓ All Gems Collected!' : '';
         const highScoreText = this.modeState.highScore > 0 ? ` | High: ${this.modeState.highScore}` : '';
         return {
           mode: config.name,
-          primary: collectInfo ? `Items: ${collectInfo}${completeCollect}` : `Items: ${this.modeState.items.length}`,
-          secondary: `Score: ${this.modeState.score}${highScoreText}`
+          primary: collectInfo ? `Gems: ${collectInfo}${completeCollect}` : `Gems: ${this.modeState.items.length}`,
+          secondary: `Magical Energy: ${this.modeState.score}${highScoreText}`
         };
       case 'survival':
         const survivalBestTimeText = this.modeState.bestTime 
@@ -259,7 +263,7 @@ export class GameModeManager {
         return {
           mode: config.name,
           primary: this.formatTime(this.modeState.timer) + survivalBestTimeText + lastTimeText,
-          secondary: `Score: ${this.modeState.score}${survivalHighScoreText}`
+          secondary: `Spirit Power: ${this.modeState.score}${survivalHighScoreText}`
         };
       default:
         return {

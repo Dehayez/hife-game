@@ -106,7 +106,8 @@ initGameModeSwitcher({
   onChange: (mode) => { 
     gameModeManager.setMode(mode);
     checkStartButton();
-  }
+  },
+  gameModeManager: gameModeManager
 });
 
 // Initialize controls legend
