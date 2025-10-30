@@ -44,8 +44,8 @@ export class CollisionManager {
     // Construct a temporary AABB for player at next position
     const half = playerSize / 2;
     const playerBox = new THREE.Box3(
-      new THREE.Vector3(nextPos.x - half, 0, nextPos.z - half),
-      new THREE.Vector3(nextPos.x + half, playerSize, nextPos.z + half)
+      new THREE.Vector3(nextPos.x - half, nextPos.y, nextPos.z - half),
+      new THREE.Vector3(nextPos.x + half, nextPos.y + playerSize, nextPos.z + half)
     );
     
     for (const wall of this.walls) {
