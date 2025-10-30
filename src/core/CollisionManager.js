@@ -5,6 +5,8 @@ export class CollisionManager {
     this.scene = scene;
     this.arenaSize = arenaSize;
     this.walls = [];
+    this.innerWalls = [];
+    this.gameModeManager = null;
     
     // Respawn system
     this.isFallingOutside = false;
@@ -13,6 +15,15 @@ export class CollisionManager {
     this.respawnOverlay = respawnOverlay;
     
     this._createWalls();
+  }
+
+  setGameModeManager(gameModeManager) {
+    this.gameModeManager = gameModeManager;
+    this.updateWallsForMode();
+  }
+
+  updateWallsForMode() {
+    this._updateInnerWalls();
   }
 
   _createWalls() {
@@ -24,9 +35,41 @@ export class CollisionManager {
     this.addWall((this.arenaSize / 2) - margin, 0, 0.4, this.arenaSize - margin * 2);
 
     // Inner obstacles
-    this.addWall(-4, -2, 6, 0.4);
-    this.addWall(3, 3, 0.4, 6);
-    this.addWall(-2, 5, 4, 0.4);
+    this._createInnerWalls();
+  }
+
+  _createInnerWalls() {
+    // Store inner wall positions for easy recreation
+    const innerWallData = [
+      { x: -4, z: -2, w: 6, h: 0.4 },
+      { x: 3, z: 3, w: 0.4, h: 6 },
+      { x: -2, z: 5, w: 4, h: 0.4 }
+    ];
+
+    // Check if we should create inner walls (not in survival mode)
+    const shouldCreateInnerWalls = !this.gameModeManager || this.gameModeManager.getMode() !== 'survival';
+
+    if (shouldCreateInnerWalls) {
+      for (const wallData of innerWallData) {
+        const wall = this.addWall(wallData.x, wallData.z, wallData.w, wallData.h);
+        this.innerWalls.push(wall);
+      }
+    }
+  }
+
+  _updateInnerWalls() {
+    // Remove existing inner walls
+    for (const wall of this.innerWalls) {
+      this.scene.remove(wall);
+      const index = this.walls.indexOf(wall);
+      if (index > -1) {
+        this.walls.splice(index, 1);
+      }
+    }
+    this.innerWalls = [];
+
+    // Recreate inner walls based on current mode
+    this._createInnerWalls();
   }
 
   addWall(x, z, w, h) {
@@ -39,6 +82,7 @@ export class CollisionManager {
     wall.receiveShadow = true;
     this.scene.add(wall);
     this.walls.push(wall);
+    return wall;
   }
 
   getAABBFor(mesh) {

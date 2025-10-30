@@ -115,6 +115,14 @@ export class GameModeManager {
 
   _restartSurvivalMode() {
     this.resetModeState();
+    
+    // Reload high score and best time from storage after reset
+    this.modeState.highScore = getHighScore(this.currentMode);
+    const savedBestTime = getBestTime(this.currentMode);
+    if (savedBestTime !== null) {
+      this.modeState.bestTime = savedBestTime;
+    }
+    
     if (this.entityManager) {
       this._spawnModeEntities();
     }

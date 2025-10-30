@@ -31,12 +31,16 @@ const collisionManager = new CollisionManager(sceneManager.getScene(), sceneMana
 const entityManager = new EntityManager(sceneManager.getScene(), sceneManager.getArenaSize(), collisionManager);
 const gameModeManager = new GameModeManager(entityManager);
 
+// Connect game mode manager to collision manager
+collisionManager.setGameModeManager(gameModeManager);
+
 // Initialize character manager with the scene
 characterManager.initializePlayer(sceneManager.getScene());
 
 // Set respawn callback for mode changes
 gameModeManager.setOnModeChangeCallback(() => {
   characterManager.respawn();
+  collisionManager.updateWallsForMode();
 });
 
 // Set restart callback to show start button
