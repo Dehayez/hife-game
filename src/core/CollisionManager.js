@@ -60,7 +60,16 @@ export class CollisionManager {
     // Check if player is standing on top of any platform
     const half = playerSize / 2;
     
-    let highestPlatform = 0; // Default ground level
+    // Check if player is within arena bounds
+    const halfArena = this.arenaSize / 2;
+    const isWithinArena = Math.abs(x) < halfArena && Math.abs(z) < halfArena;
+    
+    // If outside arena, return negative infinity for endless fall
+    if (!isWithinArena) {
+      return -Infinity; // Endless fall outside arena
+    }
+    
+    let highestPlatform = 0; // Default ground level within arena
     
     for (const wall of this.walls) {
       const wallBox = this.getAABBFor(wall);

@@ -51,9 +51,7 @@ export class GameLoop {
     const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
     const nextPos = player.position.clone().add(velocity);
 
-    // Collision check against walls and boundaries (using current Y position for vertical collision)
-    this.collisionManager.constrainToArena(nextPos, this.characterManager.getPlayerSize());
-
+    // Collision check against walls only (no invisible boundaries)
     if (!this.collisionManager.willCollide(nextPos, this.characterManager.getPlayerSize())) {
       player.position.x = nextPos.x;
       player.position.z = nextPos.z;
