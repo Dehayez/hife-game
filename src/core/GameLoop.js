@@ -1,11 +1,13 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
 export class GameLoop {
-  constructor(sceneManager, characterManager, inputManager, collisionManager) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
     this.collisionManager = collisionManager;
+    this.gameModeManager = gameModeManager;
+    this.entityManager = entityManager;
     
     this.lastTime = performance.now();
     this.isRunning = false;
@@ -35,8 +37,37 @@ export class GameLoop {
   }
 
   update(dt) {
+    // Check if game mode is paused
+    const isPaused = this.gameModeManager && this.gameModeManager.modeState && this.gameModeManager.modeState.isPaused;
+    
+    if (isPaused) {
+      // Still render but don't update game logic
+      this.sceneManager.render();
+      return;
+    }
+    
     const player = this.characterManager.getPlayer();
     const input = this.inputManager.getInputVector();
+    
+    // Check entity collisions
+    if (this.entityManager) {
+      const collision = this.entityManager.checkPlayerCollision(
+        player.position,
+        this.characterManager.getPlayerSize()
+      );
+      
+      if (this.gameModeManager) {
+        this.gameModeManager.handleEntityCollision(collision);
+      }
+      
+      // Update entity animations
+      this.entityManager.updateAnims(dt);
+    }
+    
+    // Update game mode
+    if (this.gameModeManager) {
+      this.gameModeManager.update(dt, this.entityManager);
+    }
     
     // Handle jump input
     if (this.inputManager.isJumpPressed()) {

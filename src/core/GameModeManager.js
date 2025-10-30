@@ -1,0 +1,315 @@
+export class GameModeManager {
+  constructor(entityManager = null) {
+    this.currentMode = 'free-play';
+    this.entityManager = entityManager;
+    this.onModeChangeCallback = null;
+    this.onRestartCallback = null;
+    this.modes = {
+      'free-play': {
+        name: 'Free Play',
+        description: 'Explore freely',
+        enabled: true
+      },
+      'time-trial': {
+        name: 'Time Trial',
+        description: 'Complete challenges against the clock',
+        enabled: true
+      },
+      'collection': {
+        name: 'Collection',
+        description: 'Collect items across the arena',
+        enabled: true
+      },
+      'survival': {
+        name: 'Survival',
+        description: 'Survive as long as possible',
+        enabled: true
+      }
+    };
+    
+    this.modeState = {
+      timer: 0,
+      score: 0,
+      items: [],
+      hazards: [],
+      checkpoints: [],
+      startTime: null,
+      bestTime: null,
+      lastTime: null,
+      isComplete: false,
+      isPaused: false,
+      isStarted: false
+    };
+  }
+
+  setEntityManager(entityManager) {
+    this.entityManager = entityManager;
+  }
+
+  setOnModeChangeCallback(callback) {
+    this.onModeChangeCallback = callback;
+  }
+
+  setOnRestartCallback(callback) {
+    this.onRestartCallback = callback;
+  }
+
+  setMode(mode) {
+    if (!this.modes[mode] || !this.modes[mode].enabled) {
+      return false;
+    }
+    
+    const previousMode = this.currentMode;
+    this.currentMode = mode;
+    this.resetModeState();
+    
+    if (this.entityManager) {
+      this._spawnModeEntities();
+    }
+    
+    // Trigger respawn when mode changes
+    if (this.onModeChangeCallback && previousMode !== mode) {
+      this.onModeChangeCallback();
+    }
+    
+    return true;
+  }
+
+  _spawnModeEntities() {
+    if (!this.entityManager) return;
+    
+    switch (this.currentMode) {
+      case 'collection':
+        this.entityManager.spawnCollectiblesForCollection(8);
+        break;
+      case 'survival':
+        this.entityManager.spawnHazardsForSurvival(10);
+        this.modeState.timer = 0;
+        break;
+      case 'time-trial':
+        this.entityManager.spawnCheckpointsForTimeTrial(5);
+        this.modeState.timer = 0;
+        break;
+      default:
+        this.entityManager.clearAll();
+        break;
+    }
+  }
+
+  _restartSurvivalMode() {
+    this.resetModeState();
+    if (this.entityManager) {
+      this._spawnModeEntities();
+    }
+    this.modeState.isStarted = false; // Require start button again
+  }
+
+  getMode() {
+    return this.currentMode;
+  }
+
+  getModeConfig() {
+    return this.modes[this.currentMode];
+  }
+
+  resetModeState() {
+    this.modeState = {
+      timer: 0,
+      score: 0,
+      items: [],
+      hazards: [],
+      checkpoints: [],
+      startTime: null,
+      bestTime: null,
+      lastTime: null,
+      isComplete: false,
+      isPaused: false,
+      isStarted: false
+    };
+  }
+
+  startMode() {
+    this.modeState.isStarted = true;
+    this.modeState.isPaused = false;
+    
+    if (this.currentMode === 'time-trial' || this.currentMode === 'survival') {
+      this.modeState.startTime = Date.now() / 1000;
+    }
+  }
+
+  pause() {
+    this.modeState.isPaused = true;
+  }
+
+  resume() {
+    this.modeState.isPaused = false;
+  }
+
+  update(dt, entityManager) {
+    const mode = this.currentMode;
+    
+    switch (mode) {
+      case 'time-trial':
+        if (this.modeState.isStarted && !this.modeState.isPaused && this.modeState.startTime && !this.modeState.isComplete) {
+          this.modeState.timer += dt;
+          
+          if (entityManager) {
+            const activated = entityManager.getActivatedCheckpoints();
+            const total = entityManager.getAllCheckpoints();
+            
+            if (activated === total && total > 0 && !this.modeState.isComplete) {
+              this.modeState.isComplete = true;
+              const finishTime = this.modeState.timer;
+              if (!this.modeState.bestTime || finishTime < this.modeState.bestTime) {
+                this.modeState.bestTime = finishTime;
+              }
+            }
+          }
+        }
+        break;
+      case 'survival':
+        if (this.modeState.isStarted && !this.modeState.isPaused && !this.modeState.isComplete) {
+          this.modeState.timer += dt;
+        }
+        break;
+      case 'collection':
+        if (entityManager) {
+          const collected = entityManager.getAllCollectibles() - entityManager.getRemainingCollectibles();
+          const total = entityManager.getAllCollectibles();
+          
+          if (collected === total && total > 0) {
+            this.modeState.isComplete = true;
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  getDisplayInfo() {
+    const mode = this.currentMode;
+    const config = this.modes[mode];
+    
+    switch (mode) {
+      case 'time-trial':
+        const checkpointsInfo = this.entityManager 
+          ? `${this.entityManager.getActivatedCheckpoints()}/${this.entityManager.getAllCheckpoints()}`
+          : '';
+        const completeText = this.modeState.isComplete ? ' ✓ Complete!' : '';
+        return {
+          mode: config.name,
+          primary: this.formatTime(this.modeState.timer) + completeText,
+          secondary: checkpointsInfo ? `Checkpoints: ${checkpointsInfo}` : null
+        };
+      case 'collection':
+        const remaining = this.entityManager ? this.entityManager.getRemainingCollectibles() : 0;
+        const total = this.entityManager ? this.entityManager.getAllCollectibles() : 0;
+        const collectInfo = total > 0 ? `${total - remaining}/${total}` : '';
+        const completeCollect = remaining === 0 && total > 0 ? ' ✓ Complete!' : '';
+        return {
+          mode: config.name,
+          primary: collectInfo ? `Items: ${collectInfo}${completeCollect}` : `Items: ${this.modeState.items.length}`,
+          secondary: `Score: ${this.modeState.score}`
+        };
+      case 'survival':
+        const bestTimeText = this.modeState.bestTime 
+          ? ` | Best: ${this.formatTime(this.modeState.bestTime)}` 
+          : '';
+        const lastTimeText = this.modeState.lastTime 
+          ? ` | Last: ${this.formatTime(this.modeState.lastTime)}` 
+          : '';
+        return {
+          mode: config.name,
+          primary: this.formatTime(this.modeState.timer) + bestTimeText + lastTimeText,
+          secondary: `Score: ${this.modeState.score}`
+        };
+      default:
+        return {
+          mode: config.name,
+          primary: null,
+          secondary: null
+        };
+    }
+  }
+
+  formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 100);
+    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  }
+
+  addScore(points) {
+    this.modeState.score += points;
+  }
+
+  collectItem(itemId) {
+    if (!this.modeState.items.includes(itemId)) {
+      this.modeState.items.push(itemId);
+      this.addScore(10);
+      return true;
+    }
+    return false;
+  }
+
+  handleEntityCollision(collision) {
+    if (!collision) return;
+
+    if (collision.collectible) {
+      const itemId = collision.collectible.userData.id;
+      if (this.collectItem(itemId)) {
+        if (this.entityManager) {
+          this.entityManager.collectItem(collision.collectible);
+        }
+      }
+    }
+
+    if (collision.checkpoint) {
+      const checkpointId = collision.checkpoint.userData.id;
+      if (!this.modeState.checkpoints.includes(checkpointId)) {
+        this.modeState.checkpoints.push(checkpointId);
+        if (this.entityManager) {
+          this.entityManager.activateCheckpoint(collision.checkpoint);
+          this.addScore(20);
+        }
+      }
+    }
+
+    if (collision.hazard) {
+      if (this.currentMode === 'survival') {
+        // In survival mode, touching a hazard stops timer, saves time, and restarts
+        if (this.modeState.isStarted && !this.modeState.isComplete) {
+          // Save the current time
+          this.modeState.lastTime = this.modeState.timer;
+          
+          // Update best time if this is better
+          if (!this.modeState.bestTime || this.modeState.timer > this.modeState.bestTime) {
+            this.modeState.bestTime = this.modeState.timer;
+          }
+          
+          // Pause and mark as complete temporarily
+          this.modeState.isComplete = true;
+          this.modeState.isPaused = true;
+          
+          // Restart the mode after a short delay
+          setTimeout(() => {
+            this._restartSurvivalMode();
+            if (this.onModeChangeCallback) {
+              this.onModeChangeCallback();
+            }
+            // Trigger start button check
+            if (this.onRestartCallback) {
+              this.onRestartCallback();
+            }
+          }, 1500);
+        }
+      }
+    }
+  }
+
+  getAllModes() {
+    return Object.keys(this.modes).filter(key => this.modes[key].enabled);
+  }
+}
+
