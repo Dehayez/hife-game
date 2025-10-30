@@ -350,7 +350,10 @@ function tick(now) {
 
   // Choose animation based on movement and last facing (front/back)
   if (input.lengthSq() > 0.0001) {
-    lastFacing = velocity.z < 0 ? 'back' : 'front';
+    // Only change facing when moving along Z (forward/back). Sideways should not flip facing.
+    if (Math.abs(velocity.z) > 1e-4) {
+      lastFacing = velocity.z < 0 ? 'back' : 'front';
+    }
     setCurrentAnim(lastFacing === 'back' ? 'walk_back' : 'walk_front');
   } else {
     setCurrentAnim(lastFacing === 'back' ? 'idle_back' : 'idle_front');
