@@ -56,6 +56,38 @@ export class CollisionManager {
     return false;
   }
 
+  getGroundHeight(x, z, playerSize) {
+    // Check if player is standing on top of any platform
+    const half = playerSize / 2;
+    
+    let highestPlatform = 0; // Default ground level
+    
+    for (const wall of this.walls) {
+      const wallBox = this.getAABBFor(wall);
+      
+      // Check if player is horizontally overlapping with this wall/platform
+      const horizontalOverlap = (x - half) < wallBox.max.x && 
+                               (x + half) > wallBox.min.x &&
+                               (z - half) < wallBox.max.z && 
+                               (z + half) > wallBox.min.z;
+      
+      if (horizontalOverlap) {
+        // Player is over this platform, check if it's the highest one
+        const platformTop = wallBox.max.y;
+        if (platformTop > highestPlatform) {
+          highestPlatform = platformTop;
+        }
+      }
+    }
+    
+    return highestPlatform;
+  }
+
+  isOnGround(x, z, y, playerSize, tolerance = 0.1) {
+    const groundHeight = this.getGroundHeight(x, z, playerSize);
+    return Math.abs(y - groundHeight) <= tolerance;
+  }
+
   constrainToArena(position, playerSize) {
     const halfArena = this.arenaSize / 2 - 0.6; // keep small offset from perimeter walls
     position.x = Math.max(-halfArena, Math.min(halfArena, position.x));

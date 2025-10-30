@@ -44,7 +44,7 @@ export class GameLoop {
     }
     
     // Update jump physics
-    this.characterManager.updateJumpPhysics(dt);
+    this.characterManager.updateJumpPhysics(dt, this.collisionManager);
     
     // Calculate intended next position on XZ plane
     const currentSpeed = this.inputManager.getCurrentSpeed();

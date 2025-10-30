@@ -151,7 +151,7 @@ export class CharacterManager {
     }
   }
 
-  updateJumpPhysics(dt) {
+  updateJumpPhysics(dt, collisionManager) {
     // Update jump cooldown
     if (this.jumpCooldown > 0) {
       this.jumpCooldown -= dt;
@@ -163,9 +163,18 @@ export class CharacterManager {
     // Update vertical position
     this.player.position.y += this.velocityY * dt;
 
-    // Check for ground collision
-    if (this.player.position.y <= this.groundY) {
-      this.player.position.y = this.groundY;
+    // Check for ground collision using dynamic ground height
+    const groundHeight = collisionManager.getGroundHeight(
+      this.player.position.x, 
+      this.player.position.z, 
+      this.playerSize
+    );
+    
+    // Character's bottom should be at ground level
+    const characterBottom = this.player.position.y - this.playerHeight * 0.5;
+    
+    if (characterBottom <= groundHeight) {
+      this.player.position.y = groundHeight + this.playerHeight * 0.5;
       this.velocityY = 0;
       this.isGrounded = true;
     } else {
