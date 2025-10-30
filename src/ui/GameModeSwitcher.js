@@ -28,6 +28,13 @@ export function initGameModeSwitcher({ mount, options, value, onChange }) {
       selectValue(mode);
       onChange(mode);
     });
+    
+    // Prevent spacebar from activating focused button
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+      }
+    });
 
     return btn;
   }

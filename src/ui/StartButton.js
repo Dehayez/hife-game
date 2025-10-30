@@ -18,6 +18,13 @@ export class StartButton {
     this.button.addEventListener('click', () => {
       this.startCountdown();
     });
+    
+    // Prevent spacebar from activating focused button
+    this.button.addEventListener('keydown', (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+      }
+    });
   }
 
   getElement() {

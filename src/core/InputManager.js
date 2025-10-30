@@ -18,8 +18,22 @@ export class InputManager {
   }
 
   _setupEventListeners() {
-    window.addEventListener('keydown', (e) => { this.setKeyState(e, true); });
-    window.addEventListener('keyup', (e) => { this.setKeyState(e, false); });
+    window.addEventListener('keydown', (e) => { 
+      this.setKeyState(e, true);
+      // Prevent default browser behavior for game keys
+      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+          e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('keyup', (e) => { 
+      this.setKeyState(e, false);
+      // Prevent default browser behavior for game keys
+      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+          e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+      }
+    });
   }
 
   setKeyState(e, pressed) {

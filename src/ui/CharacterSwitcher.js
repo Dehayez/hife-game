@@ -32,6 +32,13 @@ export function initCharacterSwitcher({ mount, options, value, onChange }) {
       selectValue(name);
       onChange(name);
     });
+    
+    // Prevent spacebar from activating focused button
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+      }
+    });
 
     return btn;
   }

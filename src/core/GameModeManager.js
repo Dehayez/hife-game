@@ -70,6 +70,12 @@ export class GameModeManager {
     }
     
     const previousMode = this.currentMode;
+    
+    // Don't reset if already in the same mode
+    if (previousMode === mode) {
+      return true;
+    }
+    
     this.currentMode = mode;
     this.resetModeState();
     
