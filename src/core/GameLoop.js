@@ -1,14 +1,13 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
 export class GameLoop {
-  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, startButton = null) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
     this.collisionManager = collisionManager;
     this.gameModeManager = gameModeManager;
     this.entityManager = entityManager;
-    this.startButton = startButton;
     
     this.lastTime = performance.now();
     this.isRunning = false;
@@ -47,17 +46,20 @@ export class GameLoop {
       return;
     }
     
-    // Check if countdown is running - prevent movement during countdown
-    // Only enforce countdown for time-trial and survival modes
-    const mode = this.gameModeManager ? this.gameModeManager.getMode() : 'free-play';
-    const requiresCountdown = mode === 'time-trial' || mode === 'survival';
-    const isCountdownRunning = this.startButton && this.startButton.isCountdownRunning();
-    const isCountdownComplete = !requiresCountdown || !this.startButton || this.startButton.isCountdownFinished();
-    const isModeStarted = !requiresCountdown || !this.gameModeManager || !this.gameModeManager.modeState || this.gameModeManager.modeState.isStarted;
-    const canMove = !isCountdownRunning && isCountdownComplete && isModeStarted;
-    
     const player = this.characterManager.getPlayer();
     const input = this.inputManager.getInputVector();
+    const mode = this.gameModeManager ? this.gameModeManager.getMode() : 'free-play';
+    const requiresStart = mode === 'time-trial' || mode === 'survival';
+    const isModeStarted = !requiresStart || !this.gameModeManager || !this.gameModeManager.modeState || this.gameModeManager.modeState.isStarted;
+    
+    // Auto-start game mode when movement is detected (for time-trial and survival modes)
+    if (requiresStart && !isModeStarted && this.inputManager.hasMovement()) {
+      if (this.gameModeManager) {
+        this.gameModeManager.startMode();
+      }
+    }
+    
+    const canMove = !requiresStart || isModeStarted;
     
     // Check entity collisions
     if (this.entityManager) {
@@ -70,7 +72,7 @@ export class GameLoop {
         this.gameModeManager.handleEntityCollision(collision);
       }
       
-      // Update entity animations (but don't move hazards during countdown)
+      // Update entity animations
       this.entityManager.updateAnims(dt, canMove);
     }
     
@@ -79,7 +81,7 @@ export class GameLoop {
       this.gameModeManager.update(dt, this.entityManager);
     }
     
-    // Handle jump input (only if countdown is complete)
+    // Handle jump input
     if (canMove && this.inputManager.isJumpPressed()) {
       this.characterManager.jump();
     }
@@ -102,7 +104,7 @@ export class GameLoop {
       this.characterManager.respawn();
     }
     
-    // Only allow movement if countdown is complete
+    // Only allow movement if game is started (or doesn't require start)
     if (canMove) {
       // Calculate intended next position on XZ plane
       const currentSpeed = this.inputManager.getCurrentSpeed();
@@ -119,7 +121,7 @@ export class GameLoop {
       // Update character movement and animation
       this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera());
     } else {
-      // During countdown, keep character idle
+      // Before game starts, keep character idle
       this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera());
     }
     

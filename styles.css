@@ -167,7 +167,34 @@ html, body { height: 100%; margin: 0; }
   font-size: 12px; 
   color: #e7ebf0; 
   opacity: 0.7; 
-  margin: 0; 
+  margin: 0 0 12px 0; 
+}
+
+/* Restart button */
+.ui__restart-button { 
+  background: rgba(106, 184, 154, 0.2); 
+  color: #6ab89a; 
+  border: 1px solid rgba(106, 184, 154, 0.3); 
+  border-radius: 6px; 
+  padding: 8px 16px; 
+  font-size: 13px; 
+  font-weight: 500; 
+  cursor: pointer; 
+  font-family: system-ui, -apple-system, sans-serif; 
+  transition: transform 0.1s ease, background 0.1s ease, border-color 0.1s ease; 
+  width: 100%;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ui__restart-button:hover { 
+  transform: translateY(-1px); 
+  background: rgba(106, 184, 154, 0.3); 
+  border-color: rgba(106, 184, 154, 0.5);
+}
+.ui__restart-button:active { 
+  transform: translateY(0); 
 }
 
 

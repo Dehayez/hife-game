@@ -135,6 +135,30 @@ export class GameModeManager {
     this.modeState.isStarted = false; // Require start button again
   }
 
+  restartMode() {
+    // Reset mode state
+    this.resetModeState();
+    
+    // Reload high score and best time from storage after reset
+    this.modeState.highScore = getHighScore(this.currentMode);
+    const savedBestTime = getBestTime(this.currentMode);
+    if (savedBestTime !== null) {
+      this.modeState.bestTime = savedBestTime;
+    }
+    
+    if (this.entityManager) {
+      this._spawnModeEntities();
+    }
+    
+    // Reset started state - game will auto-start on movement
+    this.modeState.isStarted = false;
+    
+    // Trigger respawn callback
+    if (this.onModeChangeCallback) {
+      this.onModeChangeCallback();
+    }
+  }
+
   getMode() {
     return this.currentMode;
   }
@@ -344,10 +368,6 @@ export class GameModeManager {
             this._restartSurvivalMode();
             if (this.onModeChangeCallback) {
               this.onModeChangeCallback();
-            }
-            // Trigger start button check
-            if (this.onRestartCallback) {
-              this.onRestartCallback();
             }
           }, 1500);
         }

@@ -3,7 +3,6 @@ import { initCharacterSwitcher } from './ui/CharacterSwitcher.js';
 import { initControlsLegend } from './ui/ControlsLegend.js';
 import { initGameModeSwitcher } from './ui/GameModeSwitcher.js';
 import { initGameModeDisplay } from './ui/GameModeDisplay.js';
-import { StartButton } from './ui/StartButton.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter } from './utils/StorageUtils.js';
@@ -54,35 +53,7 @@ gameModeManager.setOnModeChangeCallback(() => {
   sceneManager.setMushroomsVisible(currentMode === 'free-play');
 });
 
-// Set restart callback to show start button
-gameModeManager.setOnRestartCallback(() => {
-  checkStartButton();
-});
-
-// Create start button before game loop
-const startButton = new StartButton(() => {
-  // On start
-  gameModeManager.startMode();
-  startButton.hide();
-});
-
-const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, startButton);
-
-// Show start button when mode changes or when mode is not started
-const checkStartButton = () => {
-  const mode = gameModeManager.getMode();
-  const modeState = gameModeManager.modeState;
-  
-  // Show start button for time-trial and survival modes when not started
-  if ((mode === 'time-trial' || mode === 'survival') && !modeState.isStarted) {
-    startButton.show();
-  } else {
-    startButton.hide();
-  }
-};
-
-// Show start button initially if needed
-setTimeout(checkStartButton, 100);
+const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager);
 
 // Character selection: URL param > localStorage > default
 // Priority: 1) URL param ?char=lucy, 2) Last played character (localStorage), 3) Default 'lucy'
@@ -109,12 +80,6 @@ initCharacterSwitcher({
   }
 });
 
-// Mount start button below character switcher
-const charSwitcherPanel = switcherMount.closest('.ui__panel');
-if (charSwitcherPanel) {
-  charSwitcherPanel.appendChild(startButton.getElement());
-  startButton.hide(); // Initially hidden, shown by checkStartButton
-}
 
 // Game mode selection via URL param ?mode=free-play (defaults to 'free-play')
 const gameMode = getParam('mode', 'free-play');
@@ -130,7 +95,6 @@ initGameModeSwitcher({
   value: gameMode,
   onChange: (mode) => { 
     gameModeManager.setMode(mode);
-    checkStartButton();
   },
   gameModeManager: gameModeManager
 });
@@ -145,7 +109,8 @@ initControlsLegend({
 const modeDisplayMount = document.getElementById('game-mode-display') || document.body;
 initGameModeDisplay({
   mount: modeDisplayMount,
-  gameModeManager: gameModeManager
+  gameModeManager: gameModeManager,
+  characterManager: characterManager
 });
 
 // Start the game
