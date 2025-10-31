@@ -15,6 +15,7 @@ export class GameLoop {
     this.lastTime = performance.now();
     this.isRunning = false;
     this.lastShootInput = false;
+    this.lastMortarInput = false;
   }
 
   start() {
@@ -90,7 +91,7 @@ export class GameLoop {
       // Update projectiles
       this.projectileManager.update(dt);
       
-      // Handle shooting input
+      // Handle shooting input (left mouse click)
       const shootInput = this.inputManager.isShootPressed();
       if (shootInput && !this.lastShootInput) {
         // Get shooting direction (towards mouse cursor on ground plane)
@@ -156,6 +157,44 @@ export class GameLoop {
       }
       this.lastShootInput = shootInput;
       
+      // Handle mortar input (right mouse click)
+      const mortarInput = this.inputManager.isMortarPressed();
+      if (mortarInput && !this.lastMortarInput) {
+        const camera = this.sceneManager.getCamera();
+        const mousePos = this.inputManager.getMousePosition();
+        
+        // Convert mouse to world coordinates on ground plane
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+        mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+        
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Intersect with ground plane to get target position
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.6);
+        const intersect = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, intersect);
+        
+        const playerPos = player.position;
+        const characterName = this.characterManager.getCharacterName();
+        const playerId = 'local';
+        
+        // Check if player can shoot mortar
+        if (this.projectileManager.canShootMortar(playerId)) {
+          this.projectileManager.createMortar(
+            playerPos.x,
+            playerPos.y,
+            playerPos.z,
+            intersect.x,
+            intersect.z,
+            playerId,
+            characterName
+          );
+        }
+      }
+      this.lastMortarInput = mortarInput;
+      
       // Check projectile collisions with player
       const projectileCollision = this.projectileManager.checkPlayerCollision(
         player.position,
@@ -167,6 +206,40 @@ export class GameLoop {
         // Apply damage to player
         if (this.characterManager) {
           const isDead = this.characterManager.takeDamage(projectileCollision.damage);
+          
+          // Update player userData for health bar
+          if (player && player.userData) {
+            player.userData.health = this.characterManager.getHealth();
+            player.userData.maxHealth = this.characterManager.getMaxHealth();
+          }
+          
+          if (isDead) {
+            // Player died - respawn
+            if (this.gameModeManager && this.gameModeManager.modeState) {
+              this.gameModeManager.modeState.deaths++;
+            }
+            this.characterManager.respawn();
+            
+            // Update userData after respawn
+            if (player && player.userData) {
+              player.userData.health = this.characterManager.getHealth();
+              player.userData.maxHealth = this.characterManager.getMaxHealth();
+            }
+          }
+        }
+      }
+      
+      // Check mortar ground explosions for player
+      const mortarCollision = this.projectileManager.checkMortarGroundCollision(
+        player.position,
+        this.characterManager.getPlayerSize(),
+        'local'
+      );
+      
+      if (mortarCollision.hit) {
+        // Apply damage to player from mortar explosion
+        if (this.characterManager) {
+          const isDead = this.characterManager.takeDamage(mortarCollision.damage);
           
           // Update player userData for health bar
           if (player && player.userData) {
@@ -203,6 +276,25 @@ export class GameLoop {
           if (botCollision.hit) {
             // Apply damage to bot
             const botDied = this.botManager.damageBot(bot, botCollision.damage);
+            
+            if (botDied) {
+              // Bot died - respawn after delay
+              setTimeout(() => {
+                this.botManager.respawnBot(bot);
+              }, 2000);
+            }
+          }
+          
+          // Check mortar ground explosions for bots
+          const botMortarCollision = this.projectileManager.checkMortarGroundCollision(
+            bot.position,
+            this.characterManager.getPlayerSize(),
+            bot.userData.id
+          );
+          
+          if (botMortarCollision.hit) {
+            // Apply damage to bot from mortar explosion
+            const botDied = this.botManager.damageBot(bot, botMortarCollision.damage);
             
             if (botDied) {
               // Bot died - respawn after delay

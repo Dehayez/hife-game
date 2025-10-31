@@ -15,6 +15,13 @@ export class ProjectileManager {
         cooldown: 0.2, // Faster shooting (5 shots per second)
         color: 0xff6b9d, // Pink/magenta color
         size: 0.08, // Smaller projectile
+        mortarDamage: 35, // Lower mortar damage (direct hit)
+        mortarAreaDamage: 10, // Area damage per tick
+        mortarCooldown: 2.5, // Increased mortar cooldown
+        mortarArcHeight: 3.0, // Lower arc
+        mortarSplashRadius: 0.8, // Smaller fire splash
+        mortarFireDuration: 1.5, // Fire persists shorter
+        mortarShrinkDelay: 0.8, // Wait time before shrinking starts (increased)
         name: 'Lucy'
       },
       herald: {
@@ -22,6 +29,13 @@ export class ProjectileManager {
         cooldown: 0.5, // Slower shooting (2 shots per second)
         color: 0xff8c42, // Orange color
         size: 0.15, // Bigger projectile
+        mortarDamage: 50, // Higher mortar damage (direct hit)
+        mortarAreaDamage: 15, // Area damage per tick
+        mortarCooldown: 3.5, // Slower mortar shooting - increased cooldown
+        mortarArcHeight: 4.0, // Moderate arc for fireball effect
+        mortarSplashRadius: 1.0, // Smaller fire splash
+        mortarFireDuration: 2.0, // Fire persists longer
+        mortarShrinkDelay: 1.0, // Wait time before shrinking starts (increased)
         name: 'Herald'
       }
     };
@@ -32,6 +46,13 @@ export class ProjectileManager {
     
     // Per-character cooldown tracking
     this.characterCooldowns = new Map();
+    
+    // Mortar/bomb stats
+    this.mortars = [];
+    this.mortarLifetime = 5; // seconds
+    this.mortarGravity = -20; // Gravity for arc
+    this.mortarCharacterCooldowns = new Map(); // Separate cooldown for mortars
+    this.fireAreas = []; // Fire splash areas after impact
   }
 
   setCollisionManager(collisionManager) {
@@ -120,6 +141,77 @@ export class ProjectileManager {
       }
     }
     
+    // Update mortar cooldowns
+    for (const [playerId, cooldown] of this.mortarCharacterCooldowns.entries()) {
+      const newCooldown = Math.max(0, cooldown - dt);
+      if (newCooldown > 0) {
+        this.mortarCharacterCooldowns.set(playerId, newCooldown);
+      } else {
+        this.mortarCharacterCooldowns.delete(playerId);
+      }
+    }
+    
+    // Update mortars (arc physics)
+    const mortarsToRemove = [];
+    for (const mortar of this.mortars) {
+      // Update lifetime
+      mortar.userData.lifetime += dt;
+      
+      // Remove if lifetime exceeded
+      if (mortar.userData.lifetime >= this.mortarLifetime) {
+        mortarsToRemove.push(mortar);
+        continue;
+      }
+      
+      // Update velocity (apply gravity)
+      mortar.userData.velocityY += this.mortarGravity * dt;
+      
+      // Update position
+      const newX = mortar.position.x + mortar.userData.velocityX * dt;
+      const newY = mortar.position.y + mortar.userData.velocityY * dt;
+      const newZ = mortar.position.z + mortar.userData.velocityZ * dt;
+      
+      // Check ground collision - use target position for accurate landing
+      const targetX = mortar.userData.targetX;
+      const targetZ = mortar.userData.targetZ;
+      const groundHeight = this.collisionManager 
+        ? this.collisionManager.getGroundHeight(targetX, targetZ, mortar.userData.size)
+        : 0.6;
+      
+      // Check if mortar has reached target position (within small radius) or hit ground
+      const distanceToTarget = Math.sqrt(
+        (mortar.position.x - targetX) ** 2 + 
+        (mortar.position.z - targetZ) ** 2
+      );
+      
+      if (newY <= groundHeight + mortar.userData.size || distanceToTarget < 0.5) {
+        // Hit ground at target location - create fire splash
+        this.createFireSplash(targetX, groundHeight, targetZ, mortar.userData);
+        mortarsToRemove.push(mortar);
+        mortar.userData.hasExploded = true;
+      } else {
+        mortar.position.set(newX, newY, newZ);
+      }
+      
+      // Update trail light position
+      if (mortar.userData.trailLight) {
+        mortar.userData.trailLight.position.set(newX, newY, newZ);
+      }
+      
+      // Rotate mortar for visual effect
+      mortar.rotation.x += dt * 3;
+      mortar.rotation.y += dt * 3;
+    }
+    
+    // Remove exploded or expired mortars
+    for (const mortar of mortarsToRemove) {
+      this.removeMortar(mortar);
+    }
+    
+    // Update fire splash areas
+    this.updateFireAreas(dt);
+    
+    // Update regular projectiles
     const projectilesToRemove = [];
     
     for (const projectile of this.projectiles) {
@@ -191,6 +283,7 @@ export class ProjectileManager {
       new THREE.Vector3(playerPos.x + halfSize, playerPos.y + 1.5, playerPos.z + halfSize)
     );
 
+    // Check regular projectiles
     for (const projectile of this.projectiles) {
       // Don't hit yourself
       if (projectile.userData.playerId === playerId) continue;
@@ -201,6 +294,54 @@ export class ProjectileManager {
         this.removeProjectile(projectile);
         return { hit: true, damage: damage, projectile: projectile };
       }
+    }
+    
+    // Check mortars (explosion radius)
+    for (const mortar of this.mortars) {
+      if (mortar.userData.playerId === playerId) continue;
+      
+      // Check if mortar is near player (explosion radius)
+      const dx = playerPos.x - mortar.position.x;
+      const dy = playerPos.y - mortar.position.y;
+      const dz = playerPos.z - mortar.position.z;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const explosionRadius = 2.0; // Radius of explosion
+      
+      if (distance < explosionRadius) {
+        const damage = mortar.userData.damage;
+        // Don't remove mortar here - let it hit ground first
+        return { hit: true, damage: damage, projectile: mortar, isMortar: true };
+      }
+    }
+    
+    return { hit: false };
+  }
+
+  checkMortarGroundCollision(playerPos, playerSize, playerId = 'local') {
+    // Check mortars that hit ground - direct hit damage
+    for (const mortar of this.mortars) {
+      if (mortar.userData.hasExploded || mortar.userData.playerId === playerId) continue;
+      
+      // Check if player is at exact impact point (direct hit)
+      const targetX = mortar.userData.targetX;
+      const targetZ = mortar.userData.targetZ;
+      const dx = playerPos.x - targetX;
+      const dz = playerPos.z - targetZ;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      const directHitRadius = 0.8; // Small radius for direct hit
+      
+      if (distance < directHitRadius) {
+        // Direct hit - full damage
+        const damage = mortar.userData.damage;
+        mortar.userData.hasExploded = true;
+        return { hit: true, damage: damage, projectile: mortar, isMortar: true, isDirectHit: true };
+      }
+    }
+    
+    // Check fire areas for area damage
+    const fireCollision = this.checkFireAreaCollision(playerPos, playerSize, playerId);
+    if (fireCollision.hit) {
+      return fireCollision;
     }
     
     return { hit: false };
@@ -226,11 +367,39 @@ export class ProjectileManager {
     }
   }
 
+  removeMortar(mortar) {
+    // Remove trail light
+    if (mortar.userData.trailLight) {
+      this.scene.remove(mortar.userData.trailLight);
+    }
+    
+    // Remove from scene
+    this.scene.remove(mortar);
+    
+    // Clean up geometry and material
+    mortar.geometry.dispose();
+    mortar.material.dispose();
+    
+    // Remove from array
+    const index = this.mortars.indexOf(mortar);
+    if (index > -1) {
+      this.mortars.splice(index, 1);
+    }
+  }
+
   clearAll() {
     for (const projectile of [...this.projectiles]) {
       this.removeProjectile(projectile);
     }
+    for (const mortar of [...this.mortars]) {
+      this.removeMortar(mortar);
+    }
+    for (const fireArea of [...this.fireAreas]) {
+      this.removeFireArea(fireArea);
+    }
     this.projectiles = [];
+    this.mortars = [];
+    this.fireAreas = [];
   }
 
   getProjectiles() {
@@ -248,5 +417,300 @@ export class ProjectileManager {
     return this.characterCooldowns.size === 0 || 
            Array.from(this.characterCooldowns.values()).some(cd => cd <= 0);
   }
-}
 
+  createMortar(startX, startY, startZ, targetX, targetZ, playerId = 'local', characterName = 'lucy') {
+    // Get character-specific stats
+    const stats = this.characterStats[characterName] || this.characterStats.lucy;
+    const mortarCooldown = stats.mortarCooldown || 1.5;
+    const mortarDamage = stats.mortarDamage || 35;
+    const mortarAreaDamage = stats.mortarAreaDamage || 10;
+    const mortarArcHeight = stats.mortarArcHeight || 5.0;
+    const mortarSplashRadius = stats.mortarSplashRadius || 2.0;
+    const mortarFireDuration = stats.mortarFireDuration || 1.5;
+    const characterColor = stats.color;
+    
+    // Check mortar cooldown for this specific character
+    const currentCooldown = this.mortarCharacterCooldowns.get(playerId) || 0;
+    if (currentCooldown > 0) return null;
+
+    // Calculate arc trajectory - improved targeting to hit exact target
+    const dx = targetX - startX;
+    const dz = targetZ - startZ;
+    const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+    
+    if (horizontalDistance < 0.1) return null;
+    
+    // Calculate trajectory to hit exact target with specified arc height
+    // Use physics: v_y^2 = 2 * g * h_max, where h_max is mortarArcHeight
+    const gravity = Math.abs(this.mortarGravity);
+    const timeToPeak = Math.sqrt(2 * mortarArcHeight / gravity);
+    const totalTime = timeToPeak * 2; // Time to go up and down
+    const horizontalSpeed = horizontalDistance / totalTime;
+    const verticalSpeed = gravity * timeToPeak; // Initial vertical velocity
+    
+    const launchVelocityX = (dx / horizontalDistance) * horizontalSpeed;
+    const launchVelocityZ = (dz / horizontalDistance) * horizontalSpeed;
+    const launchVelocityY = verticalSpeed;
+
+    // Create mortar/bomb - fireball effect for Herald
+    const isHerald = characterName === 'herald';
+    const size = isHerald ? 0.18 : 0.12;
+    const geo = new THREE.SphereGeometry(size, 12, 12);
+    
+    // Fireball effect for Herald - more intense
+    const baseColor = characterColor;
+    const mat = new THREE.MeshStandardMaterial({
+      color: baseColor,
+      emissive: baseColor,
+      emissiveIntensity: isHerald ? 1.2 : 0.8,
+      metalness: 0.3,
+      roughness: 0.2
+    });
+    
+    const mortar = new THREE.Mesh(geo, mat);
+    mortar.position.set(startX, startY, startZ);
+    mortar.castShadow = true;
+    
+    // Enhanced trail effect - brighter for Herald fireball
+    const lightIntensity = isHerald ? 2.0 : 1.2;
+    const lightRange = isHerald ? 6 : 4;
+    const trailLight = new THREE.PointLight(baseColor, lightIntensity, lightRange);
+    trailLight.position.set(startX, startY, startZ);
+    this.scene.add(trailLight);
+    
+    // Store mortar data with target position for exact landing
+    mortar.userData = {
+      type: 'mortar',
+      playerId: playerId,
+      characterName: characterName,
+      velocityX: launchVelocityX,
+      velocityY: launchVelocityY,
+      velocityZ: launchVelocityZ,
+      lifetime: 0,
+      trailLight: trailLight,
+      damage: mortarDamage, // Direct hit damage
+      areaDamage: mortarAreaDamage, // Area damage per tick
+      size: size,
+      hasExploded: false,
+      targetX: targetX, // Exact target position
+      targetZ: targetZ,
+      splashRadius: mortarSplashRadius,
+      fireDuration: mortarFireDuration
+    };
+    
+    this.scene.add(mortar);
+    this.mortars.push(mortar);
+    
+    // Set mortar cooldown for this specific character/player
+    this.mortarCharacterCooldowns.set(playerId, mortarCooldown);
+    
+    return mortar;
+  }
+
+  canShootMortar(playerId = null) {
+    // If player ID provided, check mortar cooldown for that specific player/character
+    if (playerId) {
+      const cooldown = this.mortarCharacterCooldowns.get(playerId) || 0;
+      return cooldown <= 0;
+    }
+    return true;
+  }
+
+  createFireSplash(x, y, z, mortarData) {
+    const splashRadius = mortarData.splashRadius || 1.0;
+    const fireDuration = mortarData.fireDuration || 1.5;
+    const shrinkDelay = mortarData.mortarShrinkDelay || 0.5;
+    const areaDamage = mortarData.areaDamage || 10;
+    const characterColor = mortarData.characterName === 'herald' ? 0xff4500 : 0xff6b9d;
+    
+    // Create fire effect - particle system or glowing planes
+    const fireContainer = new THREE.Object3D();
+    fireContainer.position.set(x, y + 0.1, z);
+    
+    // Create fire base - glowing circle (starts small, expands, then shrinks after delay)
+    const fireGeo = new THREE.CircleGeometry(splashRadius, 16);
+    const fireMat = new THREE.MeshBasicMaterial({
+      color: characterColor,
+      emissive: characterColor,
+      emissiveIntensity: 1.0,
+      transparent: true,
+      opacity: 0.0, // Start invisible, fade in during expansion
+      side: THREE.DoubleSide
+    });
+    const fireBase = new THREE.Mesh(fireGeo, fireMat);
+    fireBase.rotation.x = -Math.PI / 2; // Lay flat on ground
+    fireBase.scale.set(0, 0, 0); // Start at impact point (scale 0)
+    fireContainer.add(fireBase);
+    
+    // Add point light for fire glow
+    const fireLight = new THREE.PointLight(characterColor, 2.0, splashRadius * 2);
+    fireLight.position.set(0, 0.5, 0);
+    fireLight.intensity = 0; // Start at 0, fade in during expansion
+    fireContainer.add(fireLight);
+    this.scene.add(fireLight);
+    
+    // Store fire area data with initial radius for shrinking
+    fireContainer.userData = {
+      type: 'fireSplash',
+      damagePerTick: areaDamage,
+      initialRadius: splashRadius, // Store initial radius for shrinking
+      radius: splashRadius, // Current radius (will shrink)
+      lifetime: 0,
+      duration: fireDuration,
+      shrinkDelay: shrinkDelay, // Wait time before shrinking starts
+      shrinkDuration: fireDuration - shrinkDelay, // Time available for shrinking
+      expandDuration: 0.2, // Fast expansion animation (0.2 seconds)
+      position: new THREE.Vector3(x, y, z),
+      fireLight: fireLight,
+      hasDamaged: new Set() // Track who has been damaged this tick
+    };
+    
+    this.scene.add(fireContainer);
+    this.fireAreas.push(fireContainer);
+  }
+
+  updateFireAreas(dt) {
+    const fireAreasToRemove = [];
+    
+    for (const fireArea of this.fireAreas) {
+      if (!fireArea || !fireArea.userData) {
+        fireAreasToRemove.push(fireArea);
+        continue;
+      }
+      
+      fireArea.userData.lifetime += dt;
+      
+      const expandDuration = fireArea.userData.expandDuration || 0.2;
+      const shrinkDelay = fireArea.userData.shrinkDelay || 0.5;
+      const shrinkDuration = fireArea.userData.shrinkDuration || 1.0;
+      
+      const fireBase = fireArea.children[0];
+      if (!fireBase || !fireBase.material) continue;
+      
+      // Phase 1: Expansion animation (fast scale up from impact point)
+      if (fireArea.userData.lifetime < expandDuration) {
+        const expandProgress = Math.min(fireArea.userData.lifetime / expandDuration, 1.0);
+        const expandFactor = expandProgress; // Goes from 0 to 1
+        
+        // Scale from impact point to full size
+        fireBase.scale.set(expandFactor, expandFactor, expandFactor);
+        
+        // Opacity fades in from 0 to 1 during expansion
+        fireBase.material.opacity = expandFactor;
+        
+        // Light intensity increases during expansion
+        if (fireArea.userData.fireLight) {
+          fireArea.userData.fireLight.intensity = 2.0 * expandFactor;
+        }
+        
+        // Damage radius expands
+        fireArea.userData.radius = fireArea.userData.initialRadius * expandFactor;
+      }
+      // Phase 2: Hold at full size (before shrinking starts)
+      else if (fireArea.userData.lifetime < shrinkDelay + expandDuration) {
+        // Keep at full size during delay period
+        fireBase.scale.set(1.0, 1.0, 1.0);
+        fireBase.material.opacity = 0.7; // Full opacity
+        if (fireArea.userData.fireLight) {
+          fireArea.userData.fireLight.intensity = 2.0;
+        }
+        fireArea.userData.radius = fireArea.userData.initialRadius;
+      }
+      // Phase 3: Shrinking phase
+      else {
+        const timeSinceShrinkStart = fireArea.userData.lifetime - (shrinkDelay + expandDuration);
+        const shrinkProgress = Math.min(timeSinceShrinkStart / shrinkDuration, 1.0);
+        const shrinkFactor = 1.0 - shrinkProgress; // Start at full size, shrink to 0
+        
+        // Shrink the fire area uniformly - maintain circular shape
+        fireBase.scale.set(shrinkFactor, shrinkFactor, shrinkFactor);
+        
+        // Fade opacity while shrinking
+        fireBase.material.opacity = 0.7 * shrinkFactor;
+        
+        // Update damage radius to shrink as well
+        fireArea.userData.radius = fireArea.userData.initialRadius * shrinkFactor;
+        
+        // Fade out light
+        if (fireArea.userData.fireLight) {
+          fireArea.userData.fireLight.intensity = 2.0 * shrinkFactor;
+        }
+      }
+      
+      // Remove after duration
+      if (fireArea.userData.lifetime >= fireArea.userData.duration) {
+        fireAreasToRemove.push(fireArea);
+      }
+    }
+    
+    // Remove expired fire areas
+    for (const fireArea of fireAreasToRemove) {
+      this.removeFireArea(fireArea);
+    }
+  }
+
+  removeFireArea(fireArea) {
+    if (!fireArea) return;
+    
+    // Remove light
+    if (fireArea.userData && fireArea.userData.fireLight) {
+      this.scene.remove(fireArea.userData.fireLight);
+    }
+    
+    // Clean up geometry and material
+    if (fireArea.children) {
+      fireArea.children.forEach(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+    }
+    
+    // Remove from scene
+    this.scene.remove(fireArea);
+    
+    // Remove from array
+    const index = this.fireAreas.indexOf(fireArea);
+    if (index > -1) {
+      this.fireAreas.splice(index, 1);
+    }
+  }
+
+  checkFireAreaCollision(playerPos, playerSize, playerId = 'local') {
+    // Check all active fire areas
+    for (const fireArea of this.fireAreas) {
+      if (!fireArea || !fireArea.userData) continue;
+      
+      const firePos = fireArea.userData.position;
+      const dx = playerPos.x - firePos.x;
+      const dz = playerPos.z - firePos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      
+      if (distance < fireArea.userData.radius) {
+        // Player is in fire area - check if already damaged this tick
+        // Reset damage tracking every 0.2 seconds (5 damage ticks per second)
+        const currentTick = Math.floor(fireArea.userData.lifetime * 5);
+        const damageKey = `${playerId}_${currentTick}`;
+        
+        if (!fireArea.userData.hasDamaged.has(damageKey)) {
+          fireArea.userData.hasDamaged.add(damageKey);
+          
+          // Clean up old damage keys (keep last 2 ticks)
+          if (fireArea.userData.hasDamaged.size > 2) {
+            const oldTick = currentTick - 2;
+            const oldKey = `${playerId}_${oldTick}`;
+            fireArea.userData.hasDamaged.delete(oldKey);
+          }
+          
+          return { 
+            hit: true, 
+            damage: fireArea.userData.damagePerTick, 
+            fireArea: fireArea,
+            isFireArea: true
+          };
+        }
+      }
+    }
+    
+    return { hit: false };
+  }
+}

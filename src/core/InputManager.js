@@ -9,11 +9,13 @@ export class InputManager {
       right: false, 
       shift: false,
       jump: false,
-      shoot: false
+      shoot: false,
+      mortar: false
     };
     
     this.mousePosition = { x: 0, y: 0 };
     this.shootPressed = false;
+    this.mortarPressed = false;
     
     this.moveSpeed = 4; // units per second
     this.runSpeedMultiplier = 1.7; // speed multiplier when running
@@ -44,6 +46,9 @@ export class InputManager {
       if (e.button === 0) { // Left mouse button
         this.shootPressed = true;
         this.inputState.shoot = true;
+      } else if (e.button === 2) { // Right mouse button
+        this.mortarPressed = true;
+        this.inputState.mortar = true;
       }
     });
     
@@ -51,7 +56,15 @@ export class InputManager {
       if (e.button === 0) {
         this.shootPressed = false;
         this.inputState.shoot = false;
+      } else if (e.button === 2) {
+        this.mortarPressed = false;
+        this.inputState.mortar = false;
       }
+    });
+    
+    // Prevent context menu on right click
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
     });
     
     // Track mouse position
@@ -131,5 +144,9 @@ export class InputManager {
 
   getMousePosition() {
     return this.mousePosition;
+  }
+
+  isMortarPressed() {
+    return this.inputState.mortar;
   }
 }
