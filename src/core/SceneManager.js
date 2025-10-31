@@ -12,6 +12,7 @@ export class SceneManager {
     this.time = 0;
     this.blinkingEyes = [];
     this.eyeBlinkTimers = [];
+    this.mushrooms = []; // Store mushroom elements (stems, caps, lights)
   }
 
   init(canvas) {
@@ -319,6 +320,19 @@ export class SceneManager {
       const softGlow = new THREE.PointLight(0x9a5fb8, 0.6, 6);
       softGlow.position.set(pos.x, 0.5, pos.z);
       this.scene.add(softGlow);
+      
+      // Store mushroom elements for visibility control
+      this.mushrooms.push({ stem, cap, glowLight, softGlow });
+    });
+  }
+  
+  setMushroomsVisible(visible) {
+    // Show or hide all mushrooms based on game mode
+    this.mushrooms.forEach(mushroom => {
+      mushroom.stem.visible = visible;
+      mushroom.cap.visible = visible;
+      mushroom.glowLight.visible = visible;
+      mushroom.softGlow.visible = visible;
     });
   }
   

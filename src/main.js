@@ -41,6 +41,9 @@ characterManager.initializePlayer(sceneManager.getScene());
 gameModeManager.setOnModeChangeCallback(() => {
   characterManager.respawn();
   collisionManager.updateWallsForMode();
+  // Show mushrooms only in Forest Wander (free-play) mode
+  const currentMode = gameModeManager.getMode();
+  sceneManager.setMushroomsVisible(currentMode === 'free-play');
 });
 
 // Set restart callback to show start button
@@ -96,6 +99,8 @@ if (charSwitcherPanel) {
 // Game mode selection via URL param ?mode=free-play (defaults to 'free-play')
 const gameMode = getParam('mode', 'free-play');
 gameModeManager.setMode(gameMode);
+// Set initial mushroom visibility based on starting mode
+sceneManager.setMushroomsVisible(gameMode === 'free-play');
 
 // Initialize game mode switcher UI
 const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
