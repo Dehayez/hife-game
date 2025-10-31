@@ -293,79 +293,68 @@ export class SceneManager {
   }
   
   _addBlinkingEyes() {
-    // Create a single pair of glowing red eyes in the center top (moved further to the right)
-    const eyePairPositions = [
-      { x: 6, y: 2, z: -25 },     // Center top, moved to the right
+    // Create eyes arrangement: 2 larger center eyes with smaller eyes on either side
+    const basePos = { x: 6, y: 2, z: -25 };
+    const centerEyeSpacing = 1.0; // Closer distance between center eyes
+    const sideEyeOffset = 1.3; // Closer distance from center to side eyes
+    const sideEyeHeight = 0.2; // Slightly higher for side eyes
+    const sideEyeSize = 0.2; // Smaller side eyes
+    const centerEyeSize = 0.3; // Larger center eyes
+    
+    // Create 4 eyes total: 2 smaller side eyes + 2 larger center eyes
+    const eyeConfigs = [
+      { x: basePos.x - sideEyeOffset, y: basePos.y + sideEyeHeight, z: basePos.z, size: sideEyeSize }, // Left side eye
+      { x: basePos.x - centerEyeSpacing * 0.5, y: basePos.y, z: basePos.z, size: centerEyeSize }, // Left center
+      { x: basePos.x + centerEyeSpacing * 0.5, y: basePos.y, z: basePos.z, size: centerEyeSize }, // Right center
+      { x: basePos.x + sideEyeOffset, y: basePos.y + sideEyeHeight, z: basePos.z, size: sideEyeSize }, // Right side eye
     ];
     
-    eyePairPositions.forEach((pos, index) => {
-      // Create eye directions looking straight at the arena (horizontal spacing)
-      const eyeSpacing = 1.5; // More distance between eyes
-      
-      // Left eye (to the left of center)
-      const leftEyeX = pos.x - eyeSpacing * 0.5;
-      const leftEyeZ = pos.z;
-      
-      // Right eye (to the right of center)
-      const rightEyeX = pos.x + eyeSpacing * 0.5;
-      const rightEyeZ = pos.z;
-      
-      // Create pair of eyes
-      const eyePositions = [
-        { x: leftEyeX, y: pos.y, z: leftEyeZ },
-        { x: rightEyeX, y: pos.y, z: rightEyeZ }
-      ];
-      
-      eyePositions.forEach(eyePos => {
-        // Create sphere for eye glow (smaller)
-        const eyeGeo = new THREE.SphereGeometry(0.3, 8, 8);
-        const eyeMat = new THREE.MeshBasicMaterial({ 
-          color: 0xff0000,
-          emissive: 0xff0000,
-          emissiveIntensity: 2,
-          transparent: true,
-          opacity: 0 // Start closed
-        });
-        const eyeMesh = new THREE.Mesh(eyeGeo, eyeMat);
-        eyeMesh.position.set(eyePos.x, eyePos.y, eyePos.z);
-        this.scene.add(eyeMesh);
-        
-        this.blinkingEyes.push(eyeMesh);
+    eyeConfigs.forEach((eyeConfig, index) => {
+      // Create sphere for eye glow
+      const eyeGeo = new THREE.SphereGeometry(eyeConfig.size, 8, 8);
+      const eyeMat = new THREE.MeshBasicMaterial({ 
+        color: 0xff0000,
+        emissive: 0xff0000,
+        emissiveIntensity: 2,
+        transparent: true,
+        opacity: 0 // Start closed
       });
+      const eyeMesh = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeMesh.position.set(eyeConfig.x, eyeConfig.y, eyeConfig.z);
+      this.scene.add(eyeMesh);
       
-      // Shared timer for each pair with realistic states
-      this.eyeBlinkTimers.push({
-        state: 'closed', // 'closed', 'opening', 'open', 'blinking', 'closing'
-        timeInState: Math.random() * 8, // Random initial wait
-        nextStateTime: 5 + Math.random() * 10, // When to transition to open (5-15 seconds)
-        blinkTime: 0.15, // Blink duration
-        timeBetweenBlinks: 2 + Math.random() * 3, // When open, blink every 2-5 seconds
-        blinkCount: 0, // Track how many blinks
-        maxBlinks: 3 + Math.floor(Math.random() * 3) // Blink 3-5 times before closing
-      });
+      this.blinkingEyes.push(eyeMesh);
+    });
+    
+    // Single timer for all eyes (they blink together)
+    this.eyeBlinkTimers.push({
+      state: 'closed', // 'closed', 'opening', 'open', 'blinking', 'closing'
+      timeInState: Math.random() * 8, // Random initial wait
+      nextStateTime: 5 + Math.random() * 10, // When to transition to open (5-15 seconds)
+      blinkTime: 0.15, // Blink duration
+      timeBetweenBlinks: 2 + Math.random() * 3, // When open, blink every 2-5 seconds
+      blinkCount: 0, // Track how many blinks
+      maxBlinks: 3 + Math.floor(Math.random() * 3) // Blink 3-5 times before closing
     });
   }
   
   updateBlinkingEyes(dt) {
     if (!this.blinkingEyes || this.blinkingEyes.length === 0) return;
     
-    // Update each eye pair's blink animation with realistic states
+    // Update all eyes blink animation with realistic states (they all blink together)
     for (let i = 0; i < this.eyeBlinkTimers.length; i++) {
       const timer = this.eyeBlinkTimers[i];
-      const leftEye = this.blinkingEyes[i * 2];
-      const rightEye = this.blinkingEyes[i * 2 + 1];
       
       timer.timeInState += dt;
       
       // State machine for realistic eye behavior
       if (timer.state === 'closed') {
-        // Keep eyes closed (opacity already set to 0)
-        leftEye.scale.set(1, 1, 1);
-        leftEye.material.opacity = 0;
-        leftEye.material.emissiveIntensity = 0;
-        rightEye.scale.set(1, 1, 1);
-        rightEye.material.opacity = 0;
-        rightEye.material.emissiveIntensity = 0;
+        // Keep all eyes closed (opacity already set to 0)
+        this.blinkingEyes.forEach(eye => {
+          eye.scale.set(1, 1, 1);
+          eye.material.opacity = 0;
+          eye.material.emissiveIntensity = 0;
+        });
         
         // After waiting, start opening animation
         if (timer.timeInState >= timer.nextStateTime) {
@@ -383,12 +372,11 @@ export class SceneManager {
           : 1; // Stay open
         const opacity = openProgress;
         
-        leftEye.scale.set(1, 0.01 + openScale * 0.99, 1);
-        leftEye.material.opacity = opacity;
-        leftEye.material.emissiveIntensity = opacity * 2;
-        rightEye.scale.set(1, 0.01 + openScale * 0.99, 1);
-        rightEye.material.opacity = opacity;
-        rightEye.material.emissiveIntensity = opacity * 2;
+        this.blinkingEyes.forEach(eye => {
+          eye.scale.set(1, 0.01 + openScale * 0.99, 1);
+          eye.material.opacity = opacity;
+          eye.material.emissiveIntensity = opacity * 2;
+        });
         
         // After opening, go to open state
         if (timer.timeInState >= openTime) {
@@ -397,13 +385,12 @@ export class SceneManager {
           timer.timeBetweenBlinks = 2 + Math.random() * 3; // Random time before first blink
         }
       } else if (timer.state === 'open') {
-        // Keep eyes open and visible
-        leftEye.scale.set(1, 1, 1);
-        leftEye.material.opacity = 1;
-        leftEye.material.emissiveIntensity = 2;
-        rightEye.scale.set(1, 1, 1);
-        rightEye.material.opacity = 1;
-        rightEye.material.emissiveIntensity = 2;
+        // Keep all eyes open and visible
+        this.blinkingEyes.forEach(eye => {
+          eye.scale.set(1, 1, 1);
+          eye.material.opacity = 1;
+          eye.material.emissiveIntensity = 2;
+        });
         
         // After some time, blink
         if (timer.timeInState >= timer.timeBetweenBlinks) {
@@ -418,8 +405,9 @@ export class SceneManager {
           ? 1 - blinkProgress * 2 // Close (1 -> 0)
           : (blinkProgress - 0.5) * 2; // Open (0 -> 1)
         
-        leftEye.scale.set(1, 0.01 + blinkScale * 0.99, 1);
-        rightEye.scale.set(1, 0.01 + blinkScale * 0.99, 1);
+        this.blinkingEyes.forEach(eye => {
+          eye.scale.set(1, 0.01 + blinkScale * 0.99, 1);
+        });
         
         // After blink, check if we should close or continue blinking
         if (timer.timeInState >= timer.blinkTime) {
@@ -445,12 +433,11 @@ export class SceneManager {
           : 0; // Stay closed
         const opacity = 1 - closeProgress;
         
-        leftEye.scale.set(1, 0.01 + closeScale * 0.99, 1);
-        leftEye.material.opacity = opacity;
-        leftEye.material.emissiveIntensity = opacity * 2;
-        rightEye.scale.set(1, 0.01 + closeScale * 0.99, 1);
-        rightEye.material.opacity = opacity;
-        rightEye.material.emissiveIntensity = opacity * 2;
+        this.blinkingEyes.forEach(eye => {
+          eye.scale.set(1, 0.01 + closeScale * 0.99, 1);
+          eye.material.opacity = opacity;
+          eye.material.emissiveIntensity = opacity * 2;
+        });
         
         // After closing, go to closed state
         if (timer.timeInState >= closeTime) {
