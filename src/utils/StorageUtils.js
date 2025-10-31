@@ -2,9 +2,9 @@
 
 const STORAGE_KEY_PREFIX = 'hife_game_';
 
-export function getHighScore(mode) {
+export function getHighScore(mode, arena = 'standard') {
   try {
-    const key = `${STORAGE_KEY_PREFIX}${mode}`;
+    const key = `${STORAGE_KEY_PREFIX}${mode}_${arena}`;
     const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored);
@@ -16,10 +16,10 @@ export function getHighScore(mode) {
   return 0;
 }
 
-export function setHighScore(mode, score) {
+export function setHighScore(mode, score, arena = 'standard') {
   try {
-    const key = `${STORAGE_KEY_PREFIX}${mode}`;
-    const current = getHighScore(mode);
+    const key = `${STORAGE_KEY_PREFIX}${mode}_${arena}`;
+    const current = getHighScore(mode, arena);
     if (score > current) {
       localStorage.setItem(key, JSON.stringify({ highScore: score }));
       return true;
@@ -30,9 +30,9 @@ export function setHighScore(mode, score) {
   return false;
 }
 
-export function getBestTime(mode) {
+export function getBestTime(mode, arena = 'standard') {
   try {
-    const key = `${STORAGE_KEY_PREFIX}${mode}`;
+    const key = `${STORAGE_KEY_PREFIX}${mode}_${arena}`;
     const stored = localStorage.getItem(key);
     if (stored) {
       const parsed = JSON.parse(stored);
@@ -44,10 +44,10 @@ export function getBestTime(mode) {
   return null;
 }
 
-export function setBestTime(mode, time) {
+export function setBestTime(mode, time, arena = 'standard') {
   try {
-    const key = `${STORAGE_KEY_PREFIX}${mode}`;
-    const current = getBestTime(mode);
+    const key = `${STORAGE_KEY_PREFIX}${mode}_${arena}`;
+    const current = getBestTime(mode, arena);
     
     // For time-trial: lower is better, for survival: higher is better
     const isBetter = mode === 'time-trial' 
@@ -55,7 +55,7 @@ export function setBestTime(mode, time) {
       : (!current || time > current);
     
     if (isBetter) {
-      const existing = getHighScore(mode);
+      const existing = getHighScore(mode, arena);
       localStorage.setItem(key, JSON.stringify({ 
         highScore: existing,
         bestTime: time 

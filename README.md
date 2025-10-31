@@ -1,6 +1,19 @@
-# Three.js Character Demo (Minimal)
+# Hife - Magical Forest Adventure
 
-A minimal browser-only Three.js scene with a small arena, a cube character, arrow-key movement, simple collision, and a following camera.
+A magical 3D browser game built with Three.js featuring a mystical forest environment, character movement, multiple game modes, and two distinct arena sizes.
+
+## Features
+
+- 🎮 **Two Arenas**: Choose between Forest Plaza (20x20) or Ancient Grove (40x40)
+- 👥 **Two Characters**: Play as Lucy or Herald
+- 🎯 **Multiple Game Modes**:
+  - Forest Wander (Free Play)
+  - Crystal Shrine (Time Trial)
+  - Gem Gathering (Collection)
+  - Shadow Escape (Survival)
+- 🌲 **Diverse Obstacles**: Walls, platforms, pillars, bridges, and elevated structures
+- 🎵 **Sound System**: Footsteps, jumps, landing sounds, and background music
+- ✨ **Magical Atmosphere**: Glowing mushrooms, firefly particles, and moonlit forest
 
 ## Run
 
@@ -17,9 +30,9 @@ You have two options:
 
 ## Controls
 
-- Arrow keys
-- WASD (QWERTY)
-- ZQSD (AZERTY)
+- Arrow keys / WASD / ZQSD - Move
+- Hold Shift - Sprint
+- Space - Jump
 
 ## Notes
 
@@ -27,11 +40,30 @@ You have two options:
 - BEM-like class names for UI overlay.
 - Scene and logic live in `src/main.js`.
 
-## Customize
+## URL Parameters
 
-- Walls: edit `addWall(...)` calls in `src/main.js`.
-- Arena size: change `arenaSize`.
-- Speed: change `moveSpeed`.
+- `?char=lucy` or `?char=herald` - Select character
+- `?arena=standard` or `?arena=large` - Select arena size
+- `?mode=free-play` - Select game mode (free-play, time-trial, collection, survival)
+
+## Arena Differences
+
+### Forest Plaza (Standard)
+- 20x20 arena size
+- Compact obstacle layout
+- Perfect for quick gameplay
+
+### Ancient Grove (Large)
+- 40x40 arena size
+- Diverse obstacles including:
+  - Corridor-style passageways
+  - Central maze structures
+  - Elevated platforms
+  - Cylindrical pillars
+  - Bridge structures
+  - Multiple jumping challenges
+- More trees and magical elements
+- Excellent for exploration and extended gameplay
 
 ## Character sprites (GIFs)
 

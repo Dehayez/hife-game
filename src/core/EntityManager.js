@@ -281,13 +281,16 @@ export class EntityManager {
   spawnCollectiblesForCollection(count = 8) {
     this.clearAll();
     
-    const positions = this._generateRandomPositions(count, 1.5);
+    // Increase count for large arena (40x40)
+    const adjustedCount = this.arenaSize >= 35 ? count * 3 : count; // Triple gems for large arena
+    
+    const positions = this._generateRandomPositions(adjustedCount, 1.5);
     positions.forEach((pos, index) => {
       this.createCollectible(pos.x, pos.z, `collectible_${index}`);
     });
     
     // Store the total count for display purposes (won't change as gems are removed)
-    this.totalCollectiblesCount = count;
+    this.totalCollectiblesCount = adjustedCount;
   }
 
   spawnHazardsForSurvival(count = 10) {
@@ -313,7 +316,7 @@ export class EntityManager {
   _generateRandomPositions(count, minDistance) {
     const positions = [];
     const halfArena = this.arenaSize / 2 - 2;
-    const maxAttempts = 100;
+    const maxAttempts = 200; // Increased attempts for large arenas
     
     for (let i = 0; i < count; i++) {
       let attempts = 0;
@@ -325,6 +328,8 @@ export class EntityManager {
         z = (Math.random() - 0.5) * halfArena * 2;
         
         valid = true;
+        
+        // Check distance from existing positions
         for (const existing of positions) {
           const dx = x - existing.x;
           const dz = z - existing.z;
@@ -334,6 +339,14 @@ export class EntityManager {
             break;
           }
         }
+        
+        // Check collision with obstacles if collisionManager available
+        if (valid && this.collisionManager && this.collisionManager.pointCollidesWithObstacle) {
+          if (this.collisionManager.pointCollidesWithObstacle(x, z, minDistance)) {
+            valid = false;
+          }
+        }
+        
         attempts++;
       }
       

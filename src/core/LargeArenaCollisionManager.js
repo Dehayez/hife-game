@@ -1,6 +1,6 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
-export class CollisionManager {
+export class LargeArenaCollisionManager {
   constructor(scene, arenaSize, respawnOverlay = null) {
     this.scene = scene;
     this.arenaSize = arenaSize;
@@ -11,10 +11,11 @@ export class CollisionManager {
     // Respawn system
     this.isFallingOutside = false;
     this.respawnCountdown = 0;
-    this.respawnTime = 3; // 3 seconds countdown
+    this.respawnTime = 3;
     this.respawnOverlay = respawnOverlay;
     
     this._createWalls();
+    this._createDiverseObstacles();
   }
 
   setGameModeManager(gameModeManager) {
@@ -27,33 +28,72 @@ export class CollisionManager {
   }
 
   _createWalls() {
-    // Perimeter walls (slightly inside arena bounds) - darker green forest color
+    // Perimeter walls (slightly inside arena bounds)
     const margin = 0.2;
-    const darkerGreen = 0x1a3008; // Darker forest green color
+    const darkerGreen = 0x1a3008;
     this.addWall(0, -(this.arenaSize / 2) + margin, this.arenaSize - margin * 2, 0.4, darkerGreen);
     this.addWall(0, (this.arenaSize / 2) - margin, this.arenaSize - margin * 2, 0.4, darkerGreen);
     this.addWall(-(this.arenaSize / 2) + margin, 0, 0.4, this.arenaSize - margin * 2, darkerGreen);
     this.addWall((this.arenaSize / 2) - margin, 0, 0.4, this.arenaSize - margin * 2, darkerGreen);
-
-    // Inner obstacles
-    this._createInnerWalls();
   }
 
-  _createInnerWalls() {
-    // Store inner wall positions for easy recreation
-    const lightGrey = 0x808080; // Pure lighter grey color
-    const innerWallData = [
-      { x: -4, z: -2, w: 6, h: 0.4 },
-      { x: 3, z: 3, w: 0.4, h: 6 },
-      { x: -2, z: 5, w: 4, h: 0.4 }
+  _createDiverseObstacles() {
+    const lightGrey = 0x808080;
+    const stoneColor = 0x6a6a6a;
+    const mossColor = 0x4a6a4a;
+    
+    // Store obstacle configurations for recreation
+    this.obstacleData = [
+      // Corridor-style walls forming passageways
+      { x: -12, z: -8, w: 2, h: 0.4, type: 'horizontal', color: lightGrey },
+      { x: -8, z: -12, w: 0.4, h: 2, type: 'vertical', color: lightGrey },
+      { x: 8, z: 12, w: 2, h: 0.4, type: 'horizontal', color: lightGrey },
+      { x: 12, z: 8, w: 0.4, h: 2, type: 'vertical', color: lightGrey },
+      
+      // Central maze-like structures
+      { x: 0, z: 8, w: 4, h: 0.4, type: 'horizontal', color: stoneColor },
+      { x: 0, z: -8, w: 4, h: 0.4, type: 'horizontal', color: stoneColor },
+      { x: 8, z: 0, w: 0.4, h: 4, type: 'vertical', color: stoneColor },
+      { x: -8, z: 0, w: 0.4, h: 4, type: 'vertical', color: stoneColor },
+      
+      // Elevated platforms
+      { x: -12, z: -12, w: 1.5, h: 0.4, type: 'horizontal', color: mossColor, height: 2.4 },
+      { x: 12, z: 12, w: 1.5, h: 0.4, type: 'horizontal', color: mossColor, height: 2.4 },
+      { x: -12, z: 12, w: 1.5, h: 0.4, type: 'horizontal', color: mossColor, height: 2.4 },
+      { x: 12, z: -12, w: 1.5, h: 0.4, type: 'horizontal', color: mossColor, height: 2.4 },
+      
+      // Scattered pillars and blocks
+      { x: -6, z: -6, w: 1, h: 1, type: 'square', color: stoneColor },
+      { x: 6, z: 6, w: 1, h: 1, type: 'square', color: stoneColor },
+      { x: -6, z: 6, w: 1, h: 1, type: 'square', color: stoneColor },
+      { x: 6, z: -6, w: 1, h: 1, type: 'square', color: stoneColor },
+      
+      // Platforms in corner areas
+      { x: -15, z: -15, w: 0.4, h: 2, type: 'vertical', color: mossColor },
+      { x: 15, z: -15, w: 0.4, h: 2, type: 'vertical', color: mossColor },
+      { x: 0, z: -16, w: 6, h: 0.4, type: 'horizontal', color: mossColor },
+      
+      // Side platforms
+      { x: 15, z: 0, w: 0.4, h: 3, type: 'vertical', color: stoneColor },
+      { x: -15, z: 0, w: 0.4, h: 3, type: 'vertical', color: stoneColor },
+      
+      // Bridge-like structures
+      { x: -4, z: -4, w: 4, h: 0.6, type: 'bridge', color: lightGrey },
+      { x: 4, z: 4, w: 4, h: 0.6, type: 'bridge', color: lightGrey },
+      
+      // Narrow passage areas (creating fun run challenges)
+      { x: 0, z: -16, w: 0.6, h: 0.6, type: 'pillar', color: stoneColor },
+      { x: 0, z: 16, w: 0.6, h: 0.6, type: 'pillar', color: stoneColor },
+      { x: -16, z: 0, w: 0.6, h: 0.6, type: 'pillar', color: stoneColor },
+      { x: 16, z: 0, w: 0.6, h: 0.6, type: 'pillar', color: stoneColor }
     ];
-
-    // Check if we should create inner walls (not in survival mode)
+    
+    // Check if we should create inner obstacles
     const shouldCreateInnerWalls = !this.gameModeManager || this.gameModeManager.getMode() !== 'survival';
-
+    
     if (shouldCreateInnerWalls) {
-      for (const wallData of innerWallData) {
-        const wall = this.addWall(wallData.x, wallData.z, wallData.w, wallData.h, lightGrey);
+      for (const obstacle of this.obstacleData) {
+        const wall = this.addObstacle(obstacle);
         this.innerWalls.push(wall);
       }
     }
@@ -74,8 +114,63 @@ export class CollisionManager {
     this._createInnerWalls();
   }
 
-  addWall(x, z, w, h, color = 0xe57474) {
-    const height = 1.2;
+  _createInnerWalls() {
+    const shouldCreateInnerWalls = !this.gameModeManager || this.gameModeManager.getMode() !== 'survival';
+
+    if (shouldCreateInnerWalls && this.obstacleData) {
+      for (const obstacle of this.obstacleData) {
+        const wall = this.addObstacle(obstacle);
+        this.innerWalls.push(wall);
+      }
+    }
+  }
+
+  addObstacle(obstacle) {
+    const { x, z, w, h, type, color, height } = obstacle;
+    const defaultHeight = height || 1.2;
+    
+    let wall;
+    
+    switch (type) {
+      case 'pillar':
+        // Cylindrical pillar - increased segments for better shadows
+        const pillarGeo = new THREE.CylinderGeometry(w / 2, w / 2, defaultHeight, 16);
+        const pillarMat = new THREE.MeshStandardMaterial({ color });
+        wall = new THREE.Mesh(pillarGeo, pillarMat);
+        wall.position.set(x, defaultHeight / 2, z);
+        break;
+        
+      case 'square':
+        // Square block
+        const squareGeo = new THREE.BoxGeometry(w, defaultHeight, h);
+        const squareMat = new THREE.MeshStandardMaterial({ color });
+        wall = new THREE.Mesh(squareGeo, squareMat);
+        wall.position.set(x, defaultHeight / 2, z);
+        break;
+        
+      case 'bridge':
+        // Bridge - thinner and taller
+        const bridgeHeight = defaultHeight * 1.5;
+        const bridgeGeo = new THREE.BoxGeometry(w, bridgeHeight, h);
+        const bridgeMat = new THREE.MeshStandardMaterial({ color });
+        wall = new THREE.Mesh(bridgeGeo, bridgeMat);
+        wall.position.set(x, bridgeHeight / 2, z);
+        break;
+        
+      default:
+        // Regular rectangular wall
+        wall = this.addWall(x, z, w, h, color, defaultHeight);
+        return wall;
+    }
+    
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    this.scene.add(wall);
+    this.walls.push(wall);
+    return wall;
+  }
+
+  addWall(x, z, w, h, color = 0xe57474, height = 1.2) {
     const wallGeo = new THREE.BoxGeometry(w, height, h);
     const wallMat = new THREE.MeshStandardMaterial({ color });
     const wall = new THREE.Mesh(wallGeo, wallMat);
@@ -93,7 +188,6 @@ export class CollisionManager {
   }
 
   willCollide(nextPos, playerSize) {
-    // Construct a temporary AABB for player at next position
     const half = playerSize / 2;
     const playerBox = new THREE.Box3(
       new THREE.Vector3(nextPos.x - half, nextPos.y, nextPos.z - half),
@@ -125,31 +219,26 @@ export class CollisionManager {
   }
 
   getGroundHeight(x, z, playerSize) {
-    // Check if player is standing on top of any platform
     const half = playerSize / 2;
     
-    // Check if player is within arena bounds
     const halfArena = this.arenaSize / 2;
     const isWithinArena = Math.abs(x) < halfArena && Math.abs(z) < halfArena;
     
-    // If outside arena, return negative infinity for endless fall
     if (!isWithinArena) {
-      return -Infinity; // Endless fall outside arena
+      return -Infinity;
     }
     
-    let highestPlatform = 0; // Default ground level within arena
+    let highestPlatform = 0;
     
     for (const wall of this.walls) {
       const wallBox = this.getAABBFor(wall);
       
-      // Check if player is horizontally overlapping with this wall/platform
       const horizontalOverlap = (x - half) < wallBox.max.x && 
                                (x + half) > wallBox.min.x &&
                                (z - half) < wallBox.max.z && 
                                (z + half) > wallBox.min.z;
       
       if (horizontalOverlap) {
-        // Player is over this platform, check if it's the highest one
         const platformTop = wallBox.max.y;
         if (platformTop > highestPlatform) {
           highestPlatform = platformTop;
@@ -169,45 +258,38 @@ export class CollisionManager {
     const halfArena = this.arenaSize / 2;
     const isWithinArena = Math.abs(x) < halfArena && Math.abs(z) < halfArena;
     
-    // Check if player is falling outside arena
     if (!isWithinArena && y < 0) {
       if (!this.isFallingOutside) {
-        // Just started falling outside
         this.isFallingOutside = true;
         this.respawnCountdown = this.respawnTime;
         console.log(`Falling outside arena! Respawning in ${this.respawnTime} seconds...`);
         
-        // Show respawn overlay
         if (this.respawnOverlay) {
           this.respawnOverlay.show(this.respawnCountdown);
         }
       } else {
-        // Continue countdown
         this.respawnCountdown -= dt;
         
-        // Update overlay countdown
         if (this.respawnOverlay) {
           this.respawnOverlay.updateCountdown(this.respawnCountdown);
         }
         
         if (this.respawnCountdown <= 0) {
           this.respawnCountdown = 0;
-          return true; // Signal to respawn
+          return true;
         }
       }
     } else if (isWithinArena && this.isFallingOutside) {
-      // Player is back in arena, cancel respawn
       this.isFallingOutside = false;
       this.respawnCountdown = 0;
       console.log("Back in arena! Respawn cancelled.");
       
-      // Hide respawn overlay
       if (this.respawnOverlay) {
         this.respawnOverlay.hide();
       }
     }
     
-    return false; // No respawn needed
+    return false;
   }
 
   getRespawnCountdown() {
@@ -222,16 +304,16 @@ export class CollisionManager {
     this.isFallingOutside = false;
     this.respawnCountdown = 0;
     
-    // Immediately reset the overlay (no fade transition)
     if (this.respawnOverlay) {
       this.respawnOverlay.immediateReset();
     }
   }
 
   constrainToArena(position, playerSize) {
-    const halfArena = this.arenaSize / 2 - 0.6; // keep small offset from perimeter walls
+    const halfArena = this.arenaSize / 2 - 0.6;
     position.x = Math.max(-halfArena, Math.min(halfArena, position.x));
     position.z = Math.max(-halfArena, Math.min(halfArena, position.z));
     return position;
   }
 }
+

@@ -3,38 +3,51 @@ import { initCharacterSwitcher } from './ui/CharacterSwitcher.js';
 import { initControlsLegend } from './ui/ControlsLegend.js';
 import { initGameModeSwitcher } from './ui/GameModeSwitcher.js';
 import { initGameModeDisplay } from './ui/GameModeDisplay.js';
+import { initArenaSwitcher } from './ui/ArenaSwitcher.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter } from './utils/StorageUtils.js';
 import { SceneManager } from './core/SceneManager.js';
+import { LargeArenaSceneManager } from './core/LargeArenaSceneManager.js';
 import { CharacterManager } from './core/CharacterManager.js';
 import { InputManager } from './core/InputManager.js';
 import { CollisionManager } from './core/CollisionManager.js';
+import { LargeArenaCollisionManager } from './core/LargeArenaCollisionManager.js';
 import { GameModeManager } from './core/GameModeManager.js';
 import { EntityManager } from './core/EntityManager.js';
 import { GameLoop } from './core/GameLoop.js';
 import { ParticleManager } from './core/ParticleManager.js';
+import { ArenaManager } from './core/ArenaManager.js';
 
 // Initialize game components
 const canvas = document.getElementById('app-canvas');
-const sceneManager = new SceneManager();
-
-// Initialize scene first
-sceneManager.init(canvas);
-
-// Create respawn overlay
 const respawnOverlay = new RespawnOverlay();
+const arenaManager = new ArenaManager();
+
+// Get arena from URL param or default to standard
+const urlArena = getParam('arena', 'standard');
+arenaManager.setArena(urlArena);
+
+// Initialize arena-specific managers based on selection
+let sceneManager, collisionManager;
+const isLargeArena = arenaManager.isLargeArena();
+
+if (isLargeArena) {
+  sceneManager = new LargeArenaSceneManager();
+  sceneManager.init(canvas);
+  collisionManager = new LargeArenaCollisionManager(sceneManager.getScene(), sceneManager.getArenaSize(), respawnOverlay);
+} else {
+  sceneManager = new SceneManager();
+  sceneManager.init(canvas);
+  collisionManager = new CollisionManager(sceneManager.getScene(), sceneManager.getArenaSize(), respawnOverlay);
+}
 
 // Now create other components that depend on the scene
-// To use a custom footstep sound, provide the path here:
-// Example: '/assets/sounds/footstep.mp3' or '/assets/sounds/footstep.ogg'
-// Leave as null to use the default procedural sound
-const customFootstepPath = null; // Set to your sound file path to use custom sound
-const characterManager = new CharacterManager(null, customFootstepPath); // Initialize without scene first
+const customFootstepPath = null;
+const characterManager = new CharacterManager(null, customFootstepPath);
 const inputManager = new InputManager();
-const collisionManager = new CollisionManager(sceneManager.getScene(), sceneManager.getArenaSize(), respawnOverlay);
 const entityManager = new EntityManager(sceneManager.getScene(), sceneManager.getArenaSize(), collisionManager);
-const gameModeManager = new GameModeManager(entityManager);
+const gameModeManager = new GameModeManager(entityManager, urlArena);
 
 // Connect game mode manager to collision manager
 collisionManager.setGameModeManager(gameModeManager);
@@ -42,7 +55,7 @@ collisionManager.setGameModeManager(gameModeManager);
 // Initialize character manager with the scene
 characterManager.initializePlayer(sceneManager.getScene());
 
-// Connect collision manager to character manager (for ground type checking)
+// Connect collision manager to character manager
 characterManager.setCollisionManager(collisionManager);
 
 // Initialize particle manager for smoke effects
@@ -53,7 +66,6 @@ characterManager.setParticleManager(particleManager);
 gameModeManager.setOnModeChangeCallback(() => {
   characterManager.respawn();
   collisionManager.updateWallsForMode();
-  // Show mushrooms only in Forest Wander (free-play) mode
   const currentMode = gameModeManager.getMode();
   sceneManager.setMushroomsVisible(currentMode === 'free-play');
 });
@@ -91,6 +103,25 @@ const gameMode = getParam('mode', 'free-play');
 gameModeManager.setMode(gameMode);
 // Set initial mushroom visibility based on starting mode
 sceneManager.setMushroomsVisible(gameMode === 'free-play');
+
+// Helper function to update URL parameter
+function updateURLParam(paramName, paramValue) {
+  const url = new URL(window.location);
+  url.searchParams.set(paramName, paramValue);
+  return url.toString();
+}
+
+// Initialize arena switcher UI
+const arenaMount = document.getElementById('arena-switcher') || document.body;
+initArenaSwitcher({
+  mount: arenaMount,
+  options: arenaManager.getArenas(),
+  value: urlArena,
+  onChange: (arena) => {
+    // Reload page with new arena to reinitialize everything
+    window.location.href = updateURLParam('arena', arena);
+  }
+});
 
 // Initialize game mode switcher UI
 const gameModeMount = document.getElementById('game-mode-switcher') || document.body;

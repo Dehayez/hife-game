@@ -1,8 +1,9 @@
 import { getHighScore, setHighScore, getBestTime, setBestTime } from '../utils/StorageUtils.js';
 
 export class GameModeManager {
-  constructor(entityManager = null) {
+  constructor(entityManager = null, arena = 'standard') {
     this.currentMode = 'free-play';
+    this.currentArena = arena;
     this.entityManager = entityManager;
     this.onModeChangeCallback = null;
     this.onRestartCallback = null;
@@ -44,11 +45,23 @@ export class GameModeManager {
       highScore: 0
     };
     
-    // Load high score and best time for current mode
-    this.modeState.highScore = getHighScore(this.currentMode);
-    const savedBestTime = getBestTime(this.currentMode);
+    // Load high score and best time for current mode and arena
+    this.modeState.highScore = getHighScore(this.currentMode, this.currentArena);
+    const savedBestTime = getBestTime(this.currentMode, this.currentArena);
     if (savedBestTime !== null) {
       this.modeState.bestTime = savedBestTime;
+    }
+  }
+
+  setArena(arena) {
+    this.currentArena = arena;
+    // Reload scores for new arena
+    this.modeState.highScore = getHighScore(this.currentMode, this.currentArena);
+    const savedBestTime = getBestTime(this.currentMode, this.currentArena);
+    if (savedBestTime !== null) {
+      this.modeState.bestTime = savedBestTime;
+    } else {
+      this.modeState.bestTime = null;
     }
   }
 
@@ -79,9 +92,9 @@ export class GameModeManager {
     this.currentMode = mode;
     this.resetModeState();
     
-    // Load high score and best time for the new mode
-    this.modeState.highScore = getHighScore(this.currentMode);
-    const savedBestTime = getBestTime(this.currentMode);
+    // Load high score and best time for the new mode and current arena
+    this.modeState.highScore = getHighScore(this.currentMode, this.currentArena);
+    const savedBestTime = getBestTime(this.currentMode, this.currentArena);
     if (savedBestTime !== null) {
       this.modeState.bestTime = savedBestTime;
     }
@@ -123,8 +136,8 @@ export class GameModeManager {
     this.resetModeState();
     
     // Reload high score and best time from storage after reset
-    this.modeState.highScore = getHighScore(this.currentMode);
-    const savedBestTime = getBestTime(this.currentMode);
+    this.modeState.highScore = getHighScore(this.currentMode, this.currentArena);
+    const savedBestTime = getBestTime(this.currentMode, this.currentArena);
     if (savedBestTime !== null) {
       this.modeState.bestTime = savedBestTime;
     }
@@ -140,8 +153,8 @@ export class GameModeManager {
     this.resetModeState();
     
     // Reload high score and best time from storage after reset
-    this.modeState.highScore = getHighScore(this.currentMode);
-    const savedBestTime = getBestTime(this.currentMode);
+    this.modeState.highScore = getHighScore(this.currentMode, this.currentArena);
+    const savedBestTime = getBestTime(this.currentMode, this.currentArena);
     if (savedBestTime !== null) {
       this.modeState.bestTime = savedBestTime;
     }
@@ -221,7 +234,7 @@ export class GameModeManager {
               const finishTime = this.modeState.timer;
               if (!this.modeState.bestTime || finishTime < this.modeState.bestTime) {
                 this.modeState.bestTime = finishTime;
-                setBestTime(this.currentMode, finishTime);
+                setBestTime(this.currentMode, finishTime, this.currentArena);
               }
             }
           }
@@ -310,7 +323,7 @@ export class GameModeManager {
     // Update high score if current score exceeds it
     if (this.modeState.score > this.modeState.highScore) {
       this.modeState.highScore = this.modeState.score;
-      setHighScore(this.currentMode, this.modeState.highScore);
+      setHighScore(this.currentMode, this.modeState.highScore, this.currentArena);
     }
   }
 
@@ -356,7 +369,7 @@ export class GameModeManager {
           // Update best time if this is better (higher is better in survival)
           if (!this.modeState.bestTime || this.modeState.timer > this.modeState.bestTime) {
             this.modeState.bestTime = this.modeState.timer;
-            setBestTime(this.currentMode, this.modeState.bestTime);
+            setBestTime(this.currentMode, this.modeState.bestTime, this.currentArena);
           }
           
           // Pause and mark as complete temporarily
