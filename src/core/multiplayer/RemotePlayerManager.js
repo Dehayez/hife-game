@@ -78,8 +78,181 @@ export class RemotePlayerManager {
     });
 
     this.scene.add(playerMesh);
+    
+    // Return remote player data for health bar creation
+    return this.remotePlayers.get(playerId);
   }
 
+  /**
+   * Update remote player character (reload animations)
+   * @param {string} playerId - Remote player ID
+   * @param {string} characterName - New character name
+   */
+  async updateRemotePlayerCharacter(playerId, characterName) {
+    const remotePlayer = this.remotePlayers.get(playerId);
+    if (!remotePlayer) {
+      return;
+    }
+
+    const mesh = remotePlayer.mesh;
+    
+    // Update character name in userData
+    mesh.userData.characterName = characterName;
+    
+    // Clear current texture from material first
+    if (mesh.material && mesh.material.map) {
+      mesh.material.map = null;
+      mesh.material.needsUpdate = true;
+    }
+    
+    // Dispose old textures to free memory
+    if (remotePlayer.animations) {
+      Object.values(remotePlayer.animations).forEach(anim => {
+        if (anim.mode === 'frames' && anim.textures) {
+          anim.textures.forEach(tex => {
+            if (tex && tex.dispose) tex.dispose();
+          });
+        } else if (anim.texture && anim.texture.dispose) {
+          anim.texture.dispose();
+        }
+      });
+    }
+    
+    // Reload animations for new character
+    const newAnimations = await loadCharacterAnimations(characterName);
+    
+    // Wait for textures to be fully loaded
+    const waitForTextures = async (animations) => {
+      const promises = [];
+      Object.values(animations).forEach(anim => {
+        if (anim.mode === 'frames' && anim.textures) {
+          anim.textures.forEach(tex => {
+            if (tex && tex.image) {
+              if (tex.image.complete && tex.image.naturalWidth > 0) {
+                return; // Already loaded
+              }
+              promises.push(new Promise(resolve => {
+                if (tex.image.complete) {
+                  resolve();
+                  return;
+                }
+                tex.image.onload = () => resolve();
+                tex.image.onerror = () => resolve(); // Resolve even on error to avoid hanging
+              }));
+            } else if (tex) {
+              // Texture might not have image property yet, wait a bit
+              promises.push(new Promise(resolve => {
+                const checkInterval = setInterval(() => {
+                  if (tex.image) {
+                    if (tex.image.complete) {
+                      clearInterval(checkInterval);
+                      resolve();
+                    } else {
+                      tex.image.onload = () => {
+                        clearInterval(checkInterval);
+                        resolve();
+                      };
+                      tex.image.onerror = () => {
+                        clearInterval(checkInterval);
+                        resolve();
+                      };
+                    }
+                  }
+                }, 50);
+                // Timeout after 2 seconds
+                setTimeout(() => {
+                  clearInterval(checkInterval);
+                  resolve();
+                }, 2000);
+              }));
+            }
+          });
+        } else if (anim.texture) {
+          if (anim.texture.image) {
+            if (anim.texture.image.complete && anim.texture.image.naturalWidth > 0) {
+              return; // Already loaded
+            }
+            promises.push(new Promise(resolve => {
+              if (anim.texture.image.complete) {
+                resolve();
+                return;
+              }
+              anim.texture.image.onload = () => resolve();
+              anim.texture.image.onerror = () => resolve();
+            }));
+          } else {
+            // Texture might not have image property yet, wait a bit
+            promises.push(new Promise(resolve => {
+              const checkInterval = setInterval(() => {
+                if (anim.texture.image) {
+                  if (anim.texture.image.complete) {
+                    clearInterval(checkInterval);
+                    resolve();
+                  } else {
+                    anim.texture.image.onload = () => {
+                      clearInterval(checkInterval);
+                      resolve();
+                    };
+                    anim.texture.image.onerror = () => {
+                      clearInterval(checkInterval);
+                      resolve();
+                    };
+                  }
+                }
+              }, 50);
+              // Timeout after 2 seconds
+              setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve();
+              }, 2000);
+            }));
+          }
+        }
+      });
+      
+      if (promises.length > 0) {
+        await Promise.all(promises);
+      }
+    };
+    
+    await waitForTextures(newAnimations);
+    
+    remotePlayer.animations = newAnimations;
+    
+    // Set current animation with new animations
+    const currentAnimKey = remotePlayer.currentAnimKey || 'idle_front';
+    const previousAnimKey = remotePlayer.currentAnimKey;
+    setCharacterAnimation(
+      mesh,
+      currentAnimKey,
+      newAnimations,
+      previousAnimKey,
+      true
+    );
+    
+    // Force material update and ensure texture is set
+    if (mesh.material) {
+      const currentAnim = newAnimations[currentAnimKey];
+      if (currentAnim) {
+        const texture = currentAnim.mode === 'frames' ? currentAnim.textures[0] : currentAnim.texture;
+        if (texture) {
+          // Explicitly set the texture
+          mesh.material.map = texture;
+          mesh.material.needsUpdate = true;
+          
+          // Also update the texture itself
+          if (texture.needsUpdate !== undefined) {
+            texture.needsUpdate = true;
+          }
+          
+          // Force a render update by marking the mesh as needing update
+          mesh.visible = false;
+          mesh.visible = true;
+        }
+      }
+    }
+  }
+  
   /**
    * Update remote player position and state
    * @param {string} playerId - Remote player ID
@@ -149,7 +322,6 @@ export class RemotePlayerManager {
     remotePlayer.mesh.geometry.dispose();
     remotePlayer.mesh.material.dispose();
     this.remotePlayers.delete(playerId);
-    console.log(`Removed remote player ${playerId}`);
   }
 
   /**

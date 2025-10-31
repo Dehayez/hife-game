@@ -184,6 +184,25 @@ export class MultiplayerManager {
         }
       });
     });
+    
+    // Handle character change
+    this.socket.on('character-change', (data) => {
+      if (data.playerId !== this.localPlayerId) {
+        // Update player info
+        const playerInfo = this.connectedPlayers.get(data.playerId);
+        if (playerInfo) {
+          playerInfo.characterName = data.characterName;
+        }
+        
+        // Trigger callback if set
+        if (this.onDataReceived) {
+          this.onDataReceived(data.playerId, {
+            type: 'character-change',
+            characterName: data.characterName
+          });
+        }
+      }
+    });
   }
 
   /**
@@ -387,6 +406,25 @@ export class MultiplayerManager {
   sendPlayerDamage(damageData) {
     if (this.roomCode && this.socket) {
       this.socket.emit('player-damage', damageData);
+    }
+  }
+
+  /**
+   * Send character change event
+   * @param {string} characterName - New character name
+   */
+  sendCharacterChange(characterName) {
+    if (this.roomCode && this.socket && this.socket.connected) {
+      // Update local game state
+      const playerInfo = this.connectedPlayers.get(this.localPlayerId);
+      if (playerInfo) {
+        playerInfo.characterName = characterName;
+      }
+      
+      // Emit character change to server
+      this.socket.emit('character-change', {
+        characterName: characterName
+      });
     }
   }
 

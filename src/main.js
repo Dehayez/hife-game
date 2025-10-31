@@ -27,6 +27,7 @@ import { HealthBarManager } from './core/healthbar/HealthBarManager.js';
 import { GameLoop } from './core/gameloop/GameLoop.js';
 import { ParticleManager } from './core/particle/ParticleManager.js';
 import { ArenaManager } from './core/arena/ArenaManager.js';
+import { getCharacterHealthStats } from './core/character/CharacterStats.js';
 
 // Initialize game components
 const canvas = document.getElementById('app-canvas');
@@ -92,11 +93,21 @@ const multiplayerManager = new MultiplayerManager(
       const initialPosition = { x: 0, y: 0, z: 0 };
       
       try {
-        await remotePlayerManager.spawnRemotePlayer(
+        const remotePlayer = await remotePlayerManager.spawnRemotePlayer(
           playerId,
           playerInfo?.characterName || 'lucy',
           initialPosition
         );
+        
+        // Create health bar for remote player
+        if (healthBarManager && remotePlayer && remotePlayer.mesh) {
+          const mesh = remotePlayer.mesh;
+          const characterName = playerInfo?.characterName || 'lucy';
+          const healthStats = getCharacterHealthStats();
+          mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
+          mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
+          healthBarManager.createHealthBar(mesh, false);
+        }
         
         // When someone joins, send our current state so they can see us
         if (characterManager.getPlayer()) {
@@ -126,6 +137,13 @@ const multiplayerManager = new MultiplayerManager(
   (playerId) => {
     // Remove remote player when someone leaves
     if (playerId !== multiplayerManager.getLocalPlayerId()) {
+      // Remove health bar first
+      const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
+      if (remotePlayer && remotePlayer.mesh && healthBarManager) {
+        healthBarManager.removeHealthBar(remotePlayer.mesh);
+      }
+      
+      // Then remove remote player
       remotePlayerManager.removeRemotePlayer(playerId);
     }
   },
@@ -144,6 +162,18 @@ const multiplayerManager = new MultiplayerManager(
             playerInfo?.characterName || 'lucy',
             { x: data.x || 0, y: data.y || 0, z: data.z || 0 }
           ).then(() => {
+            // Create health bar for remote player
+            const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
+            if (healthBarManager && remotePlayer && remotePlayer.mesh) {
+              const mesh = remotePlayer.mesh;
+              const playerInfo = multiplayerManager.getPlayerInfo(playerId);
+              const characterName = playerInfo?.characterName || 'lucy';
+              const healthStats = getCharacterHealthStats();
+              mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
+              mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
+              healthBarManager.createHealthBar(mesh, false);
+            }
+            
             // Update position after spawning
             remotePlayerManager.updateRemotePlayer(playerId, {
               x: data.x,
@@ -212,6 +242,23 @@ const multiplayerManager = new MultiplayerManager(
     } else if (data.type === 'room-state') {
       // Sync room state (arena, game mode) when joining
       // Note: Could update arena/mode here if needed, but might require page reload
+    } else if (data.type === 'character-change') {
+      // Handle remote player character change
+      if (playerId !== multiplayerManager.getLocalPlayerId()) {
+        const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
+        if (remotePlayer) {
+          // Update character for remote player (async)
+          remotePlayerManager.updateRemotePlayerCharacter(playerId, data.characterName).catch(error => {
+            console.error('Error updating remote player character:', error);
+          });
+          
+          // Update player info
+          const playerInfo = multiplayerManager.getPlayerInfo(playerId);
+          if (playerInfo) {
+            playerInfo.characterName = data.characterName;
+          }
+        }
+      }
     }
   }
 );
@@ -237,7 +284,7 @@ gameModeManager.setOnModeChangeCallback(() => {
   }
 });
 
-const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager, botManager, healthBarManager, multiplayerManager);
+const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager, botManager, healthBarManager, multiplayerManager, remotePlayerManager);
 
 // Character selection: URL param > localStorage > default
 // Priority: 1) URL param ?char=lucy, 2) Last played character (localStorage), 3) Default 'lucy'
@@ -257,10 +304,27 @@ initCharacterSwitcher({
   mount: switcherMount,
   options: AVAILABLE_CHARACTERS,
   value: characterName,
-  onChange: (val) => { 
-    characterManager.loadCharacter(val);
+  onChange: async (val) => { 
+    await characterManager.loadCharacter(val);
     // Save to localStorage when character changes
     setLastCharacter(val);
+    
+    // Send character change to other players if in a multiplayer room
+    if (multiplayerManager && multiplayerManager.isInRoom()) {
+      // Update game state with new character name
+      const gameState = getCurrentGameState();
+      gameState.characterName = val;
+      
+      // Send character change event
+      multiplayerManager.sendCharacterChange(val);
+      
+      // Also update player info in connected players
+      const localPlayerId = multiplayerManager.getLocalPlayerId();
+      const playerInfo = multiplayerManager.getPlayerInfo(localPlayerId);
+      if (playerInfo) {
+        playerInfo.characterName = val;
+      }
+    }
   }
 });
 

@@ -218,6 +218,25 @@ io.on('connection', (socket) => {
   });
 
   /**
+   * Handle character change
+   */
+  socket.on('character-change', (data) => {
+    const player = players.get(socket.id);
+    if (player && player.roomCode) {
+      // Update player's game state
+      if (player.gameState) {
+        player.gameState.characterName = data.characterName;
+      }
+      
+      // Broadcast character change to other players in room
+      socket.to(player.roomCode).emit('character-change', {
+        playerId: socket.id,
+        characterName: data.characterName
+      });
+    }
+  });
+
+  /**
    * Request existing players in room
    */
   socket.on('request-existing-players', () => {

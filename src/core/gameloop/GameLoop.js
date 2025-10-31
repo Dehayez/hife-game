@@ -20,8 +20,9 @@ export class GameLoop {
    * @param {Object} botManager - Bot manager instance (optional)
    * @param {Object} healthBarManager - Health bar manager instance (optional)
    * @param {Object} multiplayerManager - Multiplayer manager instance (optional)
+   * @param {Object} remotePlayerManager - Remote player manager instance (optional)
    */
-  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null, botManager = null, healthBarManager = null, multiplayerManager = null) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null, botManager = null, healthBarManager = null, multiplayerManager = null, remotePlayerManager = null) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
@@ -32,6 +33,7 @@ export class GameLoop {
     this.botManager = botManager;
     this.healthBarManager = healthBarManager;
     this.multiplayerManager = multiplayerManager;
+    this.remotePlayerManager = remotePlayerManager;
     
     this.lastTime = performance.now();
     this.isRunning = false;
@@ -389,6 +391,39 @@ export class GameLoop {
       
       // Note: Splash will be created at target location when mortar hits ground
       // No need to create splash here - mortar continues to target
+    }
+    
+    // Check projectile collisions with remote players
+    if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+      const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+      for (const [playerId, remotePlayer] of remotePlayers) {
+        const mesh = remotePlayer.mesh;
+        
+        // Check projectile collisions
+        const remoteCollision = this.projectileManager.checkPlayerCollision(
+          mesh.position,
+          this.characterManager.getPlayerSize(),
+          playerId
+        );
+        
+        if (remoteCollision.hit) {
+          // Calculate damage (don't apply directly - damage comes from server)
+          // But we can update visual feedback here
+          // The actual damage sync happens via player-damage event
+        }
+        
+        // Check mortar ground explosions for remote players
+        const remoteMortarCollision = this.projectileManager.checkMortarGroundCollision(
+          mesh.position,
+          this.characterManager.getPlayerSize(),
+          playerId
+        );
+        
+        if (remoteMortarCollision.hit) {
+          // Visual feedback for mortar hit on remote player
+          // Actual damage sync happens via player-damage event
+        }
+      }
     }
     
     // Check projectile collisions with bots
