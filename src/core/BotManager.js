@@ -220,24 +220,32 @@ export class BotManager {
       }
 
       // AI: Shooting
-      userData.shootCooldown -= dt;
-      if (userData.shootCooldown <= 0 && this.projectileManager && playerPosition) {
-        const dx = playerPosition.x - bot.position.x;
-        const dz = playerPosition.z - bot.position.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
+      if (this.projectileManager && playerPosition) {
+        const characterName = userData.characterName || 'herald';
+        const characterStats = this.projectileManager.getCharacterStats(characterName);
+        
+        // Update cooldown based on character stats
+        userData.shootCooldown -= dt;
+        
+        if (userData.shootCooldown <= 0) {
+          const dx = playerPosition.x - bot.position.x;
+          const dz = playerPosition.z - bot.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
 
-        // Shoot if player is in range (within 10 units)
-        if (dist < 10 && this.projectileManager.canShoot()) {
-          this.projectileManager.createProjectile(
-            bot.position.x,
-            bot.position.y, // Use bot's Y position (height)
-            bot.position.z,
-            dx,
-            dz,
-            userData.id
-          );
-          userData.shootCooldown = userData.shootInterval;
-          userData.shootInterval = 1 + Math.random() * 1.5;
+          // Shoot if player is in range (within 10 units) and projectile manager allows it
+          if (dist < 10 && this.projectileManager.canShoot(userData.id)) {
+            this.projectileManager.createProjectile(
+              bot.position.x,
+              bot.position.y, // Use bot's Y position (height)
+              bot.position.z,
+              dx,
+              dz,
+              userData.id,
+              characterName // Pass character name for stats
+            );
+            // Set cooldown based on character stats
+            userData.shootCooldown = characterStats.cooldown + Math.random() * 0.2;
+          }
         }
       }
 

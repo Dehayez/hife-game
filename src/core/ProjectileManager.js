@@ -7,17 +7,45 @@ export class ProjectileManager {
     this.projectiles = [];
     this.projectileSpeed = 15; // units per second
     this.projectileLifetime = 3; // seconds
+    
+    // Character-specific stats
+    this.characterStats = {
+      lucy: {
+        damage: 20, // Lower damage
+        cooldown: 0.2, // Faster shooting (5 shots per second)
+        color: 0xff6b9d, // Pink/magenta color
+        name: 'Lucy'
+      },
+      herald: {
+        damage: 35, // Higher damage
+        cooldown: 0.5, // Slower shooting (2 shots per second)
+        color: 0xff8c42, // Orange color
+        name: 'Herald'
+      }
+    };
+    
+    // Default stats
     this.projectileDamage = 25;
-    this.shootCooldown = 0.3; // seconds between shots
-    this.currentCooldown = 0;
+    this.shootCooldown = 0.3;
+    
+    // Per-character cooldown tracking
+    this.characterCooldowns = new Map();
   }
 
   setCollisionManager(collisionManager) {
     this.collisionManager = collisionManager;
   }
 
-  createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local') {
-    if (this.currentCooldown > 0) return null;
+  createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy') {
+    // Get character-specific stats
+    const stats = this.characterStats[characterName] || this.characterStats.lucy;
+    const characterCooldown = stats.cooldown;
+    const characterDamage = stats.damage;
+    const characterColor = stats.color;
+    
+    // Check cooldown for this specific character
+    const currentCooldown = this.characterCooldowns.get(playerId) || 0;
+    if (currentCooldown > 0) return null;
 
     // Normalize direction
     const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
@@ -26,9 +54,9 @@ export class ProjectileManager {
     const normX = directionX / dirLength;
     const normZ = directionZ / dirLength;
 
-    // Create magical projectile - glowing sphere
+    // Create magical projectile - glowing sphere with character-specific color
     const geo = new THREE.SphereGeometry(0.1, 8, 8);
-    const color = 0xff6666; // Magical red/pink color
+    const color = characterColor;
     const mat = new THREE.MeshStandardMaterial({
       color: color,
       emissive: color,
@@ -42,34 +70,51 @@ export class ProjectileManager {
     projectile.position.set(startX, startY, startZ);
     projectile.castShadow = true;
     
-    // Add trail effect - point light
+    // Add trail effect - point light with character color
     const trailLight = new THREE.PointLight(color, 1.0, 3);
     trailLight.position.set(startX, startY, startZ);
     this.scene.add(trailLight);
     
-    // Store projectile data
+    // Store projectile data with character-specific damage
     projectile.userData = {
       type: 'projectile',
       playerId: playerId,
+      characterName: characterName,
       velocityX: normX * this.projectileSpeed,
       velocityZ: normZ * this.projectileSpeed,
       lifetime: 0,
       trailLight: trailLight,
-      damage: this.projectileDamage
+      damage: characterDamage
     };
     
     this.scene.add(projectile);
     this.projectiles.push(projectile);
     
-    // Set cooldown
-    this.currentCooldown = this.shootCooldown;
+    // Set cooldown for this specific character/player
+    this.characterCooldowns.set(playerId, characterCooldown);
     
     return projectile;
   }
+  
+  setCharacter(characterName) {
+    // Reset all cooldowns when character changes
+    this.characterCooldowns.clear();
+  }
+  
+  getCharacterStats(characterName) {
+    return this.characterStats[characterName] || this.characterStats.lucy;
+  }
 
   update(dt) {
-    // Update cooldown
-    this.currentCooldown = Math.max(0, this.currentCooldown - dt);
+    // Update cooldowns for all characters
+    for (const [playerId, cooldown] of this.characterCooldowns.entries()) {
+      const newCooldown = Math.max(0, cooldown - dt);
+      if (newCooldown > 0) {
+        this.characterCooldowns.set(playerId, newCooldown);
+      } else {
+        this.characterCooldowns.delete(playerId);
+      }
+    }
     
     const projectilesToRemove = [];
     
@@ -187,8 +232,16 @@ export class ProjectileManager {
     return this.projectiles;
   }
 
-  canShoot() {
-    return this.currentCooldown <= 0;
+  canShoot(playerId = null) {
+    // If player ID provided, check cooldown for that specific player/character
+    if (playerId) {
+      const cooldown = this.characterCooldowns.get(playerId) || 0;
+      return cooldown <= 0;
+    }
+    // Otherwise, check if any character can shoot (for general checks)
+    // Return true if any cooldown is ready or if no cooldowns are active
+    return this.characterCooldowns.size === 0 || 
+           Array.from(this.characterCooldowns.values()).some(cd => cd <= 0);
   }
 }
 

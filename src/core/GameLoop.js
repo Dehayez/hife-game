@@ -92,7 +92,7 @@ export class GameLoop {
       
       // Handle shooting input
       const shootInput = this.inputManager.isShootPressed();
-      if (shootInput && !this.lastShootInput && this.projectileManager.canShoot()) {
+      if (shootInput && !this.lastShootInput) {
         // Get shooting direction (towards mouse cursor on ground plane)
         const camera = this.sceneManager.getCamera();
         const mousePos = this.inputManager.getMousePosition();
@@ -115,6 +115,17 @@ export class GameLoop {
         const directionX = intersect.x - playerPos.x;
         const directionZ = intersect.z - playerPos.z;
         
+        // Get current character name for projectile stats
+        const characterName = this.characterManager.getCharacterName();
+        const playerId = 'local';
+        
+        // Check if player can shoot (based on character-specific cooldown)
+        if (!this.projectileManager.canShoot(playerId)) {
+          // Still update lastShootInput to prevent stuck shooting
+          this.lastShootInput = shootInput;
+          // Skip shooting this frame
+        } else {
+        
         // If no valid direction (too close to player), shoot forward
         const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
         if (dirLength < 0.1) {
@@ -127,7 +138,8 @@ export class GameLoop {
             playerPos.z,
             cameraDir.x,
             cameraDir.z,
-            'local'
+            playerId,
+            characterName // Pass character name for stats
           );
         } else {
           this.projectileManager.createProjectile(
@@ -136,8 +148,10 @@ export class GameLoop {
             playerPos.z,
             directionX,
             directionZ,
-            'local'
+            playerId,
+            characterName // Pass character name for stats
           );
+        }
         }
       }
       this.lastShootInput = shootInput;
