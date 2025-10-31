@@ -101,3 +101,25 @@ export function setLastCharacter(characterName) {
   return false;
 }
 
+export function getLastGameMode() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_game_mode`;
+    const stored = localStorage.getItem(key);
+    return stored || null;
+  } catch (e) {
+    console.error('Error reading last game mode:', e);
+  }
+  return null;
+}
+
+export function setLastGameMode(gameMode) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_game_mode`;
+    localStorage.setItem(key, gameMode);
+    return true;
+  } catch (e) {
+    console.error('Error saving last game mode:', e);
+  }
+  return false;
+}
+

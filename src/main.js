@@ -8,7 +8,7 @@ import { initRoomManager } from './ui/RoomManager.js';
 import { initBotControl } from './ui/BotControl.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
-import { getLastCharacter, setLastCharacter } from './utils/StorageUtils.js';
+import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode } from './utils/StorageUtils.js';
 import { SceneManager } from './core/SceneManager.js';
 import { LargeArenaSceneManager } from './core/LargeArenaSceneManager.js';
 import { CharacterManager } from './core/CharacterManager.js';
@@ -140,8 +140,17 @@ initCharacterSwitcher({
 });
 
 
-// Game mode selection via URL param ?mode=free-play (defaults to 'free-play')
-const gameMode = getParam('mode', 'free-play');
+// Game mode selection: URL param > localStorage > default
+// Priority: 1) URL param ?mode=free-play, 2) Last played game mode (localStorage), 3) Default 'free-play'
+const urlGameMode = getParam('mode', null);
+const storedGameMode = getLastGameMode();
+const gameMode = urlGameMode || storedGameMode || 'free-play';
+
+// If game mode came from URL param, save it to localStorage
+if (urlGameMode) {
+  setLastGameMode(urlGameMode);
+}
+
 gameModeManager.setMode(gameMode);
 // Set initial mushroom visibility based on starting mode
 sceneManager.setMushroomsVisible(gameMode === 'free-play');
@@ -179,6 +188,9 @@ initGameModeSwitcher({
   value: gameMode,
   onChange: (mode) => { 
     gameModeManager.setMode(mode);
+    
+    // Save to localStorage when game mode changes
+    setLastGameMode(mode);
     
     // Clear projectiles when leaving shooting mode
     if (mode !== 'shooting' && projectileManager) {
@@ -260,6 +272,8 @@ const roomManager = initRoomManager({
     // Start shooting mode if not already
     if (gameModeManager.getMode() !== 'shooting') {
       gameModeManager.setMode('shooting');
+      // Save to localStorage when game mode changes
+      setLastGameMode('shooting');
     }
     gameModeManager.startMode();
   },
@@ -268,6 +282,8 @@ const roomManager = initRoomManager({
     // Start shooting mode if not already
     if (gameModeManager.getMode() !== 'shooting') {
       gameModeManager.setMode('shooting');
+      // Save to localStorage when game mode changes
+      setLastGameMode('shooting');
     }
     gameModeManager.startMode();
   }
