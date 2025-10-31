@@ -127,6 +127,9 @@ export class GameLoop {
 
     // Update magical particle animations
     this.sceneManager.updateParticles(dt);
+    
+    // Update blinking eyes animation
+    this.sceneManager.updateBlinkingEyes(dt);
 
     // Camera follows player
     this.sceneManager.updateCamera(player.position);
