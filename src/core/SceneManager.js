@@ -30,6 +30,8 @@ export class SceneManager {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   }
 
   _setupScene() {
@@ -48,27 +50,53 @@ export class SceneManager {
   }
 
   _setupLighting() {
-    // Magical forest ambient light - purple-green mystical glow
-    const hemi = new THREE.HemisphereLight(0x4a8a5f, 0x1a1428, 0.9);
+    // Magical forest ambient light - purple-green mystical glow (reduced to allow moonlight to show)
+    const hemi = new THREE.HemisphereLight(0x4a8a5f, 0x1a1428, 0.6);
     this.scene.add(hemi);
     
-    // Main directional light with warm mystical tone
-    const dir = new THREE.DirectionalLight(0x7ab8a0, 0.7);
+    // Moonlight directional light from left bottom of arena
+    // Position at left bottom, pointing toward center/right
+    const moonLight = new THREE.DirectionalLight(0xaaccff, 1.2); // Cool blue-white moonlight
+    moonLight.position.set(-10, 8, -10); // Left-bottom position
+    moonLight.target.position.set(5, 0, 5); // Point toward center-right
+    moonLight.castShadow = true;
+    
+    // Configure shadow properties for softer, more realistic shadows
+    moonLight.shadow.mapSize.width = 2048;
+    moonLight.shadow.mapSize.height = 2048;
+    moonLight.shadow.camera.near = 0.1;
+    moonLight.shadow.camera.far = 50;
+    moonLight.shadow.camera.left = -15;
+    moonLight.shadow.camera.right = 15;
+    moonLight.shadow.camera.top = 15;
+    moonLight.shadow.camera.bottom = -15;
+    moonLight.shadow.bias = -0.0001;
+    moonLight.shadow.normalBias = 0.02;
+    moonLight.shadow.radius = 4;
+    
+    this.scene.add(moonLight);
+    this.scene.add(moonLight.target);
+    
+    // Store moonlight reference for potential animation
+    this.moonLight = moonLight;
+    
+    // Main directional light with warm mystical tone (reduced intensity)
+    const dir = new THREE.DirectionalLight(0x7ab8a0, 0.4);
     dir.position.set(5, 10, 5);
-    dir.castShadow = true;
+    dir.castShadow = false; // Moonlight handles shadows
     this.scene.add(dir);
     
-    // Add magical point lights for mystical atmosphere
-    const magicLight1 = new THREE.PointLight(0x8a4fa8, 0.6, 15);
+    // Add magical point lights for mystical atmosphere (slightly dimmed)
+    const magicLight1 = new THREE.PointLight(0x8a4fa8, 0.5, 15);
     magicLight1.position.set(-8, 3, -8);
     this.scene.add(magicLight1);
     
-    const magicLight2 = new THREE.PointLight(0x4fa88a, 0.6, 15);
+    const magicLight2 = new THREE.PointLight(0x4fa88a, 0.5, 15);
     magicLight2.position.set(8, 3, 8);
     this.scene.add(magicLight2);
     
-    // Subtle glowing magical light in center
-    const centerLight = new THREE.PointLight(0x6ab89a, 0.4, 12);
+    // Subtle glowing magical light in center (slightly dimmed)
+    const centerLight = new THREE.PointLight(0x6ab89a, 0.3, 12);
     centerLight.position.set(0, 2, 0);
     this.scene.add(centerLight);
   }
@@ -165,6 +193,8 @@ export class SceneManager {
       });
       const leaves = new THREE.Mesh(leavesGeo, leavesMat);
       leaves.position.set(pos.x, 3.5, pos.z);
+      leaves.castShadow = true;
+      leaves.receiveShadow = true;
       this.scene.add(leaves);
     });
   }
@@ -188,6 +218,8 @@ export class SceneManager {
       });
       const stem = new THREE.Mesh(stemGeo, stemMat);
       stem.position.set(pos.x, 0.15, pos.z);
+      stem.castShadow = true;
+      stem.receiveShadow = true;
       this.scene.add(stem);
       
       // Glowing cap with stronger magical effect
@@ -201,6 +233,8 @@ export class SceneManager {
       });
       const cap = new THREE.Mesh(capGeo, capMat);
       cap.position.set(pos.x, 0.4, pos.z);
+      cap.castShadow = true;
+      cap.receiveShadow = true;
       this.scene.add(cap);
       
       // Add multiple point lights for more magical glow effect

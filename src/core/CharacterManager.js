@@ -32,6 +32,8 @@ export class CharacterManager {
     const spriteMat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.1 });
     this.player = new THREE.Mesh(spriteGeo, spriteMat);
     this.player.position.set(0, this.playerHeight * 0.5, 0);
+    this.player.castShadow = true;
+    this.player.receiveShadow = false;
     this.scene.add(this.player);
   }
 
