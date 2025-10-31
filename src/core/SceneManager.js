@@ -375,7 +375,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 0.01 + openScale * 0.99, 1);
           eye.material.opacity = opacity;
-          eye.material.emissiveIntensity = opacity * 2;
+          eye.material.emissiveIntensity = opacity * 2.5;
         });
         
         // After opening, go to open state
@@ -389,7 +389,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 1, 1);
           eye.material.opacity = 1;
-          eye.material.emissiveIntensity = 2;
+          eye.material.emissiveIntensity = 2.5;
         });
         
         // After some time, blink
@@ -436,7 +436,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 0.01 + closeScale * 0.99, 1);
           eye.material.opacity = opacity;
-          eye.material.emissiveIntensity = opacity * 2;
+          eye.material.emissiveIntensity = opacity * 2.5;
         });
         
         // After closing, go to closed state
