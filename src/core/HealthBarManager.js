@@ -8,32 +8,35 @@ export class HealthBarManager {
   }
 
   createHealthBar(target, isPlayer = false) {
-    // Create health bar container
-    const container = new THREE.Group();
+    // Create health bar container - use Object3D for simpler updates
+    const container = new THREE.Object3D();
     container.userData.target = target;
     container.userData.isPlayer = isPlayer;
     
-    // Background bar (gray)
-    const bgGeo = new THREE.PlaneGeometry(1, 0.15);
+    // Background bar (gray) - make it slightly larger
+    const bgGeo = new THREE.PlaneGeometry(1.0, 0.15);
     const bgMat = new THREE.MeshBasicMaterial({ 
-      color: 0x333333, 
+      color: 0x000000, 
       transparent: true, 
-      opacity: 0.8 
+      opacity: 0.7,
+      depthWrite: false
     });
     const bgBar = new THREE.Mesh(bgGeo, bgMat);
-    bgBar.position.y = 0.05;
+    bgBar.position.set(0, 0, 0);
+    bgBar.renderOrder = 1000; // Render on top
     container.add(bgBar);
 
-    // Health bar (green/red)
-    const healthGeo = new THREE.PlaneGeometry(1, 0.12);
+    // Health bar (green/yellow/red) - positioned relative to background
+    const healthGeo = new THREE.PlaneGeometry(0.96, 0.12);
     const healthMat = new THREE.MeshBasicMaterial({ 
       color: 0x00ff00, 
       transparent: true, 
-      opacity: 0.9 
+      opacity: 0.95,
+      depthWrite: false
     });
     const healthBar = new THREE.Mesh(healthGeo, healthMat);
-    healthBar.position.y = 0.05;
-    healthBar.position.x = -0.5;
+    healthBar.position.set(-0.48, 0, 0.001); // Slightly in front of background
+    healthBar.renderOrder = 1001; // Render above background
     container.add(healthBar);
 
     container.userData.bgBar = bgBar;
@@ -51,13 +54,12 @@ export class HealthBarManager {
   updateHealthBarPosition(healthBarContainer, target) {
     if (!target || !healthBarContainer) return;
 
-    // Position health bar above target - use consistent offset based on player height
-    const offsetY = 1.8; // Position above character head
-    healthBarContainer.position.set(
-      target.position.x,
-      target.position.y + offsetY,
-      target.position.z
-    );
+    // Position health bar above target - use consistent offset
+    const offsetY = 1.8;
+    
+    // Update position directly
+    healthBarContainer.position.copy(target.position);
+    healthBarContainer.position.y += offsetY;
   }
 
   updateHealthBar(healthBarContainer, currentHealth, maxHealth) {
@@ -68,17 +70,22 @@ export class HealthBarManager {
 
     const healthPercent = Math.max(0, Math.min(1, currentHealth / maxHealth));
     
-    // Update width
+    // Update width - anchor from left side
+    const width = 0.96 * healthPercent;
     healthBar.scale.x = healthPercent;
-    healthBar.position.x = -0.5 + healthPercent * 0.5; // Center as it shrinks
+    healthBar.position.x = -0.48 + (width * 0.5); // Keep left-aligned as it shrinks
 
-    // Update color (green -> yellow -> red)
-    if (healthPercent > 0.6) {
-      healthBar.material.color.setHex(0x00ff00); // Green
-    } else if (healthPercent > 0.3) {
-      healthBar.material.color.setHex(0xffff00); // Yellow
-    } else {
-      healthBar.material.color.setHex(0xff0000); // Red
+    // Update color (green -> yellow -> red) - only update when health changes significantly
+    const lastPercent = healthBarContainer.userData.lastHealthPercent || healthPercent;
+    if (Math.abs(healthPercent - lastPercent) > 0.05) { // Only update color if change > 5%
+      if (healthPercent > 0.6) {
+        healthBar.material.color.setHex(0x00ff00); // Green
+      } else if (healthPercent > 0.3) {
+        healthBar.material.color.setHex(0xffff00); // Yellow
+      } else {
+        healthBar.material.color.setHex(0xff0000); // Red
+      }
+      healthBarContainer.userData.lastHealthPercent = healthPercent;
     }
 
     // Hide if dead
@@ -90,6 +97,13 @@ export class HealthBarManager {
   }
 
   update(dt) {
+    if (!this.camera) return;
+    
+    // Cache camera world matrix for stability
+    this.camera.updateMatrixWorld();
+    const cameraWorldPosition = new THREE.Vector3();
+    this.camera.getWorldPosition(cameraWorldPosition);
+    
     // Update all health bars
     for (const [target, healthBarContainer] of this.healthBars.entries()) {
       if (!target || !target.userData) {
@@ -101,24 +115,35 @@ export class HealthBarManager {
       // Update position
       this.updateHealthBarPosition(healthBarContainer, target);
 
-      // Billboard to camera - only rotate around Y axis to prevent flickering
-      if (this.camera) {
-        const cameraPos = this.camera.position;
-        const barPos = healthBarContainer.position;
+      // Simple billboard - make health bar always face camera (only rotate around Y)
+      // Calculate direction from health bar to camera
+      const barPos = healthBarContainer.position;
+      const dirX = cameraWorldPosition.x - barPos.x;
+      const dirZ = cameraWorldPosition.z - barPos.z;
+      const distance = Math.sqrt(dirX * dirX + dirZ * dirZ);
+      
+      if (distance > 0.001) {
+        // Calculate angle - health bar faces camera
+        const angle = Math.atan2(dirX, dirZ);
         
-        // Calculate direction to camera
-        const direction = new THREE.Vector3().subVectors(cameraPos, barPos);
-        direction.y = 0; // Keep horizontal - only rotate around Y
+        // Use direct rotation assignment (no interpolation) but clamp to prevent rapid changes
+        // Only update if angle change is significant (> 0.01 rad ≈ 0.57 degrees)
+        const currentAngle = healthBarContainer.rotation.y;
+        let angleDiff = angle - currentAngle;
         
-        // Only update rotation if direction has length
-        if (direction.length() > 0.001) {
-          direction.normalize();
-          healthBarContainer.lookAt(
-            barPos.x + direction.x,
-            barPos.y,
-            barPos.z + direction.z
-          );
+        // Normalize angle difference to [-PI, PI]
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        
+        // Only update if change is significant (reduces micro-adjustments that cause flicker)
+        if (Math.abs(angleDiff) > 0.01) {
+          // Update rotation directly but smoothly
+          healthBarContainer.rotation.y = currentAngle + angleDiff * 0.3; // 30% interpolation for smoothness
         }
+        
+        // Keep health bar upright
+        healthBarContainer.rotation.x = 0;
+        healthBarContainer.rotation.z = 0;
       }
 
       // Update health display
