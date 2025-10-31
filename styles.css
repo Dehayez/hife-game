@@ -326,6 +326,9 @@ html, body { height: 100%; margin: 0; }
 
 /* Cooldown indicator */
 .ui__cooldown-indicator {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
   background: rgba(8, 12, 18, 0.2);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.03);
@@ -334,7 +337,7 @@ html, body { height: 100%; margin: 0; }
   pointer-events: auto;
   opacity: 0.9;
   min-width: 200px;
-  margin-top: 16px;
+  z-index: 1000;
 }
 
 .ui__cooldown-item {
