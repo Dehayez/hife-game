@@ -436,6 +436,9 @@ const roomManager = initRoomManager({
       url.searchParams.set('room', actualRoomCode);
       window.history.pushState({}, '', url);
       
+      // Update UI to show room display (player is now in the room)
+      roomManager.update();
+      
       // Send our initial position when creating room
       if (characterManager.getPlayer()) {
         setTimeout(() => {
