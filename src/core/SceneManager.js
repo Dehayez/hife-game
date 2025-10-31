@@ -313,9 +313,9 @@ export class SceneManager {
       // Create sphere for eye glow
       const eyeGeo = new THREE.SphereGeometry(eyeConfig.size, 8, 8);
       const eyeMat = new THREE.MeshBasicMaterial({ 
-        color: 0xff0000,
-        emissive: 0xff0000,
-        emissiveIntensity: 2,
+        color: 0xcc0000,
+        emissive: 0xcc0000,
+        emissiveIntensity: 2.5,
         transparent: true,
         opacity: 0 // Start closed
       });
