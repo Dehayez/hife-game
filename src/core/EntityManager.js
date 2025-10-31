@@ -16,13 +16,11 @@ export class EntityManager {
   }
 
   createCollectible(x, z, id) {
-    // Create magical crystal gem - complex faceted gem shape with red color
-    const group = new THREE.Group();
+    // Create magical crystal gem - faceted crystal shape with red color
+    const geo = new THREE.OctahedronGeometry(0.18, 0);
     const color = 0xcc4444; // Red gem color
     
-    // Main gem body - elongated diamond shape
-    const mainGeo = new THREE.OctahedronGeometry(0.15, 1);
-    const mainMat = new THREE.MeshStandardMaterial({ 
+    const mat = new THREE.MeshStandardMaterial({ 
       color: color, 
       emissive: color,
       emissiveIntensity: 0.7,
@@ -31,59 +29,21 @@ export class EntityManager {
       transparent: true,
       opacity: 0.9
     });
-    const mainGem = new THREE.Mesh(mainGeo, mainMat);
-    mainGem.scale.set(1, 1.3, 1); // Elongate vertically for gem shape
-    mainGem.userData.gemPartType = 'main'; // Store part type for animation
-    group.add(mainGem);
-    
-    // Add crown (top facets) - smaller octahedron for gem crown
-    const crownGeo = new THREE.OctahedronGeometry(0.12, 1);
-    const crownMat = new THREE.MeshStandardMaterial({ 
-      color: color, 
-      emissive: color,
-      emissiveIntensity: 0.8,
-      metalness: 0.7,
-      roughness: 0.15,
-      transparent: true,
-      opacity: 0.95
-    });
-    const crown = new THREE.Mesh(crownGeo, crownMat);
-    crown.position.y = 0.12;
-    crown.scale.set(0.8, 0.9, 0.8);
-    crown.userData.gemPartType = 'crown'; // Store part type for animation
-    group.add(crown);
-    
-    // Add pavilion (bottom facets) - for authentic gem look
-    const pavilionGeo = new THREE.OctahedronGeometry(0.13, 1);
-    const pavilionMat = new THREE.MeshStandardMaterial({ 
-      color: color, 
-      emissive: color,
-      emissiveIntensity: 0.6,
-      metalness: 0.6,
-      roughness: 0.2,
-      transparent: true,
-      opacity: 0.85
-    });
-    const pavilion = new THREE.Mesh(pavilionGeo, pavilionMat);
-    pavilion.position.y = -0.1;
-    pavilion.scale.set(0.85, 0.7, 0.85);
-    pavilion.userData.gemPartType = 'pavilion'; // Store part type for animation
-    group.add(pavilion);
-    
-    group.position.set(x, 1.2, z);
-    group.castShadow = true;
-    group.userData = { type: 'collectible', id, collected: false, originalColor: color };
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, 1.2, z);
+    mesh.castShadow = true;
+    mesh.userData = { type: 'collectible', id, collected: false, originalColor: color };
     
     // Add magical glow effect with point light - increased range for better ground reflection
     const glowLight = new THREE.PointLight(color, 0.8, 5);
     glowLight.position.set(x, 1.2, z);
     glowLight.decay = 1; // Linear decay for better spread
-    group.userData.glowLight = glowLight;
+    mesh.userData.glowLight = glowLight;
     this.scene.add(glowLight);
     
-    this.scene.add(group);
-    this.collectibles.push(group);
-    return group;
+    this.scene.add(mesh);
+    this.collectibles.push(mesh);
+    return mesh;
   }
 
   createHazard(x, z, id, size = 0.5) {
@@ -272,19 +232,9 @@ export class EntityManager {
     }
     
     const fadeOut = () => {
-      // Fade out all gem parts
-      let allOpaque = true;
-      item.children.forEach(child => {
-        if (child.material) {
-          if (child.material.opacity > 0) {
-            child.material.opacity -= 0.1;
-            child.material.transparent = true;
-            allOpaque = false;
-          }
-        }
-      });
-      
-      if (!allOpaque) {
+      if (item.material.opacity > 0) {
+        item.material.opacity -= 0.1;
+        item.material.transparent = true;
         item.scale.multiplyScalar(0.9);
         requestAnimationFrame(fadeOut);
       } else {
@@ -422,19 +372,9 @@ export class EntityManager {
         item.userData.glowLight.intensity = 0.8 * pulse;
       }
       
-      // Pulse emissive intensity for all gem parts
+      // Pulse emissive intensity
       const pulse = Math.sin(performance.now() * 0.005 + item.position.x) * 0.3 + 0.7;
-      item.children.forEach(child => {
-        if (child.material && child.material.emissiveIntensity !== undefined) {
-          // Different base intensities for different gem parts
-          const partType = child.userData.gemPartType;
-          let baseIntensity = 0.7; // Default
-          if (partType === 'crown') baseIntensity = 0.8;
-          else if (partType === 'main') baseIntensity = 0.7;
-          else if (partType === 'pavilion') baseIntensity = 0.6;
-          child.material.emissiveIntensity = baseIntensity * pulse;
-        }
-      });
+      item.material.emissiveIntensity = 0.7 * pulse;
     }
 
     for (const hazard of this.hazards) {
@@ -538,7 +478,6 @@ export class EntityManager {
       if (item.userData.glowLight) {
         this.scene.remove(item.userData.glowLight);
       }
-      // Remove the group (which contains all gem parts)
       this.scene.remove(item);
     }
     for (const hazard of this.hazards) {

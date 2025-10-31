@@ -134,8 +134,7 @@ export class SceneManager {
       { x: 9, z: 9 },
       { x: 0, z: -10 },
       { x: -10, z: 0 },
-      { x: 10, z: 0 },
-      { x: 0, z: 10 }
+      { x: 10, z: 0 }
     ];
     
     treePositions.forEach(pos => {
