@@ -49,19 +49,19 @@ export class LargeArenaSceneManager {
   }
 
   _setupLighting() {
-    // Magical forest ambient light - reduced for stronger shadows
-    const hemi = new THREE.HemisphereLight(0x4a8a5f, 0x1a1428, 0.4);
+    // Magical forest ambient light
+    const hemi = new THREE.HemisphereLight(0x4a8a5f, 0x1a1428, 0.6);
     this.scene.add(hemi);
     
-    // Primary moonlight directional light with shadows
-    const moonLight = new THREE.DirectionalLight(0xaaccff, 2.5);
+    // Moonlight directional light
+    const moonLight = new THREE.DirectionalLight(0xaaccff, 2);
     moonLight.position.set(-50, 20, -60);
     moonLight.target.position.set(0, 0, 0);
     moonLight.castShadow = true;
     
-    // Higher quality shadow settings for better shadow detail
-    moonLight.shadow.mapSize.width = 4096; // Doubled for crisper shadows
-    moonLight.shadow.mapSize.height = 4096;
+    // Shadow settings for larger arena
+    moonLight.shadow.mapSize.width = 2048;
+    moonLight.shadow.mapSize.height = 2048;
     moonLight.shadow.camera.near = 0.1;
     moonLight.shadow.camera.far = 150;
     moonLight.shadow.camera.left = -50;
@@ -70,59 +70,28 @@ export class LargeArenaSceneManager {
     moonLight.shadow.camera.bottom = -50;
     moonLight.shadow.bias = -0.0001;
     moonLight.shadow.normalBias = 0.02;
-    moonLight.shadow.radius = 8; // Larger radius for softer, more visible shadows
+    moonLight.shadow.radius = 4;
+    
     this.scene.add(moonLight);
     this.scene.add(moonLight.target);
     this.moonLight = moonLight;
     
-    // Secondary directional light from opposite direction with shadows
-    const dir = new THREE.DirectionalLight(0x7ab8a0, 0.8);
+    // Main directional light
+    const dir = new THREE.DirectionalLight(0x7ab8a0, 0.4);
     dir.position.set(10, 15, 10);
-    dir.castShadow = true;
-    dir.shadow.mapSize.width = 2048;
-    dir.shadow.mapSize.height = 2048;
-    dir.shadow.camera.near = 0.1;
-    dir.shadow.camera.far = 150;
-    dir.shadow.camera.left = -50;
-    dir.shadow.camera.right = 50;
-    dir.shadow.camera.top = 50;
-    dir.shadow.camera.bottom = -50;
-    dir.shadow.bias = -0.0001;
-    dir.shadow.normalBias = 0.02;
-    dir.shadow.radius = 6;
+    dir.castShadow = false;
     this.scene.add(dir);
-    this.secondaryDirLight = dir;
     
-    // Additional tertiary directional light for even more shadows
-    const dir2 = new THREE.DirectionalLight(0x6ab89a, 0.6);
-    dir2.position.set(-10, 12, 15);
-    dir2.target.position.set(0, 0, 0);
-    dir2.castShadow = true;
-    dir2.shadow.mapSize.width = 2048;
-    dir2.shadow.mapSize.height = 2048;
-    dir2.shadow.camera.near = 0.1;
-    dir2.shadow.camera.far = 150;
-    dir2.shadow.camera.left = -50;
-    dir2.shadow.camera.right = 50;
-    dir2.shadow.camera.top = 50;
-    dir2.shadow.camera.bottom = -50;
-    dir2.shadow.bias = -0.0001;
-    dir2.shadow.normalBias = 0.02;
-    dir2.shadow.radius = 6;
-    this.scene.add(dir2);
-    this.scene.add(dir2.target);
-    this.tertiaryDirLight = dir2;
-    
-    // Magical point lights - softer to allow shadows to show through
-    const magicLight1 = new THREE.PointLight(0x8a4fa8, 0.3, 20);
+    // Magical point lights
+    const magicLight1 = new THREE.PointLight(0x8a4fa8, 0.5, 20);
     magicLight1.position.set(-15, 3, -15);
     this.scene.add(magicLight1);
     
-    const magicLight2 = new THREE.PointLight(0x4fa88a, 0.3, 20);
+    const magicLight2 = new THREE.PointLight(0x4fa88a, 0.5, 20);
     magicLight2.position.set(15, 3, 15);
     this.scene.add(magicLight2);
     
-    const centerLight = new THREE.PointLight(0x6ab89a, 0.2, 15);
+    const centerLight = new THREE.PointLight(0x6ab89a, 0.3, 15);
     centerLight.position.set(0, 2, 0);
     this.scene.add(centerLight);
   }

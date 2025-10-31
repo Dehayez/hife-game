@@ -296,7 +296,10 @@ export class EntityManager {
   spawnHazardsForSurvival(count = 10) {
     this.clearAll();
     
-    const positions = this._generateRandomPositions(count, 1.5);
+    // Triple hazards for large arena (40x40)
+    const adjustedCount = this.arenaSize >= 35 ? count * 3 : count;
+    
+    const positions = this._generateRandomPositions(adjustedCount, 1.5);
     positions.forEach((pos, index) => {
       const size = 0.5 + Math.random() * 0.3;
       const hazard = this.createHazard(pos.x, pos.z, `hazard_${index}`, size);

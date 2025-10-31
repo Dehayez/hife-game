@@ -133,8 +133,8 @@ export class LargeArenaCollisionManager {
     
     switch (type) {
       case 'pillar':
-        // Cylindrical pillar - increased segments for better shadows
-        const pillarGeo = new THREE.CylinderGeometry(w / 2, w / 2, defaultHeight, 16);
+        // Cylindrical pillar
+        const pillarGeo = new THREE.CylinderGeometry(w / 2, w / 2, defaultHeight, 8);
         const pillarMat = new THREE.MeshStandardMaterial({ color });
         wall = new THREE.Mesh(pillarGeo, pillarMat);
         wall.position.set(x, defaultHeight / 2, z);
