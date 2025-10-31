@@ -9,6 +9,8 @@ export class EntityManager {
     this.hazards = [];
     this.checkpoints = [];
     this.collectedIds = new Set();
+    this.confettiEffects = []; // Store active confetti bursts
+    this.totalCollectiblesCount = 0; // Track initial total count for display
   }
 
   setCollisionManager(collisionManager) {
@@ -239,6 +241,9 @@ export class EntityManager {
       item.userData.glowLight = null;
     }
     
+    // Create red confetti burst effect
+    this._createConfettiBurst(item.position.x, item.position.y, item.position.z);
+    
     // Mark as fading out - will be handled in updateAnims for performance
     item.userData.fadingOut = true;
     item.material.transparent = true;
@@ -280,6 +285,9 @@ export class EntityManager {
     positions.forEach((pos, index) => {
       this.createCollectible(pos.x, pos.z, `collectible_${index}`);
     });
+    
+    // Store the total count for display purposes (won't change as gems are removed)
+    this.totalCollectiblesCount = count;
   }
 
   spawnHazardsForSurvival(count = 10) {
@@ -352,7 +360,136 @@ export class EntityManager {
     return positions;
   }
 
+  _createConfettiBurst(x, y, z) {
+    // Create red confetti particles bursting outward from gem position
+    const particleCount = 8; // Fewer particles for subtle effect
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    const velocities = [];
+    const lifetimes = [];
+    
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      
+      // Start at gem position
+      positions[i3] = x;
+      positions[i3 + 1] = y;
+      positions[i3 + 2] = z;
+      
+      // Reduced velocity for tighter, less spread out effect
+      const angle = Math.random() * Math.PI * 2;
+      const verticalAngle = (Math.random() - 0.3) * Math.PI * 0.3; // Less vertical spread
+      const speed = 1.5 + Math.random() * 1; // Slower speed for less spread
+      
+      velocities.push({
+        x: Math.cos(angle) * Math.cos(verticalAngle) * speed,
+        y: Math.sin(verticalAngle) * speed + 1, // Reduced upward bias
+        z: Math.sin(angle) * Math.cos(verticalAngle) * speed
+      });
+      
+      // Red confetti colors matching gem color (0xcc4444)
+      // Convert gem color (0xcc4444) to normalized RGB: (204/255, 68/255, 68/255)
+      const redVariation = Math.random() * 0.1; // Small variation
+      colors[i3] = 0.8 + redVariation; // R - gem red (~0.8)
+      colors[i3 + 1] = 0.27 + Math.random() * 0.05; // G - gem red (~0.27)
+      colors[i3 + 2] = 0.27 + Math.random() * 0.05; // B - gem red (~0.27)
+      
+      lifetimes.push(0); // Start at 0, fade out over time
+    }
+    
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // Create confetti texture (small square/rectangle shape)
+    const canvas = document.createElement('canvas');
+    canvas.width = 16;
+    canvas.height = 16;
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'rgba(255,255,255,1)';
+    context.fillRect(4, 2, 8, 12); // Small rectangle for confetti shape
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    
+    const material = new THREE.PointsMaterial({
+      size: 0.15,
+      vertexColors: true,
+      transparent: true,
+      opacity: 1.0,
+      blending: THREE.NormalBlending,
+      map: texture,
+      sizeAttenuation: true
+    });
+    
+    const particles = new THREE.Points(geometry, material);
+    this.scene.add(particles);
+    
+    // Store confetti effect data with initial colors preserved for proper fade
+    this.confettiEffects.push({
+      particles,
+      geometry,
+      velocities,
+      lifetimes,
+      initialColors: new Float32Array(colors), // Store original colors
+      maxLifetime: 1.0 // Duration of effect in seconds
+    });
+  }
+
   updateAnims(dt, canMove = true) {
+    // Update confetti effects
+    const confettiToRemove = [];
+    for (let i = 0; i < this.confettiEffects.length; i++) {
+      const effect = this.confettiEffects[i];
+      const positions = effect.geometry.attributes.position.array;
+      const colors = effect.geometry.attributes.color.array;
+      
+      let maxLifetime = 0;
+      for (let j = 0; j < effect.velocities.length; j++) {
+        const j3 = j * 3;
+        const vel = effect.velocities[j];
+        const lifetime = effect.lifetimes[j];
+        
+        // Update position with velocity and gravity
+        positions[j3] += vel.x * dt;
+        positions[j3 + 1] += vel.y * dt;
+        positions[j3 + 2] += vel.z * dt;
+        
+        // Apply gravity
+        vel.y -= 9.8 * dt; // Gravity
+        
+        // Update lifetime
+        effect.lifetimes[j] = lifetime + dt;
+        maxLifetime = Math.max(maxLifetime, effect.lifetimes[j]);
+        
+        // Keep original gem red color constant (no color fading, only opacity)
+        colors[j3] = effect.initialColors[j3]; // Keep original red
+        colors[j3 + 1] = effect.initialColors[j3 + 1]; // Keep original green
+        colors[j3 + 2] = effect.initialColors[j3 + 2]; // Keep original blue
+      }
+      
+      // Fade out opacity while keeping color constant (fade from gem red to transparent)
+      const alpha = Math.max(0, 1 - (maxLifetime / effect.maxLifetime));
+      effect.particles.material.opacity = alpha;
+      
+      effect.geometry.attributes.position.needsUpdate = true;
+      effect.geometry.attributes.color.needsUpdate = true;
+      
+      // Remove if all particles are dead (using maxLifetime calculated above)
+      if (maxLifetime >= effect.maxLifetime) {
+        confettiToRemove.push(i);
+      }
+    }
+    
+    // Remove finished confetti effects (in reverse to preserve indices)
+    for (let i = confettiToRemove.length - 1; i >= 0; i--) {
+      const index = confettiToRemove[i];
+      const effect = this.confettiEffects[index];
+      this.scene.remove(effect.particles);
+      effect.geometry.dispose();
+      effect.particles.material.dispose();
+      this.confettiEffects.splice(index, 1);
+    }
+    
     // Process collected items that are fading out
     const itemsToRemove = [];
     for (const item of this.collectibles) {
@@ -519,10 +656,19 @@ export class EntityManager {
       this.scene.remove(checkpoint);
     }
     
+    // Clean up confetti effects
+    for (const effect of this.confettiEffects) {
+      this.scene.remove(effect.particles);
+      effect.geometry.dispose();
+      effect.particles.material.dispose();
+    }
+    
     this.collectibles = [];
     this.hazards = [];
     this.checkpoints = [];
     this.collectedIds.clear();
+    this.confettiEffects = [];
+    this.totalCollectiblesCount = 0;
   }
 
   getRemainingCollectibles() {
@@ -530,7 +676,9 @@ export class EntityManager {
   }
 
   getAllCollectibles() {
-    return this.collectibles.length;
+    // Return the stored total count if available (for display), otherwise current length
+    // This ensures the count doesn't decrease as collected items are removed
+    return this.totalCollectiblesCount > 0 ? this.totalCollectiblesCount : this.collectibles.length;
   }
 
   getActivatedCheckpoints() {
