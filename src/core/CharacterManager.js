@@ -91,17 +91,23 @@ export class CharacterManager {
     const characterSoundPath = `${baseSpritePath}footstep`; // e.g., /assets/characters/lucy/footstep
     const genericSoundPath = '/assets/sounds/footstep';
     
-    // Try character folder first (keeps all character assets together)
+    // Try character folder first - simple detection using canplay event
     let soundPath = null;
     for (const ext of soundExtensions) {
       const testPath = `${characterSoundPath}.${ext}`;
       try {
         const testAudio = new Audio(testPath);
         const canLoad = await new Promise((resolve) => {
-          testAudio.addEventListener('canplay', () => resolve(true), { once: true });
-          testAudio.addEventListener('error', () => resolve(false), { once: true });
+          const timeout = setTimeout(() => resolve(false), 500);
+          testAudio.addEventListener('canplay', () => {
+            clearTimeout(timeout);
+            resolve(true);
+          }, { once: true });
+          testAudio.addEventListener('error', () => {
+            clearTimeout(timeout);
+            resolve(false);
+          }, { once: true });
           testAudio.load();
-          setTimeout(() => resolve(false), 200);
         });
         if (canLoad) {
           soundPath = testPath;
@@ -119,10 +125,16 @@ export class CharacterManager {
         try {
           const testAudio = new Audio(testPath);
           const canLoad = await new Promise((resolve) => {
-            testAudio.addEventListener('canplay', () => resolve(true), { once: true });
-            testAudio.addEventListener('error', () => resolve(false), { once: true });
+            const timeout = setTimeout(() => resolve(false), 500);
+            testAudio.addEventListener('canplay', () => {
+              clearTimeout(timeout);
+              resolve(true);
+            }, { once: true });
+            testAudio.addEventListener('error', () => {
+              clearTimeout(timeout);
+              resolve(false);
+            }, { once: true });
             testAudio.load();
-            setTimeout(() => resolve(false), 200);
           });
           if (canLoad) {
             soundPath = testPath;
@@ -137,6 +149,7 @@ export class CharacterManager {
     // Load the sound if found
     if (soundPath) {
       this.soundManager.loadFootstepSound(soundPath);
+      console.log(`Loaded footstep sound: ${soundPath}`);
     }
     
     // Load obstacle-specific footstep sound from character folder
@@ -145,17 +158,23 @@ export class CharacterManager {
     const obstacleCharacterSoundPath = `${baseSpritePath}footstep_obstacle`;
     const obstacleGenericSoundPath = '/assets/sounds/footstep_obstacle';
     
-    // Try character folder first
+    // Try character folder first - simple detection using canplay event
     let obstacleSoundPath = null;
     for (const ext of soundExtensions) {
       const testPath = `${obstacleCharacterSoundPath}.${ext}`;
       try {
         const testAudio = new Audio(testPath);
         const canLoad = await new Promise((resolve) => {
-          testAudio.addEventListener('canplay', () => resolve(true), { once: true });
-          testAudio.addEventListener('error', () => resolve(false), { once: true });
+          const timeout = setTimeout(() => resolve(false), 500);
+          testAudio.addEventListener('canplay', () => {
+            clearTimeout(timeout);
+            resolve(true);
+          }, { once: true });
+          testAudio.addEventListener('error', () => {
+            clearTimeout(timeout);
+            resolve(false);
+          }, { once: true });
           testAudio.load();
-          setTimeout(() => resolve(false), 200);
         });
         if (canLoad) {
           obstacleSoundPath = testPath;
@@ -173,10 +192,16 @@ export class CharacterManager {
         try {
           const testAudio = new Audio(testPath);
           const canLoad = await new Promise((resolve) => {
-            testAudio.addEventListener('canplay', () => resolve(true), { once: true });
-            testAudio.addEventListener('error', () => resolve(false), { once: true });
+            const timeout = setTimeout(() => resolve(false), 500);
+            testAudio.addEventListener('canplay', () => {
+              clearTimeout(timeout);
+              resolve(true);
+            }, { once: true });
+            testAudio.addEventListener('error', () => {
+              clearTimeout(timeout);
+              resolve(false);
+            }, { once: true });
             testAudio.load();
-            setTimeout(() => resolve(false), 200);
           });
           if (canLoad) {
             obstacleSoundPath = testPath;
@@ -191,6 +216,9 @@ export class CharacterManager {
     // Load obstacle footstep sound if found
     if (obstacleSoundPath) {
       this.soundManager.loadObstacleFootstepSound(obstacleSoundPath);
+      console.log(`Loaded obstacle footstep sound: ${obstacleSoundPath}`);
+    } else {
+      console.warn(`No obstacle footstep sound found for character: ${name}`);
     }
     
     this.animations = loaded;
