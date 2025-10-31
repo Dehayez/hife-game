@@ -571,11 +571,11 @@ export class ProjectileManager {
     // Initialize particles
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
-      // Random position within splash radius
+      // Random position within splash radius - start slightly above fire base
       const angle = Math.random() * Math.PI * 2;
       const radius = Math.random() * splashRadius;
       positions[i3] = radius * Math.cos(angle);
-      positions[i3 + 1] = 0;
+      positions[i3 + 1] = 0.1; // Start above fire base circle (which is at 0.05)
       positions[i3 + 2] = radius * Math.sin(angle);
       
       // Random upward velocity with some spread
@@ -597,7 +597,8 @@ export class ProjectileManager {
       transparent: true,
       opacity: 0.9,
       blending: THREE.AdditiveBlending,
-      depthWrite: false
+      depthWrite: false,
+      depthTest: true // Enable depth testing so particles render correctly relative to other objects
     });
     
     const particles = new THREE.Points(particleGeometry, particleMaterial);
@@ -762,7 +763,7 @@ export class ProjectileManager {
               const currentRadius = fireArea.userData.radius || fireArea.userData.initialRadius;
               const radius = Math.random() * currentRadius;
               positions[i3] = radius * Math.cos(angle);
-              positions[i3 + 1] = 0;
+              positions[i3 + 1] = 0.1; // Start above fire base circle (which is at 0.05)
               positions[i3 + 2] = radius * Math.sin(angle);
               
               // Reset velocity
