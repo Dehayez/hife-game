@@ -12,6 +12,7 @@ export function loadTexture(path) {
         tex.minFilter = THREE.NearestFilter;
         tex.wrapS = THREE.ClampToEdgeWrapping;
         tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.alphaTest = 0.1;
         resolve(tex);
       },
       undefined,
@@ -29,6 +30,7 @@ export function loadSpriteSheet(basePathPng) {
   tex.minFilter = THREE.NearestFilter;
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.alphaTest = 0.1;
 
   const anim = { texture: tex, frameCount: 1, fps: 6, frameIndex: 0, timeAcc: 0 };
   

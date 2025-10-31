@@ -29,7 +29,7 @@ export class CharacterManager {
 
   _setupPlayer() {
     const spriteGeo = new THREE.PlaneGeometry(this.playerHeight * 0.7, this.playerHeight);
-    const spriteMat = new THREE.MeshBasicMaterial({ transparent: true });
+    const spriteMat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.1 });
     this.player = new THREE.Mesh(spriteGeo, spriteMat);
     this.player.position.set(0, this.playerHeight * 0.5, 0);
     this.scene.add(this.player);
