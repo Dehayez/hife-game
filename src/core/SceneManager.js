@@ -74,8 +74,8 @@ export class SceneManager {
     const groundGeo = new THREE.PlaneGeometry(this.arenaSize, this.arenaSize, 1, 1);
     const groundMat = new THREE.MeshStandardMaterial({ 
       color: 0x2a4a3a, // Forest floor green-brown
-      roughness: 0.95, 
-      metalness: 0.0 
+      roughness: 0.85, // Slightly less rough for better light reflection
+      metalness: 0.1 // Slight metalness to help reflect colored lights
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
