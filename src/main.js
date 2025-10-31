@@ -86,20 +86,17 @@ const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);
 // Initialize multiplayer manager
 const multiplayerManager = new MultiplayerManager(
   async (playerId, playerInfo) => {
-    console.log(`[Multiplayer] Player joined callback triggered:`, { playerId, playerInfo, localPlayerId: multiplayerManager.getLocalPlayerId() });
     // Spawn remote player when someone joins
     if (playerId !== multiplayerManager.getLocalPlayerId()) {
       // Spawn at origin first, position will be updated when we receive their state
       const initialPosition = { x: 0, y: 0, z: 0 };
       
-      console.log(`[Multiplayer] Attempting to spawn remote player ${playerId} with character ${playerInfo?.characterName || 'lucy'}`);
       try {
         await remotePlayerManager.spawnRemotePlayer(
           playerId,
           playerInfo?.characterName || 'lucy',
           initialPosition
         );
-        console.log(`[Multiplayer] Successfully spawned remote player ${playerId}`);
         
         // When someone joins, send our current state so they can see us
         if (characterManager.getPlayer()) {
@@ -110,7 +107,6 @@ const multiplayerManager = new MultiplayerManager(
             camera.getWorldDirection(cameraDir);
             const rotation = Math.atan2(cameraDir.x, cameraDir.z);
             
-            console.log(`[Multiplayer] Sending our state to new player ${playerId}`);
             multiplayerManager.sendPlayerState({
               x: player.position.x,
               y: player.position.y,
@@ -123,14 +119,11 @@ const multiplayerManager = new MultiplayerManager(
           }, 50);
         }
       } catch (error) {
-        console.error(`[Multiplayer] Error spawning remote player ${playerId}:`, error);
+        console.error('Error spawning remote player:', error);
       }
-    } else {
-      console.log(`[Multiplayer] Ignoring join callback for self (${playerId})`);
     }
   },
   (playerId) => {
-    console.log('Player left:', playerId);
     // Remove remote player when someone leaves
     if (playerId !== multiplayerManager.getLocalPlayerId()) {
       remotePlayerManager.removeRemotePlayer(playerId);
@@ -139,21 +132,18 @@ const multiplayerManager = new MultiplayerManager(
   (playerId, data) => {
     // Handle multiplayer game data sync
     if (data.type === 'player-state') {
-      console.log(`[Multiplayer] Received player-state from ${playerId}:`, data);
       // Update remote player position/state
       if (playerId !== multiplayerManager.getLocalPlayerId()) {
         const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
         
         // If remote player doesn't exist yet, spawn them
         if (!remotePlayer) {
-          console.log(`[Multiplayer] Remote player ${playerId} doesn't exist, spawning...`);
           const playerInfo = multiplayerManager.getPlayerInfo(playerId);
           remotePlayerManager.spawnRemotePlayer(
             playerId,
             playerInfo?.characterName || 'lucy',
             { x: data.x || 0, y: data.y || 0, z: data.z || 0 }
           ).then(() => {
-            console.log(`[Multiplayer] Spawned remote player ${playerId}, now updating position`);
             // Update position after spawning
             remotePlayerManager.updateRemotePlayer(playerId, {
               x: data.x,
@@ -165,11 +155,10 @@ const multiplayerManager = new MultiplayerManager(
               isGrounded: data.isGrounded
             });
           }).catch(error => {
-            console.error(`[Multiplayer] Error spawning remote player ${playerId}:`, error);
+            console.error('Error spawning remote player:', error);
           });
         } else {
           // Update existing remote player
-          console.log(`[Multiplayer] Updating existing remote player ${playerId}`);
           remotePlayerManager.updateRemotePlayer(playerId, {
             x: data.x,
             y: data.y,
@@ -180,8 +169,6 @@ const multiplayerManager = new MultiplayerManager(
             isGrounded: data.isGrounded
           });
         }
-      } else {
-        console.log(`[Multiplayer] Ignoring player-state from self (${playerId})`);
       }
     } else if (data.type === 'projectile-create') {
       // Create projectile from remote player
@@ -224,7 +211,6 @@ const multiplayerManager = new MultiplayerManager(
       }
     } else if (data.type === 'room-state') {
       // Sync room state (arena, game mode) when joining
-      console.log('Received room state:', data);
       // Note: Could update arena/mode here if needed, but might require page reload
     }
   }
@@ -440,7 +426,6 @@ const roomManager = initRoomManager({
   mount: roomMount,
   multiplayerManager: multiplayerManager,
   onRoomCreated: async (roomCode) => {
-    console.log('Room created:', roomCode);
     // Pass game state when creating room
     const gameState = getCurrentGameState();
     try {
@@ -484,7 +469,6 @@ const roomManager = initRoomManager({
     }
   },
   onRoomJoined: async (roomCode) => {
-    console.log('Joined room:', roomCode);
     // Pass game state when joining room
     const gameState = getCurrentGameState();
     try {
@@ -556,20 +540,16 @@ if (urlRoom) {
     try {
       // Wait for connection if not connected
       if (!multiplayerManager.isConnected()) {
-        console.log('[Auto-join] Waiting for connection...');
         await multiplayerManager.waitForConnection();
-        console.log('[Auto-join] Connection established');
       }
       
       const gameState = getCurrentGameState();
       await multiplayerManager.joinRoom(urlRoom.toUpperCase(), gameState);
-      console.log('[Auto-join] Successfully joined room:', urlRoom.toUpperCase());
       roomManager.update();
     } catch (error) {
-      console.error('[Auto-join] Failed to auto-join room:', error);
+      console.error('Failed to auto-join room:', error);
       // Retry after a delay
       setTimeout(() => {
-        console.log('[Auto-join] Retrying...');
         attemptAutoJoin();
       }, 1000);
     }

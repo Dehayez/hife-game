@@ -194,10 +194,8 @@ export class MultiplayerManager {
   async createRoom(gameState = {}) {
     // Wait for connection if not connected
     if (!this.socket || !this.socket.connected) {
-      console.log('[MultiplayerManager] Waiting for connection before creating room...');
       try {
         await this.waitForConnection();
-        console.log('[MultiplayerManager] Connection established, proceeding with create');
       } catch (error) {
         throw new Error('Failed to connect to server: ' + error.message);
       }
@@ -271,10 +269,8 @@ export class MultiplayerManager {
   async joinRoom(roomCode, gameState = {}) {
     // Wait for connection if not connected
     if (!this.socket || !this.socket.connected) {
-      console.log('[MultiplayerManager] Waiting for connection before joining room...');
       try {
         await this.waitForConnection();
-        console.log('[MultiplayerManager] Connection established, proceeding with join');
       } catch (error) {
         throw new Error('Failed to connect to server: ' + error.message);
       }

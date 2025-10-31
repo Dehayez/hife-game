@@ -78,27 +78,6 @@ export class RemotePlayerManager {
     });
 
     this.scene.add(playerMesh);
-    console.log(`[RemotePlayerManager] Spawned remote player ${playerId} (${characterName})`, {
-      position: { x: playerMesh.position.x, y: playerMesh.position.y, z: playerMesh.position.z },
-      visible: playerMesh.visible,
-      material: playerMesh.material ? {
-        hasMap: !!playerMesh.material.map,
-        transparent: playerMesh.material.transparent,
-        needsUpdate: playerMesh.material.needsUpdate
-      } : 'no material',
-      inScene: this.scene.children.includes(playerMesh),
-      sceneChildrenCount: this.scene.children.length,
-      remotePlayersCount: this.remotePlayers.size
-    });
-    
-    // Verify mesh is actually added
-    setTimeout(() => {
-      const stillInScene = this.scene.children.includes(playerMesh);
-      console.log(`[RemotePlayerManager] Verification: Remote player ${playerId} still in scene:`, stillInScene);
-      if (!stillInScene) {
-        console.error(`[RemotePlayerManager] ERROR: Remote player ${playerId} was removed from scene!`);
-      }
-    }, 100);
   }
 
   /**
@@ -109,7 +88,6 @@ export class RemotePlayerManager {
   updateRemotePlayer(playerId, state) {
     const remotePlayer = this.remotePlayers.get(playerId);
     if (!remotePlayer) {
-      console.warn(`[RemotePlayerManager] Remote player ${playerId} not found when trying to update`);
       return;
     }
 
@@ -125,14 +103,6 @@ export class RemotePlayerManager {
       remotePlayer.position.y,
       remotePlayer.position.z
     );
-    
-    console.log(`[RemotePlayerManager] Updated remote player ${playerId} position:`, {
-      x: mesh.position.x,
-      y: mesh.position.y,
-      z: mesh.position.z,
-      visible: mesh.visible,
-      inScene: this.scene.children.includes(mesh)
-    });
 
     // Update rotation (billboard to camera while respecting network rotation)
     // Note: We'll billboard in updateAnimations, but we can still store network rotation
@@ -143,7 +113,6 @@ export class RemotePlayerManager {
 
     // Update animation if changed
     if (state.currentAnimKey && state.currentAnimKey !== remotePlayer.currentAnimKey) {
-      console.log(`[RemotePlayerManager] Changing animation for ${playerId} from ${remotePlayer.currentAnimKey} to ${state.currentAnimKey}`);
       setCharacterAnimation(
         mesh,
         state.currentAnimKey,
@@ -279,7 +248,6 @@ export class RemotePlayerManager {
     const now = Date.now();
     for (const [playerId, remotePlayer] of this.remotePlayers) {
       if (now - remotePlayer.lastUpdateTime > timeoutMs) {
-        console.log(`Removing stale remote player ${playerId}`);
         this.removeRemotePlayer(playerId);
       }
     }
