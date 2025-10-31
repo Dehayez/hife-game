@@ -79,3 +79,25 @@ export function getAllHighScores() {
   return scores;
 }
 
+export function getLastCharacter() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_character`;
+    const stored = localStorage.getItem(key);
+    return stored || null;
+  } catch (e) {
+    console.error('Error reading last character:', e);
+  }
+  return null;
+}
+
+export function setLastCharacter(characterName) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_character`;
+    localStorage.setItem(key, characterName);
+    return true;
+  } catch (e) {
+    console.error('Error saving last character:', e);
+  }
+  return false;
+}
+

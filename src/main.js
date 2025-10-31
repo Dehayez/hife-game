@@ -6,6 +6,7 @@ import { initGameModeDisplay } from './ui/GameModeDisplay.js';
 import { StartButton } from './ui/StartButton.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
+import { getLastCharacter, setLastCharacter } from './utils/StorageUtils.js';
 import { SceneManager } from './core/SceneManager.js';
 import { CharacterManager } from './core/CharacterManager.js';
 import { InputManager } from './core/InputManager.js';
@@ -83,8 +84,16 @@ const checkStartButton = () => {
 // Show start button initially if needed
 setTimeout(checkStartButton, 100);
 
-// Character selection via URL param ?char=lucy (defaults to 'lucy')
-const characterName = getParam('char', 'lucy');
+// Character selection: URL param > localStorage > default
+// Priority: 1) URL param ?char=lucy, 2) Last played character (localStorage), 3) Default 'lucy'
+const urlCharacter = getParam('char', null);
+const storedCharacter = getLastCharacter();
+const characterName = urlCharacter || storedCharacter || 'lucy';
+
+// If character came from URL param, save it to localStorage
+if (urlCharacter) {
+  setLastCharacter(urlCharacter);
+}
 
 // Initialize character switcher UI
 const AVAILABLE_CHARACTERS = ['lucy', 'herald'];
@@ -93,7 +102,11 @@ initCharacterSwitcher({
   mount: switcherMount,
   options: AVAILABLE_CHARACTERS,
   value: characterName,
-  onChange: (val) => { characterManager.loadCharacter(val); }
+  onChange: (val) => { 
+    characterManager.loadCharacter(val);
+    // Save to localStorage when character changes
+    setLastCharacter(val);
+  }
 });
 
 // Mount start button below character switcher
