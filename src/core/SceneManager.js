@@ -474,9 +474,9 @@ export class SceneManager {
       // Create sphere for eye glow
       const eyeGeo = new THREE.SphereGeometry(eyeConfig.size, 8, 8);
       const eyeMat = new THREE.MeshBasicMaterial({ 
-        color: 0xcc0000,
-        emissive: 0xcc0000,
-        emissiveIntensity: 2.5,
+        color: 0xff0000,
+        emissive: 0xff0000,
+        emissiveIntensity: 5.0,
         transparent: true,
         opacity: 0 // Start closed
       });
@@ -536,7 +536,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 0.01 + openScale * 0.99, 1);
           eye.material.opacity = opacity;
-          eye.material.emissiveIntensity = opacity * 2.5;
+          eye.material.emissiveIntensity = opacity * 5.0;
         });
         
         // After opening, go to open state
@@ -550,7 +550,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 1, 1);
           eye.material.opacity = 1;
-          eye.material.emissiveIntensity = 2.5;
+          eye.material.emissiveIntensity = 5.0;
         });
         
         // After some time, blink
@@ -597,7 +597,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 0.01 + closeScale * 0.99, 1);
           eye.material.opacity = opacity;
-          eye.material.emissiveIntensity = opacity * 2.5;
+          eye.material.emissiveIntensity = opacity * 5.0;
         });
         
         // After closing, go to closed state
