@@ -1,12 +1,16 @@
 export class SoundManager {
-  constructor(customFootstepPath = null, customObstacleFootstepPath = null) {
+  constructor(customFootstepPath = null, customObstacleFootstepPath = null, customJumpPath = null, customObstacleJumpPath = null) {
     this.audioContext = null;
     this.masterVolume = 0.15; // Default volume (0-1)
     this.soundEnabled = true;
     this.customFootstepPath = customFootstepPath;
     this.customObstacleFootstepPath = customObstacleFootstepPath;
+    this.customJumpPath = customJumpPath;
+    this.customObstacleJumpPath = customObstacleJumpPath;
     this.footstepAudio = null;
     this.obstacleFootstepAudio = null;
+    this.jumpAudio = null;
+    this.obstacleJumpAudio = null;
     this.backgroundMusic = null;
     this.backgroundMusicPath = null;
     this.backgroundMusicVolume = 0.2; // Background music volume (0-1), typically lower than sound effects
@@ -16,6 +20,12 @@ export class SoundManager {
     }
     if (customObstacleFootstepPath) {
       this._loadCustomObstacleFootstep(customObstacleFootstepPath);
+    }
+    if (customJumpPath) {
+      this._loadCustomJump(customJumpPath);
+    }
+    if (customObstacleJumpPath) {
+      this._loadCustomObstacleJump(customObstacleJumpPath);
     }
   }
 
@@ -106,6 +116,93 @@ export class SoundManager {
     this._loadCustomObstacleFootstep(path);
   }
 
+  _loadCustomJump(path) {
+    // Clear existing audio if loading new one
+    this.jumpAudio = null;
+    
+    if (!path) return;
+    
+    try {
+      this.jumpAudio = new Audio(path);
+      this.jumpAudio.volume = this.masterVolume;
+      this.jumpAudio.preload = 'auto';
+      
+      // Handle loading errors gracefully
+      this.jumpAudio.addEventListener('error', (e) => {
+        console.warn(`Failed to load jump sound from ${path}:`, e);
+        this.jumpAudio = null;
+        this._jumpReady = false;
+      });
+      
+      // Mark as ready when loaded
+      this.jumpAudio.addEventListener('canplaythrough', () => {
+        this._jumpReady = true;
+      }, { once: true });
+      
+      this.jumpAudio.addEventListener('loadeddata', () => {
+        this._jumpReady = true;
+      }, { once: true });
+      
+      // Initialize ready state
+      this._jumpReady = false;
+      
+      // Try to load immediately
+      this.jumpAudio.load();
+    } catch (error) {
+      console.warn(`Error creating jump audio from ${path}:`, error);
+      this.jumpAudio = null;
+      this._jumpReady = false;
+    }
+  }
+
+  _loadCustomObstacleJump(path) {
+    // Clear existing audio if loading new one
+    this.obstacleJumpAudio = null;
+    
+    if (!path) return;
+    
+    try {
+      this.obstacleJumpAudio = new Audio(path);
+      this.obstacleJumpAudio.volume = this.masterVolume;
+      this.obstacleJumpAudio.preload = 'auto';
+      
+      // Handle loading errors gracefully
+      this.obstacleJumpAudio.addEventListener('error', (e) => {
+        console.warn(`Failed to load obstacle jump sound from ${path}:`, e);
+        this.obstacleJumpAudio = null;
+        this._obstacleJumpReady = false;
+      });
+      
+      // Mark as ready when loaded
+      this.obstacleJumpAudio.addEventListener('canplaythrough', () => {
+        this._obstacleJumpReady = true;
+      }, { once: true });
+      
+      this.obstacleJumpAudio.addEventListener('loadeddata', () => {
+        this._obstacleJumpReady = true;
+      }, { once: true });
+      
+      // Initialize ready state
+      this._obstacleJumpReady = false;
+      
+      // Try to load immediately
+      this.obstacleJumpAudio.load();
+    } catch (error) {
+      console.warn(`Error creating obstacle jump audio from ${path}:`, error);
+      this.obstacleJumpAudio = null;
+    }
+  }
+
+  loadJumpSound(path) {
+    this.customJumpPath = path;
+    this._loadCustomJump(path);
+  }
+
+  loadObstacleJumpSound(path) {
+    this.customObstacleJumpPath = path;
+    this._loadCustomObstacleJump(path);
+  }
+
   _initAudioContext() {
     try {
       // Create audio context - may need user interaction first
@@ -132,13 +229,59 @@ export class SoundManager {
   }
 
   /**
-   * Play jump sound when jumping - uses footstep sound but quieter
-   * @param {boolean} isObstacle - If true, plays obstacle/platform footstep sound
+   * Play jump sound when jumping - uses dedicated jump sound if available, otherwise falls back to footstep sound
+   * @param {boolean} isObstacle - Currently unused, kept for API compatibility
    */
   playJump(isObstacle = false) {
     if (!this.soundEnabled) return;
 
-    // Use obstacle footstep audio for obstacle jumps (if available)
+    // Always use the same jump audio for all jumps (ground and obstacle)
+    if (this.jumpAudio) {
+      try {
+        // Check if audio is ready to play (readyState >= HAVE_FUTURE_DATA = 2)
+        // HAVE_FUTURE_DATA = 2, HAVE_ENOUGH_DATA = 4
+        const isReady = this.jumpAudio.readyState >= 2 || this._jumpReady;
+        
+        if (isReady) {
+          // Clone the audio to allow overlapping playback
+          const audioClone = this.jumpAudio.cloneNode();
+          audioClone.volume = this.masterVolume;
+          audioClone.currentTime = 0;
+          
+          // Try to play - if it fails, fall back to footstep sound
+          const playPromise = audioClone.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                // Successfully started playing jump sound
+                return;
+              })
+              .catch(err => {
+                // Auto-play may be blocked or audio failed to load, fall back to footstep
+                if (err.name !== 'NotAllowedError') {
+                  console.warn('Error playing jump sound:', err);
+                }
+              });
+            return; // Return immediately, promise will handle success/failure
+          } else {
+            // Play started synchronously (older browsers)
+            return;
+          }
+        } else {
+          // Audio not ready yet, try to load
+          if (this.jumpAudio.readyState === 0) {
+            // Not loaded at all, trigger load
+            this.jumpAudio.load();
+          }
+          // Fall through to footstep fallback below
+        }
+      } catch (err) {
+        console.warn('Error playing jump sound:', err);
+        // Fall through to footstep fallback below
+      }
+    }
+
+    // Fallback: Use obstacle footstep audio for obstacle jumps (if available)
     if (isObstacle && this.obstacleFootstepAudio) {
       try {
         const audioClone = this.obstacleFootstepAudio.cloneNode();
@@ -155,7 +298,7 @@ export class SoundManager {
       }
     }
 
-    // Use base footstep audio for base ground jumps (if available)
+    // Fallback: Use base footstep audio for base ground jumps (if available)
     if (!isObstacle && this.footstepAudio) {
       try {
         const audioClone = this.footstepAudio.cloneNode();
@@ -591,6 +734,12 @@ export class SoundManager {
     }
     if (this.obstacleFootstepAudio) {
       this.obstacleFootstepAudio.volume = this.masterVolume;
+    }
+    if (this.jumpAudio) {
+      this.jumpAudio.volume = this.masterVolume;
+    }
+    if (this.obstacleJumpAudio) {
+      this.obstacleJumpAudio.volume = this.masterVolume;
     }
     // Background music volume is independent, but we can update if needed
     if (this.backgroundMusic) {

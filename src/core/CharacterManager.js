@@ -223,6 +223,138 @@ export class CharacterManager {
       console.warn(`No obstacle footstep sound found for character: ${name}`);
     }
     
+    // Load character-specific jump sound from character folder
+    // Tries: /assets/characters/{name}/jump.mp3, jump.ogg, jump.wav
+    // Falls back to: /assets/sounds/jump.mp3, jump.ogg, jump.wav
+    const jumpCharacterSoundPath = `${baseSpritePath}jump`;
+    const jumpGenericSoundPath = '/assets/sounds/jump';
+    
+    // Try character folder first - simple detection using canplay event
+    let jumpSoundPath = null;
+    for (const ext of soundExtensions) {
+      const testPath = `${jumpCharacterSoundPath}.${ext}`;
+      try {
+        const testAudio = new Audio(testPath);
+        const canLoad = await new Promise((resolve) => {
+          const timeout = setTimeout(() => resolve(false), 500);
+          testAudio.addEventListener('canplay', () => {
+            clearTimeout(timeout);
+            resolve(true);
+          }, { once: true });
+          testAudio.addEventListener('error', () => {
+            clearTimeout(timeout);
+            resolve(false);
+          }, { once: true });
+          testAudio.load();
+        });
+        if (canLoad) {
+          jumpSoundPath = testPath;
+          break;
+        }
+      } catch (e) {
+        // Try next format
+      }
+    }
+    
+    // If no character-specific jump sound, try generic sounds folder
+    if (!jumpSoundPath) {
+      for (const ext of soundExtensions) {
+        const testPath = `${jumpGenericSoundPath}.${ext}`;
+        try {
+          const testAudio = new Audio(testPath);
+          const canLoad = await new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(false), 500);
+            testAudio.addEventListener('canplay', () => {
+              clearTimeout(timeout);
+              resolve(true);
+            }, { once: true });
+            testAudio.addEventListener('error', () => {
+              clearTimeout(timeout);
+              resolve(false);
+            }, { once: true });
+            testAudio.load();
+          });
+          if (canLoad) {
+            jumpSoundPath = testPath;
+            break;
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+    }
+    
+    // Load jump sound if found
+    if (jumpSoundPath) {
+      this.soundManager.loadJumpSound(jumpSoundPath);
+    }
+    
+    // Load obstacle-specific jump sound from character folder
+    // Tries: /assets/characters/{name}/jump_obstacle.mp3, jump_obstacle.ogg, jump_obstacle.wav
+    // Falls back to: /assets/sounds/jump_obstacle.mp3, jump_obstacle.ogg, jump_obstacle.wav
+    const obstacleJumpCharacterSoundPath = `${baseSpritePath}jump_obstacle`;
+    const obstacleJumpGenericSoundPath = '/assets/sounds/jump_obstacle';
+    
+    // Try character folder first - simple detection using canplay event
+    let obstacleJumpSoundPath = null;
+    for (const ext of soundExtensions) {
+      const testPath = `${obstacleJumpCharacterSoundPath}.${ext}`;
+      try {
+        const testAudio = new Audio(testPath);
+        const canLoad = await new Promise((resolve) => {
+          const timeout = setTimeout(() => resolve(false), 500);
+          testAudio.addEventListener('canplay', () => {
+            clearTimeout(timeout);
+            resolve(true);
+          }, { once: true });
+          testAudio.addEventListener('error', () => {
+            clearTimeout(timeout);
+            resolve(false);
+          }, { once: true });
+          testAudio.load();
+        });
+        if (canLoad) {
+          obstacleJumpSoundPath = testPath;
+          break;
+        }
+      } catch (e) {
+        // Try next format
+      }
+    }
+    
+    // If no character-specific obstacle jump sound, try generic sounds folder
+    if (!obstacleJumpSoundPath) {
+      for (const ext of soundExtensions) {
+        const testPath = `${obstacleJumpGenericSoundPath}.${ext}`;
+        try {
+          const testAudio = new Audio(testPath);
+          const canLoad = await new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(false), 500);
+            testAudio.addEventListener('canplay', () => {
+              clearTimeout(timeout);
+              resolve(true);
+            }, { once: true });
+            testAudio.addEventListener('error', () => {
+              clearTimeout(timeout);
+              resolve(false);
+            }, { once: true });
+            testAudio.load();
+          });
+          if (canLoad) {
+            obstacleJumpSoundPath = testPath;
+            break;
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+    }
+    
+    // Load obstacle jump sound if found
+    if (obstacleJumpSoundPath) {
+      this.soundManager.loadObstacleJumpSound(obstacleJumpSoundPath);
+    }
+    
     this.animations = loaded;
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
@@ -351,7 +483,7 @@ export class CharacterManager {
       this.wasGrounded = false; // Track that we're jumping
       this.jumpCooldown = this.jumpCooldownTime;
       
-      // Play jump sound (footstep sound but quieter)
+      // Play jump sound
       if (this.soundManager) {
         // Check if on obstacle/platform to play appropriate sound
         const isObstacle = !this.isOnBaseGround();
