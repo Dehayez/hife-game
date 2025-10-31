@@ -1,0 +1,113 @@
+/**
+ * CollisionHandler.js
+ * 
+ * Handles all collision detection between projectiles, mortars, fire areas, and players.
+ * Consolidates all collision checking logic in one place.
+ */
+
+import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { checkProjectileCollision } from './Projectile.js';
+import { checkMortarCollision, checkMortarGroundCollision } from './Mortar.js';
+import { checkFireAreaCollision } from './FireArea.js';
+
+/**
+ * Check all projectiles for collision with player
+ * @param {Array<THREE.Mesh>} projectiles - Array of projectile meshes
+ * @param {THREE.Vector3} playerPos - Player position
+ * @param {number} playerSize - Player size
+ * @param {string} playerId - Player ID
+ * @returns {Object} Collision result with hit, damage, and projectile info
+ */
+export function checkPlayerCollision(projectiles, playerPos, playerSize, playerId) {
+  // Check regular projectiles
+  for (const projectile of projectiles) {
+    const result = checkProjectileCollision(projectile, playerPos, playerSize, playerId);
+    if (result.hit) {
+      return result;
+    }
+  }
+  
+  return { hit: false };
+}
+
+/**
+ * Check all mortars for collision with player (mid-air explosion)
+ * @param {Array<THREE.Mesh>} mortars - Array of mortar meshes
+ * @param {THREE.Vector3} playerPos - Player position
+ * @param {string} playerId - Player ID
+ * @returns {Object} Collision result with hit, damage, and mortar info
+ */
+export function checkMortarPlayerCollision(mortars, playerPos, playerId) {
+  // Check mortars (explosion radius)
+  for (const mortar of mortars) {
+    const result = checkMortarCollision(mortar, playerPos, playerId);
+    if (result.hit) {
+      return result;
+    }
+  }
+  
+  return { hit: false };
+}
+
+/**
+ * Check mortar ground impact and fire areas for collision with player
+ * @param {Array<THREE.Mesh>} mortars - Array of mortar meshes
+ * @param {Array<THREE.Object3D>} fireAreas - Array of fire area containers
+ * @param {THREE.Vector3} playerPos - Player position
+ * @param {number} playerSize - Player size
+ * @param {string} playerId - Player ID
+ * @returns {Object} Collision result with hit, damage, and source info
+ */
+export function checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId) {
+  // Check mortars that hit ground - direct hit damage
+  for (const mortar of mortars) {
+    const result = checkMortarGroundCollision(mortar, playerPos, playerId);
+    if (result.hit) {
+      return result;
+    }
+  }
+  
+  // Check fire areas for area damage
+  for (const fireArea of fireAreas) {
+    const result = checkFireAreaCollision(fireArea, playerPos, playerId);
+    if (result.hit) {
+      return result;
+    }
+  }
+  
+  return { hit: false };
+}
+
+/**
+ * Check all projectile types for collision with player
+ * Combines regular projectiles, mortars, and fire areas
+ * @param {Array<THREE.Mesh>} projectiles - Array of projectile meshes
+ * @param {Array<THREE.Mesh>} mortars - Array of mortar meshes
+ * @param {Array<THREE.Object3D>} fireAreas - Array of fire area containers
+ * @param {THREE.Vector3} playerPos - Player position
+ * @param {number} playerSize - Player size
+ * @param {string} playerId - Player ID
+ * @returns {Object} Collision result with hit, damage, and source info
+ */
+export function checkAllCollisions(projectiles, mortars, fireAreas, playerPos, playerSize, playerId) {
+  // Check regular projectiles first (fastest response)
+  const projectileResult = checkPlayerCollision(projectiles, playerPos, playerSize, playerId);
+  if (projectileResult.hit) {
+    return projectileResult;
+  }
+  
+  // Check mortars (mid-air explosion)
+  const mortarResult = checkMortarPlayerCollision(mortars, playerPos, playerId);
+  if (mortarResult.hit) {
+    return mortarResult;
+  }
+  
+  // Check mortar ground impact and fire areas
+  const groundResult = checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId);
+  if (groundResult.hit) {
+    return groundResult;
+  }
+  
+  return { hit: false };
+}
+

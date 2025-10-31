@@ -18,7 +18,7 @@ import { CollisionManager } from './core/CollisionManager.js';
 import { LargeArenaCollisionManager } from './core/LargeArenaCollisionManager.js';
 import { GameModeManager } from './core/GameModeManager.js';
 import { EntityManager } from './core/EntityManager.js';
-import { ProjectileManager } from './core/ProjectileManager.js';
+import { ProjectileManager } from './core/projectile/ProjectileManager.js';
 import { MultiplayerManager } from './core/MultiplayerManager.js';
 import { BotManager } from './core/BotManager.js';
 import { HealthBarManager } from './core/HealthBarManager.js';
