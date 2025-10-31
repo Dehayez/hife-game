@@ -14,12 +14,14 @@ export class ProjectileManager {
         damage: 20, // Lower damage
         cooldown: 0.2, // Faster shooting (5 shots per second)
         color: 0xff6b9d, // Pink/magenta color
+        size: 0.08, // Smaller projectile
         name: 'Lucy'
       },
       herald: {
         damage: 35, // Higher damage
         cooldown: 0.5, // Slower shooting (2 shots per second)
         color: 0xff8c42, // Orange color
+        size: 0.15, // Bigger projectile
         name: 'Herald'
       }
     };
@@ -42,6 +44,7 @@ export class ProjectileManager {
     const characterCooldown = stats.cooldown;
     const characterDamage = stats.damage;
     const characterColor = stats.color;
+    const characterSize = stats.size || 0.1;
     
     // Check cooldown for this specific character
     const currentCooldown = this.characterCooldowns.get(playerId) || 0;
@@ -54,8 +57,8 @@ export class ProjectileManager {
     const normX = directionX / dirLength;
     const normZ = directionZ / dirLength;
 
-    // Create magical projectile - glowing sphere with character-specific color
-    const geo = new THREE.SphereGeometry(0.1, 8, 8);
+    // Create magical projectile - glowing sphere with character-specific color and size
+    const geo = new THREE.SphereGeometry(characterSize, 8, 8);
     const color = characterColor;
     const mat = new THREE.MeshStandardMaterial({
       color: color,
@@ -75,7 +78,7 @@ export class ProjectileManager {
     trailLight.position.set(startX, startY, startZ);
     this.scene.add(trailLight);
     
-    // Store projectile data with character-specific damage
+    // Store projectile data with character-specific damage and size
     projectile.userData = {
       type: 'projectile',
       playerId: playerId,
@@ -84,7 +87,8 @@ export class ProjectileManager {
       velocityZ: normZ * this.projectileSpeed,
       lifetime: 0,
       trailLight: trailLight,
-      damage: characterDamage
+      damage: characterDamage,
+      size: characterSize
     };
     
     this.scene.add(projectile);
@@ -135,7 +139,8 @@ export class ProjectileManager {
       // Check collision with walls
       let shouldRemove = false;
       if (this.collisionManager) {
-        const projectileSize = 0.1;
+        // Use character-specific size from projectile userData
+        const projectileSize = projectile.userData.size || 0.1;
         const nextPos = new THREE.Vector3(newX, projectile.position.y, newZ);
         
         if (this.collisionManager.willCollide(nextPos, projectileSize)) {
