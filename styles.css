@@ -23,13 +23,13 @@ html, body { height: 100%; margin: 0; }
 .ui__choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
 .ui__choice { background: #0f141c; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px; cursor: pointer; color: #e7ebf0; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: transform 0.06s ease, border-color 0.06s ease, background 0.06s ease; }
 .ui__choice:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.2); }
-.ui__choice.is-active { outline: none; border-color: #3c8ce7; background: #0f141c; box-shadow: 0 0 0 2px rgba(60,140,231,0.25) inset; }
+.ui__choice.is-active { outline: none; border-color: #6ab89a; background: #0f141c; box-shadow: 0 0 0 2px rgba(106,184,154,0.25) inset; }
 .ui__choice-img { width: 40px; height: 40px; image-rendering: pixelated; object-fit: contain; }
 .ui__choice-caption { font-size: 12px; opacity: 0.9; }
 
 /* Start button */
 .ui__start-button { 
-  background: #3c8ce7; 
+  background: #6ab89a; 
   color: #ffffff; 
   border: none; 
   border-radius: 8px; 
@@ -39,7 +39,7 @@ html, body { height: 100%; margin: 0; }
   cursor: pointer; 
   font-family: system-ui, -apple-system, sans-serif; 
   transition: transform 0.1s ease, background 0.1s ease; 
-  box-shadow: 0 4px 12px rgba(60, 140, 231, 0.3);
+  box-shadow: 0 4px 12px rgba(106, 184, 154, 0.3);
   width: 100%;
   height: 48px;
   margin-top: 16px;
@@ -49,8 +49,8 @@ html, body { height: 100%; margin: 0; }
 }
 .ui__start-button:hover { 
   transform: translateY(-1px); 
-  background: #4a9ef5; 
-  box-shadow: 0 6px 16px rgba(60, 140, 231, 0.4);
+  background: #7dc9b0; 
+  box-shadow: 0 6px 16px rgba(106, 184, 154, 0.4);
 }
 .ui__start-button:active { 
   transform: translateY(0); 
@@ -97,7 +97,7 @@ html, body { height: 100%; margin: 0; }
   padding: 4px 6px; 
   font-size: 11px; 
   font-weight: 500; 
-  color: #3c8ce7; 
+  color: #6ab89a; 
   text-align: center; 
   min-width: 24px; 
   height: 20px; 
@@ -153,7 +153,7 @@ html, body { height: 100%; margin: 0; }
   font-size: 13px; 
   font-weight: 600; 
   margin: 0 0 8px 0; 
-  color: #3c8ce7; 
+  color: #6ab89a; 
   opacity: 0.9; 
 }
 .ui__mode-primary { 
