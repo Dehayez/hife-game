@@ -472,7 +472,7 @@ export class ProjectileManager {
 
     // Create mortar/bomb - fireball effect for Herald
     const isHerald = characterName === 'herald';
-    const size = isHerald ? 0.18 : 0.12;
+    const size = isHerald ? 0.25 : 0.12; // Bigger fireball for Herald
     const geo = new THREE.SphereGeometry(size, 12, 12);
     
     // Fireball effect for Herald - more intense
@@ -490,8 +490,8 @@ export class ProjectileManager {
     mortar.castShadow = true;
     
     // Enhanced trail effect - brighter for Herald fireball
-    const lightIntensity = isHerald ? 2.0 : 1.2;
-    const lightRange = isHerald ? 6 : 4;
+    const lightIntensity = isHerald ? 5 : 1.2; // Higher intensity for Herald
+    const lightRange = isHerald ? 10 : 4; // Larger range for Herald
     const trailLight = new THREE.PointLight(baseColor, lightIntensity, lightRange);
     trailLight.position.set(startX, startY, startZ);
     this.scene.add(trailLight);
@@ -623,7 +623,11 @@ export class ProjectileManager {
     fireContainer.add(particles);
     
     // Add point light for fire glow - positioned at exact impact point
-    const fireLight = new THREE.PointLight(characterColor, 2.0, splashRadius * 2);
+    // Higher intensity for Herald's fire
+    const isHeraldFire = mortarData.characterName === 'herald';
+    const fireLightIntensity = isHeraldFire ? 3.5 : 2.0; // Brighter for Herald
+    const fireLightRange = isHeraldFire ? splashRadius * 3 : splashRadius * 2; // Larger range for Herald
+    const fireLight = new THREE.PointLight(characterColor, fireLightIntensity, fireLightRange);
     fireLight.position.set(x, y + 0.3, z); // Position at exact impact point, slightly above ground
     fireLight.intensity = 0; // Start at 0, fade in during expansion
     this.scene.add(fireLight); // Add directly to scene at correct position
@@ -641,6 +645,7 @@ export class ProjectileManager {
       expandDuration: 0.2, // Fast expansion animation (0.2 seconds)
       position: new THREE.Vector3(x, y, z), // Exact impact position
       fireLight: fireLight,
+      fireLightIntensity: fireLightIntensity, // Store max intensity for animation
       fireLightPosition: new THREE.Vector3(x, y + 0.3, z), // Store light position
       hasDamaged: new Set(), // Track who has been damaged this tick
       particles: particles,
@@ -686,7 +691,8 @@ export class ProjectileManager {
         
         // Light intensity increases during expansion and update position
         if (fireArea.userData.fireLight) {
-          fireArea.userData.fireLight.intensity = 2.0 * expandFactor;
+          const maxIntensity = fireArea.userData.fireLightIntensity || 2.0;
+          fireArea.userData.fireLight.intensity = maxIntensity * expandFactor;
           // Update light position to exact impact point
           const lightPos = fireArea.userData.fireLightPosition || fireArea.userData.position.clone();
           fireArea.userData.fireLight.position.set(lightPos.x, lightPos.y, lightPos.z);
@@ -701,7 +707,8 @@ export class ProjectileManager {
         fireBase.scale.set(1.0, 1.0, 1.0);
         fireBase.material.opacity = 1.0; // Full opacity (gradient texture handles radial fade)
         if (fireArea.userData.fireLight) {
-          fireArea.userData.fireLight.intensity = 2.0;
+          const maxIntensity = fireArea.userData.fireLightIntensity || 2.0;
+          fireArea.userData.fireLight.intensity = maxIntensity;
           // Keep light at exact impact point
           const lightPos = fireArea.userData.fireLightPosition || fireArea.userData.position.clone();
           fireArea.userData.fireLight.position.set(lightPos.x, lightPos.y, lightPos.z);
@@ -725,7 +732,8 @@ export class ProjectileManager {
         
         // Fade out light and keep at exact position
         if (fireArea.userData.fireLight) {
-          fireArea.userData.fireLight.intensity = 2.0 * shrinkFactor;
+          const maxIntensity = fireArea.userData.fireLightIntensity || 2.0;
+          fireArea.userData.fireLight.intensity = maxIntensity * shrinkFactor;
           // Keep light at exact impact point
           const lightPos = fireArea.userData.fireLightPosition || fireArea.userData.position.clone();
           fireArea.userData.fireLight.position.set(lightPos.x, lightPos.y, lightPos.z);
