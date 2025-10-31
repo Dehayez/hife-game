@@ -1,8 +1,9 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { loadTexture, loadAnimationSmart } from '../utils/TextureLoader.js';
+import { SoundManager } from '../utils/SoundManager.js';
 
 export class CharacterManager {
-  constructor(scene) {
+  constructor(scene, footstepSoundPath = null) {
     this.scene = scene;
     this.player = null;
     this.animations = null;
@@ -20,6 +21,11 @@ export class CharacterManager {
     this.isGrounded = true;
     this.jumpCooldown = 0;
     this.jumpCooldownTime = .6; // prevent rapid jumping
+    
+    // Sound manager for footstep sounds
+    // Pass custom footstep sound path if provided
+    // Example: '/assets/sounds/footstep.mp3' or '/assets/sounds/footstep.ogg'
+    this.soundManager = new SoundManager(footstepSoundPath);
     
     // Only setup player if scene is available
     if (this.scene) {
@@ -55,6 +61,61 @@ export class CharacterManager {
       walk_back: await loadAnimationSmart(baseSpritePath + 'walk_back', 8, 4)
     };
     
+    // Load character-specific footstep sound from character folder
+    // Tries: /assets/characters/{name}/footstep.mp3, footstep.ogg, footstep.wav
+    // Falls back to: /assets/sounds/footstep.mp3, footstep.ogg, footstep.wav
+    const soundExtensions = ['mp3', 'ogg', 'wav'];
+    const characterSoundPath = `${baseSpritePath}footstep`; // e.g., /assets/characters/lucy/footstep
+    const genericSoundPath = '/assets/sounds/footstep';
+    
+    // Try character folder first (keeps all character assets together)
+    let soundPath = null;
+    for (const ext of soundExtensions) {
+      const testPath = `${characterSoundPath}.${ext}`;
+      try {
+        const testAudio = new Audio(testPath);
+        const canLoad = await new Promise((resolve) => {
+          testAudio.addEventListener('canplay', () => resolve(true), { once: true });
+          testAudio.addEventListener('error', () => resolve(false), { once: true });
+          testAudio.load();
+          setTimeout(() => resolve(false), 200);
+        });
+        if (canLoad) {
+          soundPath = testPath;
+          break;
+        }
+      } catch (e) {
+        // Try next format
+      }
+    }
+    
+    // If no character-specific sound, try generic sounds folder
+    if (!soundPath) {
+      for (const ext of soundExtensions) {
+        const testPath = `${genericSoundPath}.${ext}`;
+        try {
+          const testAudio = new Audio(testPath);
+          const canLoad = await new Promise((resolve) => {
+            testAudio.addEventListener('canplay', () => resolve(true), { once: true });
+            testAudio.addEventListener('error', () => resolve(false), { once: true });
+            testAudio.load();
+            setTimeout(() => resolve(false), 200);
+          });
+          if (canLoad) {
+            soundPath = testPath;
+            break;
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+    }
+    
+    // Load the sound if found
+    if (soundPath) {
+      this.soundManager.loadFootstepSound(soundPath);
+    }
+    
     this.animations = loaded;
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
@@ -88,16 +149,30 @@ export class CharacterManager {
     const anim = this.animations[this.currentAnimKey];
     if (!anim || anim.frameCount <= 1) return;
     
+    const isWalkAnim = this.currentAnimKey === 'walk_front' || this.currentAnimKey === 'walk_back';
+    
     anim.timeAcc += dt;
     
     // Use higher FPS when running (shift held) for walk animations
-    const isWalkAnim = this.currentAnimKey === 'walk_front' || this.currentAnimKey === 'walk_back';
     const currentFps = isRunning && isWalkAnim ? anim.fps * 1.4 : anim.fps;
     
     const frameDuration = 1 / currentFps;
     while (anim.timeAcc >= frameDuration) {
       anim.timeAcc -= frameDuration;
       anim.frameIndex = (anim.frameIndex + 1) % anim.frameCount;
+      
+      // Play footstep sound when walking and grounded
+      if (isWalkAnim && this.isGrounded) {
+        // Play footsteps on specific frames (typically when feet hit ground)
+        // For 4-frame walk cycle: play on frames 0 and 2
+        // This creates alternating left/right foot sounds
+        const footstepFrames = anim.frameCount >= 4 ? [0, 2] : [0];
+        
+        // Play when we transition to a footstep frame
+        if (footstepFrames.includes(anim.frameIndex)) {
+          this.soundManager.playFootstep();
+        }
+      }
       
       if (anim.mode === 'sheet') {
         const u = anim.frameIndex / anim.frameCount;

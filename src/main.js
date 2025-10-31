@@ -25,7 +25,11 @@ sceneManager.init(canvas);
 const respawnOverlay = new RespawnOverlay();
 
 // Now create other components that depend on the scene
-const characterManager = new CharacterManager(null); // Initialize without scene first
+// To use a custom footstep sound, provide the path here:
+// Example: '/assets/sounds/footstep.mp3' or '/assets/sounds/footstep.ogg'
+// Leave as null to use the default procedural sound
+const customFootstepPath = null; // Set to your sound file path to use custom sound
+const characterManager = new CharacterManager(null, customFootstepPath); // Initialize without scene first
 const inputManager = new InputManager();
 const collisionManager = new CollisionManager(sceneManager.getScene(), sceneManager.getArenaSize(), respawnOverlay);
 const entityManager = new EntityManager(sceneManager.getScene(), sceneManager.getArenaSize(), collisionManager);
