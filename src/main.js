@@ -6,6 +6,7 @@ import { initGameModeDisplay } from './ui/GameModeDisplay.js';
 import { initArenaSwitcher } from './ui/ArenaSwitcher.js';
 import { initRoomManager } from './ui/RoomManager.js';
 import { initBotControl } from './ui/BotControl.js';
+import { initCooldownIndicator } from './ui/CooldownIndicator.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode } from './utils/StorageUtils.js';
@@ -179,6 +180,14 @@ const roomMount = document.getElementById('room-manager') || document.body;
 const roomPanel = document.getElementById('room-manager-panel');
 const botControlMount = document.getElementById('bot-control') || document.body;
 const botControlPanel = document.getElementById('bot-control-panel');
+const cooldownMount = document.getElementById('cooldown-indicator') || document.body;
+
+// Initialize cooldown indicator UI early (before it's referenced in callbacks)
+let cooldownIndicator = initCooldownIndicator({
+  mount: cooldownMount,
+  projectileManager: projectileManager,
+  characterManager: characterManager
+});
 
 // Initialize game mode switcher UI
 const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
@@ -215,6 +224,11 @@ initGameModeSwitcher({
       if (roomPanel) roomPanel.style.display = 'block';
       if (botControlPanel) botControlPanel.style.display = 'block';
       
+      // Show cooldown indicator
+      if (cooldownIndicator) {
+        cooldownIndicator.show();
+      }
+      
       // Create health bar for player when entering shooting mode
       if (healthBarManager && characterManager.getPlayer()) {
         const player = characterManager.getPlayer();
@@ -230,6 +244,11 @@ initGameModeSwitcher({
       if (roomPanel) roomPanel.style.display = 'none';
       if (botControlPanel) botControlPanel.style.display = 'none';
       
+      // Hide cooldown indicator
+      if (cooldownIndicator) {
+        cooldownIndicator.hide();
+      }
+      
       // Clear bots and health bars when leaving shooting mode
       if (botManager) {
         botManager.clearAll();
@@ -242,11 +261,17 @@ initGameModeSwitcher({
   gameModeManager: gameModeManager
 });
 
-// Show/hide room manager based on initial mode
+// Show/hide room manager and cooldown indicator based on initial mode
 if (gameMode === 'shooting') {
   if (roomPanel) roomPanel.style.display = 'block';
+  if (cooldownIndicator) {
+    cooldownIndicator.show();
+  }
 } else {
   if (roomPanel) roomPanel.style.display = 'none';
+  if (cooldownIndicator) {
+    cooldownIndicator.hide();
+  }
 }
 
 // Initialize controls legend
@@ -310,6 +335,7 @@ if (gameMode === 'shooting') {
   if (botControlPanel) botControlPanel.style.display = 'none';
 }
 
+
 // Background music setup
 // To use background music, provide the path here:
 // Example: '/assets/music/background.mp3' or '/assets/music/background.ogg'
@@ -369,6 +395,16 @@ if (backgroundMusicPath) {
   }
   
   gameLoop.start();
+
+// Wrap gameLoop.tick to update cooldown indicator
+const originalTick = gameLoop.tick.bind(gameLoop);
+gameLoop.tick = function() {
+  originalTick();
+  // Update cooldown indicator each frame (only if in shooting mode)
+  if (cooldownIndicator && gameModeManager && gameModeManager.getMode() === 'shooting') {
+    cooldownIndicator.update();
+  }
+};
 })();
 
 
