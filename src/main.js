@@ -4,6 +4,7 @@ import { initControlsLegend } from './ui/ControlsLegend.js';
 import { initGameModeSwitcher } from './ui/GameModeSwitcher.js';
 import { initGameModeDisplay } from './ui/GameModeDisplay.js';
 import { initArenaSwitcher } from './ui/ArenaSwitcher.js';
+import { initRoomManager } from './ui/RoomManager.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter } from './utils/StorageUtils.js';
@@ -15,6 +16,8 @@ import { CollisionManager } from './core/CollisionManager.js';
 import { LargeArenaCollisionManager } from './core/LargeArenaCollisionManager.js';
 import { GameModeManager } from './core/GameModeManager.js';
 import { EntityManager } from './core/EntityManager.js';
+import { ProjectileManager } from './core/ProjectileManager.js';
+import { MultiplayerManager } from './core/MultiplayerManager.js';
 import { GameLoop } from './core/GameLoop.js';
 import { ParticleManager } from './core/ParticleManager.js';
 import { ArenaManager } from './core/ArenaManager.js';
@@ -62,15 +65,37 @@ characterManager.setCollisionManager(collisionManager);
 const particleManager = new ParticleManager(sceneManager.getScene());
 characterManager.setParticleManager(particleManager);
 
+// Initialize projectile manager for shooting mode
+const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager);
+
+// Initialize multiplayer manager
+const multiplayerManager = new MultiplayerManager(
+  (playerId) => {
+    console.log('Player joined:', playerId);
+  },
+  (playerId) => {
+    console.log('Player left:', playerId);
+  },
+  (playerId, data) => {
+    console.log('Game data received from', playerId, data);
+    // Handle multiplayer game data sync
+  }
+);
+
 // Set respawn callback for mode changes
 gameModeManager.setOnModeChangeCallback(() => {
   characterManager.respawn();
   collisionManager.updateWallsForMode();
   const currentMode = gameModeManager.getMode();
   sceneManager.setMushroomsVisible(currentMode === 'free-play');
+  
+  // Clear projectiles when mode changes
+  if (projectileManager) {
+    projectileManager.clearAll();
+  }
 });
 
-const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager);
+const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager);
 
 // Character selection: URL param > localStorage > default
 // Priority: 1) URL param ?char=lucy, 2) Last played character (localStorage), 3) Default 'lucy'
@@ -123,6 +148,10 @@ initArenaSwitcher({
   }
 });
 
+// Get room manager elements (defined early so they can be referenced in callbacks)
+const roomMount = document.getElementById('room-manager') || document.body;
+const roomPanel = document.getElementById('room-manager-panel');
+
 // Initialize game mode switcher UI
 const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
 initGameModeSwitcher({
@@ -131,9 +160,41 @@ initGameModeSwitcher({
   value: gameMode,
   onChange: (mode) => { 
     gameModeManager.setMode(mode);
+    
+    // Clear projectiles when leaving shooting mode
+    if (mode !== 'shooting' && projectileManager) {
+      projectileManager.clearAll();
+    }
+    
+    // Leave room when leaving shooting mode
+    if (mode !== 'shooting' && multiplayerManager.isInRoom()) {
+      multiplayerManager.leaveRoom();
+      if (typeof roomManager !== 'undefined' && roomManager) {
+        roomManager.update();
+      }
+      
+      // Remove room from URL
+      const url = new URL(window.location);
+      url.searchParams.delete('room');
+      window.history.pushState({}, '', url);
+    }
+    
+    // Show/hide room manager based on mode
+    if (mode === 'shooting') {
+      if (roomPanel) roomPanel.style.display = 'block';
+    } else {
+      if (roomPanel) roomPanel.style.display = 'none';
+    }
   },
   gameModeManager: gameModeManager
 });
+
+// Show/hide room manager based on initial mode
+if (gameMode === 'shooting') {
+  if (roomPanel) roomPanel.style.display = 'block';
+} else {
+  if (roomPanel) roomPanel.style.display = 'none';
+}
 
 // Initialize controls legend
 const legendMount = document.getElementById('controls-legend') || document.body;
@@ -148,6 +209,35 @@ initGameModeDisplay({
   gameModeManager: gameModeManager,
   characterManager: characterManager
 });
+
+// Initialize room manager UI for shooting mode
+const roomManager = initRoomManager({
+  mount: roomMount,
+  multiplayerManager: multiplayerManager,
+  onRoomCreated: (roomCode) => {
+    console.log('Room created:', roomCode);
+    // Start shooting mode if not already
+    if (gameModeManager.getMode() !== 'shooting') {
+      gameModeManager.setMode('shooting');
+    }
+    gameModeManager.startMode();
+  },
+  onRoomJoined: (roomCode) => {
+    console.log('Joined room:', roomCode);
+    // Start shooting mode if not already
+    if (gameModeManager.getMode() !== 'shooting') {
+      gameModeManager.setMode('shooting');
+    }
+    gameModeManager.startMode();
+  }
+});
+
+// Check URL for room code and auto-join
+const urlRoom = getParam('room', null);
+if (urlRoom) {
+  multiplayerManager.joinRoom(urlRoom.toUpperCase());
+  roomManager.update();
+}
 
 // Background music setup
 // To use background music, provide the path here:

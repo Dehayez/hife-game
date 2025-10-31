@@ -1,16 +1,18 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
 export class GameLoop {
-  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
     this.collisionManager = collisionManager;
     this.gameModeManager = gameModeManager;
     this.entityManager = entityManager;
+    this.projectileManager = projectileManager;
     
     this.lastTime = performance.now();
     this.isRunning = false;
+    this.lastShootInput = false;
   }
 
   start() {
@@ -79,6 +81,83 @@ export class GameLoop {
     // Update game mode
     if (this.gameModeManager) {
       this.gameModeManager.update(dt, this.entityManager);
+    }
+    
+    // Handle shooting mode
+    if (mode === 'shooting' && this.projectileManager) {
+      // Update projectiles
+      this.projectileManager.update(dt);
+      
+      // Handle shooting input
+      const shootInput = this.inputManager.isShootPressed();
+      if (shootInput && !this.lastShootInput && this.projectileManager.canShoot()) {
+        // Get shooting direction (towards mouse cursor on ground plane)
+        const camera = this.sceneManager.getCamera();
+        const mousePos = this.inputManager.getMousePosition();
+        
+        // Convert mouse to world coordinates on ground plane
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+        mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+        
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Intersect with ground plane at y = 0.6
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.6);
+        const intersect = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, intersect);
+        
+        // Calculate direction from player to intersect point
+        const playerPos = player.position;
+        const directionX = intersect.x - playerPos.x;
+        const directionZ = intersect.z - playerPos.z;
+        
+        // If no valid direction (too close to player), shoot forward
+        const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+        if (dirLength < 0.1) {
+          // Shoot in camera forward direction
+          const cameraDir = new THREE.Vector3();
+          camera.getWorldDirection(cameraDir);
+          this.projectileManager.createProjectile(
+            playerPos.x,
+            playerPos.z,
+            cameraDir.x,
+            cameraDir.z,
+            'local'
+          );
+        } else {
+          this.projectileManager.createProjectile(
+            playerPos.x,
+            playerPos.z,
+            directionX,
+            directionZ,
+            'local'
+          );
+        }
+      }
+      this.lastShootInput = shootInput;
+      
+      // Check projectile collisions with player
+      const projectileCollision = this.projectileManager.checkPlayerCollision(
+        player.position,
+        this.characterManager.getPlayerSize(),
+        'local'
+      );
+      
+      if (projectileCollision.hit) {
+        // Apply damage
+        if (this.gameModeManager && this.gameModeManager.modeState) {
+          this.gameModeManager.modeState.health -= projectileCollision.damage;
+          
+          if (this.gameModeManager.modeState.health <= 0) {
+            // Player died - respawn
+            this.gameModeManager.modeState.deaths++;
+            this.gameModeManager.modeState.health = 100;
+            this.characterManager.respawn();
+          }
+        }
+      }
     }
     
     // Handle jump input

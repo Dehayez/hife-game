@@ -8,8 +8,12 @@ export class InputManager {
       left: false, 
       right: false, 
       shift: false,
-      jump: false
+      jump: false,
+      shoot: false
     };
+    
+    this.mousePosition = { x: 0, y: 0 };
+    this.shootPressed = false;
     
     this.moveSpeed = 4; // units per second
     this.runSpeedMultiplier = 1.7; // speed multiplier when running
@@ -33,6 +37,27 @@ export class InputManager {
           e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
       }
+    });
+    
+    // Mouse click for shooting
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0) { // Left mouse button
+        this.shootPressed = true;
+        this.inputState.shoot = true;
+      }
+    });
+    
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) {
+        this.shootPressed = false;
+        this.inputState.shoot = false;
+      }
+    });
+    
+    // Track mouse position
+    window.addEventListener('mousemove', (e) => {
+      this.mousePosition.x = e.clientX;
+      this.mousePosition.y = e.clientY;
     });
   }
 
@@ -98,5 +123,13 @@ export class InputManager {
 
   isJumpPressed() {
     return this.inputState.jump;
+  }
+
+  isShootPressed() {
+    return this.inputState.shoot;
+  }
+
+  getMousePosition() {
+    return this.mousePosition;
   }
 }

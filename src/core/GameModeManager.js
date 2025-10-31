@@ -27,6 +27,11 @@ export class GameModeManager {
         name: 'Shadow Escape',
         description: 'Survive the cursed thorns as long as possible',
         enabled: true
+      },
+      'shooting': {
+        name: 'Mystic Battle',
+        description: 'Invite players and battle with magical projectiles',
+        enabled: true
       }
     };
     
@@ -42,7 +47,10 @@ export class GameModeManager {
       isComplete: false,
       isPaused: false,
       isStarted: false,
-      highScore: 0
+      highScore: 0,
+      health: 100,
+      kills: 0,
+      deaths: 0
     };
     
     // Load high score and best time for current mode and arena
@@ -126,6 +134,11 @@ export class GameModeManager {
         this.entityManager.spawnCheckpointsForTimeTrial(5);
         this.modeState.timer = 0;
         break;
+      case 'shooting':
+        // Shooting mode - no entities needed, just start the mode
+        this.entityManager.clearAll();
+        this.startMode(); // Auto-start shooting mode
+        break;
       default:
         this.entityManager.clearAll();
         break;
@@ -196,7 +209,10 @@ export class GameModeManager {
       lastTime: null,
       isComplete: false,
       isPaused: false,
-      isStarted: false
+      isStarted: false,
+      health: 100,
+      kills: 0,
+      deaths: 0
     };
   }
 
@@ -242,6 +258,11 @@ export class GameModeManager {
         break;
       case 'survival':
         if (this.modeState.isStarted && !this.modeState.isPaused && !this.modeState.isComplete) {
+          this.modeState.timer += dt;
+        }
+        break;
+      case 'shooting':
+        if (this.modeState.isStarted && !this.modeState.isPaused) {
           this.modeState.timer += dt;
         }
         break;
@@ -301,6 +322,12 @@ export class GameModeManager {
           mode: config.name,
           primary: this.formatTime(this.modeState.timer) + survivalBestTimeText + lastTimeText,
           secondary: `Spirit Power: ${this.modeState.score}${survivalHighScoreText}`
+        };
+      case 'shooting':
+        return {
+          mode: config.name,
+          primary: `Health: ${Math.max(0, this.modeState.health)}`,
+          secondary: `Kills: ${this.modeState.kills} | Deaths: ${this.modeState.deaths}`
         };
       default:
         return {
