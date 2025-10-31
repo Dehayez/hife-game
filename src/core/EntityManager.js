@@ -16,18 +16,29 @@ export class EntityManager {
   }
 
   createCollectible(x, z, id) {
-    const geo = new THREE.SphereGeometry(0.15, 8, 8);
+    // Create magical crystal gem - faceted crystal shape with red color
+    const geo = new THREE.OctahedronGeometry(0.18, 0);
+    const color = 0xcc4444; // Red gem color
+    
     const mat = new THREE.MeshStandardMaterial({ 
-      color: 0xf9d71c, 
-      emissive: 0xf9d71c,
-      emissiveIntensity: 0.5,
-      metalness: 0.3,
-      roughness: 0.2
+      color: color, 
+      emissive: color,
+      emissiveIntensity: 0.7,
+      metalness: 0.6,
+      roughness: 0.2,
+      transparent: true,
+      opacity: 0.9
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, 1.2, z);
     mesh.castShadow = true;
-    mesh.userData = { type: 'collectible', id, collected: false };
+    mesh.userData = { type: 'collectible', id, collected: false, originalColor: color };
+    
+    // Add magical glow effect with point light
+    const glowLight = new THREE.PointLight(color, 0.5, 2);
+    glowLight.position.set(x, 1.2, z);
+    mesh.userData.glowLight = glowLight;
+    this.scene.add(glowLight);
     
     this.scene.add(mesh);
     this.collectibles.push(mesh);
@@ -35,55 +46,133 @@ export class EntityManager {
   }
 
   createHazard(x, z, id, size = 0.5) {
-    const geo = new THREE.BoxGeometry(size, 0.3, size);
-    const mat = new THREE.MeshStandardMaterial({ 
-      color: 0xe74c3c,
-      emissive: 0xe74c3c,
-      emissiveIntensity: 0.3,
-      metalness: 0.2,
-      roughness: 0.8
+    // Create cursed thorn cluster - dark mystical thorn formation
+    const group = new THREE.Group();
+    
+    // Main thorn body - dark purple/black with spikes
+    const mainGeo = new THREE.ConeGeometry(size * 0.6, 0.5, 6);
+    const mainMat = new THREE.MeshStandardMaterial({ 
+      color: 0x2a1a3a,
+      emissive: 0x4a1a5a,
+      emissiveIntensity: 0.4,
+      metalness: 0.1,
+      roughness: 0.9
     });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, 0.15, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    const mainMesh = new THREE.Mesh(mainGeo, mainMat);
+    mainMesh.position.y = 0.25;
+    mainMesh.rotation.z = Math.random() * Math.PI * 2;
+    group.add(mainMesh);
+    
+    // Add spike thorns around the base
+    const spikeCount = 6;
+    for (let i = 0; i < spikeCount; i++) {
+      const spikeGeo = new THREE.ConeGeometry(size * 0.15, 0.3, 4);
+      const spikeMat = new THREE.MeshStandardMaterial({ 
+        color: 0x3a1a4a,
+        emissive: 0x5a1a6a,
+        emissiveIntensity: 0.3,
+        metalness: 0.1,
+        roughness: 0.9
+      });
+      const spike = new THREE.Mesh(spikeGeo, spikeMat);
+      const angle = (i / spikeCount) * Math.PI * 2;
+      spike.position.set(
+        Math.cos(angle) * size * 0.4,
+        0.15,
+        Math.sin(angle) * size * 0.4
+      );
+      spike.rotation.x = -0.5;
+      spike.rotation.z = angle;
+      group.add(spike);
+    }
+    
+    group.position.set(x, 0.15, z);
+    group.castShadow = true;
+    group.receiveShadow = true;
+    
+    // Add dark magical glow
+    const darkGlow = new THREE.PointLight(0x5a1a6a, 0.3, 2);
+    darkGlow.position.set(x, 0.3, z);
+    this.scene.add(darkGlow);
     
     // Add movement properties for random movement
     const speed = 2 + Math.random() * 2; // Random speed between 2-4 units/sec (harder)
     const direction = Math.random() * Math.PI * 2; // Random initial direction
-    mesh.userData = { 
+    group.userData = { 
       type: 'hazard', 
       id, 
       active: true,
       speed: speed,
       direction: direction,
       changeDirectionTimer: 0,
-      changeDirectionInterval: 1 + Math.random() * 2 // Change direction every 1-3 seconds
+      changeDirectionInterval: 1 + Math.random() * 2, // Change direction every 1-3 seconds
+      glowLight: darkGlow
     };
     
-    this.scene.add(mesh);
-    this.hazards.push(mesh);
-    return mesh;
+    this.scene.add(group);
+    this.hazards.push(group);
+    return group;
   }
 
   createCheckpoint(x, z, id) {
-    const geo = new THREE.CylinderGeometry(0.3, 0.3, 2, 16);
-    const mat = new THREE.MeshStandardMaterial({ 
-      color: 0x3c8ce7,
-      emissive: 0x3c8ce7,
-      emissiveIntensity: 0.4,
-      metalness: 0.5,
+    // Create magical crystal shrine - mystical pillar with crystal top
+    const group = new THREE.Group();
+    
+    // Base pillar - stone with mystical runes
+    const pillarGeo = new THREE.CylinderGeometry(0.25, 0.3, 1.5, 8);
+    const pillarMat = new THREE.MeshStandardMaterial({ 
+      color: 0x3a4a4a,
+      emissive: 0x2a3a3a,
+      emissiveIntensity: 0.2,
+      metalness: 0.3,
+      roughness: 0.8
+    });
+    const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+    pillar.position.y = 0.75;
+    group.add(pillar);
+    
+    // Crystal top - glowing magical crystal
+    const crystalGeo = new THREE.OctahedronGeometry(0.35, 1);
+    const crystalMat = new THREE.MeshStandardMaterial({ 
+      color: 0x6ab89a,
+      emissive: 0x4a8a7a,
+      emissiveIntensity: 0.6,
+      metalness: 0.7,
+      roughness: 0.2,
+      transparent: true,
+      opacity: 0.85
+    });
+    const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+    crystal.position.y = 2.1;
+    group.add(crystal);
+    
+    // Magical energy ring around crystal
+    const ringGeo = new THREE.TorusGeometry(0.4, 0.05, 8, 16);
+    const ringMat = new THREE.MeshStandardMaterial({ 
+      color: 0x6ab89a,
+      emissive: 0x4a8a7a,
+      emissiveIntensity: 0.5,
+      metalness: 0.6,
       roughness: 0.3
     });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, 1, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData = { type: 'checkpoint', id, activated: false };
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = 1.8;
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
     
-    this.scene.add(mesh);
-    this.checkpoints.push(mesh);
-    return mesh;
+    group.position.set(x, 0, z);
+    group.castShadow = true;
+    group.receiveShadow = true;
+    
+    // Add mystical glow light
+    const shrineLight = new THREE.PointLight(0x6ab89a, 0.6, 3);
+    shrineLight.position.set(x, 2, z);
+    this.scene.add(shrineLight);
+    group.userData = { type: 'checkpoint', id, activated: false, glowLight: shrineLight, crystal: crystal, ring: ring };
+    
+    this.scene.add(group);
+    this.checkpoints.push(group);
+    return group;
   }
 
   checkPlayerCollision(playerPos, playerSize) {
@@ -136,6 +225,11 @@ export class EntityManager {
     item.userData.collected = true;
     this.collectedIds.add(item.userData.id);
     
+    // Remove glow light
+    if (item.userData.glowLight) {
+      this.scene.remove(item.userData.glowLight);
+    }
+    
     const fadeOut = () => {
       if (item.material.opacity > 0) {
         item.material.opacity -= 0.1;
@@ -155,9 +249,25 @@ export class EntityManager {
     if (checkpoint.userData.activated) return false;
     
     checkpoint.userData.activated = true;
-    checkpoint.material.color.setHex(0x2ecc71);
-    checkpoint.material.emissive.setHex(0x2ecc71);
-    checkpoint.material.emissiveIntensity = 0.6;
+    
+    // Activate shrine - brighten crystal and ring
+    if (checkpoint.userData.crystal) {
+      checkpoint.userData.crystal.material.color.setHex(0x8aefcf);
+      checkpoint.userData.crystal.material.emissive.setHex(0x6ab89a);
+      checkpoint.userData.crystal.material.emissiveIntensity = 1.0;
+    }
+    
+    if (checkpoint.userData.ring) {
+      checkpoint.userData.ring.material.color.setHex(0x8aefcf);
+      checkpoint.userData.ring.material.emissive.setHex(0x6ab89a);
+      checkpoint.userData.ring.material.emissiveIntensity = 0.8;
+    }
+    
+    // Brighten glow light
+    if (checkpoint.userData.glowLight) {
+      checkpoint.userData.glowLight.color.setHex(0x8aefcf);
+      checkpoint.userData.glowLight.intensity = 1.0;
+    }
     
     return true;
   }
@@ -177,7 +287,8 @@ export class EntityManager {
     const positions = this._generateRandomPositions(count, 1.5);
     positions.forEach((pos, index) => {
       const size = 0.5 + Math.random() * 0.3;
-      this.createHazard(pos.x, pos.z, `hazard_${index}`, size);
+      const hazard = this.createHazard(pos.x, pos.z, `hazard_${index}`, size);
+      hazard.userData.size = size; // Store size for collision detection
     });
   }
 
@@ -243,19 +354,50 @@ export class EntityManager {
   updateAnims(dt, canMove = true) {
     for (const item of this.collectibles) {
       if (item.userData.collected) continue;
-      item.rotation.y += dt * 2;
-      item.position.y = 1.2 + Math.sin(performance.now() * 0.003 + item.position.x) * 0.1;
+      // Rotate and float with magical animation
+      item.rotation.y += dt * 3;
+      item.rotation.x += dt * 1.5;
+      item.position.y = 1.2 + Math.sin(performance.now() * 0.003 + item.position.x) * 0.15;
+      
+      // Update glow light position
+      if (item.userData.glowLight) {
+        item.userData.glowLight.position.set(
+          item.position.x,
+          item.position.y,
+          item.position.z
+        );
+        // Pulse the glow
+        const pulse = Math.sin(performance.now() * 0.005 + item.position.x) * 0.3 + 0.7;
+        item.userData.glowLight.intensity = 0.5 * pulse;
+      }
+      
+      // Pulse emissive intensity
+      const pulse = Math.sin(performance.now() * 0.005 + item.position.x) * 0.3 + 0.7;
+      item.material.emissiveIntensity = 0.7 * pulse;
     }
 
     for (const hazard of this.hazards) {
       if (!hazard.userData.active) continue;
       
-      // Rotation animation
-      hazard.rotation.y += dt * 1;
+      // Rotation animation for cursed thorn
+      hazard.rotation.y += dt * 1.5;
       
-      // Pulse animation
-      const pulse = Math.sin(performance.now() * 0.005 + hazard.position.x) * 0.5 + 0.5;
-      hazard.material.emissiveIntensity = 0.3 + pulse * 0.4;
+      // Keep emissive intensity constant (no blinking)
+      hazard.children.forEach(child => {
+        if (child.material && child.material.emissiveIntensity !== undefined) {
+          child.material.emissiveIntensity = 0.4; // Constant value
+        }
+      });
+      
+      // Update glow light position (keep intensity constant)
+      if (hazard.userData.glowLight) {
+        hazard.userData.glowLight.position.set(
+          hazard.position.x,
+          hazard.position.y + 0.3,
+          hazard.position.z
+        );
+        hazard.userData.glowLight.intensity = 0.3; // Constant intensity
+      }
       
       // Only move hazards if countdown is complete
       if (!canMove) continue;
@@ -279,7 +421,7 @@ export class EntityManager {
       
       // Check wall collision for hazards
       if (this.collisionManager) {
-        const hazardSize = hazard.geometry.parameters.width;
+        const hazardSize = userData.size || 0.5;
         const nextPos = new THREE.Vector3(newX, hazard.position.y, newZ);
         
         if (!this.collisionManager.willCollide(nextPos, hazardSize)) {
@@ -305,21 +447,50 @@ export class EntityManager {
     }
 
     for (const checkpoint of this.checkpoints) {
-      checkpoint.rotation.y += dt * 0.5;
-      const pulse = checkpoint.userData.activated ? 0.6 : 0.4;
-      const variation = Math.sin(performance.now() * 0.003 + checkpoint.position.x) * 0.2;
-      checkpoint.material.emissiveIntensity = pulse + variation;
+      checkpoint.rotation.y += dt * 0.8;
+      
+      const pulse = checkpoint.userData.activated ? 1.0 : 0.6;
+      const variation = Math.sin(performance.now() * 0.003 + checkpoint.position.x) * 0.3;
+      
+      // Animate crystal and ring
+      if (checkpoint.userData.crystal) {
+        checkpoint.userData.crystal.rotation.y += dt * 1.5;
+        checkpoint.userData.crystal.material.emissiveIntensity = pulse + variation;
+      }
+      
+      if (checkpoint.userData.ring) {
+        checkpoint.userData.ring.rotation.z += dt * 0.5;
+        checkpoint.userData.ring.material.emissiveIntensity = (checkpoint.userData.activated ? 0.8 : 0.5) + variation * 0.3;
+      }
+      
+      // Pulse glow light
+      if (checkpoint.userData.glowLight) {
+        const lightPulse = Math.sin(performance.now() * 0.004 + checkpoint.position.x) * 0.2 + 0.8;
+        checkpoint.userData.glowLight.intensity = (checkpoint.userData.activated ? 1.0 : 0.6) * lightPulse;
+      }
     }
   }
 
   clearAll() {
     for (const item of this.collectibles) {
+      // Remove glow lights
+      if (item.userData.glowLight) {
+        this.scene.remove(item.userData.glowLight);
+      }
       this.scene.remove(item);
     }
     for (const hazard of this.hazards) {
+      // Remove glow lights
+      if (hazard.userData.glowLight) {
+        this.scene.remove(hazard.userData.glowLight);
+      }
       this.scene.remove(hazard);
     }
     for (const checkpoint of this.checkpoints) {
+      // Remove glow lights
+      if (checkpoint.userData.glowLight) {
+        this.scene.remove(checkpoint.userData.glowLight);
+      }
       this.scene.remove(checkpoint);
     }
     

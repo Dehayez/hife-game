@@ -206,7 +206,7 @@ export class SceneManager {
   }
   
   _addMagicalParticles() {
-    // Create floating magical particles
+    // Create floating magical particles (smaller and less visible)
     const particleCount = 50;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
@@ -240,21 +240,21 @@ export class SceneManager {
         phase: Math.random() * Math.PI * 2 // Phase offset for smooth animation
       });
       
-      // Magical colors (purple and green)
+      // Magical colors (purple and green) - more subdued
       const colorChoice = Math.random() > 0.5;
-      colors[i3] = colorChoice ? 0.5 : 0.3; // R
-      colors[i3 + 1] = colorChoice ? 0.6 : 0.8; // G
-      colors[i3 + 2] = colorChoice ? 0.7 : 0.5; // B
+      colors[i3] = colorChoice ? 0.3 : 0.2; // R (more subdued)
+      colors[i3 + 1] = colorChoice ? 0.4 : 0.5; // G (more subdued)
+      colors[i3 + 2] = colorChoice ? 0.5 : 0.3; // B (more subdued)
     }
     
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
     const material = new THREE.PointsMaterial({
-      size: 0.15,
+      size: 0.08, // Smaller size (was 0.15)
       vertexColors: true,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.25, // Less visible (was 0.7)
       blending: THREE.AdditiveBlending
     });
     
