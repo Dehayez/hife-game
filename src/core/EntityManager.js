@@ -57,13 +57,12 @@ export class EntityManager {
     const mainMat = new THREE.MeshStandardMaterial({ 
       color: 0x2a1a3a,
       emissive: 0x4a1a5a,
-      emissiveIntensity: 0.4,
+      emissiveIntensity: 0.8, // Increased visibility
       metalness: 0.1,
       roughness: 0.9
     });
     const mainMesh = new THREE.Mesh(mainGeo, mainMat);
     mainMesh.position.y = 0.25;
-    mainMesh.rotation.z = Math.random() * Math.PI * 2;
     group.add(mainMesh);
     
     // Add spike thorns around the base
@@ -73,7 +72,7 @@ export class EntityManager {
       const spikeMat = new THREE.MeshStandardMaterial({ 
         color: 0x3a1a4a,
         emissive: 0x5a1a6a,
-        emissiveIntensity: 0.3,
+        emissiveIntensity: 0.6, // Increased visibility
         metalness: 0.1,
         roughness: 0.9
       });
@@ -89,14 +88,9 @@ export class EntityManager {
       group.add(spike);
     }
     
-    group.position.set(x, 0.15, z);
+    group.position.set(x, 0, z); // Position on ground (no hover)
     group.castShadow = true;
     group.receiveShadow = true;
-    
-    // Add dark magical glow
-    const darkGlow = new THREE.PointLight(0x5a1a6a, 0.3, 2);
-    darkGlow.position.set(x, 0.3, z);
-    this.scene.add(darkGlow);
     
     // Add movement properties for random movement
     const speed = 2 + Math.random() * 2; // Random speed between 2-4 units/sec (harder)
@@ -108,8 +102,7 @@ export class EntityManager {
       speed: speed,
       direction: direction,
       changeDirectionTimer: 0,
-      changeDirectionInterval: 1 + Math.random() * 2, // Change direction every 1-3 seconds
-      glowLight: darkGlow
+      changeDirectionInterval: 1 + Math.random() * 2 // Change direction every 1-3 seconds
     };
     
     this.scene.add(group);
@@ -296,14 +289,19 @@ export class EntityManager {
   spawnHazardsForSurvival(count = 10) {
     this.clearAll();
     
-    // Triple hazards for large arena (40x40)
-    const adjustedCount = this.arenaSize >= 35 ? count * 3 : count;
+    // Double hazards for large arena (40x40) - kept reasonable for performance
+    const adjustedCount = this.arenaSize >= 35 ? count * 2 : count;
     
     const positions = this._generateRandomPositions(adjustedCount, 1.5);
     positions.forEach((pos, index) => {
       const size = 0.5 + Math.random() * 0.3;
       const hazard = this.createHazard(pos.x, pos.z, `hazard_${index}`, size);
       hazard.userData.size = size; // Store size for collision detection
+      
+      // Make hazards faster in large arena
+      if (this.arenaSize >= 35) {
+        hazard.userData.speed *= 2.5; // Much faster in large arena
+      }
     });
   }
 
@@ -556,26 +554,6 @@ export class EntityManager {
 
     for (const hazard of this.hazards) {
       if (!hazard.userData.active) continue;
-      
-      // Rotation animation for cursed thorn
-      hazard.rotation.y += dt * 1.5;
-      
-      // Keep emissive intensity constant (no blinking)
-      hazard.children.forEach(child => {
-        if (child.material && child.material.emissiveIntensity !== undefined) {
-          child.material.emissiveIntensity = 0.4; // Constant value
-        }
-      });
-      
-      // Update glow light position (keep intensity constant)
-      if (hazard.userData.glowLight) {
-        hazard.userData.glowLight.position.set(
-          hazard.position.x,
-          hazard.position.y + 0.3,
-          hazard.position.z
-        );
-        hazard.userData.glowLight.intensity = 0.3; // Constant intensity
-      }
       
       // Only move hazards if countdown is complete
       if (!canMove) continue;
