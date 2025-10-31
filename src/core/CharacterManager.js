@@ -31,6 +31,13 @@ export class CharacterManager {
     // Collision manager reference for checking ground type
     this.collisionManager = null;
     
+    // Particle manager reference for smoke effects
+    this.particleManager = null;
+    
+    // Smoke particle spawn timer
+    this.smokeSpawnTimer = 0;
+    this.smokeSpawnInterval = 0.05; // Spawn particle every 0.05 seconds when running
+    
     // Only setup player if scene is available
     if (this.scene) {
       this._setupPlayer();
@@ -39,6 +46,10 @@ export class CharacterManager {
 
   setCollisionManager(collisionManager) {
     this.collisionManager = collisionManager;
+  }
+
+  setParticleManager(particleManager) {
+    this.particleManager = particleManager;
   }
 
   getSoundManager() {
@@ -429,7 +440,7 @@ export class CharacterManager {
     }
   }
 
-  updateMovement(input, velocity, camera) {
+  updateMovement(input, velocity, camera, isRunning = false) {
     // Billboard the sprite to camera around Y only
     const camYaw = camera.rotation.y;
     this.player.rotation.set(0, camYaw, 0);
@@ -459,8 +470,28 @@ export class CharacterManager {
         const isObstacle = !this.isOnBaseGround();
         this.soundManager.playFootstep(isObstacle);
       }
+      
+      // Spawn smoke particles when running and grounded
+      // Timer is updated in updateSmokeSpawnTimer, check here if ready to spawn
+      if (isRunning && this.isGrounded && this.particleManager) {
+        if (this.smokeSpawnTimer <= 0) {
+          this.particleManager.spawnSmokeParticle(this.player.position);
+          this.smokeSpawnTimer = this.smokeSpawnInterval;
+        }
+      }
     } else {
       this.setCurrentAnim(this.lastFacing === 'back' ? 'idle_back' : 'idle_front');
+      // Reset smoke timer when not moving
+      this.smokeSpawnTimer = 0;
+    }
+  }
+
+  updateSmokeSpawnTimer(dt) {
+    // Update spawn timer for smoke particles
+    // Only decrease timer if we're moving (will be checked in updateMovement)
+    this.smokeSpawnTimer -= dt;
+    if (this.smokeSpawnTimer < 0) {
+      this.smokeSpawnTimer = 0;
     }
   }
 

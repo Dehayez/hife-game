@@ -13,6 +13,7 @@ import { CollisionManager } from './core/CollisionManager.js';
 import { GameModeManager } from './core/GameModeManager.js';
 import { EntityManager } from './core/EntityManager.js';
 import { GameLoop } from './core/GameLoop.js';
+import { ParticleManager } from './core/ParticleManager.js';
 
 // Initialize game components
 const canvas = document.getElementById('app-canvas');
@@ -43,6 +44,10 @@ characterManager.initializePlayer(sceneManager.getScene());
 
 // Connect collision manager to character manager (for ground type checking)
 characterManager.setCollisionManager(collisionManager);
+
+// Initialize particle manager for smoke effects
+const particleManager = new ParticleManager(sceneManager.getScene());
+characterManager.setParticleManager(particleManager);
 
 // Set respawn callback for mode changes
 gameModeManager.setOnModeChangeCallback(() => {

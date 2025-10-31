@@ -119,13 +119,25 @@ export class GameLoop {
       }
 
       // Update character movement and animation
-      this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera());
+      const isRunning = this.inputManager.isRunning();
+      this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera(), isRunning);
+      this.characterManager.updateSmokeSpawnTimer(dt);
     } else {
       // Before game starts, keep character idle
-      this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera());
+      this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera(), false);
     }
     
     this.characterManager.updateAnimation(dt, this.inputManager.isRunning());
+
+    // Update smoke particles
+    if (this.characterManager.particleManager) {
+      this.characterManager.particleManager.update(dt);
+      // Billboard smoke particles to camera
+      this.characterManager.particleManager.billboardToCamera(
+        this.characterManager.particleManager.smokeParticles,
+        this.sceneManager.getCamera()
+      );
+    }
 
     // Update magical particle animations
     this.sceneManager.updateParticles(dt);
