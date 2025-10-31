@@ -55,22 +55,23 @@ export class SceneManager {
     const hemi = new THREE.HemisphereLight(0x4a8a5f, 0x1a1428, 0.6);
     this.scene.add(hemi);
     
-    // Moonlight directional light from left bottom of arena
-    // Position at left bottom, pointing toward center/right
-    const moonLight = new THREE.DirectionalLight(0xaaccff, 1.2); // Cool blue-white moonlight
-    moonLight.position.set(-10, 8, -10); // Left-bottom position
-    moonLight.target.position.set(5, 0, 5); // Point toward center-right
+    // Moonlight directional light positioned at moon location
+    // Position at same location as moon, pointing toward center
+    const moonLight = new THREE.DirectionalLight(0xaaccff, 3); // Cool blue-white moonlight
+    moonLight.position.set(-27, 16, -40); // Same position as moon
+    moonLight.target.position.set(0, 0, 0); // Point toward center
     moonLight.castShadow = true;
     
     // Configure shadow properties for softer, more realistic shadows
+    // Increased bounds to cover all shadows from trees and structures at edges
     moonLight.shadow.mapSize.width = 2048;
     moonLight.shadow.mapSize.height = 2048;
     moonLight.shadow.camera.near = 0.1;
-    moonLight.shadow.camera.far = 50;
-    moonLight.shadow.camera.left = -15;
-    moonLight.shadow.camera.right = 15;
-    moonLight.shadow.camera.top = 15;
-    moonLight.shadow.camera.bottom = -15;
+    moonLight.shadow.camera.far = 100;
+    moonLight.shadow.camera.left = -30;
+    moonLight.shadow.camera.right = 30;
+    moonLight.shadow.camera.top = 30;
+    moonLight.shadow.camera.bottom = -30;
     moonLight.shadow.bias = -0.0001;
     moonLight.shadow.normalBias = 0.02;
     moonLight.shadow.radius = 4;
