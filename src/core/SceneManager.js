@@ -173,7 +173,7 @@ export class SceneManager {
       { x: 3, z: 7, size: 0.45 }
     ];
     
-    mushroomPositions.forEach(pos => {
+    mushroomPositions.forEach((pos, index) => {
       // Mushroom stem
       const stemGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.3, 6);
       const stemMat = new THREE.MeshStandardMaterial({ 
@@ -184,23 +184,28 @@ export class SceneManager {
       stem.position.set(pos.x, 0.15, pos.z);
       this.scene.add(stem);
       
-      // Glowing cap
+      // Glowing cap with stronger magical effect
       const capGeo = new THREE.SphereGeometry(pos.size * 0.6, 8, 8);
       capGeo.scale(1, 0.4, 1);
       const capMat = new THREE.MeshStandardMaterial({ 
         color: 0x8a4fa8,
-        emissive: 0x5a2f68,
-        emissiveIntensity: 0.8,
+        emissive: 0x8a4fa8,
+        emissiveIntensity: 1.2,
         roughness: 0.6 
       });
       const cap = new THREE.Mesh(capGeo, capMat);
       cap.position.set(pos.x, 0.4, pos.z);
       this.scene.add(cap);
       
-      // Add point light for glow effect
-      const glowLight = new THREE.PointLight(0x8a4fa8, 0.3, 2);
+      // Add multiple point lights for more magical glow effect
+      const glowLight = new THREE.PointLight(0x8a4fa8, 1.2, 4);
       glowLight.position.set(pos.x, 0.5, pos.z);
       this.scene.add(glowLight);
+      
+      // Additional softer glow light
+      const softGlow = new THREE.PointLight(0x9a5fb8, 0.6, 6);
+      softGlow.position.set(pos.x, 0.5, pos.z);
+      this.scene.add(softGlow);
     });
   }
   
