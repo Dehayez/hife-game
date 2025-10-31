@@ -544,14 +544,16 @@ export class ProjectileManager {
     
     // Create fire base - glowing circle with radial opacity gradient
     const fireGeo = new THREE.CircleGeometry(splashRadius, 32); // More segments for smoother gradient
-    const fireMat = new THREE.MeshBasicMaterial({
+    const fireMat = new THREE.MeshStandardMaterial({
       color: characterColor,
       emissive: characterColor,
       emissiveIntensity: 1.0,
       transparent: true,
       opacity: 1.0, // Base opacity (gradient texture handles radial fade)
       alphaMap: opacityTexture, // Radial opacity gradient
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide,
+      metalness: 0.1,
+      roughness: 0.9
     });
     const fireBase = new THREE.Mesh(fireGeo, fireMat);
     fireBase.rotation.x = -Math.PI / 2; // Lay flat on ground
