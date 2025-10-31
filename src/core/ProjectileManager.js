@@ -174,19 +174,34 @@ export class ProjectileManager {
       // Check ground collision - use target position for accurate landing
       const targetX = mortar.userData.targetX;
       const targetZ = mortar.userData.targetZ;
-      const groundHeight = this.collisionManager 
-        ? this.collisionManager.getGroundHeight(targetX, targetZ, mortar.userData.size)
+      
+      // Get ground height at the mortar's current position (not just target)
+      const currentGroundHeight = this.collisionManager 
+        ? this.collisionManager.getGroundHeight(mortar.position.x, mortar.position.z, mortar.userData.size)
         : 0.6;
       
-      // Check if mortar has reached target position (within small radius) or hit ground
-      const distanceToTarget = Math.sqrt(
-        (mortar.position.x - targetX) ** 2 + 
-        (mortar.position.z - targetZ) ** 2
-      );
+      // Calculate the bottom of the mortar sphere
+      const mortarBottom = newY - mortar.userData.size;
       
-      if (newY <= groundHeight + mortar.userData.size || distanceToTarget < 0.5) {
-        // Hit ground at target location - create fire splash
-        this.createFireSplash(targetX, groundHeight, targetZ, mortar.userData);
+      // Check if mortar has actually hit the ground (bottom of sphere touches ground)
+      // Also check if we're close to target and moving downward
+      const distanceToTarget = Math.sqrt(
+        (newX - targetX) ** 2 + 
+        (newZ - targetZ) ** 2
+      );
+      const isMovingDownward = mortar.userData.velocityY < 0;
+      const isNearTarget = distanceToTarget < 1.0; // Close to target horizontally
+      
+      // Only explode if:
+      // 1. The bottom of the mortar has actually reached or passed the ground surface
+      // 2. AND we're moving downward (not still ascending)
+      // 3. AND we're close to the target position
+      if (mortarBottom <= currentGroundHeight && isMovingDownward && isNearTarget) {
+        // Hit ground - create fire splash at actual impact location
+        const impactGroundHeight = this.collisionManager 
+          ? this.collisionManager.getGroundHeight(targetX, targetZ, mortar.userData.size)
+          : 0.6;
+        this.createFireSplash(targetX, impactGroundHeight, targetZ, mortar.userData);
         mortarsToRemove.push(mortar);
         mortar.userData.hasExploded = true;
       } else {
