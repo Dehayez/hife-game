@@ -692,23 +692,39 @@ window.debugRemotePlayers = () => {
 
 // Start the game
 (async () => {
-  await characterManager.loadCharacter(characterName);
+  // Get loading screen element
+  const loadingScreen = document.getElementById('loading-screen');
   
-  // Set camera for health bar manager
-  if (healthBarManager) {
-    healthBarManager.setCamera(sceneManager.getCamera());
+  try {
+    await characterManager.loadCharacter(characterName);
+    
+    // Set camera for health bar manager
+    if (healthBarManager) {
+      healthBarManager.setCamera(sceneManager.getCamera());
+    }
+    
+    // Only create health bar for player if in shooting mode
+    const initialMode = gameModeManager ? gameModeManager.getMode() : 'free-play';
+    if (initialMode === 'shooting' && healthBarManager && characterManager.getPlayer()) {
+      const player = characterManager.getPlayer();
+      player.userData.health = characterManager.getHealth();
+      player.userData.maxHealth = characterManager.getMaxHealth();
+      healthBarManager.createHealthBar(player, true);
+    }
+    
+    gameLoop.start();
+  } finally {
+    // Hide loading screen when initialization is complete
+    if (loadingScreen) {
+      loadingScreen.classList.add('is-hidden');
+      // Remove from DOM after transition completes
+      setTimeout(() => {
+        if (loadingScreen.parentNode) {
+          loadingScreen.parentNode.removeChild(loadingScreen);
+        }
+      }, 300);
+    }
   }
-  
-  // Only create health bar for player if in shooting mode
-  const initialMode = gameModeManager ? gameModeManager.getMode() : 'free-play';
-  if (initialMode === 'shooting' && healthBarManager && characterManager.getPlayer()) {
-    const player = characterManager.getPlayer();
-    player.userData.health = characterManager.getHealth();
-    player.userData.maxHealth = characterManager.getMaxHealth();
-    healthBarManager.createHealthBar(player, true);
-  }
-  
-  gameLoop.start();
 
   // Position sync interval (sync every ~100ms = ~10 times per second)
   let lastPositionSyncTime = 0;

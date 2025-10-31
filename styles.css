@@ -324,6 +324,53 @@ html, body { height: 100%; margin: 0; }
   margin-top: 4px;
 }
 
+/* Loading screen */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: #0b0e13;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.loading-screen.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loading-screen__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.loading-screen__spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(106, 184, 154, 0.2);
+  border-top-color: #6ab89a;
+  border-radius: 50%;
+  animation: loading-spin 0.8s linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-screen__text {
+  font-size: 16px;
+  color: #e7ebf0;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
 /* Cooldown indicator */
 .ui__cooldown-indicator {
   position: fixed;
