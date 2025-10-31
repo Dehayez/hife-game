@@ -196,7 +196,8 @@ export class EntityManager {
     };
 
     for (const item of this.collectibles) {
-      if (item.userData.collected) continue;
+      // Skip items that are collected or fading out
+      if (item.userData.collected || item.userData.fadingOut) continue;
       
       const itemBox = new THREE.Box3().setFromObject(item);
       if (playerBox.intersectsBox(itemBox)) {
@@ -232,22 +233,15 @@ export class EntityManager {
     item.userData.collected = true;
     this.collectedIds.add(item.userData.id);
     
-    // Remove glow light
+    // Remove glow light immediately
     if (item.userData.glowLight) {
       this.scene.remove(item.userData.glowLight);
+      item.userData.glowLight = null;
     }
     
-    const fadeOut = () => {
-      if (item.material.opacity > 0) {
-        item.material.opacity -= 0.1;
-        item.material.transparent = true;
-        item.scale.multiplyScalar(0.9);
-        requestAnimationFrame(fadeOut);
-      } else {
-        this.scene.remove(item);
-      }
-    };
-    fadeOut();
+    // Mark as fading out - will be handled in updateAnims for performance
+    item.userData.fadingOut = true;
+    item.material.transparent = true;
     
     return true;
   }
@@ -359,8 +353,23 @@ export class EntityManager {
   }
 
   updateAnims(dt, canMove = true) {
+    // Process collected items that are fading out
+    const itemsToRemove = [];
     for (const item of this.collectibles) {
+      if (item.userData.fadingOut) {
+        // Fade out animation using delta time (much faster than recursive requestAnimationFrame)
+        const fadeSpeed = 3.0; // fade out over ~0.33 seconds
+        item.material.opacity = Math.max(0, item.material.opacity - dt * fadeSpeed);
+        item.scale.multiplyScalar(1 - dt * 2.7); // shrink faster
+        
+        if (item.material.opacity <= 0) {
+          itemsToRemove.push(item);
+        }
+        continue;
+      }
+      
       if (item.userData.collected) continue;
+      
       // Rotate and float with magical animation
       item.rotation.y += dt * 3;
       item.rotation.x += dt * 1.5;
@@ -381,6 +390,15 @@ export class EntityManager {
       // Pulse emissive intensity
       const pulse = Math.sin(performance.now() * 0.005 + item.position.x) * 0.3 + 0.7;
       item.material.emissiveIntensity = 0.7 * pulse;
+    }
+    
+    // Remove faded out items
+    for (const item of itemsToRemove) {
+      this.scene.remove(item);
+      const index = this.collectibles.indexOf(item);
+      if (index > -1) {
+        this.collectibles.splice(index, 1);
+      }
     }
 
     for (const hazard of this.hazards) {
