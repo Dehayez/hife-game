@@ -216,14 +216,15 @@ export class SceneManager {
   }
   
   _addMagicalParticles() {
-    // Create floating magical particles (smaller and less visible)
-    const particleCount = 50;
+    // Create firefly particles that glow visually (without expensive lights)
+    const particleCount = 35; // Increased particle count
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
     
     // Store initial positions and speeds for animation
     this.particleInitialPositions = new Float32Array(particleCount * 3);
+    this.particleBaseColors = new Float32Array(particleCount * 3);
     this.particleSpeeds = [];
     
     for (let i = 0; i < particleCount; i++) {
@@ -247,25 +248,60 @@ export class SceneManager {
         x: (Math.random() - 0.5) * 0.02,
         y: (Math.random() - 0.5) * 0.03,
         z: (Math.random() - 0.5) * 0.02,
-        phase: Math.random() * Math.PI * 2 // Phase offset for smooth animation
+        phase: Math.random() * Math.PI * 2, // Phase offset for smooth animation
+        blinkPhase: Math.random() * Math.PI * 2 // Phase for blinking effect
       });
       
-      // Magical colors (purple and green) - more subdued
-      const colorChoice = Math.random() > 0.5;
-      colors[i3] = colorChoice ? 0.3 : 0.2; // R (more subdued)
-      colors[i3 + 1] = colorChoice ? 0.4 : 0.5; // G (more subdued)
-      colors[i3 + 2] = colorChoice ? 0.5 : 0.3; // B (more subdued)
+      // Firefly colors (warm yellow-green glow)
+      const isYellow = Math.random() > 0.3; // 70% yellow, 30% green
+      let baseR, baseG, baseB;
+      if (isYellow) {
+        // Warm yellow firefly glow
+        baseR = 1.0; // R - full yellow
+        baseG = 0.85 + Math.random() * 0.15; // G - bright yellow-green
+        baseB = 0.3 + Math.random() * 0.2; // B - slight warmth
+      } else {
+        // Green firefly glow
+        baseR = 0.4 + Math.random() * 0.2; // R
+        baseG = 1.0; // G - full green
+        baseB = 0.3 + Math.random() * 0.2; // B
+      }
+      
+      // Store base colors
+      this.particleBaseColors[i3] = baseR;
+      this.particleBaseColors[i3 + 1] = baseG;
+      this.particleBaseColors[i3 + 2] = baseB;
+      
+      // Set initial colors (will be updated with blinking in update loop)
+      colors[i3] = baseR;
+      colors[i3 + 1] = baseG;
+      colors[i3 + 2] = baseB;
     }
     
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
+    // Create circular particle texture for smooth circles
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const context = canvas.getContext('2d');
+    const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(255,255,255,1)');
+    gradient.addColorStop(0.5, 'rgba(255,255,255,0.8)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 32, 32);
+    const texture = new THREE.CanvasTexture(canvas);
+    
     const material = new THREE.PointsMaterial({
-      size: 0.08, // Smaller size (was 0.15)
+      size: 0.11, // Firefly size
       vertexColors: true,
       transparent: true,
-      opacity: 0.25, // Less visible (was 0.7)
-      blending: THREE.AdditiveBlending
+      opacity: 0.9, // Bright and visible
+      blending: THREE.AdditiveBlending, // Additive blending for glow effect
+      map: texture, // Circular texture for smooth circles
+      sizeAttenuation: true // Perspective scaling
     });
     
     const particles = new THREE.Points(geometry, material);
@@ -278,19 +314,36 @@ export class SceneManager {
     
     this.time += dt;
     const positions = this.magicalParticles.geometry.attributes.position.array;
+    const colors = this.magicalParticles.geometry.attributes.color.array;
     
     for (let i = 0; i < this.particleSpeeds.length; i++) {
       const i3 = i * 3;
       const speed = this.particleSpeeds[i];
       const phase = this.time + speed.phase;
+      const blinkPhase = this.time * 2 + speed.blinkPhase; // Faster blink animation
       
       // Floating animation with sine waves
-      positions[i3] = this.particleInitialPositions[i3] + Math.sin(phase * 0.5) * 1.5;
-      positions[i3 + 1] = this.particleInitialPositions[i3 + 1] + Math.sin(phase * 0.8) * 0.8;
-      positions[i3 + 2] = this.particleInitialPositions[i3 + 2] + Math.cos(phase * 0.5) * 1.5;
+      const x = this.particleInitialPositions[i3] + Math.sin(phase * 0.5) * 1.5;
+      const y = this.particleInitialPositions[i3 + 1] + Math.sin(phase * 0.8) * 0.8;
+      const z = this.particleInitialPositions[i3 + 2] + Math.cos(phase * 0.5) * 1.5;
+      
+      positions[i3] = x;
+      positions[i3 + 1] = y;
+      positions[i3 + 2] = z;
+      
+      // Firefly blinking effect (pulsing brightness)
+      const blinkIntensity = (Math.sin(blinkPhase) + 1) * 0.5; // 0 to 1
+      const minBrightness = 0.4;
+      const brightness = minBrightness + blinkIntensity * 0.6; // Pulse between 0.4 and 1.0
+      
+      // Update particle color brightness from base colors
+      colors[i3] = this.particleBaseColors[i3] * brightness;
+      colors[i3 + 1] = this.particleBaseColors[i3 + 1] * brightness;
+      colors[i3 + 2] = this.particleBaseColors[i3 + 2] * brightness;
     }
     
     this.magicalParticles.geometry.attributes.position.needsUpdate = true;
+    this.magicalParticles.geometry.attributes.color.needsUpdate = true;
   }
   
   _addBlinkingEyes() {
