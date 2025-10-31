@@ -176,11 +176,28 @@ export class ProjectileManager {
     const mortarsToRemove = [];
     
     for (const mortar of this.mortars) {
+      // Check if mortar needs splash creation from direct hit at ground level
+      if (mortar.userData.needsSplash) {
+        // Create splash immediately when direct hit was detected at ground level
+        this.createFireSplash(
+          mortar.userData.splashX,
+          mortar.userData.splashY,
+          mortar.userData.splashZ,
+          mortar.userData
+        );
+        mortar.userData.needsSplash = false; // Clear flag
+        mortarsToRemove.push(mortar);
+        continue;
+      }
+      
       // Update mortar using Mortar module
       const result = updateMortar(mortar, dt, this.collisionManager);
       
       // Check if mortar hit ground and should create fire splash
+      // This check comes first to ensure splash is created even if hasExploded is true
+      // A mortar can hit a player directly but still needs to create splash when hitting ground
       if (result && result.impact) {
+        // Always create splash when mortar hits ground, regardless of whether it hit a player
         this.createFireSplash(
           result.impact.x,
           result.impact.y,
@@ -193,6 +210,15 @@ export class ProjectileManager {
       else if (result && result.shouldRemove) {
         mortarsToRemove.push(mortar);
       }
+      // Remove mortars that exploded mid-air (checkMortarCollision marked them)
+      // Only remove mid-air explosions, not direct player hits (those need to hit ground first)
+      else if (mortar.userData.hasExploded && !mortar.userData.hitPlayer) {
+        // This mortar exploded mid-air (not a direct hit or ground impact), remove it without splash
+        mortarsToRemove.push(mortar);
+      }
+      // If mortar hit a player directly but hasn't hit ground yet, let it continue until ground impact at target
+      // (hasExploded = true and hitPlayer = true, but no result.impact yet)
+      // The mortar will continue to target position and create splash there
     }
     
     // Remove expired or exploded mortars
@@ -231,6 +257,12 @@ export class ProjectileManager {
     const projectilesToRemove = [];
     
     for (const projectile of this.projectiles) {
+      // Remove projectiles that have hit something
+      if (projectile.userData.hasHit) {
+        projectilesToRemove.push(projectile);
+        continue;
+      }
+      
       // Update projectile using Projectile module
       const shouldRemove = updateProjectile(projectile, dt, this.collisionManager);
       
@@ -271,7 +303,8 @@ export class ProjectileManager {
       this.fireAreas,
       playerPos,
       playerSize,
-      playerId
+      playerId,
+      this.collisionManager
     );
   }
 
@@ -284,13 +317,16 @@ export class ProjectileManager {
    * @returns {Object} Collision result with hit, damage, and source info
    */
   checkMortarGroundCollision(playerPos, playerSize, playerId = 'local') {
-    return checkMortarGroundAndFireCollision(
+    const result = checkMortarGroundAndFireCollision(
       this.mortars,
       this.fireAreas,
       playerPos,
       playerSize,
-      playerId
+      playerId,
+      this.collisionManager
     );
+    
+    return result;
   }
 
   /**

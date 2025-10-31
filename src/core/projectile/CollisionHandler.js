@@ -35,12 +35,13 @@ export function checkPlayerCollision(projectiles, playerPos, playerSize, playerI
  * @param {Array<THREE.Mesh>} mortars - Array of mortar meshes
  * @param {THREE.Vector3} playerPos - Player position
  * @param {string} playerId - Player ID
+ * @param {Object} collisionManager - Collision manager for ground height checks
  * @returns {Object} Collision result with hit, damage, and mortar info
  */
-export function checkMortarPlayerCollision(mortars, playerPos, playerId) {
+export function checkMortarPlayerCollision(mortars, playerPos, playerId, collisionManager = null) {
   // Check mortars (explosion radius)
   for (const mortar of mortars) {
-    const result = checkMortarCollision(mortar, playerPos, playerId);
+    const result = checkMortarCollision(mortar, playerPos, playerId, collisionManager);
     if (result.hit) {
       return result;
     }
@@ -56,12 +57,13 @@ export function checkMortarPlayerCollision(mortars, playerPos, playerId) {
  * @param {THREE.Vector3} playerPos - Player position
  * @param {number} playerSize - Player size
  * @param {string} playerId - Player ID
+ * @param {Object} collisionManager - Collision manager for ground height checks
  * @returns {Object} Collision result with hit, damage, and source info
  */
-export function checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId) {
+export function checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId, collisionManager = null) {
   // Check mortars that hit ground - direct hit damage
   for (const mortar of mortars) {
-    const result = checkMortarGroundCollision(mortar, playerPos, playerId);
+    const result = checkMortarGroundCollision(mortar, playerPos, playerId, collisionManager);
     if (result.hit) {
       return result;
     }
@@ -87,23 +89,24 @@ export function checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos,
  * @param {THREE.Vector3} playerPos - Player position
  * @param {number} playerSize - Player size
  * @param {string} playerId - Player ID
+ * @param {Object} collisionManager - Collision manager for ground height checks
  * @returns {Object} Collision result with hit, damage, and source info
  */
-export function checkAllCollisions(projectiles, mortars, fireAreas, playerPos, playerSize, playerId) {
+export function checkAllCollisions(projectiles, mortars, fireAreas, playerPos, playerSize, playerId, collisionManager = null) {
   // Check regular projectiles first (fastest response)
   const projectileResult = checkPlayerCollision(projectiles, playerPos, playerSize, playerId);
   if (projectileResult.hit) {
     return projectileResult;
   }
   
-  // Check mortars (mid-air explosion)
-  const mortarResult = checkMortarPlayerCollision(mortars, playerPos, playerId);
+  // Check mortars (mid-air explosion) - pass collisionManager for splash detection
+  const mortarResult = checkMortarPlayerCollision(mortars, playerPos, playerId, collisionManager);
   if (mortarResult.hit) {
     return mortarResult;
   }
   
   // Check mortar ground impact and fire areas
-  const groundResult = checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId);
+  const groundResult = checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId, collisionManager);
   if (groundResult.hit) {
     return groundResult;
   }

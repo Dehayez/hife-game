@@ -64,8 +64,8 @@ export const CHARACTER_STATS = {
     
     // Mortar Ability Stats
     mortar: {
-      damage: 50,              // Direct hit damage (higher than Lucy)
-      areaDamage: 15,          // Area damage per tick (higher than Lucy)
+      damage: 35,              // Direct hit damage (higher than Lucy)
+      areaDamage: 5,          // Area damage per tick (higher than Lucy)
       cooldown: 3.5,           // Seconds between mortar shots (slower than Lucy)
       arcHeight: 4.0,          // Maximum height of arc trajectory (higher arc)
       splashRadius: 1.0,       // Radius of fire splash area (larger than Lucy)

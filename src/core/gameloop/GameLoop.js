@@ -331,6 +331,9 @@ export class GameLoop {
     
     if (projectileCollision.hit) {
       this._applyDamageToPlayer(projectileCollision.damage, player);
+      
+      // Note: For mortars, splash will be created at target location when mortar hits ground
+      // No need to create splash here - mortar continues to target
     }
     
     // Check mortar ground explosions for player
@@ -342,6 +345,9 @@ export class GameLoop {
     
     if (mortarCollision.hit) {
       this._applyDamageToPlayer(mortarCollision.damage, player);
+      
+      // Note: Splash will be created at target location when mortar hits ground
+      // No need to create splash here - mortar continues to target
     }
     
     // Check projectile collisions with bots
@@ -372,6 +378,17 @@ export class GameLoop {
         
         if (botMortarCollision.hit) {
           const botDied = this.botManager.damageBot(bot, botMortarCollision.damage);
+          
+          // If direct hit at ground level, create splash immediately
+          if (botMortarCollision.needsSplash && botMortarCollision.projectile) {
+            this.projectileManager.createFireSplash(
+              botMortarCollision.splashX,
+              botMortarCollision.splashY,
+              botMortarCollision.splashZ,
+              botMortarCollision.projectile.userData
+            );
+          }
+          
           if (botDied) {
             setTimeout(() => {
               this.botManager.respawnBot(bot);

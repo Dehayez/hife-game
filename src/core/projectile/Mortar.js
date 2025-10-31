@@ -90,6 +90,7 @@ export function createMortar(scene, startX, startY, startZ, targetX, targetZ, pl
     areaDamage: stats.areaDamage, // Area damage per tick
     size: size,
     hasExploded: false,
+    hitPlayer: false, // Track if mortar directly hit a player
     targetX: targetX, // Exact target position
     targetZ: targetZ,
     splashRadius: stats.splashRadius,
@@ -132,11 +133,16 @@ export function updateMortar(mortar, dt, collisionManager) {
   // Calculate the bottom of the mortar sphere
   const mortarBottom = newY - mortar.userData.size;
   
-  // Get target position
+  // Get target position (where user clicked)
   const targetX = mortar.userData.targetX;
   const targetZ = mortar.userData.targetZ;
   
-  // Check if mortar has hit the ground
+  // Get ground height at TARGET position (where splash should appear)
+  const targetGroundHeight = collisionManager 
+    ? collisionManager.getGroundHeight(targetX, targetZ, mortar.userData.size)
+    : 0;
+  
+  // Check if mortar has hit the ground at target position
   const distanceToTarget = Math.sqrt(
     (newX - targetX) ** 2 + 
     (newZ - targetZ) ** 2
@@ -145,21 +151,18 @@ export function updateMortar(mortar, dt, collisionManager) {
   const isNearTarget = distanceToTarget < 1.0;
   
   // Only explode if:
-  // 1. The bottom of the mortar has reached or passed the ground surface
+  // 1. The bottom of the mortar has reached or passed the ground surface AT TARGET
   // 2. AND we're moving downward (not still ascending)
   // 3. AND we're close to the target position
-  if (mortarBottom <= currentGroundHeight && isMovingDownward && isNearTarget) {
-    // Hit ground - return impact data for fire splash creation
-    const impactGroundHeight = collisionManager 
-      ? collisionManager.getGroundHeight(targetX, targetZ, mortar.userData.size)
-      : 0;
-    
+  // This ensures splash always happens at target location, even if mortar hit player mid-air
+  if (mortarBottom <= targetGroundHeight && isMovingDownward && isNearTarget) {
+    // Hit ground at target - return impact data for fire splash creation
     return {
       shouldRemove: true,
       impact: {
-        x: targetX,
-        y: impactGroundHeight,
-        z: targetZ,
+        x: targetX,  // Always use target position, not current position
+        y: targetGroundHeight,
+        z: targetZ,  // Always use target position, not current position
         mortarData: mortar.userData
       }
     };
@@ -204,11 +207,12 @@ export function removeMortar(mortar, scene) {
  * @param {THREE.Mesh} mortar - Mortar mesh
  * @param {THREE.Vector3} playerPos - Player position
  * @param {string} playerId - Player ID to check against
+ * @param {Object} collisionManager - Collision manager for ground height checks (optional)
  * @returns {Object} Collision result with hit, damage, and mortar info
  */
-export function checkMortarCollision(mortar, playerPos, playerId) {
-  // Don't hit yourself
-  if (mortar.userData.playerId === playerId) {
+export function checkMortarCollision(mortar, playerPos, playerId, collisionManager = null) {
+  // Don't hit yourself or if already exploded/hit
+  if (mortar.userData.playerId === playerId || mortar.userData.hasExploded) {
     return { hit: false };
   }
   
@@ -219,6 +223,13 @@ export function checkMortarCollision(mortar, playerPos, playerId) {
   const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
   
   if (distance < EXPLOSION_RADIUS) {
+    // Mark as exploded to prevent multiple hits
+    mortar.userData.hasExploded = true;
+    // Mark as hit player so mortar continues to target for splash
+    mortar.userData.hitPlayer = true;
+    
+    // Don't create splash here - let mortar continue to target position
+    // The splash will be created at target when mortar hits ground
     const damage = mortar.userData.damage;
     return { hit: true, damage: damage, projectile: mortar, isMortar: true };
   }
@@ -227,30 +238,63 @@ export function checkMortarCollision(mortar, playerPos, playerId) {
 }
 
 /**
- * Check if player is at mortar impact point (direct hit damage)
+ * Check if player is hit by mortar projectile (direct hit damage)
+ * Only checks when mortar is close to impact (actually traveling)
  * @param {THREE.Mesh} mortar - Mortar mesh
  * @param {THREE.Vector3} playerPos - Player position
  * @param {string} playerId - Player ID to check against
+ * @param {Object} collisionManager - Collision manager for ground height checks
  * @returns {Object} Collision result with hit, damage, and mortar info
  */
-export function checkMortarGroundCollision(mortar, playerPos, playerId) {
+export function checkMortarGroundCollision(mortar, playerPos, playerId, collisionManager = null) {
   // Skip if already exploded or same player
   if (mortar.userData.hasExploded || mortar.userData.playerId === playerId) {
     return { hit: false };
   }
   
-  // Check if player is at exact impact point (direct hit)
-  const targetX = mortar.userData.targetX;
-  const targetZ = mortar.userData.targetZ;
-  const dx = playerPos.x - targetX;
-  const dz = playerPos.z - targetZ;
-  const distance = Math.sqrt(dx * dx + dz * dz);
+  // Only check for direct hit when mortar is actually close to impact
+  // Get ground height at mortar's current position
+  const currentGroundHeight = collisionManager 
+    ? collisionManager.getGroundHeight(mortar.position.x, mortar.position.z, mortar.userData.size)
+    : 0;
   
-  if (distance < DIRECT_HIT_RADIUS) {
-    // Direct hit - full damage
+  // Calculate the bottom of the mortar sphere
+  const mortarBottom = mortar.position.y - mortar.userData.size;
+  
+  // Only check for direct hit when mortar is:
+  // 1. Close to ground (within 0.5 units) AND moving downward
+  // 2. This ensures we only check when the ball is actually about to hit
+  const isCloseToGround = mortarBottom <= currentGroundHeight + 0.5;
+  const isMovingDownward = mortar.userData.velocityY < 0;
+  
+  if (!isCloseToGround || !isMovingDownward) {
+    return { hit: false };
+  }
+  
+  // Check if player is within direct hit radius of the mortar's ACTUAL position (not target)
+  const dx = playerPos.x - mortar.position.x;
+  const dy = playerPos.y - mortar.position.y;
+  const dz = playerPos.z - mortar.position.z;
+  const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  
+  // Use mortar size + a small buffer for direct hit detection
+  const hitRadius = mortar.userData.size + DIRECT_HIT_RADIUS;
+  
+  if (distance < hitRadius) {
+    // Direct hit - full damage (ball actually hit the player)
+    // Mark as hit but don't create splash here - let it continue to target for splash
     const damage = mortar.userData.damage;
-    mortar.userData.hasExploded = true;
-    return { hit: true, damage: damage, projectile: mortar, isMortar: true, isDirectHit: true };
+    mortar.userData.hitPlayer = true; // Track that it hit a player
+    mortar.userData.hasExploded = true; // Mark as exploded to prevent multiple hits
+    
+    // Return hit but don't create splash yet - mortar will continue to target
+    return { 
+      hit: true, 
+      damage: damage, 
+      projectile: mortar, 
+      isMortar: true, 
+      isDirectHit: true
+    };
   }
   
   return { hit: false };
