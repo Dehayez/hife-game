@@ -13,12 +13,12 @@ export class HealthBarManager {
     container.userData.target = target;
     container.userData.isPlayer = isPlayer;
     
-    // Background bar (gray) - make it slightly larger
+    // Background bar - dark forest/mystical color matching game theme
     const bgGeo = new THREE.PlaneGeometry(1.0, 0.15);
     const bgMat = new THREE.MeshBasicMaterial({ 
-      color: 0x000000, 
+      color: 0x1a3008, // Dark forest green matching game walls
       transparent: true, 
-      opacity: 0.7,
+      opacity: 0.8,
       depthWrite: false
     });
     const bgBar = new THREE.Mesh(bgGeo, bgMat);
@@ -26,10 +26,10 @@ export class HealthBarManager {
     bgBar.renderOrder = 1000; // Render on top
     container.add(bgBar);
 
-    // Health bar (green/yellow/red) - positioned relative to background
+    // Health bar - mystical green matching game theme
     const healthGeo = new THREE.PlaneGeometry(0.96, 0.12);
     const healthMat = new THREE.MeshBasicMaterial({ 
-      color: 0x00ff00, 
+      color: 0x6ab89a, // Mystical green matching game UI theme
       transparent: true, 
       opacity: 0.95,
       depthWrite: false
@@ -75,17 +75,22 @@ export class HealthBarManager {
     healthBar.scale.x = healthPercent;
     healthBar.position.x = -0.48 + (width * 0.5); // Keep left-aligned as it shrinks
 
-    // Update color (green -> yellow -> red) - only update when health changes significantly
-    const lastPercent = healthBarContainer.userData.lastHealthPercent || healthPercent;
-    if (Math.abs(healthPercent - lastPercent) > 0.05) { // Only update color if change > 5%
-      if (healthPercent > 0.6) {
-        healthBar.material.color.setHex(0x00ff00); // Green
-      } else if (healthPercent > 0.3) {
-        healthBar.material.color.setHex(0xffff00); // Yellow
-      } else {
-        healthBar.material.color.setHex(0xff0000); // Red
-      }
-      healthBarContainer.userData.lastHealthPercent = healthPercent;
+    // Update color - mystical theme colors matching game aesthetic
+    // High: mystical green, Medium: amber/orange, Low: dark red
+    // Always check and update color based on current health thresholds
+    let targetColor;
+    if (healthPercent > 0.6) {
+      targetColor = 0x6ab89a; // Mystical green (matches UI theme)
+    } else if (healthPercent > 0.3) {
+      targetColor = 0xff8c42; // Amber/orange (matches Herald's color)
+    } else {
+      targetColor = 0xcc4444; // Dark red (matches gem color from game)
+    }
+    
+    // Only update if color actually changed (to avoid unnecessary updates)
+    const currentColor = healthBar.material.color.getHex();
+    if (currentColor !== targetColor) {
+      healthBar.material.color.setHex(targetColor);
     }
 
     // Hide if dead
