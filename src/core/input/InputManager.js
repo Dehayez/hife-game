@@ -1,6 +1,20 @@
+/**
+ * InputManager.js
+ * 
+ * Main manager for all input-related functionality.
+ * Handles keyboard and mouse input, movement state, and shooting controls.
+ * 
+ * This file acts as a facade, delegating to specialized modules:
+ * - InputStats.js: Input stats and key bindings configuration
+ */
+
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { getMovementStats, getKeyBindings } from './InputStats.js';
 
 export class InputManager {
+  /**
+   * Create a new InputManager
+   */
   constructor() {
     this.inputState = { 
       up: false, 
@@ -17,12 +31,17 @@ export class InputManager {
     this.shootPressed = false;
     this.mortarPressed = false;
     
-    this.moveSpeed = 4; // units per second
-    this.runSpeedMultiplier = 1.7; // speed multiplier when running
+    const stats = getMovementStats();
+    this.moveSpeed = stats.moveSpeed;
+    this.runSpeedMultiplier = stats.runSpeedMultiplier;
     
     this._setupEventListeners();
   }
 
+  /**
+   * Setup event listeners for keyboard and mouse
+   * @private
+   */
   _setupEventListeners() {
     window.addEventListener('keydown', (e) => { 
       this.setKeyState(e, true);
@@ -74,42 +93,57 @@ export class InputManager {
     });
   }
 
+  /**
+   * Set key state based on event
+   * @param {KeyboardEvent} e - Keyboard event
+   * @param {boolean} pressed - Whether key is pressed
+   */
   setKeyState(e, pressed) {
+    const keys = getKeyBindings();
+    
     // Arrow keys by value
-    switch (e.key) {
-      case 'ArrowUp': this.inputState.up = pressed; break;
-      case 'ArrowDown': this.inputState.down = pressed; break;
-      case 'ArrowLeft': this.inputState.left = pressed; break;
-      case 'ArrowRight': this.inputState.right = pressed; break;
+    if (keys.up.includes(e.key)) {
+      this.inputState.up = pressed;
+    }
+    if (keys.down.includes(e.key)) {
+      this.inputState.down = pressed;
+    }
+    if (keys.left.includes(e.key)) {
+      this.inputState.left = pressed;
+    }
+    if (keys.right.includes(e.key)) {
+      this.inputState.right = pressed;
     }
     
     // Layout-agnostic WASD using physical key codes (works for ZQSD on AZERTY)
-    switch (e.code) {
-      case 'KeyW': this.inputState.up = pressed; break;
-      case 'KeyS': this.inputState.down = pressed; break;
-      case 'KeyA': this.inputState.left = pressed; break;
-      case 'KeyD': this.inputState.right = pressed; break;
+    if (keys.up.includes(e.code)) {
+      this.inputState.up = pressed;
     }
-    
-    // Fallback for browsers emitting localized letters via e.key
-    switch (e.key) {
-      case 'w': case 'W': case 'z': case 'Z': this.inputState.up = pressed; break; // Z on AZERTY
-      case 's': case 'S': this.inputState.down = pressed; break;
-      case 'a': case 'A': case 'q': case 'Q': this.inputState.left = pressed; break; // Q on AZERTY
-      case 'd': case 'D': this.inputState.right = pressed; break;
+    if (keys.down.includes(e.code)) {
+      this.inputState.down = pressed;
+    }
+    if (keys.left.includes(e.code)) {
+      this.inputState.left = pressed;
+    }
+    if (keys.right.includes(e.code)) {
+      this.inputState.right = pressed;
     }
     
     // Shift key for running
-    switch (e.key) {
-      case 'Shift': this.inputState.shift = pressed; break;
+    if (keys.run.includes(e.key)) {
+      this.inputState.shift = pressed;
     }
     
     // Space key for jumping
-    switch (e.key) {
-      case ' ': this.inputState.jump = pressed; break;
+    if (keys.jump.includes(e.key)) {
+      this.inputState.jump = pressed;
     }
   }
 
+  /**
+   * Get input vector from current state
+   * @returns {THREE.Vector2} Normalized input vector
+   */
   getInputVector() {
     const input = new THREE.Vector2(
       (this.inputState.right ? 1 : 0) - (this.inputState.left ? 1 : 0),
@@ -121,32 +155,61 @@ export class InputManager {
     return input;
   }
 
+  /**
+   * Get current movement speed
+   * @returns {number} Current speed (base speed or running speed)
+   */
   getCurrentSpeed() {
     return this.inputState.shift ? this.moveSpeed * this.runSpeedMultiplier : this.moveSpeed;
   }
 
+  /**
+   * Check if player is running
+   * @returns {boolean} True if running (shift held)
+   */
   isRunning() {
     return this.inputState.shift;
   }
 
+  /**
+   * Check if player has movement input
+   * @returns {boolean} True if any movement key is pressed
+   */
   hasMovement() {
     const input = this.getInputVector();
     return input.x !== 0 || input.y !== 0;
   }
 
+  /**
+   * Check if jump key is pressed
+   * @returns {boolean} True if jump key is pressed
+   */
   isJumpPressed() {
     return this.inputState.jump;
   }
 
+  /**
+   * Check if shoot button is pressed
+   * @returns {boolean} True if shoot button is pressed
+   */
   isShootPressed() {
     return this.inputState.shoot;
   }
 
+  /**
+   * Get mouse position
+   * @returns {Object} Mouse position with x and y
+   */
   getMousePosition() {
     return this.mousePosition;
   }
 
+  /**
+   * Check if mortar button is pressed
+   * @returns {boolean} True if mortar button is pressed
+   */
   isMortarPressed() {
     return this.inputState.mortar;
   }
 }
+

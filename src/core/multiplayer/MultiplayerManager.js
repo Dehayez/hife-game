@@ -1,4 +1,17 @@
+/**
+ * MultiplayerManager.js
+ * 
+ * Main manager for multiplayer functionality.
+ * Handles room creation, player connections, and data synchronization.
+ */
+
 export class MultiplayerManager {
+  /**
+   * Create a new MultiplayerManager
+   * @param {Function} onPlayerJoined - Callback when player joins
+   * @param {Function} onPlayerLeft - Callback when player leaves
+   * @param {Function} onDataReceived - Callback when data is received
+   */
   constructor(onPlayerJoined, onPlayerLeft, onDataReceived) {
     this.peerConnection = null;
     this.dataChannel = null;
@@ -15,14 +28,28 @@ export class MultiplayerManager {
     this._setupSignaling();
   }
 
+  /**
+   * Generate a unique player ID
+   * @returns {string} Player ID
+   * @private
+   */
   _generatePlayerId() {
     return 'player_' + Math.random().toString(36).substr(2, 9);
   }
 
+  /**
+   * Generate a room code
+   * @returns {string} Room code
+   * @private
+   */
   _generateRoomCode() {
     return Math.random().toString(36).substr(2, 6).toUpperCase();
   }
 
+  /**
+   * Setup signaling mechanism
+   * @private
+   */
   _setupSignaling() {
     // Use localStorage as a simple signaling mechanism
     // In production, use WebSocket or Socket.io for proper signaling
@@ -43,6 +70,11 @@ export class MultiplayerManager {
     });
   }
 
+  /**
+   * Send a signaling message
+   * @param {Object} message - Message to send
+   * @private
+   */
   _sendSignalingMessage(message) {
     const fullMessage = {
       ...message,
@@ -55,6 +87,11 @@ export class MultiplayerManager {
     setTimeout(() => localStorage.removeItem(this.signalingKey), 100);
   }
 
+  /**
+   * Handle incoming signaling message
+   * @param {Object} message - Signaling message
+   * @private
+   */
   _handleSignalingMessage(message) {
     // Handle WebRTC signaling (simplified for demo)
     // In production, implement proper offer/answer/ICE candidate exchange
@@ -75,6 +112,10 @@ export class MultiplayerManager {
     }
   }
 
+  /**
+   * Create a new room
+   * @returns {string} Room code
+   */
   createRoom() {
     this.roomCode = this._generateRoomCode();
     this.isHost = true;
@@ -88,6 +129,11 @@ export class MultiplayerManager {
     return this.roomCode;
   }
 
+  /**
+   * Join an existing room
+   * @param {string} roomCode - Room code to join
+   * @returns {boolean} True if successfully joined
+   */
   joinRoom(roomCode) {
     this.roomCode = roomCode;
     this.isHost = false;
@@ -101,6 +147,9 @@ export class MultiplayerManager {
     return true;
   }
 
+  /**
+   * Leave the current room
+   */
   leaveRoom() {
     if (this.roomCode) {
       this._sendSignalingMessage({
@@ -124,6 +173,10 @@ export class MultiplayerManager {
     }
   }
 
+  /**
+   * Send game data to other players
+   * @param {Object} data - Data to send
+   */
   sendGameData(data) {
     if (this.roomCode) {
       this._sendSignalingMessage({
@@ -133,18 +186,34 @@ export class MultiplayerManager {
     }
   }
 
+  /**
+   * Get current room code
+   * @returns {string|null} Room code or null
+   */
   getRoomCode() {
     return this.roomCode;
   }
 
+  /**
+   * Get local player ID
+   * @returns {string} Local player ID
+   */
   getLocalPlayerId() {
     return this.localPlayerId;
   }
 
+  /**
+   * Get connected players
+   * @returns {Array<Object>} Array of connected players
+   */
   getConnectedPlayers() {
     return Array.from(this.connectedPlayers.values());
   }
 
+  /**
+   * Check if player is in a room
+   * @returns {boolean} True if in a room
+   */
   isInRoom() {
     return this.roomCode !== null;
   }

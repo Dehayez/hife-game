@@ -1,42 +1,77 @@
+/**
+ * HealthBarManager.js
+ * 
+ * Main manager for health bar rendering and updates.
+ * Handles creation, positioning, billboarding, and health display updates.
+ * 
+ * This file acts as a facade, delegating to specialized modules:
+ * - HealthBarStats.js: Health bar stats configuration (colors, sizes, thresholds)
+ */
+
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { 
+  getHealthBarSizeStats, 
+  getHealthBarColorStats, 
+  getHealthBarOpacityStats,
+  getHealthBarPositionStats,
+  getHealthBarRenderingStats,
+  getHealthColor 
+} from './HealthBarStats.js';
 
 export class HealthBarManager {
+  /**
+   * Create a new HealthBarManager
+   * @param {Object} scene - THREE.js scene
+   * @param {THREE.Camera} camera - Camera reference for billboarding
+   */
   constructor(scene, camera) {
     this.scene = scene;
     this.camera = camera;
     this.healthBars = new Map();
   }
 
+  /**
+   * Create a health bar for a target
+   * @param {THREE.Object3D} target - Target object to track
+   * @param {boolean} isPlayer - Whether target is the player
+   * @returns {THREE.Object3D} Health bar container
+   */
   createHealthBar(target, isPlayer = false) {
-    // Create health bar container - use Object3D for simpler updates
+    const sizeStats = getHealthBarSizeStats();
+    const colorStats = getHealthBarColorStats();
+    const opacityStats = getHealthBarOpacityStats();
+    const positionStats = getHealthBarPositionStats();
+    const renderingStats = getHealthBarRenderingStats();
+    
+    // Create health bar container
     const container = new THREE.Object3D();
     container.userData.target = target;
     container.userData.isPlayer = isPlayer;
     
     // Background bar - dark forest/mystical color matching game theme
-    const bgGeo = new THREE.PlaneGeometry(1.0, 0.15);
+    const bgGeo = new THREE.PlaneGeometry(sizeStats.width, sizeStats.height);
     const bgMat = new THREE.MeshBasicMaterial({ 
-      color: 0x1a3008, // Dark forest green matching game walls
+      color: colorStats.background,
       transparent: true, 
-      opacity: 0.8,
+      opacity: opacityStats.background,
       depthWrite: false
     });
     const bgBar = new THREE.Mesh(bgGeo, bgMat);
     bgBar.position.set(0, 0, 0);
-    bgBar.renderOrder = 1000; // Render on top
+    bgBar.renderOrder = renderingStats.renderOrder.background;
     container.add(bgBar);
 
     // Health bar - mystical green matching game theme
-    const healthGeo = new THREE.PlaneGeometry(0.96, 0.12);
+    const healthGeo = new THREE.PlaneGeometry(sizeStats.healthWidth, sizeStats.healthHeight);
     const healthMat = new THREE.MeshBasicMaterial({ 
-      color: 0x6ab89a, // Mystical green matching game UI theme
+      color: colorStats.highHealth,
       transparent: true, 
-      opacity: 0.95,
+      opacity: opacityStats.health,
       depthWrite: false
     });
     const healthBar = new THREE.Mesh(healthGeo, healthMat);
-    healthBar.position.set(-0.48, 0, 0.001); // Slightly in front of background
-    healthBar.renderOrder = 1001; // Render above background
+    healthBar.position.set(positionStats.healthOffsetX, 0, positionStats.healthOffsetZ);
+    healthBar.renderOrder = renderingStats.renderOrder.health;
     container.add(healthBar);
 
     container.userData.bgBar = bgBar;
@@ -51,41 +86,45 @@ export class HealthBarManager {
     return container;
   }
 
+  /**
+   * Update health bar position above target
+   * @param {THREE.Object3D} healthBarContainer - Health bar container
+   * @param {THREE.Object3D} target - Target object
+   */
   updateHealthBarPosition(healthBarContainer, target) {
     if (!target || !healthBarContainer) return;
 
-    // Position health bar above target - use consistent offset
-    const offsetY = 1.8;
+    const positionStats = getHealthBarPositionStats();
     
-    // Update position directly
+    // Position health bar above target - use consistent offset
     healthBarContainer.position.copy(target.position);
-    healthBarContainer.position.y += offsetY;
+    healthBarContainer.position.y += positionStats.offsetY;
   }
 
+  /**
+   * Update health bar display
+   * @param {THREE.Object3D} healthBarContainer - Health bar container
+   * @param {number} currentHealth - Current health value
+   * @param {number} maxHealth - Maximum health value
+   */
   updateHealthBar(healthBarContainer, currentHealth, maxHealth) {
     if (!healthBarContainer || !healthBarContainer.userData) return;
 
     const healthBar = healthBarContainer.userData.healthBar;
     if (!healthBar) return;
 
+    const sizeStats = getHealthBarSizeStats();
+    const positionStats = getHealthBarPositionStats();
+    
     const healthPercent = Math.max(0, Math.min(1, currentHealth / maxHealth));
     
     // Update width - anchor from left side
-    const width = 0.96 * healthPercent;
+    const width = sizeStats.healthWidth * healthPercent;
     healthBar.scale.x = healthPercent;
-    healthBar.position.x = -0.48 + (width * 0.5); // Keep left-aligned as it shrinks
+    healthBar.position.x = positionStats.healthOffsetX + (width * 0.5); // Keep left-aligned as it shrinks
 
-    // Update color - mystical theme colors matching game aesthetic
-    // High: mystical green, Medium: amber/orange, Low: dark red
-    // Always check and update color based on current health thresholds
-    let targetColor;
-    if (healthPercent > 0.6) {
-      targetColor = 0x6ab89a; // Mystical green (matches UI theme)
-    } else if (healthPercent > 0.3) {
-      targetColor = 0xff8c42; // Amber/orange (matches Herald's color)
-    } else {
-      targetColor = 0xcc4444; // Dark red (matches gem color from game)
-    }
+    // Update color based on health percentage
+    const targetColor = getHealthColor(healthPercent);
     
     // Only update if color actually changed (to avoid unnecessary updates)
     const currentColor = healthBar.material.color.getHex();
@@ -97,12 +136,22 @@ export class HealthBarManager {
     healthBarContainer.visible = healthPercent > 0;
   }
 
+  /**
+   * Set the camera reference
+   * @param {THREE.Camera} camera - Camera instance
+   */
   setCamera(camera) {
     this.camera = camera;
   }
 
+  /**
+   * Update all health bars
+   * @param {number} dt - Delta time in seconds
+   */
   update(dt) {
     if (!this.camera) return;
+    
+    const renderingStats = getHealthBarRenderingStats();
     
     // Cache camera world matrix for stability
     this.camera.updateMatrixWorld();
@@ -121,7 +170,6 @@ export class HealthBarManager {
       this.updateHealthBarPosition(healthBarContainer, target);
 
       // Simple billboard - make health bar always face camera (only rotate around Y)
-      // Calculate direction from health bar to camera
       const barPos = healthBarContainer.position;
       const dirX = cameraWorldPosition.x - barPos.x;
       const dirZ = cameraWorldPosition.z - barPos.z;
@@ -131,8 +179,7 @@ export class HealthBarManager {
         // Calculate angle - health bar faces camera
         const angle = Math.atan2(dirX, dirZ);
         
-        // Use direct rotation assignment (no interpolation) but clamp to prevent rapid changes
-        // Only update if angle change is significant (> 0.01 rad ≈ 0.57 degrees)
+        // Use direct rotation assignment but clamp to prevent rapid changes
         const currentAngle = healthBarContainer.rotation.y;
         let angleDiff = angle - currentAngle;
         
@@ -140,10 +187,12 @@ export class HealthBarManager {
         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
         
-        // Only update if change is significant (reduces micro-adjustments that cause flicker)
-        if (Math.abs(angleDiff) > 0.01) {
-          // Update rotation directly but smoothly
-          healthBarContainer.rotation.y = currentAngle + angleDiff * 0.3; // 30% interpolation for smoothness
+        // Only update if change is significant
+        const angleThreshold = renderingStats.billboard.angleThreshold;
+        if (Math.abs(angleDiff) > angleThreshold) {
+          // Update rotation with interpolation for smoothness
+          const interpolationFactor = renderingStats.billboard.interpolationFactor;
+          healthBarContainer.rotation.y = currentAngle + angleDiff * interpolationFactor;
         }
         
         // Keep health bar upright
@@ -158,6 +207,10 @@ export class HealthBarManager {
     }
   }
 
+  /**
+   * Remove a health bar
+   * @param {THREE.Object3D} target - Target object
+   */
   removeHealthBar(target) {
     const healthBarContainer = this.healthBars.get(target);
     if (healthBarContainer) {
@@ -175,6 +228,9 @@ export class HealthBarManager {
     }
   }
 
+  /**
+   * Clear all health bars
+   */
   clearAll() {
     for (const target of this.healthBars.keys()) {
       this.removeHealthBar(target);

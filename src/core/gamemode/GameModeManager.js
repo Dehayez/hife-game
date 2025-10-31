@@ -1,57 +1,34 @@
-import { getHighScore, setHighScore, getBestTime, setBestTime } from '../utils/StorageUtils.js';
+/**
+ * GameModeManager.js
+ * 
+ * Main manager for all game mode-related functionality.
+ * Coordinates game mode switching, state management, scoring, and entity spawning.
+ * 
+ * This file acts as a facade, delegating to specialized modules:
+ * - GameModeConfig.js: Game mode configurations
+ * - GameModeStats.js: Game mode stats and scoring
+ */
+
+import { getHighScore, setHighScore, getBestTime, setBestTime } from '../../utils/StorageUtils.js';
+import { getModeConfig, isModeEnabled, getAllEnabledModes } from './GameModeConfig.js';
+import { getDefaultModeState, getScoringConfig, getSpawnCounts, formatTime } from './GameModeStats.js';
 
 export class GameModeManager {
+  /**
+   * Create a new GameModeManager
+   * @param {Object} entityManager - Entity manager for spawning entities
+   * @param {string} arena - Arena name ('standard' or 'large')
+   */
   constructor(entityManager = null, arena = 'standard') {
     this.currentMode = 'free-play';
     this.currentArena = arena;
     this.entityManager = entityManager;
     this.onModeChangeCallback = null;
     this.onRestartCallback = null;
-    this.modes = {
-      'free-play': {
-        name: 'Forest Wander',
-        description: 'Explore the magical forest freely',
-        enabled: true
-      },
-      'time-trial': {
-        name: 'Crystal Shrine',
-        description: 'Activate mystical shrines before time runs out',
-        enabled: true
-      },
-      'collection': {
-        name: 'Gem Gathering',
-        description: 'Collect enchanted crystals scattered throughout',
-        enabled: true
-      },
-      'survival': {
-        name: 'Shadow Escape',
-        description: 'Survive the cursed thorns as long as possible',
-        enabled: true
-      },
-      'shooting': {
-        name: 'Mystic Battle',
-        description: 'Invite players and battle with magical projectiles',
-        enabled: true
-      }
-    };
     
-    this.modeState = {
-      timer: 0,
-      score: 0,
-      items: [],
-      hazards: [],
-      checkpoints: [],
-      startTime: null,
-      bestTime: null,
-      lastTime: null,
-      isComplete: false,
-      isPaused: false,
-      isStarted: false,
-      highScore: 0,
-      health: 100,
-      kills: 0,
-      deaths: 0
-    };
+    // Initialize mode state
+    this.modeState = getDefaultModeState();
+    this.modeState.highScore = 0;
     
     // Load high score and best time for current mode and arena
     this.modeState.highScore = getHighScore(this.currentMode, this.currentArena);
@@ -61,6 +38,10 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Set the arena
+   * @param {string} arena - Arena name
+   */
   setArena(arena) {
     this.currentArena = arena;
     // Reload scores for new arena
@@ -73,20 +54,37 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Set the entity manager
+   * @param {Object} entityManager - Entity manager instance
+   */
   setEntityManager(entityManager) {
     this.entityManager = entityManager;
   }
 
+  /**
+   * Set callback for mode changes
+   * @param {Function} callback - Callback function
+   */
   setOnModeChangeCallback(callback) {
     this.onModeChangeCallback = callback;
   }
 
+  /**
+   * Set callback for restarts
+   * @param {Function} callback - Callback function
+   */
   setOnRestartCallback(callback) {
     this.onRestartCallback = callback;
   }
 
+  /**
+   * Set the current game mode
+   * @param {string} mode - Mode key
+   * @returns {boolean} True if mode was set successfully
+   */
   setMode(mode) {
-    if (!this.modes[mode] || !this.modes[mode].enabled) {
+    if (!isModeEnabled(mode)) {
       return false;
     }
     
@@ -119,21 +117,31 @@ export class GameModeManager {
     return true;
   }
 
+  /**
+   * Spawn entities for the current mode
+   * @private
+   */
   _spawnModeEntities() {
     if (!this.entityManager) return;
     
     switch (this.currentMode) {
-      case 'collection':
-        this.entityManager.spawnCollectiblesForCollection(8);
+      case 'collection': {
+        const spawnCounts = getSpawnCounts('collection');
+        this.entityManager.spawnCollectiblesForCollection(spawnCounts.collectibles);
         break;
-      case 'survival':
-        this.entityManager.spawnHazardsForSurvival(10);
+      }
+      case 'survival': {
+        const spawnCounts = getSpawnCounts('survival');
+        this.entityManager.spawnHazardsForSurvival(spawnCounts.hazards);
         this.modeState.timer = 0;
         break;
-      case 'time-trial':
-        this.entityManager.spawnCheckpointsForTimeTrial(5);
+      }
+      case 'time-trial': {
+        const spawnCounts = getSpawnCounts('time-trial');
+        this.entityManager.spawnCheckpointsForTimeTrial(spawnCounts.checkpoints);
         this.modeState.timer = 0;
         break;
+      }
       case 'shooting':
         // Shooting mode - no entities needed, just start the mode
         this.entityManager.clearAll();
@@ -149,6 +157,10 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Restart survival mode (internal use)
+   * @private
+   */
   _restartSurvivalMode() {
     this.resetModeState();
     
@@ -165,6 +177,9 @@ export class GameModeManager {
     this.modeState.isStarted = false; // Require start button again
   }
 
+  /**
+   * Restart the current mode
+   */
   restartMode() {
     // Reset mode state
     this.resetModeState();
@@ -189,37 +204,42 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Get current mode
+   * @returns {string} Current mode key
+   */
   getMode() {
     return this.currentMode;
   }
 
+  /**
+   * Get current mode configuration
+   * @returns {Object} Mode configuration object
+   */
   getModeConfig() {
-    return this.modes[this.currentMode];
+    return getModeConfig(this.currentMode);
   }
 
+  /**
+   * Get mode configuration by key
+   * @param {string} modeKey - Mode key
+   * @returns {Object|null} Mode configuration or null
+   */
   getModeConfigByKey(modeKey) {
-    return this.modes[modeKey] || null;
+    return getModeConfig(modeKey);
   }
 
+  /**
+   * Reset mode state to defaults
+   */
   resetModeState() {
-    this.modeState = {
-      timer: 0,
-      score: 0,
-      items: [],
-      hazards: [],
-      checkpoints: [],
-      startTime: null,
-      bestTime: null,
-      lastTime: null,
-      isComplete: false,
-      isPaused: false,
-      isStarted: false,
-      health: 100,
-      kills: 0,
-      deaths: 0
-    };
+    this.modeState = getDefaultModeState();
+    this.modeState.highScore = 0;
   }
 
+  /**
+   * Start the current mode
+   */
   startMode() {
     this.modeState.isStarted = true;
     this.modeState.isPaused = false;
@@ -229,14 +249,25 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Pause the current mode
+   */
   pause() {
     this.modeState.isPaused = true;
   }
 
+  /**
+   * Resume the current mode
+   */
   resume() {
     this.modeState.isPaused = false;
   }
 
+  /**
+   * Update mode state
+   * @param {number} dt - Delta time in seconds
+   * @param {Object} entityManager - Entity manager
+   */
   update(dt, entityManager) {
     const mode = this.currentMode;
     
@@ -285,9 +316,13 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Get display information for the current mode
+   * @returns {Object} Display info with mode, primary, and secondary text
+   */
   getDisplayInfo() {
     const mode = this.currentMode;
-    const config = this.modes[mode];
+    const config = getModeConfig(mode);
     
     switch (mode) {
       case 'time-trial':
@@ -296,11 +331,11 @@ export class GameModeManager {
           : '';
         const completeText = this.modeState.isComplete ? ' ✓ All Shrines Activated!' : '';
         const bestTimeText = this.modeState.bestTime 
-          ? ` | Best: ${this.formatTime(this.modeState.bestTime)}` 
+          ? ` | Best: ${formatTime(this.modeState.bestTime)}` 
           : '';
         return {
           mode: config.name,
-          primary: this.formatTime(this.modeState.timer) + completeText + bestTimeText,
+          primary: formatTime(this.modeState.timer) + completeText + bestTimeText,
           secondary: checkpointsInfo ? `Shrines: ${checkpointsInfo}` : null
         };
       case 'collection':
@@ -316,15 +351,15 @@ export class GameModeManager {
         };
       case 'survival':
         const survivalBestTimeText = this.modeState.bestTime 
-          ? ` | Best: ${this.formatTime(this.modeState.bestTime)}` 
+          ? ` | Best: ${formatTime(this.modeState.bestTime)}` 
           : '';
         const lastTimeText = this.modeState.lastTime 
-          ? ` | Last: ${this.formatTime(this.modeState.lastTime)}` 
+          ? ` | Last: ${formatTime(this.modeState.lastTime)}` 
           : '';
         const survivalHighScoreText = this.modeState.highScore > 0 ? ` | High: ${this.modeState.highScore}` : '';
         return {
           mode: config.name,
-          primary: this.formatTime(this.modeState.timer) + survivalBestTimeText + lastTimeText,
+          primary: formatTime(this.modeState.timer) + survivalBestTimeText + lastTimeText,
           secondary: `Spirit Power: ${this.modeState.score}${survivalHighScoreText}`
         };
       case 'shooting':
@@ -342,14 +377,21 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Format time in MM:SS.ms format
+   * @param {number} seconds - Time in seconds
+   * @returns {string} Formatted time string
+   */
   formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 100);
-    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    return formatTime(seconds);
   }
 
+  /**
+   * Add score points
+   * @param {number} points - Points to add
+   */
   addScore(points) {
+    const scoringConfig = getScoringConfig();
     this.modeState.score += points;
     // Update high score if current score exceeds it
     if (this.modeState.score > this.modeState.highScore) {
@@ -358,17 +400,28 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Collect an item
+   * @param {string} itemId - Item ID
+   * @returns {boolean} True if item was collected
+   */
   collectItem(itemId) {
+    const scoringConfig = getScoringConfig();
     if (!this.modeState.items.includes(itemId)) {
       this.modeState.items.push(itemId);
-      this.addScore(10);
+      this.addScore(scoringConfig.itemCollected);
       return true;
     }
     return false;
   }
 
+  /**
+   * Handle entity collision
+   * @param {Object} collision - Collision data
+   */
   handleEntityCollision(collision) {
     if (!collision) return;
+    const scoringConfig = getScoringConfig();
 
     if (collision.collectible) {
       const itemId = collision.collectible.userData.id;
@@ -385,7 +438,7 @@ export class GameModeManager {
         this.modeState.checkpoints.push(checkpointId);
         if (this.entityManager) {
           this.entityManager.activateCheckpoint(collision.checkpoint);
-          this.addScore(20);
+          this.addScore(scoringConfig.checkpointActivated);
         }
       }
     }
@@ -419,8 +472,12 @@ export class GameModeManager {
     }
   }
 
+  /**
+   * Get all enabled modes
+   * @returns {Array<string>} Array of enabled mode keys
+   */
   getAllModes() {
-    return Object.keys(this.modes).filter(key => this.modes[key].enabled);
+    return getAllEnabledModes();
   }
 }
 
