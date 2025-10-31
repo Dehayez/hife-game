@@ -19,6 +19,7 @@ export class SceneManager {
     this._setupScene();
     this._setupCamera();
     this._setupLighting();
+    this._setupMoon();
     this._setupGround();
     this._setupGrid();
     this._setupForestElements();
@@ -99,6 +100,30 @@ export class SceneManager {
     const centerLight = new THREE.PointLight(0x6ab89a, 0.3, 12);
     centerLight.position.set(0, 2, 0);
     this.scene.add(centerLight);
+  }
+
+  _setupMoon() {
+    // Visual moon mesh positioned at left top where ambient light/moonlight comes from
+    // Using MeshBasicMaterial so it doesn't interfere with ambient lighting
+    const moonGeo = new THREE.SphereGeometry(1.5, 32, 32);
+    const moonMat = new THREE.MeshBasicMaterial({ 
+      color: 0xe8e8ff, // Soft blue-white moon color
+      emissive: 0xaaccff, // Emissive glow matching moonlight color
+      emissiveIntensity: 0.8, // Subtle glow that doesn't block ambient light
+      fog: false // Moon is not affected by fog
+    });
+    const moon = new THREE.Mesh(moonGeo, moonMat);
+    
+    // Position moon in left top area, near the moonlight source position
+    // Offset slightly forward and up to be visible in the sky
+    moon.position.set(-27, 2, -40);
+    
+    // Don't cast or receive shadows to avoid blocking ambient light
+    moon.castShadow = false;
+    moon.receiveShadow = false;
+    
+    this.scene.add(moon);
+    this.moon = moon;
   }
 
   _setupGround() {
