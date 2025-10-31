@@ -14,12 +14,12 @@ export class CharacterManager {
     
     // Jump physics properties
     this.velocityY = 0;
-    this.gravity = -20; // negative gravity pulls down
-    this.jumpForce = 6; // upward velocity when jumping
+    this.gravity = -30; // negative gravity pulls down
+    this.jumpForce = 8; // upward velocity when jumping
     this.groundY = 0.6; // ground level (half of playerHeight)
     this.isGrounded = true;
     this.jumpCooldown = 0;
-    this.jumpCooldownTime = 0.1; // prevent rapid jumping
+    this.jumpCooldownTime = .6; // prevent rapid jumping
     
     // Only setup player if scene is available
     if (this.scene) {
