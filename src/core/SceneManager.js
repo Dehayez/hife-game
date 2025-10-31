@@ -107,11 +107,10 @@ export class SceneManager {
   _setupMoon() {
     // Visual moon mesh positioned at left top where ambient light/moonlight comes from
     // Using MeshBasicMaterial so it doesn't interfere with ambient lighting
+    // Note: MeshBasicMaterial doesn't support emissive, so we use color directly
     const moonGeo = new THREE.SphereGeometry(1.5, 32, 32);
     const moonMat = new THREE.MeshBasicMaterial({ 
-      color: 0xe8e8ff, // Soft blue-white moon color
-      emissive: 0xaaccff, // Emissive glow matching moonlight color
-      emissiveIntensity: 0.8, // Subtle glow that doesn't block ambient light
+      color: 0xaaccff, // Moon color with built-in glow (lighter than original since no emissive)
       fog: false // Moon is not affected by fog
     });
     const moon = new THREE.Mesh(moonGeo, moonMat);
