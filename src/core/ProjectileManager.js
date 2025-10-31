@@ -5,16 +5,17 @@ export class ProjectileManager {
     this.scene = scene;
     this.collisionManager = collisionManager;
     this.projectiles = [];
-    this.projectileSpeed = 15; // units per second
+    this.projectileSpeed = 8; // units per second (slower for firebolt)
     this.projectileLifetime = 3; // seconds
     
     // Character-specific stats
     this.characterStats = {
       lucy: {
         damage: 20, // Lower damage
-        cooldown: 0.2, // Faster shooting (5 shots per second)
+        cooldown: 0.6, // Slower shooting (higher cooldown for firebolt)
         color: 0xff6b9d, // Pink/magenta color
         size: 0.08, // Smaller projectile
+        projectileSpeed: 8, // Character-specific projectile speed
         mortarDamage: 35, // Lower mortar damage (direct hit)
         mortarAreaDamage: 10, // Area damage per tick
         mortarCooldown: 2.5, // Increased mortar cooldown
@@ -26,9 +27,10 @@ export class ProjectileManager {
       },
       herald: {
         damage: 35, // Higher damage
-        cooldown: 0.5, // Slower shooting (2 shots per second)
+        cooldown: .8, // Slower shooting (higher cooldown for firebolt)
         color: 0xff8c42, // Orange color
-        size: 0.15, // Bigger projectile
+        size: 0.18, // Bigger projectile
+        projectileSpeed: 9, // Character-specific projectile speed
         mortarDamage: 50, // Higher mortar damage (direct hit)
         mortarAreaDamage: 15, // Area damage per tick
         mortarCooldown: 3.5, // Slower mortar shooting - increased cooldown
@@ -66,6 +68,7 @@ export class ProjectileManager {
     const characterDamage = stats.damage;
     const characterColor = stats.color;
     const characterSize = stats.size || 0.1;
+    const characterSpeed = stats.projectileSpeed || this.projectileSpeed; // Use character-specific speed or fallback to global
     
     // Check cooldown for this specific character
     const currentCooldown = this.characterCooldowns.get(playerId) || 0;
@@ -99,13 +102,13 @@ export class ProjectileManager {
     trailLight.position.set(startX, startY, startZ);
     this.scene.add(trailLight);
     
-    // Store projectile data with character-specific damage and size
+    // Store projectile data with character-specific damage, size, and speed
     projectile.userData = {
       type: 'projectile',
       playerId: playerId,
       characterName: characterName,
-      velocityX: normX * this.projectileSpeed,
-      velocityZ: normZ * this.projectileSpeed,
+      velocityX: normX * characterSpeed,
+      velocityZ: normZ * characterSpeed,
       lifetime: 0,
       trailLight: trailLight,
       damage: characterDamage,
