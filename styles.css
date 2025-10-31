@@ -309,4 +309,19 @@ html, body { height: 100%; margin: 0; }
   margin-top: 4px;
 }
 
+/* Bot control */
+.ui__bot-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ui__bot-count {
+  font-size: 13px;
+  color: #e7ebf0;
+  opacity: 0.8;
+  text-align: center;
+  margin-top: 4px;
+}
+
 

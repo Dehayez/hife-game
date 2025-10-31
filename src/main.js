@@ -5,6 +5,7 @@ import { initGameModeSwitcher } from './ui/GameModeSwitcher.js';
 import { initGameModeDisplay } from './ui/GameModeDisplay.js';
 import { initArenaSwitcher } from './ui/ArenaSwitcher.js';
 import { initRoomManager } from './ui/RoomManager.js';
+import { initBotControl } from './ui/BotControl.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter } from './utils/StorageUtils.js';
@@ -18,6 +19,8 @@ import { GameModeManager } from './core/GameModeManager.js';
 import { EntityManager } from './core/EntityManager.js';
 import { ProjectileManager } from './core/ProjectileManager.js';
 import { MultiplayerManager } from './core/MultiplayerManager.js';
+import { BotManager } from './core/BotManager.js';
+import { HealthBarManager } from './core/HealthBarManager.js';
 import { GameLoop } from './core/GameLoop.js';
 import { ParticleManager } from './core/ParticleManager.js';
 import { ArenaManager } from './core/ArenaManager.js';
@@ -68,6 +71,12 @@ characterManager.setParticleManager(particleManager);
 // Initialize projectile manager for shooting mode
 const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager);
 
+// Initialize bot manager for shooting mode
+const botManager = new BotManager(sceneManager.getScene(), collisionManager, projectileManager);
+
+// Initialize health bar manager (camera will be set later)
+const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);
+
 // Initialize multiplayer manager
 const multiplayerManager = new MultiplayerManager(
   (playerId) => {
@@ -93,9 +102,17 @@ gameModeManager.setOnModeChangeCallback(() => {
   if (projectileManager) {
     projectileManager.clearAll();
   }
+  
+  // Clear bots when leaving shooting mode
+  if (currentMode !== 'shooting' && botManager) {
+    botManager.clearAll();
+    if (healthBarManager) {
+      healthBarManager.clearAll();
+    }
+  }
 });
 
-const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager);
+const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager, botManager, healthBarManager);
 
 // Character selection: URL param > localStorage > default
 // Priority: 1) URL param ?char=lucy, 2) Last played character (localStorage), 3) Default 'lucy'
@@ -151,6 +168,8 @@ initArenaSwitcher({
 // Get room manager elements (defined early so they can be referenced in callbacks)
 const roomMount = document.getElementById('room-manager') || document.body;
 const roomPanel = document.getElementById('room-manager-panel');
+const botControlMount = document.getElementById('bot-control') || document.body;
+const botControlPanel = document.getElementById('bot-control-panel');
 
 // Initialize game mode switcher UI
 const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
@@ -179,11 +198,33 @@ initGameModeSwitcher({
       window.history.pushState({}, '', url);
     }
     
-    // Show/hide room manager based on mode
+    // Show/hide room manager and bot control based on mode
     if (mode === 'shooting') {
       if (roomPanel) roomPanel.style.display = 'block';
+      if (botControlPanel) botControlPanel.style.display = 'block';
+      
+      // Create health bar for player when entering shooting mode
+      if (healthBarManager && characterManager.getPlayer()) {
+        const player = characterManager.getPlayer();
+        // Check if health bar already exists
+        const existingBar = healthBarManager.healthBars.get(player);
+        if (!existingBar) {
+          player.userData.health = characterManager.getHealth();
+          player.userData.maxHealth = characterManager.getMaxHealth();
+          healthBarManager.createHealthBar(player, true);
+        }
+      }
     } else {
       if (roomPanel) roomPanel.style.display = 'none';
+      if (botControlPanel) botControlPanel.style.display = 'none';
+      
+      // Clear bots and health bars when leaving shooting mode
+      if (botManager) {
+        botManager.clearAll();
+      }
+      if (healthBarManager) {
+        healthBarManager.clearAll();
+      }
     }
   },
   gameModeManager: gameModeManager
@@ -239,6 +280,20 @@ if (urlRoom) {
   roomManager.update();
 }
 
+// Initialize bot control UI for shooting mode
+const botControl = initBotControl({
+  mount: botControlMount,
+  botManager: botManager,
+  healthBarManager: healthBarManager
+});
+
+// Show/hide bot control based on mode
+if (gameMode === 'shooting') {
+  if (botControlPanel) botControlPanel.style.display = 'block';
+} else {
+  if (botControlPanel) botControlPanel.style.display = 'none';
+}
+
 // Background music setup
 // To use background music, provide the path here:
 // Example: '/assets/music/background.mp3' or '/assets/music/background.ogg'
@@ -282,6 +337,21 @@ if (backgroundMusicPath) {
 // Start the game
 (async () => {
   await characterManager.loadCharacter(characterName);
+  
+  // Set camera for health bar manager
+  if (healthBarManager) {
+    healthBarManager.setCamera(sceneManager.getCamera());
+  }
+  
+  // Only create health bar for player if in shooting mode
+  const initialMode = gameModeManager ? gameModeManager.getMode() : 'free-play';
+  if (initialMode === 'shooting' && healthBarManager && characterManager.getPlayer()) {
+    const player = characterManager.getPlayer();
+    player.userData.health = characterManager.getHealth();
+    player.userData.maxHealth = characterManager.getMaxHealth();
+    healthBarManager.createHealthBar(player, true);
+  }
+  
   gameLoop.start();
 })();
 

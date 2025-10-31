@@ -13,6 +13,10 @@ export class CharacterManager {
     this.playerHeight = 1.2;
     this.characterName = 'lucy';
     
+    // Health properties
+    this.maxHealth = 100;
+    this.health = 100;
+    
     // Jump physics properties
     this.velocityY = 0;
     this.gravity = -30; // negative gravity pulls down
@@ -78,6 +82,14 @@ export class CharacterManager {
     this.player.position.set(0, this.playerHeight * 0.5, 0);
     this.player.castShadow = true;
     this.player.receiveShadow = false;
+    
+    // Add health tracking to player mesh
+    this.player.userData = {
+      type: 'player',
+      health: this.health,
+      maxHealth: this.maxHealth
+    };
+    
     this.scene.add(this.player);
   }
 
@@ -535,6 +547,12 @@ export class CharacterManager {
     // Update vertical position
     this.player.position.y += this.velocityY * dt;
 
+    // Update player userData health
+    if (this.player && this.player.userData) {
+      this.player.userData.health = this.health;
+      this.player.userData.maxHealth = this.maxHealth;
+    }
+
     // Check for ground collision using dynamic ground height
     const groundHeight = collisionManager.getGroundHeight(
       this.player.position.x, 
@@ -577,6 +595,26 @@ export class CharacterManager {
     this.wasGrounded = true; // Prevent landing sound on respawn
     this.jumpCooldown = 0;
     
+    // Reset health
+    this.health = this.maxHealth;
+    
     console.log("Player respawned at center of arena!");
+  }
+
+  getHealth() {
+    return this.health;
+  }
+
+  getMaxHealth() {
+    return this.maxHealth;
+  }
+
+  takeDamage(damage) {
+    this.health = Math.max(0, this.health - damage);
+    return this.health <= 0;
+  }
+
+  setHealth(health) {
+    this.health = Math.max(0, Math.min(this.maxHealth, health));
   }
 }

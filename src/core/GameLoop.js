@@ -1,7 +1,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
 export class GameLoop {
-  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null, botManager = null, healthBarManager = null) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
@@ -9,6 +9,8 @@ export class GameLoop {
     this.gameModeManager = gameModeManager;
     this.entityManager = entityManager;
     this.projectileManager = projectileManager;
+    this.botManager = botManager;
+    this.healthBarManager = healthBarManager;
     
     this.lastTime = performance.now();
     this.isRunning = false;
@@ -146,16 +148,66 @@ export class GameLoop {
       );
       
       if (projectileCollision.hit) {
-        // Apply damage
-        if (this.gameModeManager && this.gameModeManager.modeState) {
-          this.gameModeManager.modeState.health -= projectileCollision.damage;
+        // Apply damage to player
+        if (this.characterManager) {
+          const isDead = this.characterManager.takeDamage(projectileCollision.damage);
           
-          if (this.gameModeManager.modeState.health <= 0) {
-            // Player died - respawn
-            this.gameModeManager.modeState.deaths++;
-            this.gameModeManager.modeState.health = 100;
-            this.characterManager.respawn();
+          // Update player userData for health bar
+          if (player && player.userData) {
+            player.userData.health = this.characterManager.getHealth();
+            player.userData.maxHealth = this.characterManager.getMaxHealth();
           }
+          
+          if (isDead) {
+            // Player died - respawn
+            if (this.gameModeManager && this.gameModeManager.modeState) {
+              this.gameModeManager.modeState.deaths++;
+            }
+            this.characterManager.respawn();
+            
+            // Update userData after respawn
+            if (player && player.userData) {
+              player.userData.health = this.characterManager.getHealth();
+              player.userData.maxHealth = this.characterManager.getMaxHealth();
+            }
+          }
+        }
+      }
+      
+      // Check projectile collisions with bots
+      if (this.botManager) {
+        const bots = this.botManager.getBots();
+        for (const bot of bots) {
+          const botCollision = this.projectileManager.checkPlayerCollision(
+            bot.position,
+            this.characterManager.getPlayerSize(),
+            bot.userData.id
+          );
+          
+          if (botCollision.hit) {
+            // Apply damage to bot
+            const botDied = this.botManager.damageBot(bot, botCollision.damage);
+            
+            if (botDied) {
+              // Bot died - respawn after delay
+              setTimeout(() => {
+                this.botManager.respawnBot(bot);
+              }, 2000);
+            }
+          }
+        }
+      }
+      
+      // Update bots
+      if (this.botManager) {
+        this.botManager.update(dt, player.position, this.sceneManager.getCamera());
+      }
+      
+      // Update health bars (only in shooting mode)
+      if (this.healthBarManager) {
+        const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : 'free-play';
+        if (currentMode === 'shooting') {
+          this.healthBarManager.update(dt);
         }
       }
     }

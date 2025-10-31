@@ -138,6 +138,10 @@ export class GameModeManager {
         // Shooting mode - no entities needed, just start the mode
         this.entityManager.clearAll();
         this.startMode(); // Auto-start shooting mode
+        // Reset health when entering shooting mode
+        if (this.modeState) {
+          this.modeState.health = 100;
+        }
         break;
       default:
         this.entityManager.clearAll();
