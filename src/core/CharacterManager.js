@@ -138,6 +138,60 @@ export class CharacterManager {
       this.soundManager.loadFootstepSound(soundPath);
     }
     
+    // Load obstacle-specific footstep sound from character folder
+    // Tries: /assets/characters/{name}/footstep_obstacle.mp3, footstep_obstacle.ogg, footstep_obstacle.wav
+    // Falls back to: /assets/sounds/footstep_obstacle.mp3, footstep_obstacle.ogg, footstep_obstacle.wav
+    const obstacleCharacterSoundPath = `${baseSpritePath}footstep_obstacle`;
+    const obstacleGenericSoundPath = '/assets/sounds/footstep_obstacle';
+    
+    // Try character folder first
+    let obstacleSoundPath = null;
+    for (const ext of soundExtensions) {
+      const testPath = `${obstacleCharacterSoundPath}.${ext}`;
+      try {
+        const testAudio = new Audio(testPath);
+        const canLoad = await new Promise((resolve) => {
+          testAudio.addEventListener('canplay', () => resolve(true), { once: true });
+          testAudio.addEventListener('error', () => resolve(false), { once: true });
+          testAudio.load();
+          setTimeout(() => resolve(false), 200);
+        });
+        if (canLoad) {
+          obstacleSoundPath = testPath;
+          break;
+        }
+      } catch (e) {
+        // Try next format
+      }
+    }
+    
+    // If no character-specific obstacle sound, try generic sounds folder
+    if (!obstacleSoundPath) {
+      for (const ext of soundExtensions) {
+        const testPath = `${obstacleGenericSoundPath}.${ext}`;
+        try {
+          const testAudio = new Audio(testPath);
+          const canLoad = await new Promise((resolve) => {
+            testAudio.addEventListener('canplay', () => resolve(true), { once: true });
+            testAudio.addEventListener('error', () => resolve(false), { once: true });
+            testAudio.load();
+            setTimeout(() => resolve(false), 200);
+          });
+          if (canLoad) {
+            obstacleSoundPath = testPath;
+            break;
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+    }
+    
+    // Load obstacle footstep sound if found
+    if (obstacleSoundPath) {
+      this.soundManager.loadObstacleFootstepSound(obstacleSoundPath);
+    }
+    
     this.animations = loaded;
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
@@ -184,8 +238,7 @@ export class CharacterManager {
       anim.frameIndex = (anim.frameIndex + 1) % anim.frameCount;
       
       // Play footstep sound when walking and grounded
-      // Only play if on base ground (not on obstacles)
-      if (isWalkAnim && this.isGrounded && this.isOnBaseGround()) {
+      if (isWalkAnim && this.isGrounded) {
         // Play footsteps on specific frames (typically when feet hit ground)
         // For 4-frame walk cycle: play on frames 0 and 2
         // This creates alternating left/right foot sounds
@@ -193,7 +246,9 @@ export class CharacterManager {
         
         // Play when we transition to a footstep frame
         if (footstepFrames.includes(anim.frameIndex)) {
-          this.soundManager.playFootstep();
+          // Check if on obstacle/platform (not base ground) to play appropriate sound
+          const isObstacle = !this.isOnBaseGround();
+          this.soundManager.playFootstep(isObstacle);
         }
       }
       
@@ -235,10 +290,11 @@ export class CharacterManager {
       // Play footstep sound immediately when starting to move (transitioning from idle to walk)
       // Check if animation actually changed to walk animation
       // This ensures sound plays even on a single key press
-      // Only play if on base ground (not on obstacles)
       const nowWalking = this.currentAnimKey === 'walk_front' || this.currentAnimKey === 'walk_back';
-      if (wasIdle && nowWalking && this.isGrounded && this.isOnBaseGround()) {
-        this.soundManager.playFootstep();
+      if (wasIdle && nowWalking && this.isGrounded) {
+        // Check if on obstacle/platform (not base ground) to play appropriate sound
+        const isObstacle = !this.isOnBaseGround();
+        this.soundManager.playFootstep(isObstacle);
       }
     } else {
       this.setCurrentAnim(this.lastFacing === 'back' ? 'idle_back' : 'idle_front');
