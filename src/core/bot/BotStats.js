@@ -35,7 +35,7 @@ export const BOT_STATS = {
   physics: {
     gravity: -30,              // Gravity force (negative pulls down)
     jumpForce: 8,              // Upward velocity when jumping
-    groundY: 0.6               // Default ground level
+    groundY: 0                 // Default ground level
   },
   
   /**

@@ -204,7 +204,7 @@ export class CollisionManager {
    * @returns {boolean} True if point collides with obstacle
    */
   pointCollidesWithObstacle(x, z, radius) {
-    const nextPos = new THREE.Vector3(x, 0.6, z);
+    const nextPos = new THREE.Vector3(x, 0, z);
     return this.willCollide(nextPos, radius * 2);
   }
 

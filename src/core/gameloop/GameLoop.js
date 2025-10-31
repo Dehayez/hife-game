@@ -157,7 +157,6 @@ export class GameLoop {
       this.characterManager.particleManager.update(dt);
       // Billboard smoke particles to camera
       this.characterManager.particleManager.billboardToCamera(
-        this.characterManager.particleManager.smokeParticles,
         this.sceneManager.getCamera()
       );
     }
@@ -230,8 +229,8 @@ export class GameLoop {
     
     raycaster.setFromCamera(mouse, camera);
     
-    // Intersect with ground plane at y = 0.6
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.6);
+    // Intersect with ground plane at y = 0
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const intersect = new THREE.Vector3();
     raycaster.ray.intersectPlane(plane, intersect);
     
@@ -295,7 +294,7 @@ export class GameLoop {
     raycaster.setFromCamera(mouse, camera);
     
     // Intersect with ground plane to get target position
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.6);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const intersect = new THREE.Vector3();
     raycaster.ray.intersectPlane(plane, intersect);
     

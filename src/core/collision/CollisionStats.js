@@ -110,7 +110,7 @@ export const COLLISION_STATS = {
    * Ground Configuration
    */
   ground: {
-    defaultHeight: 0.6,        // Default ground height
+    defaultHeight: 0,          // Default ground height
     tolerance: 0.01            // Tolerance for ground height checks
   }
 };

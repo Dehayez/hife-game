@@ -189,7 +189,7 @@ export class LargeArenaCollisionManager extends CollisionManager {
     }
     
     const largeArenaConfig = getLargeArenaConfig();
-    let highestPlatform = 0.6; // Default ground height
+    let highestPlatform = 0; // Default ground height
     
     for (const wall of this.walls) {
       const wallBox = this.getAABBFor(wall);

@@ -127,7 +127,7 @@ export function updateMortar(mortar, dt, collisionManager) {
   // Get ground height at the mortar's current position
   const currentGroundHeight = collisionManager 
     ? collisionManager.getGroundHeight(mortar.position.x, mortar.position.z, mortar.userData.size)
-    : 0.6;
+    : 0;
   
   // Calculate the bottom of the mortar sphere
   const mortarBottom = newY - mortar.userData.size;
@@ -152,7 +152,7 @@ export function updateMortar(mortar, dt, collisionManager) {
     // Hit ground - return impact data for fire splash creation
     const impactGroundHeight = collisionManager 
       ? collisionManager.getGroundHeight(targetX, targetZ, mortar.userData.size)
-      : 0.6;
+      : 0;
     
     return {
       shouldRemove: true,
