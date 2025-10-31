@@ -27,12 +27,13 @@ export class CollisionManager {
   }
 
   _createWalls() {
-    // Perimeter walls (slightly inside arena bounds)
+    // Perimeter walls (slightly inside arena bounds) - darker green forest color
     const margin = 0.2;
-    this.addWall(0, -(this.arenaSize / 2) + margin, this.arenaSize - margin * 2, 0.4);
-    this.addWall(0, (this.arenaSize / 2) - margin, this.arenaSize - margin * 2, 0.4);
-    this.addWall(-(this.arenaSize / 2) + margin, 0, 0.4, this.arenaSize - margin * 2);
-    this.addWall((this.arenaSize / 2) - margin, 0, 0.4, this.arenaSize - margin * 2);
+    const darkerGreen = 0x1a3008; // Darker forest green color
+    this.addWall(0, -(this.arenaSize / 2) + margin, this.arenaSize - margin * 2, 0.4, darkerGreen);
+    this.addWall(0, (this.arenaSize / 2) - margin, this.arenaSize - margin * 2, 0.4, darkerGreen);
+    this.addWall(-(this.arenaSize / 2) + margin, 0, 0.4, this.arenaSize - margin * 2, darkerGreen);
+    this.addWall((this.arenaSize / 2) - margin, 0, 0.4, this.arenaSize - margin * 2, darkerGreen);
 
     // Inner obstacles
     this._createInnerWalls();
@@ -40,6 +41,7 @@ export class CollisionManager {
 
   _createInnerWalls() {
     // Store inner wall positions for easy recreation
+    const lightGrey = 0x808080; // Pure lighter grey color
     const innerWallData = [
       { x: -4, z: -2, w: 6, h: 0.4 },
       { x: 3, z: 3, w: 0.4, h: 6 },
@@ -51,7 +53,7 @@ export class CollisionManager {
 
     if (shouldCreateInnerWalls) {
       for (const wallData of innerWallData) {
-        const wall = this.addWall(wallData.x, wallData.z, wallData.w, wallData.h);
+        const wall = this.addWall(wallData.x, wallData.z, wallData.w, wallData.h, lightGrey);
         this.innerWalls.push(wall);
       }
     }
@@ -72,10 +74,10 @@ export class CollisionManager {
     this._createInnerWalls();
   }
 
-  addWall(x, z, w, h) {
+  addWall(x, z, w, h, color = 0xe57474) {
     const height = 1.2;
     const wallGeo = new THREE.BoxGeometry(w, height, h);
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xe57474 });
+    const wallMat = new THREE.MeshStandardMaterial({ color });
     const wall = new THREE.Mesh(wallGeo, wallMat);
     wall.position.set(x, height / 2, z);
     wall.castShadow = true;
