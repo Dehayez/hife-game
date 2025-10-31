@@ -146,6 +146,6 @@ export class GameLoop {
     this.sceneManager.updateBlinkingEyes(dt);
 
     // Camera follows player
-    this.sceneManager.updateCamera(player.position);
+    this.sceneManager.updateCamera(player.position, this.inputManager.isRunning());
   }
 }

@@ -7,6 +7,7 @@ export class SceneManager {
     this.renderer = null;
     this.arenaSize = 20;
     this.cameraOffset = new THREE.Vector3(0, 6, 8);
+    this.currentYOffset = 6; // Smooth interpolated Y offset
     this.magicalParticles = null;
     this.particleSpeeds = [];
     this.time = 0;
@@ -640,8 +641,13 @@ export class SceneManager {
     onResize();
   }
 
-  updateCamera(playerPosition) {
-    const desiredCamPos = playerPosition.clone().add(this.cameraOffset);
+  updateCamera(playerPosition, isRunning = false) {
+    // Smoothly transition camera height when sprinting
+    const targetYOffset = isRunning ? this.cameraOffset.y - 0.6 : this.cameraOffset.y;
+    this.currentYOffset = THREE.MathUtils.lerp(this.currentYOffset, targetYOffset, 0.05);
+    
+    const adjustedOffset = new THREE.Vector3(this.cameraOffset.x, this.currentYOffset, this.cameraOffset.z);
+    const desiredCamPos = playerPosition.clone().add(adjustedOffset);
     this.camera.position.lerp(desiredCamPos, 0.08);
     this.camera.lookAt(playerPosition.x, playerPosition.y + 0.4, playerPosition.z);
   }
