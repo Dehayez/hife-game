@@ -16,7 +16,7 @@ export class ProjectileManager {
     this.collisionManager = collisionManager;
   }
 
-  createProjectile(startX, startZ, directionX, directionZ, playerId = 'local') {
+  createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local') {
     if (this.currentCooldown > 0) return null;
 
     // Normalize direction
@@ -38,12 +38,13 @@ export class ProjectileManager {
     });
     
     const projectile = new THREE.Mesh(geo, mat);
-    projectile.position.set(startX, 1.0, startZ);
+    // Use the provided Y position (character's height)
+    projectile.position.set(startX, startY, startZ);
     projectile.castShadow = true;
     
     // Add trail effect - point light
     const trailLight = new THREE.PointLight(color, 1.0, 3);
-    trailLight.position.set(startX, 1.0, startZ);
+    trailLight.position.set(startX, startY, startZ);
     this.scene.add(trailLight);
     
     // Store projectile data

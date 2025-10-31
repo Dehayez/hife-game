@@ -123,6 +123,7 @@ export class GameLoop {
           camera.getWorldDirection(cameraDir);
           this.projectileManager.createProjectile(
             playerPos.x,
+            playerPos.y, // Use player's Y position (height)
             playerPos.z,
             cameraDir.x,
             cameraDir.z,
@@ -131,6 +132,7 @@ export class GameLoop {
         } else {
           this.projectileManager.createProjectile(
             playerPos.x,
+            playerPos.y, // Use player's Y position (height)
             playerPos.z,
             directionX,
             directionZ,

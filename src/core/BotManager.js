@@ -230,6 +230,7 @@ export class BotManager {
         if (dist < 10 && this.projectileManager.canShoot()) {
           this.projectileManager.createProjectile(
             bot.position.x,
+            bot.position.y, // Use bot's Y position (height)
             bot.position.z,
             dx,
             dz,
