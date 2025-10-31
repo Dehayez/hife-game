@@ -11,9 +11,11 @@ A magical 3D browser game built with Three.js featuring a mystical forest enviro
   - Crystal Shrine (Time Trial)
   - Gem Gathering (Collection)
   - Shadow Escape (Survival)
+  - **Shooting Mode**: Real-time multiplayer PvP with projectiles
 - 🌲 **Diverse Obstacles**: Walls, platforms, pillars, bridges, and elevated structures
 - 🎵 **Sound System**: Footsteps, jumps, landing sounds, and background music
 - ✨ **Magical Atmosphere**: Glowing mushrooms, firefly particles, and moonlit forest
+- 🔌 **Real-time Multiplayer**: WebSocket-based multiplayer with projectile sync
 
 ## Run
 
@@ -21,15 +23,46 @@ You have two options:
 
 1) Open Directly
 - Open `index.html` in a modern browser (Chrome, Edge, Firefox, Safari).
+- **Note**: Multiplayer requires the WebSocket server (see option 2).
 
 2) Dev Server (recommended)
 - Install deps: `yarn`
-- Start: `yarn dev` (or `yarn start`)
+- Start frontend: `yarn dev` (or `yarn start`)
+- Start multiplayer server: `yarn server` (in a separate terminal)
 - Build: `yarn build`
 - Preview build: `yarn preview`
 
+### Multiplayer Setup
+
+For multiplayer gameplay (shooting mode), you need to run the WebSocket server:
+
+1. Install dependencies: `yarn`
+2. Start the WebSocket server: `yarn server` (runs on port 3001 by default)
+3. Start the frontend: `yarn dev` (in another terminal)
+4. Open the game in your browser
+5. Switch to "Shooting" game mode
+6. Create or join a room to play with others
+
+The server handles:
+- Room creation and joining
+- Player position synchronization
+- Projectile sync (firebolts and mortars)
+- Health/damage sync
+
+**For production deployment on hife.be, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
+
+**For local testing instructions, see [LOCAL_TESTING.md](./LOCAL_TESTING.md)**
+
 ## Controls
 
+- Arrow keys / WASD / ZQSD - Move
+- Hold Shift - Sprint
+- Space - Jump
+
+### Shooting Mode Controls
+
+- Left Click - Shoot firebolt projectile
+- Right Click - Shoot mortar projectile (arc trajectory)
 - Arrow keys / WASD / ZQSD - Move
 - Hold Shift - Sprint
 - Space - Jump

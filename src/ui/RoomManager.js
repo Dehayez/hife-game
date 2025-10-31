@@ -99,17 +99,20 @@ export function initRoomManager({ mount, multiplayerManager, onRoomCreated, onRo
   }
 
   function handleCreateRoom() {
-    const roomCode = multiplayerManager.createRoom();
-    updateUI();
-    
-    // Update URL with room code
-    const url = new URL(window.location);
-    url.searchParams.set('room', roomCode);
-    window.history.pushState({}, '', url);
-    
+    // onRoomCreated callback will handle creating the room with game state
     if (onRoomCreated) {
-      onRoomCreated(roomCode);
+      // Generate a temporary room code for the callback
+      // The actual room creation happens in the callback with game state
+      const tempRoomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+      
+      // Update URL with room code
+      const url = new URL(window.location);
+      url.searchParams.set('room', tempRoomCode);
+      window.history.pushState({}, '', url);
+      
+      onRoomCreated(tempRoomCode);
     }
+    updateUI();
   }
 
   function handleJoinRoom() {
@@ -119,8 +122,8 @@ export function initRoomManager({ mount, multiplayerManager, onRoomCreated, onRo
       return;
     }
 
-    const success = multiplayerManager.joinRoom(code);
-    if (success) {
+    // onRoomJoined callback will handle joining the room with game state
+    if (onRoomJoined) {
       // Update URL with room code
       const url = new URL(window.location);
       url.searchParams.set('room', code);
@@ -128,9 +131,7 @@ export function initRoomManager({ mount, multiplayerManager, onRoomCreated, onRo
       
       updateUI();
       
-      if (onRoomJoined) {
-        onRoomJoined(code);
-      }
+      onRoomJoined(code);
     }
   }
 

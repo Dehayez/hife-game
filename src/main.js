@@ -1,4 +1,5 @@
 // Minimal dependencies via CDN ESM
+import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { initCharacterSwitcher } from './ui/CharacterSwitcher.js';
 import { initControlsLegend } from './ui/ControlsLegend.js';
 import { initGameModeSwitcher } from './ui/GameModeSwitcher.js';
@@ -20,6 +21,7 @@ import { GameModeManager } from './core/gamemode/GameModeManager.js';
 import { EntityManager } from './core/entity/EntityManager.js';
 import { ProjectileManager } from './core/projectile/ProjectileManager.js';
 import { MultiplayerManager } from './core/multiplayer/MultiplayerManager.js';
+import { RemotePlayerManager } from './core/multiplayer/RemotePlayerManager.js';
 import { BotManager } from './core/bot/BotManager.js';
 import { HealthBarManager } from './core/healthbar/HealthBarManager.js';
 import { GameLoop } from './core/gameloop/GameLoop.js';
@@ -69,6 +71,9 @@ characterManager.setCollisionManager(collisionManager);
 const particleManager = new ParticleManager(sceneManager.getScene());
 characterManager.setParticleManager(particleManager);
 
+// Initialize remote player manager for multiplayer
+const remotePlayerManager = new RemotePlayerManager(sceneManager.getScene());
+
 // Initialize projectile manager for shooting mode
 const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager);
 
@@ -80,15 +85,148 @@ const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);
 
 // Initialize multiplayer manager
 const multiplayerManager = new MultiplayerManager(
-  (playerId) => {
-    console.log('Player joined:', playerId);
+  async (playerId, playerInfo) => {
+    console.log(`[Multiplayer] Player joined callback triggered:`, { playerId, playerInfo, localPlayerId: multiplayerManager.getLocalPlayerId() });
+    // Spawn remote player when someone joins
+    if (playerId !== multiplayerManager.getLocalPlayerId()) {
+      // Spawn at origin first, position will be updated when we receive their state
+      const initialPosition = { x: 0, y: 0, z: 0 };
+      
+      console.log(`[Multiplayer] Attempting to spawn remote player ${playerId} with character ${playerInfo?.characterName || 'lucy'}`);
+      try {
+        await remotePlayerManager.spawnRemotePlayer(
+          playerId,
+          playerInfo?.characterName || 'lucy',
+          initialPosition
+        );
+        console.log(`[Multiplayer] Successfully spawned remote player ${playerId}`);
+        
+        // When someone joins, send our current state so they can see us
+        if (characterManager.getPlayer()) {
+          setTimeout(() => {
+            const player = characterManager.getPlayer();
+            const camera = sceneManager.getCamera();
+            const cameraDir = new THREE.Vector3();
+            camera.getWorldDirection(cameraDir);
+            const rotation = Math.atan2(cameraDir.x, cameraDir.z);
+            
+            console.log(`[Multiplayer] Sending our state to new player ${playerId}`);
+            multiplayerManager.sendPlayerState({
+              x: player.position.x,
+              y: player.position.y,
+              z: player.position.z,
+              rotation: rotation,
+              currentAnimKey: characterManager.currentAnimKey || 'idle_front',
+              lastFacing: characterManager.lastFacing || 'front',
+              isGrounded: characterManager.characterData.isGrounded || true
+            });
+          }, 50);
+        }
+      } catch (error) {
+        console.error(`[Multiplayer] Error spawning remote player ${playerId}:`, error);
+      }
+    } else {
+      console.log(`[Multiplayer] Ignoring join callback for self (${playerId})`);
+    }
   },
   (playerId) => {
     console.log('Player left:', playerId);
+    // Remove remote player when someone leaves
+    if (playerId !== multiplayerManager.getLocalPlayerId()) {
+      remotePlayerManager.removeRemotePlayer(playerId);
+    }
   },
   (playerId, data) => {
-    console.log('Game data received from', playerId, data);
     // Handle multiplayer game data sync
+    if (data.type === 'player-state') {
+      console.log(`[Multiplayer] Received player-state from ${playerId}:`, data);
+      // Update remote player position/state
+      if (playerId !== multiplayerManager.getLocalPlayerId()) {
+        const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
+        
+        // If remote player doesn't exist yet, spawn them
+        if (!remotePlayer) {
+          console.log(`[Multiplayer] Remote player ${playerId} doesn't exist, spawning...`);
+          const playerInfo = multiplayerManager.getPlayerInfo(playerId);
+          remotePlayerManager.spawnRemotePlayer(
+            playerId,
+            playerInfo?.characterName || 'lucy',
+            { x: data.x || 0, y: data.y || 0, z: data.z || 0 }
+          ).then(() => {
+            console.log(`[Multiplayer] Spawned remote player ${playerId}, now updating position`);
+            // Update position after spawning
+            remotePlayerManager.updateRemotePlayer(playerId, {
+              x: data.x,
+              y: data.y,
+              z: data.z,
+              rotation: data.rotation,
+              currentAnimKey: data.currentAnimKey,
+              lastFacing: data.lastFacing,
+              isGrounded: data.isGrounded
+            });
+          }).catch(error => {
+            console.error(`[Multiplayer] Error spawning remote player ${playerId}:`, error);
+          });
+        } else {
+          // Update existing remote player
+          console.log(`[Multiplayer] Updating existing remote player ${playerId}`);
+          remotePlayerManager.updateRemotePlayer(playerId, {
+            x: data.x,
+            y: data.y,
+            z: data.z,
+            rotation: data.rotation,
+            currentAnimKey: data.currentAnimKey,
+            lastFacing: data.lastFacing,
+            isGrounded: data.isGrounded
+          });
+        }
+      } else {
+        console.log(`[Multiplayer] Ignoring player-state from self (${playerId})`);
+      }
+    } else if (data.type === 'projectile-create') {
+      // Create projectile from remote player
+      if (playerId !== multiplayerManager.getLocalPlayerId() && projectileManager) {
+        const characterName = data.characterName || 'lucy';
+        
+        if (data.projectileType === 'mortar') {
+          // Create mortar projectile
+          projectileManager.createMortar(
+            data.startX,
+            data.startY,
+            data.startZ,
+            data.targetX,
+            data.targetZ,
+            playerId,
+            characterName
+          );
+        } else {
+          // Create firebolt projectile
+          projectileManager.createProjectile(
+            data.startX,
+            data.startY,
+            data.startZ,
+            data.directionX,
+            data.directionZ,
+            playerId,
+            characterName
+          );
+        }
+      }
+    } else if (data.type === 'player-damage') {
+      // Handle remote player damage (update health bar if visible)
+      if (playerId !== multiplayerManager.getLocalPlayerId()) {
+        const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
+        if (remotePlayer && remotePlayer.mesh && healthBarManager) {
+          remotePlayer.mesh.userData.health = data.health;
+          remotePlayer.mesh.userData.maxHealth = data.maxHealth;
+          // Health bar will update automatically on next frame
+        }
+      }
+    } else if (data.type === 'room-state') {
+      // Sync room state (arena, game mode) when joining
+      console.log('Received room state:', data);
+      // Note: Could update arena/mode here if needed, but might require page reload
+    }
   }
 );
 
@@ -113,7 +251,7 @@ gameModeManager.setOnModeChangeCallback(() => {
   }
 });
 
-const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager, botManager, healthBarManager);
+const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager, botManager, healthBarManager, multiplayerManager);
 
 // Character selection: URL param > localStorage > default
 // Priority: 1) URL param ?char=lucy, 2) Last played character (localStorage), 3) Default 'lucy'
@@ -288,37 +426,157 @@ initGameModeDisplay({
   characterManager: characterManager
 });
 
+// Helper function to get current game state
+function getCurrentGameState() {
+  return {
+    arena: arenaManager.getCurrentArena(),
+    gameMode: gameModeManager.getMode(),
+    characterName: characterManager.getCharacterName()
+  };
+}
+
 // Initialize room manager UI for shooting mode
 const roomManager = initRoomManager({
   mount: roomMount,
   multiplayerManager: multiplayerManager,
-  onRoomCreated: (roomCode) => {
+  onRoomCreated: async (roomCode) => {
     console.log('Room created:', roomCode);
-    // Start shooting mode if not already
-    if (gameModeManager.getMode() !== 'shooting') {
-      gameModeManager.setMode('shooting');
-      // Save to localStorage when game mode changes
-      setLastGameMode('shooting');
+    // Pass game state when creating room
+    const gameState = getCurrentGameState();
+    try {
+      const actualRoomCode = await multiplayerManager.createRoom(gameState);
+      
+      // Update URL with actual room code (in case it differs)
+      const url = new URL(window.location);
+      url.searchParams.set('room', actualRoomCode);
+      window.history.pushState({}, '', url);
+      
+      // Send our initial position when creating room
+      if (characterManager.getPlayer()) {
+        setTimeout(() => {
+          const player = characterManager.getPlayer();
+          const camera = sceneManager.getCamera();
+          const cameraDir = new THREE.Vector3();
+          camera.getWorldDirection(cameraDir);
+          const rotation = Math.atan2(cameraDir.x, cameraDir.z);
+          
+          multiplayerManager.sendPlayerState({
+            x: player.position.x,
+            y: player.position.y,
+            z: player.position.z,
+            rotation: rotation,
+            currentAnimKey: characterManager.currentAnimKey || 'idle_front',
+            lastFacing: characterManager.lastFacing || 'front',
+            isGrounded: characterManager.characterData.isGrounded || true
+          });
+        }, 100);
+      }
+      
+      // Start shooting mode if not already
+      if (gameModeManager.getMode() !== 'shooting') {
+        gameModeManager.setMode('shooting');
+        // Save to localStorage when game mode changes
+        setLastGameMode('shooting');
+      }
+      gameModeManager.startMode();
+    } catch (error) {
+      console.error('Failed to create room:', error);
     }
-    gameModeManager.startMode();
   },
-  onRoomJoined: (roomCode) => {
+  onRoomJoined: async (roomCode) => {
     console.log('Joined room:', roomCode);
-    // Start shooting mode if not already
-    if (gameModeManager.getMode() !== 'shooting') {
-      gameModeManager.setMode('shooting');
-      // Save to localStorage when game mode changes
-      setLastGameMode('shooting');
+    // Pass game state when joining room
+    const gameState = getCurrentGameState();
+    try {
+      const joinResult = await multiplayerManager.joinRoom(roomCode, gameState);
+      
+      // Immediately send our current state so others can see us
+      if (characterManager.getPlayer()) {
+        setTimeout(() => {
+          const player = characterManager.getPlayer();
+          const camera = sceneManager.getCamera();
+          const cameraDir = new THREE.Vector3();
+          camera.getWorldDirection(cameraDir);
+          const rotation = Math.atan2(cameraDir.x, cameraDir.z);
+          
+          multiplayerManager.sendPlayerState({
+            x: player.position.x,
+            y: player.position.y,
+            z: player.position.z,
+            rotation: rotation,
+            currentAnimKey: characterManager.currentAnimKey || 'idle_front',
+            lastFacing: characterManager.lastFacing || 'front',
+            isGrounded: characterManager.characterData.isGrounded || true
+          });
+        }, 100);
+      }
+      
+      // Request existing players' states after joining
+      setTimeout(() => {
+        multiplayerManager.requestExistingPlayers(() => {
+          // Send current player state when requested
+          if (characterManager.getPlayer()) {
+            const player = characterManager.getPlayer();
+            const camera = sceneManager.getCamera();
+            const cameraDir = new THREE.Vector3();
+            camera.getWorldDirection(cameraDir);
+            const rotation = Math.atan2(cameraDir.x, cameraDir.z);
+            
+            multiplayerManager.sendPlayerState({
+              x: player.position.x,
+              y: player.position.y,
+              z: player.position.z,
+              rotation: rotation,
+              currentAnimKey: characterManager.currentAnimKey || 'idle_front',
+              lastFacing: characterManager.lastFacing || 'front',
+              isGrounded: characterManager.characterData.isGrounded || true
+            });
+          }
+        });
+      }, 200);
+      
+      // Start shooting mode if not already
+      if (gameModeManager.getMode() !== 'shooting') {
+        gameModeManager.setMode('shooting');
+        // Save to localStorage when game mode changes
+        setLastGameMode('shooting');
+      }
+      gameModeManager.startMode();
+    } catch (error) {
+      console.error('Failed to join room:', error);
     }
-    gameModeManager.startMode();
   }
 });
 
-// Check URL for room code and auto-join
+// Check URL for room code and auto-join (wait for connection first)
 const urlRoom = getParam('room', null);
 if (urlRoom) {
-  multiplayerManager.joinRoom(urlRoom.toUpperCase());
-  roomManager.update();
+  // Wait for connection before auto-joining
+  const attemptAutoJoin = async () => {
+    try {
+      // Wait for connection if not connected
+      if (!multiplayerManager.isConnected()) {
+        console.log('[Auto-join] Waiting for connection...');
+        await multiplayerManager.waitForConnection();
+        console.log('[Auto-join] Connection established');
+      }
+      
+      const gameState = getCurrentGameState();
+      await multiplayerManager.joinRoom(urlRoom.toUpperCase(), gameState);
+      console.log('[Auto-join] Successfully joined room:', urlRoom.toUpperCase());
+      roomManager.update();
+    } catch (error) {
+      console.error('[Auto-join] Failed to auto-join room:', error);
+      // Retry after a delay
+      setTimeout(() => {
+        console.log('[Auto-join] Retrying...');
+        attemptAutoJoin();
+      }, 1000);
+    }
+  };
+  
+  // Start attempt after a short delay to let socket initialize
+  setTimeout(attemptAutoJoin, 100);
 }
 
 // Initialize bot control UI for shooting mode
@@ -376,6 +634,15 @@ if (backgroundMusicPath) {
   }
 }
 
+// Expose remotePlayerManager to window for debugging
+window.debugRemotePlayers = () => {
+  if (remotePlayerManager) {
+    remotePlayerManager.debugInfo();
+  } else {
+    console.error('RemotePlayerManager not initialized');
+  }
+};
+
 // Start the game
 (async () => {
   await characterManager.loadCharacter(characterName);
@@ -396,15 +663,66 @@ if (backgroundMusicPath) {
   
   gameLoop.start();
 
-// Wrap gameLoop.tick to update cooldown indicator
-const originalTick = gameLoop.tick.bind(gameLoop);
-gameLoop.tick = function() {
-  originalTick();
-  // Update cooldown indicator each frame (only if in shooting mode)
-  if (cooldownIndicator && gameModeManager && gameModeManager.getMode() === 'shooting') {
-    cooldownIndicator.update();
-  }
-};
+  // Position sync interval (sync every ~100ms = ~10 times per second)
+  let lastPositionSyncTime = 0;
+  let lastAnimationUpdateTime = performance.now();
+  const syncInterval = 100; // milliseconds
+
+  // Wrap gameLoop.tick to update cooldown indicator and sync positions
+  const originalTick = gameLoop.tick.bind(gameLoop);
+  gameLoop.tick = function() {
+    const now = performance.now();
+    originalTick();
+    
+    // Update cooldown indicator each frame (only if in shooting mode)
+    if (cooldownIndicator && gameModeManager && gameModeManager.getMode() === 'shooting') {
+      cooldownIndicator.update();
+    }
+    
+    // Update remote player animations
+    if (remotePlayerManager) {
+      const dt = (now - lastAnimationUpdateTime) / 1000;
+      if (dt > 0) {
+        remotePlayerManager.updateAnimations(dt, sceneManager.getCamera());
+        lastAnimationUpdateTime = now;
+      }
+      
+      // Cleanup stale players periodically (every 5 seconds)
+      if (Math.floor(now / 5000) !== Math.floor((now - 16) / 5000)) {
+        remotePlayerManager.cleanupStalePlayers(5000);
+      }
+    }
+    
+    // Sync local player position with other players
+    if (multiplayerManager && multiplayerManager.isInRoom() && characterManager.getPlayer()) {
+      const syncNow = Date.now();
+      if (syncNow - lastPositionSyncTime >= syncInterval) {
+        const player = characterManager.getPlayer();
+        const camera = sceneManager.getCamera();
+        
+        // Calculate rotation from camera and player facing
+        const cameraDir = new THREE.Vector3();
+        camera.getWorldDirection(cameraDir);
+        const rotation = Math.atan2(cameraDir.x, cameraDir.z);
+        
+        // Get current animation state from character manager
+        const currentAnimKey = characterManager.currentAnimKey || 'idle_front';
+        const lastFacing = characterManager.lastFacing || 'front';
+        
+        multiplayerManager.sendPlayerState({
+          x: player.position.x,
+          y: player.position.y,
+          z: player.position.z,
+          rotation: rotation,
+          currentAnimKey: currentAnimKey,
+          lastFacing: lastFacing,
+          isGrounded: characterManager.characterData.isGrounded || true
+        });
+        
+        lastPositionSyncTime = syncNow;
+      }
+    }
+  };
 })();
 
 

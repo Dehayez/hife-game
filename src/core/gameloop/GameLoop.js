@@ -19,8 +19,9 @@ export class GameLoop {
    * @param {Object} projectileManager - Projectile manager instance (optional)
    * @param {Object} botManager - Bot manager instance (optional)
    * @param {Object} healthBarManager - Health bar manager instance (optional)
+   * @param {Object} multiplayerManager - Multiplayer manager instance (optional)
    */
-  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null, botManager = null, healthBarManager = null) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null, botManager = null, healthBarManager = null, multiplayerManager = null) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
@@ -30,6 +31,7 @@ export class GameLoop {
     this.projectileManager = projectileManager;
     this.botManager = botManager;
     this.healthBarManager = healthBarManager;
+    this.multiplayerManager = multiplayerManager;
     
     this.lastTime = performance.now();
     this.isRunning = false;
@@ -254,7 +256,7 @@ export class GameLoop {
       // Shoot in camera forward direction
       const cameraDir = new THREE.Vector3();
       camera.getWorldDirection(cameraDir);
-      this.projectileManager.createProjectile(
+      const projectile = this.projectileManager.createProjectile(
         playerPos.x,
         playerPos.y,
         playerPos.z,
@@ -263,8 +265,21 @@ export class GameLoop {
         playerId,
         characterName
       );
+      
+      // Send projectile to other players via multiplayer
+      if (projectile && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+        this.multiplayerManager.sendProjectileCreate({
+          projectileType: 'firebolt',
+          startX: playerPos.x,
+          startY: playerPos.y,
+          startZ: playerPos.z,
+          directionX: cameraDir.x,
+          directionZ: cameraDir.z,
+          characterName: characterName
+        });
+      }
     } else {
-      this.projectileManager.createProjectile(
+      const projectile = this.projectileManager.createProjectile(
         playerPos.x,
         playerPos.y,
         playerPos.z,
@@ -273,6 +288,19 @@ export class GameLoop {
         playerId,
         characterName
       );
+      
+      // Send projectile to other players via multiplayer
+      if (projectile && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+        this.multiplayerManager.sendProjectileCreate({
+          projectileType: 'firebolt',
+          startX: playerPos.x,
+          startY: playerPos.y,
+          startZ: playerPos.z,
+          directionX: directionX,
+          directionZ: directionZ,
+          characterName: characterName
+        });
+      }
     }
   }
 
@@ -304,7 +332,7 @@ export class GameLoop {
     
     // Check if player can shoot mortar
     if (this.projectileManager.canShootMortar(playerId)) {
-      this.projectileManager.createMortar(
+      const mortar = this.projectileManager.createMortar(
         playerPos.x,
         playerPos.y,
         playerPos.z,
@@ -313,6 +341,19 @@ export class GameLoop {
         playerId,
         characterName
       );
+      
+      // Send mortar to other players via multiplayer
+      if (mortar && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+        this.multiplayerManager.sendProjectileCreate({
+          projectileType: 'mortar',
+          startX: playerPos.x,
+          startY: playerPos.y,
+          startZ: playerPos.z,
+          targetX: intersect.x,
+          targetZ: intersect.z,
+          characterName: characterName
+        });
+      }
     }
   }
 
@@ -408,11 +449,22 @@ export class GameLoop {
   _applyDamageToPlayer(damage, player) {
     if (this.characterManager) {
       const isDead = this.characterManager.takeDamage(damage);
+      const currentHealth = this.characterManager.getHealth();
+      const maxHealth = this.characterManager.getMaxHealth();
       
       // Update player userData for health bar
       if (player && player.userData) {
-        player.userData.health = this.characterManager.getHealth();
-        player.userData.maxHealth = this.characterManager.getMaxHealth();
+        player.userData.health = currentHealth;
+        player.userData.maxHealth = maxHealth;
+      }
+      
+      // Send damage event to other players via multiplayer
+      if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+        this.multiplayerManager.sendPlayerDamage({
+          damage: damage,
+          health: currentHealth,
+          maxHealth: maxHealth
+        });
       }
       
       if (isDead) {
