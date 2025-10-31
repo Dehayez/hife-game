@@ -34,18 +34,27 @@ export class SoundManager {
       this.footstepAudio.addEventListener('error', (e) => {
         console.warn(`Failed to load footstep sound from ${path}:`, e);
         this.footstepAudio = null;
+        this._footstepReady = false;
       });
       
-      // Log successful load (removed console.log for cleaner output)
+      // Mark as ready when loaded
       this.footstepAudio.addEventListener('canplaythrough', () => {
-        // Sound loaded successfully
+        this._footstepReady = true;
       }, { once: true });
+      
+      this.footstepAudio.addEventListener('loadeddata', () => {
+        this._footstepReady = true;
+      }, { once: true });
+      
+      // Initialize ready state
+      this._footstepReady = false;
       
       // Try to load immediately
       this.footstepAudio.load();
     } catch (error) {
       console.warn(`Error creating footstep audio from ${path}:`, error);
       this.footstepAudio = null;
+      this._footstepReady = false;
     }
   }
 
@@ -64,12 +73,20 @@ export class SoundManager {
       this.obstacleFootstepAudio.addEventListener('error', (e) => {
         console.warn(`Failed to load obstacle footstep sound from ${path}:`, e);
         this.obstacleFootstepAudio = null;
+        this._obstacleFootstepReady = false;
       });
       
-      // Log successful load (removed console.log for cleaner output)
+      // Mark as ready when loaded
       this.obstacleFootstepAudio.addEventListener('canplaythrough', () => {
-        // Sound loaded successfully
+        this._obstacleFootstepReady = true;
       }, { once: true });
+      
+      this.obstacleFootstepAudio.addEventListener('loadeddata', () => {
+        this._obstacleFootstepReady = true;
+      }, { once: true });
+      
+      // Initialize ready state
+      this._obstacleFootstepReady = false;
       
       // Try to load immediately
       this.obstacleFootstepAudio.load();
@@ -373,54 +390,117 @@ export class SoundManager {
     // Use obstacle-specific audio if available and on obstacle
     if (isObstacle && this.obstacleFootstepAudio) {
       try {
-        // Clone the audio to allow overlapping playback
-        const audioClone = this.obstacleFootstepAudio.cloneNode();
-        audioClone.volume = this.masterVolume;
-        audioClone.currentTime = 0;
+        // Check if audio is ready to play (readyState >= HAVE_FUTURE_DATA)
+        // HAVE_FUTURE_DATA = 2, HAVE_ENOUGH_DATA = 4
+        const isReady = this.obstacleFootstepAudio.readyState >= 2 || this._obstacleFootstepReady;
         
-        // Try to play - if it fails, fall back to procedural
-        const playPromise = audioClone.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(err => {
-            // Auto-play may be blocked or audio failed to load, fall back to procedural
-            if (err.name !== 'NotAllowedError') {
-              console.warn('Error playing custom obstacle footstep sound:', err);
-            }
-          });
+        if (isReady) {
+          // Clone the audio to allow overlapping playback
+          const audioClone = this.obstacleFootstepAudio.cloneNode();
+          audioClone.volume = this.masterVolume;
+          audioClone.currentTime = 0;
+          
+          // Try to play - if it fails, fall back to procedural
+          const playPromise = audioClone.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                // Successfully started playing custom sound
+                return;
+              })
+              .catch(err => {
+                // Auto-play may be blocked or audio failed to load, fall back to procedural
+                if (err.name !== 'NotAllowedError') {
+                  console.warn('Error playing custom obstacle footstep sound:', err);
+                }
+                // Fall through to procedural sound
+                this._playProceduralFootstep(isObstacle);
+              });
+            return; // Return immediately, promise will handle success/failure
+          } else {
+            // Play started synchronously (older browsers)
+            return;
+          }
+        } else {
+          // Audio not ready yet, wait for it or fall back
+          if (this.obstacleFootstepAudio.readyState === 0) {
+            // Not loaded at all, trigger load
+            this.obstacleFootstepAudio.load();
+          }
+          // Fall through to procedural sound while waiting
+          this._playProceduralFootstep(isObstacle);
+          return;
         }
-        return; // Return immediately, let play() handle loading if needed
       } catch (err) {
         console.warn('Error playing custom obstacle footstep sound:', err);
         // Fall through to procedural sound
+        this._playProceduralFootstep(isObstacle);
+        return;
       }
     }
 
     // Use custom audio file if available (for base ground)
     if (!isObstacle && this.footstepAudio) {
       try {
-        // Clone the audio to allow overlapping playback
-        const audioClone = this.footstepAudio.cloneNode();
-        audioClone.volume = this.masterVolume;
-        audioClone.currentTime = 0;
+        // Check if audio is ready to play (readyState >= HAVE_FUTURE_DATA)
+        // HAVE_FUTURE_DATA = 2, HAVE_ENOUGH_DATA = 4
+        const isReady = this.footstepAudio.readyState >= 2 || this._footstepReady;
         
-        // Try to play - if it fails, fall back to procedural
-        const playPromise = audioClone.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(err => {
-            // Auto-play may be blocked or audio failed to load, fall back to procedural
-            if (err.name !== 'NotAllowedError') {
-              console.warn('Error playing custom footstep sound:', err);
-            }
-          });
+        if (isReady) {
+          // Clone the audio to allow overlapping playback
+          const audioClone = this.footstepAudio.cloneNode();
+          audioClone.volume = this.masterVolume;
+          audioClone.currentTime = 0;
+          
+          // Try to play - if it fails, fall back to procedural
+          const playPromise = audioClone.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                // Successfully started playing custom sound
+                return;
+              })
+              .catch(err => {
+                // Auto-play may be blocked or audio failed to load, fall back to procedural
+                if (err.name !== 'NotAllowedError') {
+                  console.warn('Error playing custom footstep sound:', err);
+                }
+                // Fall through to procedural sound
+                this._playProceduralFootstep(isObstacle);
+              });
+            return; // Return immediately, promise will handle success/failure
+          } else {
+            // Play started synchronously (older browsers)
+            return;
+          }
+        } else {
+          // Audio not ready yet, wait for it or fall back
+          if (this.footstepAudio.readyState === 0) {
+            // Not loaded at all, trigger load
+            this.footstepAudio.load();
+          }
+          // Fall through to procedural sound while waiting
+          this._playProceduralFootstep(isObstacle);
+          return;
         }
-        return; // Return immediately, let play() handle loading if needed
       } catch (err) {
         console.warn('Error playing custom footstep sound:', err);
         // Fall through to procedural sound
+        this._playProceduralFootstep(isObstacle);
+        return;
       }
     }
 
-    // Fallback to procedural sound
+    // Fallback to procedural sound (no custom audio available)
+    this._playProceduralFootstep(isObstacle);
+  }
+
+  /**
+   * Internal method to play procedural footstep sound
+   * @param {boolean} isObstacle - If true, plays obstacle/platform footstep sound
+   * @private
+   */
+  _playProceduralFootstep(isObstacle) {
     if (!this._ensureAudioContext()) return;
 
     const now = this.audioContext.currentTime;
@@ -674,4 +754,5 @@ export class SoundManager {
     return this.backgroundMusic && !this.backgroundMusic.paused && !this.backgroundMusic.ended;
   }
 }
+
 
