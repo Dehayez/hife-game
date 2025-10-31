@@ -12,7 +12,7 @@ export class InputManager {
     };
     
     this.moveSpeed = 4; // units per second
-    this.runSpeedMultiplier = 1.8; // speed multiplier when running
+    this.runSpeedMultiplier = 1.7; // speed multiplier when running
     
     this._setupEventListeners();
   }

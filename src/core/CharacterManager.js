@@ -90,7 +90,7 @@ export class CharacterManager {
     
     // Use higher FPS when running (shift held) for walk animations
     const isWalkAnim = this.currentAnimKey === 'walk_front' || this.currentAnimKey === 'walk_back';
-    const currentFps = isRunning && isWalkAnim ? anim.fps * 1.5 : anim.fps;
+    const currentFps = isRunning && isWalkAnim ? anim.fps * 1.4 : anim.fps;
     
     const frameDuration = 1 / currentFps;
     while (anim.timeAcc >= frameDuration) {
