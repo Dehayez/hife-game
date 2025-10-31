@@ -27,10 +27,32 @@ export class CharacterManager {
     // Example: '/assets/sounds/footstep.mp3' or '/assets/sounds/footstep.ogg'
     this.soundManager = new SoundManager(footstepSoundPath);
     
+    // Collision manager reference for checking ground type
+    this.collisionManager = null;
+    
     // Only setup player if scene is available
     if (this.scene) {
       this._setupPlayer();
     }
+  }
+
+  setCollisionManager(collisionManager) {
+    this.collisionManager = collisionManager;
+  }
+
+  isOnBaseGround() {
+    // Check if player is on the base ground (height ≈ 0) vs obstacles (height > 0)
+    // Base ground is at height 0, obstacles/walls are at height 1.2
+    if (!this.collisionManager) return true; // Default to true if no collision manager
+    
+    const groundHeight = this.collisionManager.getGroundHeight(
+      this.player.position.x,
+      this.player.position.z,
+      this.playerSize
+    );
+    
+    // Consider it base ground if height is very close to 0 (with small tolerance)
+    return Math.abs(groundHeight) < 0.1;
   }
 
   _setupPlayer() {
@@ -162,7 +184,8 @@ export class CharacterManager {
       anim.frameIndex = (anim.frameIndex + 1) % anim.frameCount;
       
       // Play footstep sound when walking and grounded
-      if (isWalkAnim && this.isGrounded) {
+      // Only play if on base ground (not on obstacles)
+      if (isWalkAnim && this.isGrounded && this.isOnBaseGround()) {
         // Play footsteps on specific frames (typically when feet hit ground)
         // For 4-frame walk cycle: play on frames 0 and 2
         // This creates alternating left/right foot sounds
@@ -212,8 +235,9 @@ export class CharacterManager {
       // Play footstep sound immediately when starting to move (transitioning from idle to walk)
       // Check if animation actually changed to walk animation
       // This ensures sound plays even on a single key press
+      // Only play if on base ground (not on obstacles)
       const nowWalking = this.currentAnimKey === 'walk_front' || this.currentAnimKey === 'walk_back';
-      if (wasIdle && nowWalking && this.isGrounded) {
+      if (wasIdle && nowWalking && this.isGrounded && this.isOnBaseGround()) {
         this.soundManager.playFootstep();
       }
     } else {

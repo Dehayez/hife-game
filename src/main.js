@@ -41,6 +41,9 @@ collisionManager.setGameModeManager(gameModeManager);
 // Initialize character manager with the scene
 characterManager.initializePlayer(sceneManager.getScene());
 
+// Connect collision manager to character manager (for ground type checking)
+characterManager.setCollisionManager(collisionManager);
+
 // Set respawn callback for mode changes
 gameModeManager.setOnModeChangeCallback(() => {
   characterManager.respawn();
