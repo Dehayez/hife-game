@@ -525,16 +525,32 @@ export class ProjectileManager {
     
     // Create fire effect - particle system or glowing planes
     const fireContainer = new THREE.Object3D();
-    fireContainer.position.set(x, y + 0.1, z);
+    // Position at exact impact point (y is ground height)
+    fireContainer.position.set(x, y + 0.05, z); // Slightly above ground
     
-    // Create fire base - glowing circle (starts small, expands, then shrinks after delay)
-    const fireGeo = new THREE.CircleGeometry(splashRadius, 16);
+    // Create radial gradient texture for opacity (opaque center, transparent edges)
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // Opaque center
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)'); // Transparent edges
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    
+    const opacityTexture = new THREE.CanvasTexture(canvas);
+    opacityTexture.needsUpdate = true;
+    
+    // Create fire base - glowing circle with radial opacity gradient
+    const fireGeo = new THREE.CircleGeometry(splashRadius, 32); // More segments for smoother gradient
     const fireMat = new THREE.MeshBasicMaterial({
       color: characterColor,
       emissive: characterColor,
       emissiveIntensity: 1.0,
       transparent: true,
-      opacity: 0.0, // Start invisible, fade in during expansion
+      opacity: 1.0, // Base opacity (gradient texture handles radial fade)
+      alphaMap: opacityTexture, // Radial opacity gradient
       side: THREE.DoubleSide
     });
     const fireBase = new THREE.Mesh(fireGeo, fireMat);
@@ -542,12 +558,11 @@ export class ProjectileManager {
     fireBase.scale.set(0, 0, 0); // Start at impact point (scale 0)
     fireContainer.add(fireBase);
     
-    // Add point light for fire glow
+    // Add point light for fire glow - positioned at exact impact point
     const fireLight = new THREE.PointLight(characterColor, 2.0, splashRadius * 2);
-    fireLight.position.set(0, 0.5, 0);
+    fireLight.position.set(x, y + 0.3, z); // Position at exact impact point, slightly above ground
     fireLight.intensity = 0; // Start at 0, fade in during expansion
-    fireContainer.add(fireLight);
-    this.scene.add(fireLight);
+    this.scene.add(fireLight); // Add directly to scene at correct position
     
     // Store fire area data with initial radius for shrinking
     fireContainer.userData = {
@@ -560,8 +575,9 @@ export class ProjectileManager {
       shrinkDelay: shrinkDelay, // Wait time before shrinking starts
       shrinkDuration: fireDuration - shrinkDelay, // Time available for shrinking
       expandDuration: 0.2, // Fast expansion animation (0.2 seconds)
-      position: new THREE.Vector3(x, y, z),
+      position: new THREE.Vector3(x, y, z), // Exact impact position
       fireLight: fireLight,
+      fireLightPosition: new THREE.Vector3(x, y + 0.3, z), // Store light position
       hasDamaged: new Set() // Track who has been damaged this tick
     };
     
@@ -595,12 +611,15 @@ export class ProjectileManager {
         // Scale from impact point to full size
         fireBase.scale.set(expandFactor, expandFactor, expandFactor);
         
-        // Opacity fades in from 0 to 1 during expansion
+        // Opacity fades in from 0 to 1 during expansion (base opacity, gradient texture handles radial fade)
         fireBase.material.opacity = expandFactor;
         
-        // Light intensity increases during expansion
+        // Light intensity increases during expansion and update position
         if (fireArea.userData.fireLight) {
           fireArea.userData.fireLight.intensity = 2.0 * expandFactor;
+          // Update light position to exact impact point
+          const lightPos = fireArea.userData.fireLightPosition || fireArea.userData.position.clone();
+          fireArea.userData.fireLight.position.set(lightPos.x, lightPos.y, lightPos.z);
         }
         
         // Damage radius expands
@@ -610,9 +629,12 @@ export class ProjectileManager {
       else if (fireArea.userData.lifetime < shrinkDelay + expandDuration) {
         // Keep at full size during delay period
         fireBase.scale.set(1.0, 1.0, 1.0);
-        fireBase.material.opacity = 0.7; // Full opacity
+        fireBase.material.opacity = 1.0; // Full opacity (gradient texture handles radial fade)
         if (fireArea.userData.fireLight) {
           fireArea.userData.fireLight.intensity = 2.0;
+          // Keep light at exact impact point
+          const lightPos = fireArea.userData.fireLightPosition || fireArea.userData.position.clone();
+          fireArea.userData.fireLight.position.set(lightPos.x, lightPos.y, lightPos.z);
         }
         fireArea.userData.radius = fireArea.userData.initialRadius;
       }
@@ -625,15 +647,18 @@ export class ProjectileManager {
         // Shrink the fire area uniformly - maintain circular shape
         fireBase.scale.set(shrinkFactor, shrinkFactor, shrinkFactor);
         
-        // Fade opacity while shrinking
-        fireBase.material.opacity = 0.7 * shrinkFactor;
+        // Fade opacity while shrinking (gradient texture handles radial fade)
+        fireBase.material.opacity = shrinkFactor;
         
         // Update damage radius to shrink as well
         fireArea.userData.radius = fireArea.userData.initialRadius * shrinkFactor;
         
-        // Fade out light
+        // Fade out light and keep at exact position
         if (fireArea.userData.fireLight) {
           fireArea.userData.fireLight.intensity = 2.0 * shrinkFactor;
+          // Keep light at exact impact point
+          const lightPos = fireArea.userData.fireLightPosition || fireArea.userData.position.clone();
+          fireArea.userData.fireLight.position.set(lightPos.x, lightPos.y, lightPos.z);
         }
       }
       
