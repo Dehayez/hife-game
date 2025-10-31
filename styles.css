@@ -354,7 +354,7 @@ html, body { height: 100%; margin: 0; }
 
 .ui__cooldown-bar {
   width: 100%;
-  height: 8px;
+  height: 12px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   overflow: hidden;
@@ -363,10 +363,14 @@ html, body { height: 100%; margin: 0; }
 
 .ui__cooldown-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6ab89a 0%, #4a90e2 100%);
+  background: rgba(200, 200, 200, 0.4);
   border-radius: 4px;
   transition: width 0.1s linear, opacity 0.1s ease;
   width: 100%;
+}
+
+.ui__cooldown-key {
+  opacity: 0.5;
 }
 
 

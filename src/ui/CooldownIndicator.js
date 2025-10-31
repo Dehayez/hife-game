@@ -21,12 +21,12 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   container.className = 'ui__cooldown-indicator';
   container.style.display = 'none'; // Hidden by default, shown in shooting mode
   
-  // Regular shot cooldown
+  // Regular shot cooldown (will update dynamically based on character)
   const shotIndicator = document.createElement('div');
   shotIndicator.className = 'ui__cooldown-item';
   const shotLabel = document.createElement('div');
   shotLabel.className = 'ui__cooldown-label';
-  shotLabel.textContent = 'Shot (LMB)';
+  shotLabel.innerHTML = 'Shot <span class="ui__cooldown-key">(LMB)</span>'; // Default, will update based on character
   const shotBar = document.createElement('div');
   shotBar.className = 'ui__cooldown-bar';
   const shotFill = document.createElement('div');
@@ -36,12 +36,12 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   shotIndicator.appendChild(shotLabel);
   shotIndicator.appendChild(shotBar);
   
-  // Mortar cooldown
+  // Mortar cooldown (will update dynamically based on character)
   const mortarIndicator = document.createElement('div');
   mortarIndicator.className = 'ui__cooldown-item';
   const mortarLabel = document.createElement('div');
   mortarLabel.className = 'ui__cooldown-label';
-  mortarLabel.textContent = 'Mortar (RMB)';
+  mortarLabel.innerHTML = 'Mortar <span class="ui__cooldown-key">(RMB)</span>'; // Default, will update based on character
   const mortarBar = document.createElement('div');
   mortarBar.className = 'ui__cooldown-bar';
   const mortarFill = document.createElement('div');
@@ -70,6 +70,11 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
       
       // Get character stats for cooldowns
       const stats = projectileManager.getCharacterStats(characterName);
+      
+      // Update labels based on character (fire spells for Herald/Pyre)
+      const isHerald = characterName === 'herald';
+      shotLabel.innerHTML = isHerald ? 'Firebolt <span class="ui__cooldown-key">(LMB)</span>' : 'Shot <span class="ui__cooldown-key">(LMB)</span>';
+      mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RMB)</span>' : 'Mortar <span class="ui__cooldown-key">(RMB)</span>';
       
       // Update shot cooldown
       const shotCooldown = projectileManager.characterCooldowns.get(playerId) || 0;
