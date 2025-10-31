@@ -19,6 +19,7 @@ export class CharacterManager {
     this.jumpForce = 8; // upward velocity when jumping
     this.groundY = 0.6; // ground level (half of playerHeight)
     this.isGrounded = true;
+    this.wasGrounded = true; // Track previous grounded state to detect landing
     this.jumpCooldown = 0;
     this.jumpCooldownTime = .6; // prevent rapid jumping
     
@@ -317,7 +318,15 @@ export class CharacterManager {
     if (this.isGrounded && this.jumpCooldown <= 0) {
       this.velocityY = this.jumpForce;
       this.isGrounded = false;
+      this.wasGrounded = false; // Track that we're jumping
       this.jumpCooldown = this.jumpCooldownTime;
+      
+      // Play jump sound (footstep sound but quieter)
+      if (this.soundManager) {
+        // Check if on obstacle/platform to play appropriate sound
+        const isObstacle = !this.isOnBaseGround();
+        this.soundManager.playJump(isObstacle);
+      }
     }
   }
 
@@ -343,10 +352,19 @@ export class CharacterManager {
     // Character's bottom should be at ground level
     const characterBottom = this.player.position.y - this.playerHeight * 0.5;
     
+    // Track previous grounded state before updating
+    this.wasGrounded = this.isGrounded;
+    
     if (characterBottom <= groundHeight) {
       this.player.position.y = groundHeight + this.playerHeight * 0.5;
       this.velocityY = 0;
       this.isGrounded = true;
+      
+      // Play landing sound if we just landed (transitioned from not grounded to grounded)
+      if (!this.wasGrounded && this.soundManager) {
+        const isObstacle = !this.isOnBaseGround();
+        this.soundManager.playLanding(isObstacle);
+      }
     } else {
       this.isGrounded = false;
     }
@@ -363,6 +381,7 @@ export class CharacterManager {
     // Reset physics
     this.velocityY = 0;
     this.isGrounded = true;
+    this.wasGrounded = true; // Prevent landing sound on respawn
     this.jumpCooldown = 0;
     
     console.log("Player respawned at center of arena!");

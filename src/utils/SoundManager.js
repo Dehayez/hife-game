@@ -86,6 +86,255 @@ export class SoundManager {
   }
 
   /**
+   * Play jump sound when jumping - uses footstep sound but quieter
+   * @param {boolean} isObstacle - If true, plays obstacle/platform footstep sound
+   */
+  playJump(isObstacle = false) {
+    if (!this.soundEnabled) return;
+
+    // Use obstacle footstep audio for obstacle jumps (if available)
+    if (isObstacle && this.obstacleFootstepAudio) {
+      try {
+        const audioClone = this.obstacleFootstepAudio.cloneNode();
+        audioClone.volume = this.masterVolume * 0.6; // 60% of normal volume (quieter)
+        audioClone.currentTime = 0;
+        audioClone.play().catch(err => {
+          if (err.name !== 'NotAllowedError') {
+            console.warn('Error playing jump sound:', err);
+          }
+        });
+        return;
+      } catch (err) {
+        // Fall through to procedural
+      }
+    }
+
+    // Use base footstep audio for base ground jumps (if available)
+    if (!isObstacle && this.footstepAudio) {
+      try {
+        const audioClone = this.footstepAudio.cloneNode();
+        audioClone.volume = this.masterVolume * 0.6; // 60% of normal volume (quieter)
+        audioClone.currentTime = 0;
+        audioClone.play().catch(err => {
+          if (err.name !== 'NotAllowedError') {
+            console.warn('Error playing jump sound:', err);
+          }
+        });
+        return;
+      } catch (err) {
+        // Fall through to procedural
+      }
+    }
+
+    // Fallback to procedural footstep sound but quieter
+    if (!this._ensureAudioContext()) return;
+
+    // Use the same procedural sound as footstep but at reduced volume
+    const now = this.audioContext.currentTime;
+
+    if (isObstacle) {
+      // Obstacle footstep sound but quieter
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(120, now);
+      oscillator.frequency.exponentialRampToValueAtTime(60, now + 0.08);
+
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(this.masterVolume * 0.12, now + 0.005); // Reduced volume
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.08);
+
+      const ringOsc = this.audioContext.createOscillator();
+      const ringGain = this.audioContext.createGain();
+
+      ringOsc.connect(ringGain);
+      ringGain.connect(this.audioContext.destination);
+
+      ringOsc.type = 'sine';
+      ringOsc.frequency.setValueAtTime(400, now);
+      ringOsc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+
+      ringGain.gain.setValueAtTime(0, now);
+      ringGain.gain.linearRampToValueAtTime(this.masterVolume * 0.048, now + 0.01); // Reduced volume
+      ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+      ringOsc.start(now);
+      ringOsc.stop(now + 0.1);
+    } else {
+      // Base ground footstep sound but quieter
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(80, now);
+      oscillator.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(this.masterVolume * 0.09, now + 0.01); // Reduced volume
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.1);
+
+      const clickOsc = this.audioContext.createOscillator();
+      const clickGain = this.audioContext.createGain();
+
+      clickOsc.connect(clickGain);
+      clickGain.connect(this.audioContext.destination);
+
+      clickOsc.type = 'sine';
+      clickOsc.frequency.setValueAtTime(200, now);
+      clickOsc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+
+      clickGain.gain.setValueAtTime(0, now);
+      clickGain.gain.linearRampToValueAtTime(this.masterVolume * 0.03, now + 0.005); // Reduced volume
+      clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+      clickOsc.start(now);
+      clickOsc.stop(now + 0.05);
+    }
+  }
+
+  /**
+   * Play landing sound when jumping and landing
+   * @param {boolean} isObstacle - If true, plays obstacle/platform landing sound
+   */
+  playLanding(isObstacle = false) {
+    if (!this.soundEnabled) return;
+
+    // For landing, we can reuse the footstep sounds but potentially with different volume
+    // Or play a slightly different version. For now, we'll use footstep sounds but louder
+    // to simulate impact. If custom landing sounds are added later, we can load them separately.
+    
+    // Use obstacle footstep audio for obstacle landings (if available)
+    if (isObstacle && this.obstacleFootstepAudio) {
+      try {
+        const audioClone = this.obstacleFootstepAudio.cloneNode();
+        audioClone.volume = this.masterVolume * 1.5; // 50% louder for impact
+        audioClone.currentTime = 0;
+        audioClone.play().catch(err => {
+          if (err.name !== 'NotAllowedError') {
+            console.warn('Error playing landing sound:', err);
+          }
+        });
+        return;
+      } catch (err) {
+        // Fall through to procedural
+      }
+    }
+
+    // Use base footstep audio for base ground landings (if available)
+    if (!isObstacle && this.footstepAudio) {
+      try {
+        const audioClone = this.footstepAudio.cloneNode();
+        audioClone.volume = this.masterVolume * 1.5; // 50% louder for impact
+        audioClone.currentTime = 0;
+        audioClone.play().catch(err => {
+          if (err.name !== 'NotAllowedError') {
+            console.warn('Error playing landing sound:', err);
+          }
+        });
+        return;
+      } catch (err) {
+        // Fall through to procedural
+      }
+    }
+
+    // Fallback to procedural landing sound (louder/deeper than footstep)
+    if (!this._ensureAudioContext()) return;
+
+    const now = this.audioContext.currentTime;
+
+    if (isObstacle) {
+      // Obstacle landing - harder impact with more reverb
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+
+      // Deeper, more impactful sound for obstacle landing
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(100, now);
+      oscillator.frequency.exponentialRampToValueAtTime(50, now + 0.12);
+
+      // Stronger impact envelope
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(this.masterVolume * 0.3, now + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.12);
+
+      // Add metallic impact ring
+      const ringOsc = this.audioContext.createOscillator();
+      const ringGain = this.audioContext.createGain();
+
+      ringOsc.connect(ringGain);
+      ringGain.connect(this.audioContext.destination);
+
+      ringOsc.type = 'sine';
+      ringOsc.frequency.setValueAtTime(350, now);
+      ringOsc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+
+      ringGain.gain.setValueAtTime(0, now);
+      ringGain.gain.linearRampToValueAtTime(this.masterVolume * 0.12, now + 0.015);
+      ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+      ringOsc.start(now);
+      ringOsc.stop(now + 0.15);
+    } else {
+      // Base ground landing - deep thud
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+
+      // Deeper thud for landing impact
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(60, now);
+      oscillator.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+
+      // Stronger impact envelope
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(this.masterVolume * 0.25, now + 0.015);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.15);
+
+      // Add subtle low-frequency rumble
+      const rumbleOsc = this.audioContext.createOscillator();
+      const rumbleGain = this.audioContext.createGain();
+
+      rumbleOsc.connect(rumbleGain);
+      rumbleGain.connect(this.audioContext.destination);
+
+      rumbleOsc.type = 'sine';
+      rumbleOsc.frequency.setValueAtTime(120, now);
+      rumbleOsc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+
+      rumbleGain.gain.setValueAtTime(0, now);
+      rumbleGain.gain.linearRampToValueAtTime(this.masterVolume * 0.08, now + 0.01);
+      rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+      rumbleOsc.start(now);
+      rumbleOsc.stop(now + 0.1);
+    }
+  }
+
+  /**
    * Play footstep sound - uses custom audio file if available, otherwise generates procedural sound
    * @param {boolean} isObstacle - If true, plays obstacle/platform footstep sound
    */
