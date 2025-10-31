@@ -578,13 +578,13 @@ export class ProjectileManager {
       positions[i3 + 1] = 0.1; // Start above fire base circle (which is at 0.05)
       positions[i3 + 2] = radius * Math.sin(angle);
       
-      // Random upward velocity with some spread
-      velocities[i3] = (Math.random() - 0.5) * 0.5;
-      velocities[i3 + 1] = 0.8 + Math.random() * 0.8; // Upward velocity
-      velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+      // Slow upward velocity for fire-like effect with gentle turbulence
+      velocities[i3] = (Math.random() - 0.5) * 0.2; // Gentle horizontal drift
+      velocities[i3 + 1] = 0.3 + Math.random() * 0.2; // Slow upward velocity
+      velocities[i3 + 2] = (Math.random() - 0.5) * 0.2; // Gentle horizontal drift
       
-      // Random lifetime
-      const lifetime = 0.3 + Math.random() * 0.4;
+      // Longer lifetime so particles have time to rise and fade
+      const lifetime = 0.8 + Math.random() * 0.6;
       lifetimes[i] = 0;
       initialLifetimes[i] = lifetime;
     }
@@ -736,21 +736,18 @@ export class ProjectileManager {
             // Update lifetime
             lifetimes[i] += dt;
             
-            // Calculate opacity based on lifetime
-            const lifetimeProgress = lifetimes[i] / initialLifetimes[i];
-            const opacity = Math.max(0, 1.0 - lifetimeProgress);
-            
-            // Move particles upward with velocity and apply gravity
+            // Move particles upward slowly with gentle turbulence (no gravity for fire effect)
             positions[i3] += velocities[i3] * dt;
-            positions[i3 + 1] += velocities[i3 + 1] * dt - 9.8 * dt * dt * 0.5; // Gravity
+            positions[i3 + 1] += velocities[i3 + 1] * dt; // Pure upward movement, no gravity
             positions[i3 + 2] += velocities[i3 + 2] * dt;
             
-            // Update velocity (gravity effect)
-            velocities[i3 + 1] -= 9.8 * dt * 0.5;
+            // Add gentle turbulence/wiggle to horizontal movement (fire-like effect)
+            const turbulence = 0.05;
+            positions[i3] += (Math.random() - 0.5) * turbulence * dt;
+            positions[i3 + 2] += (Math.random() - 0.5) * turbulence * dt;
             
-            // Reduce particle size as they fade
-            const sizeMultiplier = opacity;
-            // Note: We can't individually size points, but we can adjust overall size
+            // Gradually reduce upward velocity as particles rise (simulates air resistance)
+            velocities[i3 + 1] *= (1 - dt * 0.3); // Slow down over time
           }
           // Reset particles that have expired (recycle them) - continue during shrinking phase
           else if (fireArea.userData.particleSpawned && lifetimes[i] >= initialLifetimes[i]) {
@@ -766,13 +763,13 @@ export class ProjectileManager {
               positions[i3 + 1] = 0.1; // Start above fire base circle (which is at 0.05)
               positions[i3 + 2] = radius * Math.sin(angle);
               
-              // Reset velocity
-              velocities[i3] = (Math.random() - 0.5) * 0.5;
-              velocities[i3 + 1] = 0.8 + Math.random() * 0.8;
-              velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+              // Reset velocity - slow upward for fire effect
+              velocities[i3] = (Math.random() - 0.5) * 0.2; // Gentle horizontal drift
+              velocities[i3 + 1] = 0.3 + Math.random() * 0.2; // Slow upward velocity
+              velocities[i3 + 2] = (Math.random() - 0.5) * 0.2; // Gentle horizontal drift
               
-              // Reset lifetime - extend lifetime during shrinking phase
-              const lifetime = 0.3 + Math.random() * 0.4;
+              // Reset lifetime - longer lifetime for particles to rise and fade
+              const lifetime = 0.8 + Math.random() * 0.6;
               lifetimes[i] = 0;
               initialLifetimes[i] = lifetime;
             }
@@ -781,26 +778,57 @@ export class ProjectileManager {
         
         particles.geometry.attributes.position.needsUpdate = true;
         
-        // Update overall particle opacity based on fire phase
-        if (fireArea.userData.lifetime < shrinkDelay + expandDuration) {
-          // Full opacity during hold phase
-          particles.material.opacity = 1.0;
-        } else {
-          // During shrinking phase, gradually fade particles based on shrink progress
-          const timeSinceShrinkStart = fireArea.userData.lifetime - (shrinkDelay + expandDuration);
-          const shrinkProgress = Math.min(timeSinceShrinkStart / shrinkDuration, 1.0);
-          const shrinkFactor = 1.0 - shrinkProgress;
+        // Calculate average opacity based on individual particle lifetimes and heights
+        // This simulates particles fading as they rise and age
+        let totalOpacity = 0;
+        let activeParticleCount = 0;
+        
+        if (fireArea.userData.particleSpawned) {
+          const positions = particles.geometry.attributes.position.array;
           
-          // Fade out gradually during shrinking, more aggressively near end
+          for (let i = 0; i < velocities.length / 3; i++) {
+            const i3 = i * 3;
+            
+            if (lifetimes[i] < initialLifetimes[i]) {
+              // Calculate opacity based on lifetime (fade as particle ages)
+              const lifetimeProgress = lifetimes[i] / initialLifetimes[i];
+              const lifetimeOpacity = Math.max(0, 1.0 - lifetimeProgress);
+              
+              // Also fade based on height (higher particles are more transparent like real fire)
+              const particleHeight = positions[i3 + 1];
+              const maxHeight = 1.5; // Maximum expected height
+              const heightFade = Math.max(0, Math.min(1.0, 1.0 - (particleHeight / maxHeight)));
+              
+              // Combine both fade factors
+              const particleOpacity = Math.min(lifetimeOpacity, heightFade);
+              totalOpacity += particleOpacity;
+              activeParticleCount++;
+            }
+          }
+        }
+        
+        // Set overall particle opacity based on average
+        if (activeParticleCount > 0) {
+          const averageOpacity = totalOpacity / activeParticleCount;
+          
+          // Apply fire phase multiplier
+          let phaseMultiplier = 1.0;
+          if (fireArea.userData.lifetime >= shrinkDelay + expandDuration) {
+            // During shrinking phase, apply additional fade
+            const timeSinceShrinkStart = fireArea.userData.lifetime - (shrinkDelay + expandDuration);
+            const shrinkProgress = Math.min(timeSinceShrinkStart / shrinkDuration, 1.0);
+            phaseMultiplier = 1.0 - shrinkProgress * 0.5; // Additional 50% fade during shrinking
+          }
+          
+          // Final fade near end
           const timeUntilRemoval = fireArea.userData.duration - fireArea.userData.lifetime;
           if (timeUntilRemoval <= 0.3) {
-            // Final fade in last 0.3 seconds
-            const finalFade = Math.max(0, timeUntilRemoval / 0.3);
-            particles.material.opacity = shrinkFactor * finalFade;
-          } else {
-            // Gradual fade during shrinking phase
-            particles.material.opacity = Math.max(0.3, shrinkFactor);
+            phaseMultiplier *= Math.max(0, timeUntilRemoval / 0.3);
           }
+          
+          particles.material.opacity = averageOpacity * phaseMultiplier;
+        } else {
+          particles.material.opacity = 0;
         }
       }
       
