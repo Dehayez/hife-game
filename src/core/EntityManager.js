@@ -130,6 +130,8 @@ export class EntityManager {
     });
     const pillar = new THREE.Mesh(pillarGeo, pillarMat);
     pillar.position.y = 0.75;
+    pillar.castShadow = true;
+    pillar.receiveShadow = true;
     group.add(pillar);
     
     // Crystal top - glowing magical crystal
@@ -145,6 +147,8 @@ export class EntityManager {
     });
     const crystal = new THREE.Mesh(crystalGeo, crystalMat);
     crystal.position.y = 2.1;
+    crystal.castShadow = true;
+    crystal.receiveShadow = true;
     group.add(crystal);
     
     // Magical energy ring around crystal
@@ -159,6 +163,8 @@ export class EntityManager {
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.position.y = 1.8;
     ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    ring.receiveShadow = true;
     group.add(ring);
     
     group.position.set(x, 0, z);
