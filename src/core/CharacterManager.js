@@ -41,6 +41,10 @@ export class CharacterManager {
     this.collisionManager = collisionManager;
   }
 
+  getSoundManager() {
+    return this.soundManager;
+  }
+
   isOnBaseGround() {
     // Check if player is on the base ground (height ≈ 0) vs obstacles (height > 0)
     // Base ground is at height 0, obstacles/walls are at height 1.2
@@ -149,7 +153,6 @@ export class CharacterManager {
     // Load the sound if found
     if (soundPath) {
       this.soundManager.loadFootstepSound(soundPath);
-      console.log(`Loaded footstep sound: ${soundPath}`);
     }
     
     // Load obstacle-specific footstep sound from character folder
@@ -216,7 +219,6 @@ export class CharacterManager {
     // Load obstacle footstep sound if found
     if (obstacleSoundPath) {
       this.soundManager.loadObstacleFootstepSound(obstacleSoundPath);
-      console.log(`Loaded obstacle footstep sound: ${obstacleSoundPath}`);
     } else {
       console.warn(`No obstacle footstep sound found for character: ${name}`);
     }

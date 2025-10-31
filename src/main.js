@@ -113,6 +113,46 @@ initGameModeDisplay({
   characterManager: characterManager
 });
 
+// Background music setup
+// To use background music, provide the path here:
+// Example: '/assets/music/background.mp3' or '/assets/music/background.ogg'
+// Leave as null to disable background music
+const backgroundMusicPath = '/assets/music/background.wav'; // Set to your music file path to use background music
+
+// Initialize background music if path is provided
+if (backgroundMusicPath) {
+  const soundManager = characterManager.getSoundManager();
+  if (soundManager) {
+    // Load and auto-play when ready (will attempt to play automatically when loaded)
+    soundManager.loadBackgroundMusic(backgroundMusicPath);
+    
+    // Fallback: If autoplay is blocked, try again on first user interaction
+    let interactionHandled = false;
+    const tryPlayOnInteraction = () => {
+      if (interactionHandled) return;
+      interactionHandled = true;
+      
+      // Check if music is already playing
+      if (!soundManager.isBackgroundMusicPlaying()) {
+        // Try to play one more time
+        soundManager.playBackgroundMusic();
+      }
+      
+      // Remove all listeners after first interaction
+      document.removeEventListener('click', tryPlayOnInteraction);
+      document.removeEventListener('keydown', tryPlayOnInteraction);
+      document.removeEventListener('touchstart', tryPlayOnInteraction);
+      document.removeEventListener('pointerdown', tryPlayOnInteraction);
+    };
+    
+    // Set up listeners for user interaction as fallback
+    document.addEventListener('click', tryPlayOnInteraction, { once: true });
+    document.addEventListener('keydown', tryPlayOnInteraction, { once: true });
+    document.addEventListener('touchstart', tryPlayOnInteraction, { once: true });
+    document.addEventListener('pointerdown', tryPlayOnInteraction, { once: true });
+  }
+}
+
 // Start the game
 (async () => {
   await characterManager.loadCharacter(characterName);

@@ -1,12 +1,15 @@
 export class SoundManager {
   constructor(customFootstepPath = null, customObstacleFootstepPath = null) {
     this.audioContext = null;
-    this.masterVolume = 0.3; // Default volume (0-1)
+    this.masterVolume = 0.15; // Default volume (0-1)
     this.soundEnabled = true;
     this.customFootstepPath = customFootstepPath;
     this.customObstacleFootstepPath = customObstacleFootstepPath;
     this.footstepAudio = null;
     this.obstacleFootstepAudio = null;
+    this.backgroundMusic = null;
+    this.backgroundMusicPath = null;
+    this.backgroundMusicVolume = 0.2; // Background music volume (0-1), typically lower than sound effects
     this._initAudioContext();
     if (customFootstepPath) {
       this._loadCustomFootstep(customFootstepPath);
@@ -33,9 +36,9 @@ export class SoundManager {
         this.footstepAudio = null;
       });
       
-      // Log successful load
+      // Log successful load (removed console.log for cleaner output)
       this.footstepAudio.addEventListener('canplaythrough', () => {
-        console.log(`Footstep sound loaded successfully: ${path}`);
+        // Sound loaded successfully
       }, { once: true });
       
       // Try to load immediately
@@ -63,9 +66,9 @@ export class SoundManager {
         this.obstacleFootstepAudio = null;
       });
       
-      // Log successful load
+      // Log successful load (removed console.log for cleaner output)
       this.obstacleFootstepAudio.addEventListener('canplaythrough', () => {
-        console.log(`Obstacle footstep sound loaded successfully: ${path}`);
+        // Sound loaded successfully
       }, { once: true });
       
       // Try to load immediately
@@ -509,6 +512,10 @@ export class SoundManager {
     if (this.obstacleFootstepAudio) {
       this.obstacleFootstepAudio.volume = this.masterVolume;
     }
+    // Background music volume is independent, but we can update if needed
+    if (this.backgroundMusic) {
+      this.backgroundMusic.volume = this.backgroundMusicVolume;
+    }
   }
 
   enable() {
@@ -517,6 +524,154 @@ export class SoundManager {
 
   disable() {
     this.soundEnabled = false;
+  }
+
+  /**
+   * Load background music from a file path
+   * @param {string} path - Path to background music file
+   */
+  loadBackgroundMusic(path) {
+    if (!path) {
+      console.warn('Background music path is null or undefined');
+      return;
+    }
+
+    this.backgroundMusicPath = path;
+
+    // Stop and remove existing background music if any
+    if (this.backgroundMusic) {
+      this.stopBackgroundMusic();
+      this.backgroundMusic = null;
+    }
+
+    try {
+      this.backgroundMusic = new Audio(path);
+      this.backgroundMusic.volume = this.backgroundMusicVolume;
+      this.backgroundMusic.loop = true;
+      this.backgroundMusic.preload = 'auto';
+
+      // Handle loading errors gracefully
+      this.backgroundMusic.addEventListener('error', (e) => {
+        console.warn(`Failed to load background music from ${path}:`, e);
+        this.backgroundMusic = null;
+      });
+
+      // Auto-play when loaded
+      this.backgroundMusic.addEventListener('canplaythrough', () => {
+        // Attempt to play automatically when ready
+        // Check after a short delay if it actually started
+        this.playBackgroundMusic();
+        setTimeout(() => {
+          if (!this.isBackgroundMusicPlaying()) {
+            // Music didn't start, will need user interaction
+            this._backgroundMusicPlaying = false;
+          }
+        }, 100);
+      }, { once: true });
+
+      // Try to load immediately
+      this.backgroundMusic.load();
+    } catch (error) {
+      console.warn(`Error creating background music audio from ${path}:`, error);
+      this.backgroundMusic = null;
+    }
+  }
+
+  /**
+   * Play background music (loops automatically)
+   */
+  playBackgroundMusic() {
+    if (!this.backgroundMusic) {
+      console.warn('Background music not loaded. Cannot play.');
+      return;
+    }
+
+    if (!this.soundEnabled) {
+      console.warn('Sound is disabled. Cannot play background music.');
+      return;
+    }
+
+    // Note: AudioContext is not needed for HTML5 Audio elements (background music)
+    // It's only used for procedural sounds via Web Audio API
+
+    try {
+      const playPromise = this.backgroundMusic.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Mark that we successfully started playing
+            this._backgroundMusicPlaying = true;
+          })
+          .catch(err => {
+            // Silently handle autoplay blocking - it's expected behavior in browsers
+            if (err.name !== 'NotAllowedError') {
+              console.warn('Error playing background music:', err);
+            }
+            // Mark that we need user interaction
+            this._backgroundMusicPlaying = false;
+          });
+      }
+    } catch (err) {
+      // Silently handle autoplay blocking - it's expected behavior in browsers
+      if (err.name !== 'NotAllowedError') {
+        console.warn('Error playing background music:', err);
+      }
+      this._backgroundMusicPlaying = false;
+    }
+  }
+
+  /**
+   * Pause background music
+   */
+  pauseBackgroundMusic() {
+    if (!this.backgroundMusic) return;
+
+    try {
+      this.backgroundMusic.pause();
+    } catch (err) {
+      console.warn('Error pausing background music:', err);
+    }
+  }
+
+  /**
+   * Stop background music (pauses and resets to beginning)
+   */
+  stopBackgroundMusic() {
+    if (!this.backgroundMusic) return;
+
+    try {
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+    } catch (err) {
+      console.warn('Error stopping background music:', err);
+    }
+  }
+
+  /**
+   * Set background music volume (separate from sound effects)
+   * @param {number} volume - Volume level (0-1)
+   */
+  setBackgroundMusicVolume(volume) {
+    this.backgroundMusicVolume = Math.max(0, Math.min(1, volume));
+    if (this.backgroundMusic) {
+      this.backgroundMusic.volume = this.backgroundMusicVolume;
+    }
+  }
+
+  /**
+   * Get current background music volume
+   * @returns {number} Current background music volume (0-1)
+   */
+  getBackgroundMusicVolume() {
+    return this.backgroundMusicVolume;
+  }
+
+  /**
+   * Check if background music is currently playing
+   * @returns {boolean} True if background music is playing
+   */
+  isBackgroundMusicPlaying() {
+    return this.backgroundMusic && !this.backgroundMusic.paused && !this.backgroundMusic.ended;
   }
 }
 
