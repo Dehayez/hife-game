@@ -9,7 +9,7 @@ export class CharacterManager {
     this.animations = null;
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
-    this.playerSize = 0.8;
+    this.playerSize = 0.5;
     this.playerHeight = 1.2;
     this.characterName = 'lucy';
     
