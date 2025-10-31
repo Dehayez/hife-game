@@ -193,6 +193,10 @@ export class CharacterManager {
     const camYaw = camera.rotation.y;
     this.player.rotation.set(0, camYaw, 0);
 
+    // Track previous animation to detect transitions
+    const prevAnimKey = this.currentAnimKey;
+    const wasIdle = prevAnimKey === 'idle_front' || prevAnimKey === 'idle_back';
+
     // Choose animation based on movement, jumping state, and last facing (front/back)
     if (this.isJumping()) {
       // Use idle animation when jumping (can be replaced with jump animations later)
@@ -202,7 +206,16 @@ export class CharacterManager {
       if (Math.abs(velocity.z) > 1e-4) {
         this.lastFacing = velocity.z < 0 ? 'back' : 'front';
       }
-      this.setCurrentAnim(this.lastFacing === 'back' ? 'walk_back' : 'walk_front');
+      const newAnimKey = this.lastFacing === 'back' ? 'walk_back' : 'walk_front';
+      this.setCurrentAnim(newAnimKey);
+      
+      // Play footstep sound immediately when starting to move (transitioning from idle to walk)
+      // Check if animation actually changed to walk animation
+      // This ensures sound plays even on a single key press
+      const nowWalking = this.currentAnimKey === 'walk_front' || this.currentAnimKey === 'walk_back';
+      if (wasIdle && nowWalking && this.isGrounded) {
+        this.soundManager.playFootstep();
+      }
     } else {
       this.setCurrentAnim(this.lastFacing === 'back' ? 'idle_back' : 'idle_front');
     }
