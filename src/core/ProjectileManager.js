@@ -560,6 +560,49 @@ export class ProjectileManager {
     fireBase.scale.set(0, 0, 0); // Start at impact point (scale 0)
     fireContainer.add(fireBase);
     
+    // Create fire particle system
+    const particleCount = 20;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = new Float32Array(particleCount * 3);
+    const lifetimes = new Float32Array(particleCount);
+    const initialLifetimes = new Float32Array(particleCount);
+    
+    // Initialize particles
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      // Random position within splash radius
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.random() * splashRadius;
+      positions[i3] = radius * Math.cos(angle);
+      positions[i3 + 1] = 0;
+      positions[i3 + 2] = radius * Math.sin(angle);
+      
+      // Random upward velocity with some spread
+      velocities[i3] = (Math.random() - 0.5) * 0.5;
+      velocities[i3 + 1] = 0.8 + Math.random() * 0.8; // Upward velocity
+      velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+      
+      // Random lifetime
+      const lifetime = 0.3 + Math.random() * 0.4;
+      lifetimes[i] = 0;
+      initialLifetimes[i] = lifetime;
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const particleMaterial = new THREE.PointsMaterial({
+      color: characterColor,
+      size: 0.15,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    fireContainer.add(particles);
+    
     // Add point light for fire glow - positioned at exact impact point
     const fireLight = new THREE.PointLight(characterColor, 2.0, splashRadius * 2);
     fireLight.position.set(x, y + 0.3, z); // Position at exact impact point, slightly above ground
@@ -580,7 +623,13 @@ export class ProjectileManager {
       position: new THREE.Vector3(x, y, z), // Exact impact position
       fireLight: fireLight,
       fireLightPosition: new THREE.Vector3(x, y + 0.3, z), // Store light position
-      hasDamaged: new Set() // Track who has been damaged this tick
+      hasDamaged: new Set(), // Track who has been damaged this tick
+      particles: particles,
+      particleVelocities: velocities,
+      particleLifetimes: lifetimes,
+      particleInitialLifetimes: initialLifetimes,
+      particleGeometry: particleGeometry,
+      particleSpawned: false
     };
     
     this.scene.add(fireContainer);
@@ -661,6 +710,96 @@ export class ProjectileManager {
           // Keep light at exact impact point
           const lightPos = fireArea.userData.fireLightPosition || fireArea.userData.position.clone();
           fireArea.userData.fireLight.position.set(lightPos.x, lightPos.y, lightPos.z);
+        }
+      }
+      
+      // Update fire particles
+      if (fireArea.userData.particles && fireArea.userData.particleVelocities) {
+        const particles = fireArea.userData.particles;
+        const velocities = fireArea.userData.particleVelocities;
+        const lifetimes = fireArea.userData.particleLifetimes;
+        const initialLifetimes = fireArea.userData.particleInitialLifetimes;
+        const positions = particles.geometry.attributes.position.array;
+        
+        // Start emitting particles after expansion phase
+        if (!fireArea.userData.particleSpawned && fireArea.userData.lifetime >= expandDuration) {
+          fireArea.userData.particleSpawned = true;
+        }
+        
+        // Update particle positions and lifetimes
+        for (let i = 0; i < velocities.length / 3; i++) {
+          const i3 = i * 3;
+          
+          // Only update if particles should be visible
+          if (fireArea.userData.particleSpawned && lifetimes[i] < initialLifetimes[i]) {
+            // Update lifetime
+            lifetimes[i] += dt;
+            
+            // Calculate opacity based on lifetime
+            const lifetimeProgress = lifetimes[i] / initialLifetimes[i];
+            const opacity = Math.max(0, 1.0 - lifetimeProgress);
+            
+            // Move particles upward with velocity and apply gravity
+            positions[i3] += velocities[i3] * dt;
+            positions[i3 + 1] += velocities[i3 + 1] * dt - 9.8 * dt * dt * 0.5; // Gravity
+            positions[i3 + 2] += velocities[i3 + 2] * dt;
+            
+            // Update velocity (gravity effect)
+            velocities[i3 + 1] -= 9.8 * dt * 0.5;
+            
+            // Reduce particle size as they fade
+            const sizeMultiplier = opacity;
+            // Note: We can't individually size points, but we can adjust overall size
+          }
+          // Reset particles that have expired (recycle them) - continue during shrinking phase
+          else if (fireArea.userData.particleSpawned && lifetimes[i] >= initialLifetimes[i]) {
+            // Continue recycling particles during all phases, including shrinking
+            // Only stop recycling in the last 0.3 seconds before fire area removal
+            const timeUntilRemoval = fireArea.userData.duration - fireArea.userData.lifetime;
+            if (timeUntilRemoval > 0.3) {
+              // Reset particle to spawn position - use current radius for shrinking phase
+              const angle = Math.random() * Math.PI * 2;
+              const currentRadius = fireArea.userData.radius || fireArea.userData.initialRadius;
+              const radius = Math.random() * currentRadius;
+              positions[i3] = radius * Math.cos(angle);
+              positions[i3 + 1] = 0;
+              positions[i3 + 2] = radius * Math.sin(angle);
+              
+              // Reset velocity
+              velocities[i3] = (Math.random() - 0.5) * 0.5;
+              velocities[i3 + 1] = 0.8 + Math.random() * 0.8;
+              velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+              
+              // Reset lifetime - extend lifetime during shrinking phase
+              const lifetime = 0.3 + Math.random() * 0.4;
+              lifetimes[i] = 0;
+              initialLifetimes[i] = lifetime;
+            }
+          }
+        }
+        
+        particles.geometry.attributes.position.needsUpdate = true;
+        
+        // Update overall particle opacity based on fire phase
+        if (fireArea.userData.lifetime < shrinkDelay + expandDuration) {
+          // Full opacity during hold phase
+          particles.material.opacity = 1.0;
+        } else {
+          // During shrinking phase, gradually fade particles based on shrink progress
+          const timeSinceShrinkStart = fireArea.userData.lifetime - (shrinkDelay + expandDuration);
+          const shrinkProgress = Math.min(timeSinceShrinkStart / shrinkDuration, 1.0);
+          const shrinkFactor = 1.0 - shrinkProgress;
+          
+          // Fade out gradually during shrinking, more aggressively near end
+          const timeUntilRemoval = fireArea.userData.duration - fireArea.userData.lifetime;
+          if (timeUntilRemoval <= 0.3) {
+            // Final fade in last 0.3 seconds
+            const finalFade = Math.max(0, timeUntilRemoval / 0.3);
+            particles.material.opacity = shrinkFactor * finalFade;
+          } else {
+            // Gradual fade during shrinking phase
+            particles.material.opacity = Math.max(0.3, shrinkFactor);
+          }
         }
       }
       
