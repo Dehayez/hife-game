@@ -37,8 +37,9 @@ export class SceneManager {
     // Magical forest sky - dark with mystical purple-green tones
     this.scene.background = new THREE.Color(0x0a1a1f);
     
-    // Add fog for mystical atmosphere
-    this.scene.fog = new THREE.FogExp2(0x0a1a1f, 0.02);
+    // Add enhanced fog for mystical atmosphere
+    // Using FogExp2 for smooth exponential fog that becomes denser with distance
+    this.scene.fog = new THREE.FogExp2(0x0a1a1f, 0.045);
   }
 
   _setupCamera() {
