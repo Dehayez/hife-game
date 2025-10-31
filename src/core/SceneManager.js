@@ -57,7 +57,7 @@ export class SceneManager {
     
     // Moonlight directional light positioned at moon location
     // Position at same location as moon, pointing toward center
-    const moonLight = new THREE.DirectionalLight(0xaaccff, 3); // Cool blue-white moonlight
+    const moonLight = new THREE.DirectionalLight(0xaaccff, 2); // Cool blue-white moonlight
     moonLight.position.set(-27, 16, -40); // Same position as moon
     moonLight.target.position.set(0, 0, 0); // Point toward center
     moonLight.castShadow = true;
@@ -123,8 +123,55 @@ export class SceneManager {
     moon.castShadow = false;
     moon.receiveShadow = false;
     
+    // Add radiant glow behind moon using sprite with radial gradient
+    // Parameters: size, color, alphaStart (center opacity), alphaEnd (edge opacity)
+    const glowTexture = this._createRadialGradientTexture(512, 0xaaccff, 1.3, 0);
+    const glowMaterial = new THREE.SpriteMaterial({
+      map: glowTexture,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      fog: false
+    });
+    const glow = new THREE.Sprite(glowMaterial);
+    
+    // Position glow behind the moon (further away in negative Z)
+    glow.position.set(-28, 2, -42);
+    glow.scale.set(8, 8, 1); // Large sprite size for visible glow
+    
+    this.scene.add(glow);
     this.scene.add(moon);
     this.moon = moon;
+    this.moonGlow = glow;
+  }
+
+  _createRadialGradientTexture(size = 512, color = 0xaaccff, alphaStart = 0, alphaEnd = 0) {
+    // Convert hex color to RGB
+    const r = (color >> 16) & 255;
+    const g = (color >> 8) & 255;
+    const b = color & 255;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext('2d');
+    
+    // Create radial gradient from center to edges
+    const gradient = context.createRadialGradient(
+      size / 2, size / 2, 0,           // Inner circle (center, radius 0)
+      size / 2, size / 2, size / 2      // Outer circle (center, radius size/2)
+    );
+    
+    // Add color stops for smooth gradient fade
+    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alphaStart})`);
+    gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${alphaStart * 0.1})`);
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${alphaEnd})`);
+    
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
   }
 
   _setupGround() {
