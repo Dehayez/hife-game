@@ -195,7 +195,14 @@ export class LargeArenaCollisionManager {
     );
     
     for (const wall of this.walls) {
-      const wallBox = this.getAABBFor(wall);
+      let wallBox = this.getAABBFor(wall);
+      
+      // In survival mode, extend collision box height to prevent jumping over walls
+      if (this.gameModeManager && this.gameModeManager.getMode() === 'survival') {
+        wallBox = wallBox.clone();
+        wallBox.max.y = 5.0; // Extend to 5 units high to prevent jumping over
+      }
+      
       if (playerBox.intersectsBox(wallBox)) return true;
     }
     
