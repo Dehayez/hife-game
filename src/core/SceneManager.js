@@ -471,17 +471,21 @@ export class SceneManager {
     ];
     
     eyeConfigs.forEach((eyeConfig, index) => {
-      // Create sphere for eye glow
-      const eyeGeo = new THREE.SphereGeometry(eyeConfig.size, 8, 8);
-      const eyeMat = new THREE.MeshBasicMaterial({ 
+      // Create sphere for eye glow with moon reflection
+      const eyeGeo = new THREE.SphereGeometry(eyeConfig.size, 16, 16);
+      const eyeMat = new THREE.MeshStandardMaterial({ 
         color: 0xff0000,
         emissive: 0xff0000,
-        emissiveIntensity: 5.0,
+        emissiveIntensity: 0.8,
+        roughness: 0.1, // Low roughness for glossy reflection
+        metalness: 0.3, // Some metalness for moon reflection
         transparent: true,
         opacity: 0 // Start closed
       });
       const eyeMesh = new THREE.Mesh(eyeGeo, eyeMat);
       eyeMesh.position.set(eyeConfig.x, eyeConfig.y, eyeConfig.z);
+      eyeMesh.castShadow = false;
+      eyeMesh.receiveShadow = false;
       this.scene.add(eyeMesh);
       
       this.blinkingEyes.push(eyeMesh);
@@ -536,7 +540,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 0.01 + openScale * 0.99, 1);
           eye.material.opacity = opacity;
-          eye.material.emissiveIntensity = opacity * 5.0;
+          eye.material.emissiveIntensity = opacity * 0.8;
         });
         
         // After opening, go to open state
@@ -550,7 +554,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 1, 1);
           eye.material.opacity = 1;
-          eye.material.emissiveIntensity = 5.0;
+          eye.material.emissiveIntensity = 0.8;
         });
         
         // After some time, blink
@@ -597,7 +601,7 @@ export class SceneManager {
         this.blinkingEyes.forEach(eye => {
           eye.scale.set(1, 0.01 + closeScale * 0.99, 1);
           eye.material.opacity = opacity;
-          eye.material.emissiveIntensity = opacity * 5.0;
+          eye.material.emissiveIntensity = opacity * 0.8;
         });
         
         // After closing, go to closed state
