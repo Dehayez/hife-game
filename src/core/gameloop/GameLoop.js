@@ -8,6 +8,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getCharacterColor, getMeleeStats } from '../projectile/CharacterStats.js';
 import { setLastCharacter } from '../../utils/StorageUtils.js';
+import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../projectile/MortarArcPreview.js';
 
 export class GameLoop {
   /**
@@ -66,6 +67,9 @@ export class GameLoop {
     
     // Callback to update character UI when character changes via controller
     this.characterUIUpdateCallback = null;
+    
+    // Mortar arc preview visualization
+    this.mortarArcPreview = null; // Reference to arc preview line
   }
 
   /**
@@ -82,6 +86,12 @@ export class GameLoop {
    */
   stop() {
     this.isRunning = false;
+    
+    // Clean up arc preview when stopping
+    if (this.mortarArcPreview) {
+      removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+      this.mortarArcPreview = null;
+    }
   }
 
   /**
@@ -165,6 +175,12 @@ export class GameLoop {
         );
       }
       this._handleShootingMode(dt, player);
+    } else {
+      // Clean up arc preview when not in shooting mode
+      if (this.mortarArcPreview) {
+        removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+        this.mortarArcPreview = null;
+      }
     }
     
     // Handle jump input
@@ -558,6 +574,9 @@ export class GameLoop {
     }
     this.lastMortarInput = mortarInput;
     
+    // Update mortar arc preview when right joystick is active
+    this._updateMortarArcPreview(player);
+    
     // Check projectile collisions
     this._handleProjectileCollisions(player);
     
@@ -818,6 +837,97 @@ export class GameLoop {
         targetZ: targetZ,
         characterName: characterName
       });
+    }
+  }
+
+  /**
+   * Update mortar arc preview visualization
+   * Shows predicted trajectory when right joystick is active
+   * @param {THREE.Mesh} player - Player mesh
+   * @private
+   */
+  _updateMortarArcPreview(player) {
+    const playerPos = player.position;
+    const characterName = this.characterManager.getCharacterName();
+    
+    // Check if right joystick is active for aiming
+    const rightJoystickDir = this.inputManager.getRightJoystickDirection();
+    const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
+    
+    // Only show arc preview when right joystick is actively being pushed
+    if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
+      // Calculate target position (same logic as _handleMortarInput)
+      const camera = this.sceneManager.getCamera();
+      
+      // Get camera forward and right vectors (in world space)
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      
+      // Create a right vector perpendicular to camera direction (in XZ plane)
+      const cameraRight = new THREE.Vector3();
+      cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+      
+      // Create a forward vector in XZ plane (project camera direction onto ground)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+      
+      // Map joystick input to camera-relative direction
+      let directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
+      let directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+      
+      // Normalize direction
+      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (dirLength > 0.001) {
+        directionX /= dirLength;
+        directionZ /= dirLength;
+      }
+      
+      // Get joystick magnitude to scale distance (0 = character position, 1 = max range)
+      const magnitude = this.inputManager.getRightJoystickMagnitude();
+      const maxDistance = 10; // Maximum mortar distance
+      
+      // Scale distance based on magnitude (center = 0, max push = maxDistance)
+      const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
+      const normalizedMagnitude = Math.max(0, Math.min(1, (magnitude - deadZoneMagnitude) / (1 - deadZoneMagnitude)));
+      const targetDistance = normalizedMagnitude * maxDistance;
+      
+      // Calculate target point in the direction of the joystick
+      const targetX = playerPos.x + directionX * targetDistance;
+      const targetZ = playerPos.z + directionZ * targetDistance;
+      
+      // Create or update arc preview
+      if (!this.mortarArcPreview) {
+        // Create new arc preview
+        this.mortarArcPreview = createMortarArcPreview(
+          this.sceneManager.getScene(),
+          playerPos.x,
+          playerPos.y,
+          playerPos.z,
+          targetX,
+          targetZ,
+          characterName,
+          this.collisionManager
+        );
+        // Add to scene (createMortarArcPreview doesn't add it automatically)
+        this.sceneManager.getScene().add(this.mortarArcPreview);
+      } else {
+        // Update existing arc preview
+        updateMortarArcPreview(
+          this.mortarArcPreview,
+          playerPos.x,
+          playerPos.y,
+          playerPos.z,
+          targetX,
+          targetZ,
+          characterName,
+          this.collisionManager
+        );
+      }
+    } else {
+      // Remove arc preview when joystick is not active
+      if (this.mortarArcPreview) {
+        removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+        this.mortarArcPreview = null;
+      }
     }
   }
 
