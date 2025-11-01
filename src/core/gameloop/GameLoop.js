@@ -252,7 +252,27 @@ export class GameLoop {
     
     // Update character animation
     this.characterManager.updateAnimation(dt, this.inputManager.isRunning());
-
+    
+    // Update death fade effect
+    const fadeComplete = this.characterManager.updateDeathFade(dt);
+    
+    // Handle respawn if death fade is complete
+    if (fadeComplete) {
+      // Death fade complete - respawn
+      if (this.gameModeManager && this.gameModeManager.modeState) {
+        this.gameModeManager.modeState.deaths++;
+      }
+      const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
+      this.characterManager.respawn(currentMode, this.collisionManager);
+      
+      // Update userData after respawn
+      const player = this.characterManager.getPlayer();
+      if (player && player.userData) {
+        player.userData.health = this.characterManager.getHealth();
+        player.userData.maxHealth = this.characterManager.getMaxHealth();
+      }
+    }
+    
     // Update smoke particles
     if (this.characterManager.particleManager) {
       this.characterManager.particleManager.update(dt);
@@ -328,9 +348,7 @@ export class GameLoop {
                 const botDied = this.botManager.damageBot(bot, damagePerTick);
                 if (botDied) {
                   this.meleeAffectedEntities.delete(bot);
-                  setTimeout(() => {
-                    this.botManager.respawnBot(bot);
-                  }, 2000);
+                  // Don't respawn immediately - death fade will handle it
                 }
               } else {
                 // Remove from tracking if out of range
@@ -472,9 +490,7 @@ export class GameLoop {
             const botDied = this.botManager.damageBot(entity, poisonData.damage);
             if (botDied) {
               entitiesToRemove.push(entity);
-              setTimeout(() => {
-                this.botManager.respawnBot(entity);
-              }, 2000);
+              // Don't respawn immediately - death fade will handle it
             }
           } else if (poisonData.type === 'remote' && this.remotePlayerManager && this.multiplayerManager) {
             const mesh = entity;
@@ -884,11 +900,7 @@ export class GameLoop {
         
         if (botCollision.hit) {
           const botDied = this.botManager.damageBot(bot, botCollision.damage);
-          if (botDied) {
-            setTimeout(() => {
-              this.botManager.respawnBot(bot);
-            }, 2000);
-          }
+          // Don't respawn immediately - death fade will handle it
         }
         
         // Check mortar ground explosions for bots
@@ -911,11 +923,7 @@ export class GameLoop {
             );
           }
           
-          if (botDied) {
-            setTimeout(() => {
-              this.botManager.respawnBot(bot);
-            }, 2000);
-          }
+          // Don't respawn immediately - death fade will handle it
         }
       }
     }
@@ -949,24 +957,14 @@ export class GameLoop {
       }
       
       if (isDead) {
-        // Player died - play death animation first
-        this.characterManager.playDeathAnimation();
+        // Player died - play death animation and start fade out
+        // Only trigger once (check if already dying)
+        if (!this.characterManager.isDying()) {
+          this.characterManager.playDeathAnimation();
+        }
         
-        // Wait a bit before respawning (let death animation play)
-        setTimeout(() => {
-          // Player died - respawn
-          if (this.gameModeManager && this.gameModeManager.modeState) {
-            this.gameModeManager.modeState.deaths++;
-          }
-          const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
-          this.characterManager.respawn(currentMode, this.collisionManager);
-          
-          // Update userData after respawn
-          if (player && player.userData) {
-            player.userData.health = this.characterManager.getHealth();
-            player.userData.maxHealth = this.characterManager.getMaxHealth();
-          }
-        }, 500); // Wait 500ms for death animation
+        // Don't respawn immediately - wait for fade to complete
+        // Respawn will happen in update() when fade completes
       }
     }
   }
@@ -980,8 +978,14 @@ export class GameLoop {
    * @private
    */
   _handleMovement(dt, player, input, canMove) {
+    // Don't allow movement during death fade
+    if (this.characterManager.isDying()) {
+      // Keep character idle during death fade
+      this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera(), false);
+      return;
+    }
+    
     if (canMove) {
-      // Calculate intended next position on XZ plane
       const currentSpeed = this.inputManager.getCurrentSpeed();
       const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
       const nextPos = player.position.clone().add(velocity);

@@ -80,7 +80,7 @@ const remotePlayerManager = new RemotePlayerManager(sceneManager.getScene());
 const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager, particleManager);
 
 // Initialize bot manager for shooting mode
-const botManager = new BotManager(sceneManager.getScene(), collisionManager, projectileManager);
+const botManager = new BotManager(sceneManager.getScene(), collisionManager, projectileManager, particleManager);
 
 // Initialize health bar manager (camera will be set later)
 const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);

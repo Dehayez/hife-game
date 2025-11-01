@@ -73,6 +73,11 @@ export class CharacterManager {
     // Particle manager reference
     this.particleManager = null;
     
+    // Death fade tracking
+    this._isDying = false;
+    this.deathFadeTimer = 0;
+    this.deathFadeDuration = 0.6; // Duration in seconds for death fade
+    
     // Smoke particle spawn timer
     const particleStats = getCharacterParticleStats();
     this.smokeSpawnTimer = 0;
@@ -277,6 +282,14 @@ export class CharacterManager {
   }
 
   /**
+   * Check if character is currently dying (fading out)
+   * @returns {boolean} True if dying
+   */
+  isDying() {
+    return this._isDying;
+  }
+
+  /**
    * Get character name
    * @returns {string} Character name
    */
@@ -361,6 +374,10 @@ export class CharacterManager {
   respawn(gameMode = null, collisionManager = null) {
     if (!this.player) return;
     
+    // Reset death state
+    this._isDying = false;
+    this.deathFadeTimer = 0;
+    
     // Use collision manager from this instance if not provided
     const colManager = collisionManager || this.collisionManager;
     respawnCharacterPhysics(this.player, this.characterData, gameMode, colManager);
@@ -370,6 +387,12 @@ export class CharacterManager {
       this.player.userData.health = this.characterData.health;
       this.player.userData.maxHealth = this.characterData.maxHealth;
     }
+    
+    // Reset opacity and scale
+    if (this.player.material) {
+      this.player.material.opacity = 1.0;
+    }
+    this.player.scale.set(1, 1, 1);
     
     // Play spawn animation
     this.playSpawnAnimation();
@@ -458,15 +481,89 @@ export class CharacterManager {
     if (!this.animations || !this.player) return;
     
     const animKey = this.lastFacing === 'back' ? 'death_back' : 'death_front';
+    const idleKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
+    
+    // Check if death animation actually exists (not a fallback to idle)
+    const deathAnim = this.animations[animKey];
+    const idleAnim = this.animations[idleKey];
+    
+    // If death animation is actually the idle animation (fallback), skip animation
+    if (deathAnim === idleAnim) {
+      // Death animation doesn't exist, start fade out immediately
+      this.startDeathFade();
+      return;
+    }
+    
     const newKey = setCharacterAnimation(
       this.player,
       animKey,
       this.animations,
       this.currentAnimKey,
-      true
+      true,
+      () => {
+        // When death animation completes, start fade out
+        this.startDeathFade();
+      }
     );
     
     this.currentAnimKey = newKey;
+    
+    // Start fade out immediately (particles will spawn)
+    this.startDeathFade();
+  }
+
+  /**
+   * Start death fade effect
+   */
+  startDeathFade() {
+    if (!this.player) return;
+    
+    this._isDying = true;
+    this.deathFadeTimer = 0;
+    
+    // Spawn death particles
+    if (this.particleManager) {
+      const characterColor = this.getCharacterName() === 'herald' ? 0xf5ba0b : 0x9c57b6;
+      this.particleManager.spawnDeathParticles(this.player.position.clone(), characterColor, 25);
+    }
+  }
+
+  /**
+   * Update death fade effect
+   * @param {number} dt - Delta time in seconds
+   * @returns {boolean} True if fade is complete
+   */
+  updateDeathFade(dt) {
+    if (!this._isDying || !this.player) return false;
+    
+    this.deathFadeTimer += dt;
+    const progress = Math.min(this.deathFadeTimer / this.deathFadeDuration, 1.0);
+    
+    // Fade out character opacity
+    if (this.player.material) {
+      this.player.material.opacity = 1.0 - progress;
+      this.player.material.transparent = true;
+    }
+    
+    // Also scale down slightly
+    const scale = 1.0 - progress * 0.3; // Shrink to 70% size
+    this.player.scale.set(scale, scale, scale);
+    
+    if (progress >= 1.0) {
+      // Fade complete - reset state
+      this._isDying = false;
+      this.deathFadeTimer = 0;
+      
+      // Reset opacity and scale
+      if (this.player.material) {
+        this.player.material.opacity = 1.0;
+      }
+      this.player.scale.set(1, 1, 1);
+      
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -476,6 +573,20 @@ export class CharacterManager {
     if (!this.animations || !this.player) return;
     
     const animKey = this.lastFacing === 'back' ? 'spawn_back' : 'spawn_front';
+    const idleKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
+    
+    // Check if spawn animation actually exists (not a fallback to idle)
+    const spawnAnim = this.animations[animKey];
+    const idleAnim = this.animations[idleKey];
+    
+    // If spawn animation is actually the idle animation (fallback), skip animation
+    if (spawnAnim === idleAnim) {
+      // Spawn animation doesn't exist, just set to idle immediately
+      this.currentAnimKey = idleKey;
+      this.setCurrentAnim(this.currentAnimKey, true);
+      return;
+    }
+    
     const newKey = setCharacterAnimation(
       this.player,
       animKey,
@@ -484,7 +595,7 @@ export class CharacterManager {
       true,
       () => {
         // When spawn animation completes, return to idle
-        this.currentAnimKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
+        this.currentAnimKey = idleKey;
         this.setCurrentAnim(this.currentAnimKey, true);
       }
     );

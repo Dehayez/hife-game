@@ -460,6 +460,77 @@ export class ParticleManager {
   }
 
   /**
+   * Spawn death particles at position (character-colored, upward floating particles)
+   * @param {THREE.Vector3} position - Spawn position (character position)
+   * @param {number} characterColor - Character color (hex number)
+   * @param {number} particleCount - Number of particles (default: 20)
+   */
+  spawnDeathParticles(position, characterColor, particleCount = 20) {
+    // Convert hex to Color
+    const baseColor = new THREE.Color(characterColor);
+    
+    for (let i = 0; i < particleCount; i++) {
+      // Create death particle - smaller than impact particles
+      const size = 0.08 + Math.random() * 0.08;
+      const geometry = new THREE.PlaneGeometry(size, size);
+      
+      // Character color with variation, slightly dimmed
+      const particleColor = new THREE.Color(
+        Math.min(1, baseColor.r * 0.7 + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.g * 0.7 + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.b * 0.7 + (Math.random() - 0.5) * 0.3)
+      );
+      
+      const material = new THREE.MeshBasicMaterial({
+        color: particleColor,
+        transparent: true,
+        opacity: 0.6 + Math.random() * 0.4,
+        side: THREE.DoubleSide,
+        alphaTest: 0.05,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      
+      const particle = new THREE.Mesh(geometry, material);
+      
+      // Position particle around character (smaller spread than impact)
+      const angle = Math.random() * Math.PI * 2;
+      const elevation = (Math.random() - 0.5) * Math.PI * 0.4; // Less vertical spread
+      const distance = Math.random() * 0.3; // Smaller spread radius
+      
+      particle.position.copy(position);
+      particle.position.x += Math.cos(angle) * Math.cos(elevation) * distance;
+      particle.position.y += Math.sin(elevation) * distance + 0.3; // Start slightly above character
+      particle.position.z += Math.sin(angle) * Math.cos(elevation) * distance;
+      
+      // Velocity: upward and outward, slower than impact particles
+      const speed = 1 + Math.random() * 1.5;
+      const dirX = Math.cos(angle) * Math.cos(elevation) * 0.3;
+      const dirY = 0.8 + Math.random() * 0.5; // Mostly upward
+      const dirZ = Math.sin(angle) * Math.cos(elevation) * 0.3;
+      
+      particle.userData = {
+        velocity: new THREE.Vector3(dirX * speed, dirY * speed, dirZ * speed),
+        lifetime: 0,
+        maxLifetime: 0.8 + Math.random() * 0.4, // Longer lifetime
+        initialSize: size,
+        initialOpacity: material.opacity
+      };
+      
+      this.scene.add(particle);
+      this.smokeParticles.push(particle);
+      
+      // Remove oldest particles if we exceed max
+      if (this.smokeParticles.length > this.maxParticles) {
+        const oldest = this.smokeParticles.shift();
+        this.scene.remove(oldest);
+        oldest.geometry.dispose();
+        oldest.material.dispose();
+      }
+    }
+  }
+
+  /**
    * Clear all particles
    */
   clear() {

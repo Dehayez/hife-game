@@ -23,11 +23,13 @@ export class BotManager {
    * @param {Object} scene - THREE.js scene
    * @param {Object} collisionManager - Collision manager for wall/ground checks
    * @param {Object} projectileManager - Projectile manager for shooting
+   * @param {Object} particleManager - Optional particle manager for death effects
    */
-  constructor(scene, collisionManager = null, projectileManager = null) {
+  constructor(scene, collisionManager = null, projectileManager = null, particleManager = null) {
     this.scene = scene;
     this.collisionManager = collisionManager;
     this.projectileManager = projectileManager;
+    this.particleManager = particleManager;
     this.bots = [];
     
     // Get stats from config
@@ -52,6 +54,14 @@ export class BotManager {
    */
   setProjectileManager(projectileManager) {
     this.projectileManager = projectileManager;
+  }
+
+  /**
+   * Set the particle manager (can be set after construction)
+   * @param {Object} particleManager - Particle manager instance
+   */
+  setParticleManager(particleManager) {
+    this.particleManager = particleManager;
   }
 
   /**
@@ -92,7 +102,12 @@ export class BotManager {
       maxHealth: healthStats.maxHealth,
       
       // Health bar (will be created separately)
-      healthBar: null
+      healthBar: null,
+      
+      // Death fade tracking
+      isDying: false,
+      deathFadeTimer: 0,
+      deathFadeDuration: 0.6 // Duration in seconds for death fade
     };
 
     // Initialize physics
@@ -116,9 +131,25 @@ export class BotManager {
    */
   update(dt, playerPosition = null, camera = null) {
     for (const bot of this.bots) {
-      if (bot.userData.health <= 0) continue; // Skip dead bots
-
       const userData = bot.userData;
+      
+      // Handle death fade
+      if (userData.isDying) {
+        const fadeComplete = this._updateBotDeathFade(bot, dt);
+        if (fadeComplete) {
+          // Fade complete - respawn bot
+          this.respawnBot(bot);
+          continue;
+        }
+        // Skip other updates during death fade
+        continue;
+      }
+      
+      if (userData.health <= 0) {
+        // Bot just died - start death fade
+        this._startBotDeathFade(bot);
+        continue;
+      }
 
       // Update physics
       updateBotPhysics(bot, userData, dt, this.collisionManager);
@@ -146,6 +177,55 @@ export class BotManager {
       // Update shooting
       updateBotShooting(bot, userData, playerPosition, this.projectileManager, dt);
     }
+  }
+
+  /**
+   * Start death fade effect for a bot
+   * @param {THREE.Mesh} bot - Bot mesh
+   * @private
+   */
+  _startBotDeathFade(bot) {
+    if (!bot || !bot.userData) return;
+    
+    bot.userData.isDying = true;
+    bot.userData.deathFadeTimer = 0;
+    
+    // Spawn death particles
+    if (this.particleManager) {
+      const characterColor = bot.userData.characterName === 'herald' ? 0xf5ba0b : 0x9c57b6;
+      this.particleManager.spawnDeathParticles(bot.position.clone(), characterColor, 25);
+    }
+  }
+
+  /**
+   * Update death fade effect for a bot
+   * @param {THREE.Mesh} bot - Bot mesh
+   * @param {number} dt - Delta time in seconds
+   * @returns {boolean} True if fade is complete
+   * @private
+   */
+  _updateBotDeathFade(bot, dt) {
+    if (!bot || !bot.userData || !bot.userData.isDying) return false;
+    
+    bot.userData.deathFadeTimer += dt;
+    const progress = Math.min(bot.userData.deathFadeTimer / bot.userData.deathFadeDuration, 1.0);
+    
+    // Fade out bot opacity
+    if (bot.material) {
+      bot.material.opacity = 1.0 - progress;
+      bot.material.transparent = true;
+    }
+    
+    // Also scale down slightly
+    const scale = 1.0 - progress * 0.3; // Shrink to 70% size
+    bot.scale.set(scale, scale, scale);
+    
+    if (progress >= 1.0) {
+      // Fade complete - reset state (will be reset in respawn)
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -219,8 +299,18 @@ export class BotManager {
     
     const healthStats = getBotHealthStats();
     
+    // Reset death state
+    bot.userData.isDying = false;
+    bot.userData.deathFadeTimer = 0;
+    
     // Reset health
     bot.userData.health = healthStats.maxHealth;
+    
+    // Reset opacity and scale
+    if (bot.material) {
+      bot.material.opacity = 1.0;
+    }
+    bot.scale.set(1, 1, 1);
     
     // Reset position to random spawn
     const halfArena = BOT_STATS.respawn.arenaHalfSize;
@@ -235,6 +325,9 @@ export class BotManager {
     
     // Reinitialize AI
     initializeBotAI(bot.userData, bot.position.x, bot.position.z);
+    
+    // Reset animation to idle
+    setBotAnimation(bot, 'idle_front', true);
   }
 }
 
