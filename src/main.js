@@ -8,6 +8,7 @@ import { initArenaSwitcher } from './ui/ArenaSwitcher.js';
 import { initRoomManager } from './ui/RoomManager.js';
 import { initBotControl } from './ui/BotControl.js';
 import { initCooldownIndicator } from './ui/CooldownIndicator.js';
+import { initConnectionStatus } from './ui/ConnectionStatus.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode } from './utils/StorageUtils.js';
@@ -376,12 +377,19 @@ const roomPanel = document.getElementById('room-manager-panel');
 const botControlMount = document.getElementById('bot-control') || document.body;
 const botControlPanel = document.getElementById('bot-control-panel');
 const cooldownMount = document.getElementById('cooldown-indicator') || document.body;
+const connectionStatusMount = document.getElementById('connection-status') || document.body;
 
 // Initialize cooldown indicator UI early (before it's referenced in callbacks)
 let cooldownIndicator = initCooldownIndicator({
   mount: cooldownMount,
   projectileManager: projectileManager,
   characterManager: characterManager
+});
+
+// Initialize connection status indicator
+initConnectionStatus({
+  mount: connectionStatusMount,
+  multiplayerManager: multiplayerManager
 });
 
 // Initialize game mode switcher UI

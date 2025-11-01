@@ -25,6 +25,10 @@ export class MultiplayerManager {
     this.socket = null;
     this.serverUrl = this._getServerUrl();
     
+    // Connection state tracking
+    this.connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected', 'reconnecting'
+    this.onConnectionStateChange = null;
+    
     this._setupSocket();
   }
 
@@ -68,21 +72,43 @@ export class MultiplayerManager {
   }
 
   /**
+   * Update connection state and notify listeners
+   * @param {string} newState - New connection state
+   * @private
+   */
+  _updateConnectionState(newState) {
+    if (this.connectionState !== newState) {
+      this.connectionState = newState;
+      if (this.onConnectionStateChange) {
+        this.onConnectionStateChange(newState);
+      }
+    }
+  }
+
+  /**
    * Setup Socket.io connection
    * @private
    */
   _setupSocket() {
     // Load Socket.io client from CDN if not already loaded
     if (typeof io === 'undefined') {
+      this._updateConnectionState('disconnected');
       return;
     }
     
+    this._updateConnectionState('connecting');
+    
     this.socket = io(this.serverUrl, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity
     });
     
     this.socket.on('connect', () => {
       this.localPlayerId = this.socket.id;
+      this._updateConnectionState('connected');
       
       // Trigger connection callback if set
       if (this.onConnected) {
@@ -90,12 +116,39 @@ export class MultiplayerManager {
       }
     });
     
-    this.socket.on('disconnect', () => {
-      // Disconnected from multiplayer server
+    this.socket.on('disconnect', (reason) => {
+      // If disconnect was intentional or server closed, mark as disconnected
+      if (reason === 'io server disconnect' || reason === 'io client disconnect') {
+        this._updateConnectionState('disconnected');
+      } else {
+        // Otherwise, Socket.io will attempt to reconnect
+        this._updateConnectionState('reconnecting');
+      }
     });
     
     this.socket.on('connect_error', (error) => {
-      // Connection error
+      // Connection error occurred, but Socket.io will attempt to reconnect
+      if (this.connectionState === 'connected') {
+        this._updateConnectionState('reconnecting');
+      } else {
+        this._updateConnectionState('connecting');
+      }
+    });
+    
+    this.socket.on('reconnect_attempt', (attemptNumber) => {
+      this._updateConnectionState('reconnecting');
+    });
+    
+    this.socket.on('reconnect', (attemptNumber) => {
+      this._updateConnectionState('connected');
+    });
+    
+    this.socket.on('reconnect_error', (error) => {
+      this._updateConnectionState('reconnecting');
+    });
+    
+    this.socket.on('reconnect_failed', () => {
+      this._updateConnectionState('disconnected');
     });
     
     // Handle player joined
@@ -484,6 +537,22 @@ export class MultiplayerManager {
    */
   isConnected() {
     return this.socket && this.socket.connected;
+  }
+
+  /**
+   * Get current connection state
+   * @returns {string} Connection state ('disconnected', 'connecting', 'connected', 'reconnecting')
+   */
+  getConnectionState() {
+    return this.connectionState;
+  }
+
+  /**
+   * Set callback for connection state changes
+   * @param {Function} callback - Callback function(state)
+   */
+  setConnectionStateChangeCallback(callback) {
+    this.onConnectionStateChange = callback;
   }
 }
 
