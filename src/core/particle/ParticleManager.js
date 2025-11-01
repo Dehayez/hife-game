@@ -228,19 +228,23 @@ export class ParticleManager {
    * @param {THREE.Vector3} position - Spawn position (character position)
    * @param {number} characterColor - Character color (hex number)
    * @param {number} radius - Radius of the sword swing (default: 1.0)
+   * @param {number} animationDuration - Animation duration in seconds (particles match this duration)
    */
-  spawnSwordSwingParticles(position, characterColor, radius = 1.0) {
+  spawnSwordSwingParticles(position, characterColor, radius = 1.0, animationDuration = 0.5) {
     const particleCount = 16; // Number of particles in the circle
     
     // Convert hex to Color
     const baseColor = new THREE.Color(characterColor);
     
+    // Particle size scales with range (15% of range base, with random variation)
+    const baseParticleSize = radius * 0.15; // Scale relative to range variable
+    
     for (let i = 0; i < particleCount; i++) {
       // Calculate angle for circular distribution
       const angle = (i / particleCount) * Math.PI * 2;
       
-      // Create sword swing particle
-      const size = 0.12 + Math.random() * 0.08;
+      // Create sword swing particle - size scales with range
+      const size = baseParticleSize + Math.random() * (baseParticleSize * 0.67); // 15% to 25% of range
       const geometry = new THREE.PlaneGeometry(size, size);
       
       // Character color with slight variation
@@ -261,7 +265,7 @@ export class ParticleManager {
       
       const particle = new THREE.Mesh(geometry, material);
       
-      // Position particle in a circle around the character
+      // Position particle in a circle around the character (80-120% of range)
       const offsetX = Math.cos(angle) * radius * (0.8 + Math.random() * 0.4);
       const offsetZ = Math.sin(angle) * radius * (0.8 + Math.random() * 0.4);
       particle.position.copy(position);
@@ -269,8 +273,10 @@ export class ParticleManager {
       particle.position.z += offsetZ;
       particle.position.y = position.y + 0.2 + Math.random() * 0.3;
       
-      // Velocity: outward from center with slight upward motion
-      const speed = 2.5 + Math.random() * 1.5;
+      // Velocity: outward from center - scales with range (so particles spread proportionally)
+      // Base speed scales with range: 2.5 units/sec per unit of range, with random variation
+      const baseSpeed = 2.5 * radius; // Scale relative to range variable
+      const speed = baseSpeed + Math.random() * (baseSpeed * 0.6); // 100-160% of base speed
       const outwardDir = new THREE.Vector3(offsetX, 0, offsetZ).normalize();
       particle.userData = {
         velocity: new THREE.Vector3(
@@ -279,7 +285,7 @@ export class ParticleManager {
           outwardDir.z * speed
         ),
         lifetime: 0,
-        maxLifetime: 0.3 + Math.random() * 0.2, // Short, fast animation
+        maxLifetime: animationDuration, // Match animation duration
         initialSize: size,
         initialOpacity: material.opacity,
         followCharacter: true // Mark for following character

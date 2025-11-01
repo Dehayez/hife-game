@@ -1057,6 +1057,18 @@ export class InputManager {
   }
 
   /**
+   * Check if right joystick is actively being pushed (checks raw values directly)
+   * @returns {boolean} True if right joystick raw values exceed dead zone
+   */
+  isRightJoystickPushed() {
+    if (!this.gamepad || !this.gamepadConnected) return false;
+    const rightStickX = this.gamepad.axes[2];
+    const rightStickY = this.gamepad.axes[3];
+    const magnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
+    return magnitude > this.gamepadDeadZone;
+  }
+
+  /**
    * Check if character swap button is pressed
    * @returns {boolean} True if character swap button is pressed
    */

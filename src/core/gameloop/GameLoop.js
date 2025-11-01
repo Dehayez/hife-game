@@ -43,12 +43,26 @@ export class GameLoop {
     this.lastMortarInput = false;
     this.lastCharacterSwapInput = false;
     this.lastSwordSwingInput = false;
+    this.lastHealInput = false;
+    
+    // Healing hold duration tracking
+    this.healHoldDuration = 0; // Time in seconds that heal button has been held
     
     // Sword swing animation tracking
     this.swordSwingAnimationTime = 0;
     this.swordSwingAnimationDuration = 0.5; // Default duration (will be updated per character)
     this.lastCharacterPositionForSwing = null; // Track character position for swing follow
     this.swordSwingCircle = null; // Reference to the sword swing circle visual effect
+    this.meleeDamageTickTimer = 0; // Timer for damage over time ticks
+    this.meleeAffectedEntities = new Set(); // Track entities in range for damage over time
+    this.meleeDamagePerTick = null; // Damage per tick (set during attack)
+    this.meleeTickInterval = null; // Tick interval (set during attack)
+    this.meleeRange = null; // Attack range (set during attack)
+    this.meleeCooldownTimer = 0; // Cooldown timer for melee attacks
+    this.meleePoisonDamage = null; // Poison damage per tick (set during attack)
+    this.meleePoisonTickInterval = null; // Poison tick interval (set during attack)
+    this.meleePoisonDuration = null; // Poison duration (set during attack)
+    this.poisonedEntities = new Map(); // Track poisoned entities: Map<entity, {timeLeft, tickTimer, damage, tickInterval}>
     
     // Callback to update character UI when character changes via controller
     this.characterUIUpdateCallback = null;
@@ -177,15 +191,46 @@ export class GameLoop {
     // Handle sword swing (B button)
     const swordSwingInput = this.inputManager.isSwordSwingPressed();
     if (swordSwingInput && !this.lastSwordSwingInput) {
-      this._handleSwordSwing(player);
+      // Check cooldown before allowing attack
+      if (this.meleeCooldownTimer <= 0) {
+        this._handleSwordSwing(player);
+      }
     }
     this.lastSwordSwingInput = swordSwingInput;
     
+    // Update melee cooldown timer
+    if (this.meleeCooldownTimer > 0) {
+      this.meleeCooldownTimer -= dt;
+      if (this.meleeCooldownTimer < 0) {
+        this.meleeCooldownTimer = 0;
+      }
+    }
+    
+    // Sync melee cooldown to ProjectileManager for UI display
+    if (this.projectileManager) {
+      const playerId = 'local';
+      this.projectileManager.setMeleeCooldown(playerId, this.meleeCooldownTimer);
+    }
+    
     // Handle heal (X button - hold to heal)
     const healInput = this.inputManager.isHealPressed();
+    
+    // Track heal button press/release to reset hold duration
+    if (healInput && !this.lastHealInput) {
+      // Just pressed - reset hold duration
+      this.healHoldDuration = 0;
+    } else if (!healInput && this.lastHealInput) {
+      // Just released - reset hold duration
+      this.healHoldDuration = 0;
+    }
+    
     if (healInput) {
+      // Increase hold duration while held
+      this.healHoldDuration += dt;
       this._handleHeal(player, dt);
     }
+    
+    this.lastHealInput = healInput;
     
     // Check for respawn system
     const shouldRespawn = this.collisionManager.updateRespawnSystem(
@@ -245,9 +290,161 @@ export class GameLoop {
         );
       }
       
+      // Apply damage over time during animation
+      if (this.meleeDamagePerTick && this.meleeTickInterval && this.meleeRange) {
+        this.meleeDamageTickTimer += dt;
+        
+        // Check if it's time for a damage tick
+        if (this.meleeDamageTickTimer >= this.meleeTickInterval) {
+          this.meleeDamageTickTimer = 0; // Reset timer
+          
+          const playerPos = player.position;
+          const radius = this.meleeRange;
+          const damagePerTick = this.meleeDamagePerTick;
+          
+          // Damage bots in range
+          if (this.botManager) {
+            this.botManager.getAllBots().forEach(bot => {
+              const distance = Math.sqrt(
+                Math.pow(bot.position.x - playerPos.x, 2) + 
+                Math.pow(bot.position.z - playerPos.z, 2)
+              );
+              if (distance <= radius) {
+                // Check line of sight - don't damage through walls
+                // Use attack radius for more accurate circle-based checking
+                const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
+                const targetPos = new THREE.Vector3(bot.position.x, bot.position.y, bot.position.z);
+                const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
+                
+                if (!sightCheck.clear) {
+                  // Wall is blocking - remove from tracking and skip damage
+                  this.meleeAffectedEntities.delete(bot);
+                  return; // Skip this bot
+                }
+                
+                // Track this bot as affected
+                this.meleeAffectedEntities.add(bot);
+                
+                // Apply damage per tick
+                const botDied = this.botManager.damageBot(bot, damagePerTick);
+                if (botDied) {
+                  this.meleeAffectedEntities.delete(bot);
+                  setTimeout(() => {
+                    this.botManager.respawnBot(bot);
+                  }, 2000);
+                }
+              } else {
+                // Remove from tracking if out of range
+                this.meleeAffectedEntities.delete(bot);
+              }
+            });
+          }
+          
+          // Damage remote players in multiplayer mode
+          if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+            const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+            for (const [playerId, remotePlayer] of remotePlayers) {
+              const mesh = remotePlayer.mesh;
+              if (!mesh) continue;
+              
+              const distance = Math.sqrt(
+                Math.pow(mesh.position.x - playerPos.x, 2) + 
+                Math.pow(mesh.position.z - playerPos.z, 2)
+              );
+              if (distance <= radius) {
+                // Check line of sight - don't damage through walls
+                // Use attack radius for more accurate circle-based checking
+                const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
+                const targetPos = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
+                const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
+                
+                if (!sightCheck.clear) {
+                  // Wall is blocking - remove from tracking and skip damage
+                  this.meleeAffectedEntities.delete(`remote_${playerId}`);
+                  continue; // Skip this remote player
+                }
+                
+                // Track this remote player as affected
+                this.meleeAffectedEntities.add(`remote_${playerId}`);
+                
+                // Apply damage per tick to remote player (server will sync)
+                if (mesh.userData && mesh.userData.health !== undefined) {
+                  mesh.userData.health = Math.max(0, mesh.userData.health - damagePerTick);
+                  
+                  // Send updated health to server for sync
+                  this.multiplayerManager.sendPlayerDamage({
+                    damage: damagePerTick,
+                    health: mesh.userData.health,
+                    maxHealth: mesh.userData.maxHealth || 100
+                  });
+                }
+              } else {
+                // Remove from tracking if out of range
+                this.meleeAffectedEntities.delete(`remote_${playerId}`);
+              }
+            }
+          }
+        }
+      }
+      
       // Clean up when animation ends
       if (this.swordSwingAnimationTime <= 0) {
         this.swordSwingAnimationTime = 0;
+        this.meleeDamageTickTimer = 0;
+        
+        // Apply poison to all entities that were affected during the attack
+        if (this.meleePoisonDamage !== null && this.meleePoisonDamage > 0 && 
+            this.meleePoisonDuration !== null && this.meleePoisonDuration > 0 && 
+            this.meleePoisonTickInterval !== null && this.meleePoisonTickInterval > 0) {
+          const poisonDamage = this.meleePoisonDamage;
+          const poisonDuration = this.meleePoisonDuration;
+          const poisonTickInterval = this.meleePoisonTickInterval;
+          
+          // Apply poison to bots that were affected
+          if (this.botManager) {
+            this.meleeAffectedEntities.forEach(entity => {
+              if (entity && typeof entity === 'object' && entity.position) {
+                // It's a bot entity
+                this.poisonedEntities.set(entity, {
+                  timeLeft: poisonDuration,
+                  tickTimer: 0,
+                  damage: poisonDamage,
+                  tickInterval: poisonTickInterval,
+                  type: 'bot'
+                });
+              }
+            });
+          }
+          
+          // Apply poison to remote players that were affected
+          if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+            const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+            for (const [playerId, remotePlayer] of remotePlayers) {
+              const key = `remote_${playerId}`;
+              if (this.meleeAffectedEntities.has(key)) {
+                const mesh = remotePlayer.mesh;
+                if (mesh) {
+                  this.poisonedEntities.set(mesh, {
+                    timeLeft: poisonDuration,
+                    tickTimer: 0,
+                    damage: poisonDamage,
+                    tickInterval: poisonTickInterval,
+                    type: 'remote',
+                    playerId: playerId
+                  });
+                }
+              }
+            }
+          }
+        }
+        
+        this.meleeAffectedEntities.clear();
+        this.meleeDamagePerTick = null;
+        this.meleeTickInterval = null;
+        this.meleeRange = null;
+        this.meleePoisonDamage = null;
+        this.meleePoisonTickInterval = null;
+        this.meleePoisonDuration = null;
         
         // Remove and dispose of circle
         if (this.swordSwingCircle) {
@@ -257,6 +454,59 @@ export class GameLoop {
           this.swordSwingCircle = null;
         }
       }
+    }
+    
+    // Update poison damage over time (continues after animation ends)
+    if (this.poisonedEntities.size > 0) {
+      const entitiesToRemove = [];
+      
+      for (const [entity, poisonData] of this.poisonedEntities.entries()) {
+        // Update poison timer
+        poisonData.timeLeft -= dt;
+        poisonData.tickTimer += dt;
+        
+        // Apply poison damage at intervals
+        if (poisonData.tickTimer >= poisonData.tickInterval) {
+          poisonData.tickTimer = 0;
+          
+          if (poisonData.type === 'bot' && this.botManager) {
+            const botDied = this.botManager.damageBot(entity, poisonData.damage);
+            if (botDied) {
+              entitiesToRemove.push(entity);
+              setTimeout(() => {
+                this.botManager.respawnBot(entity);
+              }, 2000);
+            }
+          } else if (poisonData.type === 'remote' && this.remotePlayerManager && this.multiplayerManager) {
+            const mesh = entity;
+            if (mesh.userData && mesh.userData.health !== undefined) {
+              mesh.userData.health = Math.max(0, mesh.userData.health - poisonData.damage);
+              
+              // Send updated health to server for sync
+              this.multiplayerManager.sendPlayerDamage({
+                damage: poisonData.damage,
+                health: mesh.userData.health,
+                maxHealth: mesh.userData.maxHealth || 100
+              });
+              
+              // Remove if dead
+              if (mesh.userData.health <= 0) {
+                entitiesToRemove.push(entity);
+              }
+            }
+          }
+        }
+        
+        // Remove poison if duration expired
+        if (poisonData.timeLeft <= 0) {
+          entitiesToRemove.push(entity);
+        }
+      }
+      
+      // Remove expired or dead entities
+      entitiesToRemove.forEach(entity => {
+        this.poisonedEntities.delete(entity);
+      });
     }
 
     // Update magical particle animations
@@ -326,17 +576,14 @@ export class GameLoop {
     }
     
     // Check if right joystick is active for aiming (preferred for smooth 360-degree aiming)
+    // Check raw joystick values directly instead of boolean flag to ensure it only works when actively pushed
     const rightJoystickDir = this.inputManager.getRightJoystickDirection();
-    const isRightJoystickActive = this.inputManager.isRightJoystickDirectionActive();
-    
-    // Check if left joystick is active for projectile direction (alternative control)
-    const leftJoystickDir = this.inputManager.getProjectileDirection();
-    const isLeftJoystickActive = this.inputManager.isProjectileDirectionActive();
+    const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
     
     let directionX, directionZ, targetX, targetZ;
     
-    // Prioritize right joystick for aiming (smooth 360-degree aiming in world space)
-    if (isRightJoystickActive && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
+    // Prioritize right joystick for aiming only when actively pushed (smooth 360-degree aiming in world space)
+    if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
       // Use camera-relative direction: convert joystick input to world space using camera orientation
       // This matches how mouse aiming works and accounts for camera angle
       const camera = this.sceneManager.getCamera();
@@ -370,18 +617,8 @@ export class GameLoop {
       const targetDistance = 10; // Distance ahead to aim
       targetX = playerPos.x + directionX * targetDistance;
       targetZ = playerPos.z + directionZ * targetDistance;
-    } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
-      // Fallback to left joystick direction for projectile control
-      // leftJoystickDir is already normalized, so use it directly
-      directionX = leftJoystickDir.x;
-      directionZ = leftJoystickDir.z;
-      
-      // Calculate target point in the direction of the joystick (for cursor following)
-      const targetDistance = 10; // Distance ahead to aim
-      targetX = playerPos.x + directionX * targetDistance;
-      targetZ = playerPos.z + directionZ * targetDistance;
     } else {
-      // Fallback: Use character facing direction when right joystick is not active
+      // Use character facing direction when right joystick is not active
       const lastFacing = this.characterManager.getLastFacing();
       const camera = this.sceneManager.getCamera();
       
@@ -412,10 +649,9 @@ export class GameLoop {
         directionZ /= dirLength;
       }
       
-      // Calculate target point in the direction of character facing
-      const targetDistance = 10; // Distance ahead to aim
-      targetX = playerPos.x + directionX * targetDistance;
-      targetZ = playerPos.z + directionZ * targetDistance;
+      // Don't set targetX/targetZ when using character facing direction to prevent cursor following (curving)
+      targetX = null;
+      targetZ = null;
     }
     
     // Create projectile
@@ -465,15 +701,12 @@ export class GameLoop {
     let targetX, targetZ;
     
     // Check if right joystick is active for aiming (preferred for smooth 360-degree aiming)
+    // Check raw joystick values directly instead of boolean flag to ensure it only works when actively pushed
     const rightJoystickDir = this.inputManager.getRightJoystickDirection();
-    const isRightJoystickActive = this.inputManager.isRightJoystickDirectionActive();
+    const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
     
-    // Check if left joystick is active for projectile direction (alternative control)
-    const leftJoystickDir = this.inputManager.getProjectileDirection();
-    const isLeftJoystickActive = this.inputManager.isProjectileDirectionActive();
-    
-    // Prioritize right joystick for aiming (smooth 360-degree aiming in world space)
-    if (isRightJoystickActive && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
+    // Prioritize right joystick for aiming only when actively pushed (smooth 360-degree aiming in world space)
+    if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
       // Use camera-relative direction: convert joystick input to world space using camera orientation
       // This matches how mouse aiming works and accounts for camera angle
       const camera = this.sceneManager.getCamera();
@@ -516,14 +749,8 @@ export class GameLoop {
       // If joystick is centered (distance = 0), target will be at character position
       targetX = playerPos.x + directionX * targetDistance;
       targetZ = playerPos.z + directionZ * targetDistance;
-    } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
-      // Fallback to left joystick direction for mortar target
-      // leftJoystickDir is already normalized, so use it directly
-      const targetDistance = 10; // Distance ahead to aim mortar
-      targetX = playerPos.x + leftJoystickDir.x * targetDistance;
-      targetZ = playerPos.z + leftJoystickDir.z * targetDistance;
     } else {
-      // Fallback: Use character facing direction when right joystick is not active
+      // Use character facing direction when right joystick is not active
       const lastFacing = this.characterManager.getLastFacing();
       const camera = this.sceneManager.getCamera();
       
@@ -823,13 +1050,27 @@ export class GameLoop {
 
   /**
    * Handle heal input (X button - hold to heal)
+   * Healing increases per X milliseconds you hold it in one hold. Resets when released.
    * @param {THREE.Mesh} player - Player mesh
    * @param {number} dt - Delta time
    * @private
    */
   _handleHeal(player, dt) {
-    // Heal slowly over time while held
-    const healRate = 5; // HP per second
+    // Base heal rate per second
+    const baseHealRate = 5; // HP per second
+    
+    // Healing multiplier increases based on hold duration
+    // Every 0.5 seconds held, increase healing by 50% (up to 3x multiplier)
+    const healMultiplierInterval = 0.5; // Seconds between multiplier increases
+    const healMultiplierIncrease = 0.5; // Increase multiplier by this amount each interval
+    const maxMultiplier = 3.0; // Maximum multiplier cap
+    
+    // Calculate multiplier based on hold duration
+    const multiplierSteps = Math.floor(this.healHoldDuration / healMultiplierInterval);
+    const healMultiplier = Math.min(1.0 + (multiplierSteps * healMultiplierIncrease), maxMultiplier);
+    
+    // Apply healing with multiplier
+    const healRate = baseHealRate * healMultiplier; // HP per second (scaled by multiplier)
     const newHealth = Math.min(
       this.characterManager.getHealth() + healRate * dt,
       this.characterManager.getMaxHealth()
@@ -839,11 +1080,13 @@ export class GameLoop {
       this.characterManager.setHealth(newHealth);
       
       // Add healing particles with character color
+      // Increase particle count based on multiplier
       if (this.characterManager.particleManager) {
         const characterName = this.characterManager.getCharacterName();
         const characterColor = this._getCharacterColorForParticles(characterName);
+        const particleCount = Math.floor(5 * healMultiplier); // More particles with higher multiplier
         // Spawn healing particles with character color around character
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < particleCount; i++) {
           const pos = new THREE.Vector3(
             player.position.x + (Math.random() - 0.5) * 0.5,
             player.position.y + Math.random() * 0.3,
@@ -856,6 +1099,88 @@ export class GameLoop {
   }
 
   /**
+   * Check if there's a clear line of sight between two points (no walls blocking)
+   * Optimized with adaptive sampling and circle area checking
+   * @param {THREE.Vector3} startPos - Start position
+   * @param {THREE.Vector3} targetPos - Target position
+   * @param {number} attackRadius - Radius of the attack circle (uses meleeRange if available)
+   * @param {number} blockageThreshold - Maximum allowed blockage percentage (0-1, default: 0.3 = 30%)
+   * @returns {Object} {clear: boolean, blockagePercentage: number} - Clear path and blockage info
+   * @private
+   */
+  _hasLineOfSight(startPos, targetPos, attackRadius = null, blockageThreshold = 0.3) {
+    if (!this.collisionManager) return { clear: true, blockagePercentage: 0 };
+    
+    const dx = targetPos.x - startPos.x;
+    const dz = targetPos.z - startPos.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+    
+    if (distance < 0.1) return { clear: true, blockagePercentage: 0 }; // Very close, assume clear
+    
+    // Use attack radius if provided, otherwise use a default check radius
+    const checkRadius = attackRadius || 0.3;
+    
+    // Adaptive sampling: more samples for longer distances and larger attack radius
+    // Base samples: 8, add more for distance and radius
+    const baseSamples = 8;
+    const distanceSamples = Math.ceil(distance / 2); // +1 sample per 2 units
+    const radiusSamples = Math.ceil(checkRadius * 4); // More samples for larger radius
+    const totalSamples = Math.min(baseSamples + distanceSamples + radiusSamples, 20); // Cap at 20
+    
+    // Normalize direction
+    const dirX = dx / distance;
+    const dirZ = dz / distance;
+    
+    let blockedSamples = 0;
+    let firstBlockedDistance = null;
+    
+    // Check multiple points along the path with circle area checking
+    for (let i = 1; i <= totalSamples; i++) {
+      const t = i / totalSamples; // Progress from 0 to 1
+      const checkX = startPos.x + dirX * distance * t;
+      const checkZ = startPos.z + dirZ * distance * t;
+      const checkY = startPos.y; // Use start Y position
+      
+      const checkPos = new THREE.Vector3(checkX, checkY, checkZ);
+      
+      // Check if this point (with circle radius) collides with walls
+      // Use checkRadius * 2 to match the collision manager's expected size parameter
+      if (this.collisionManager.willCollide(checkPos, checkRadius * 2)) {
+        blockedSamples++;
+        
+        // Track first blocked point for early optimization
+        if (firstBlockedDistance === null) {
+          firstBlockedDistance = distance * t;
+        }
+        
+        // Early exit optimization: if significant blockage found early, return immediately
+        // This prevents checking further when we already know it's blocked
+        const currentBlockage = blockedSamples / i;
+        if (currentBlockage > blockageThreshold && i >= Math.min(4, totalSamples / 2)) {
+          // If more than threshold is blocked and we've checked at least 4 points or half the path
+          return { 
+            clear: false, 
+            blockagePercentage: currentBlockage,
+            blockedDistance: firstBlockedDistance
+          };
+        }
+      }
+    }
+    
+    // Calculate blockage percentage
+    const blockagePercentage = blockedSamples / totalSamples;
+    
+    // Path is clear if blockage is below threshold
+    const isClear = blockagePercentage <= blockageThreshold;
+    
+    return {
+      clear: isClear,
+      blockagePercentage: blockagePercentage,
+      blockedDistance: firstBlockedDistance
+    };
+  }
+  
+  /**
    * Handle sword swing input (B button)
    * @param {THREE.Mesh} player - Player mesh
    * @private
@@ -867,15 +1192,40 @@ export class GameLoop {
     const characterName = this.characterManager.getCharacterName();
     const meleeStats = getMeleeStats(characterName);
     const radius = meleeStats.range;
-    const swordDamage = meleeStats.damage;
+    const damagePerTick = meleeStats.damage;
+    const tickInterval = meleeStats.tickInterval;
     const animationDuration = meleeStats.animationDuration;
+    const cooldown = meleeStats.cooldown;
+    const poisonDamage = meleeStats.poisonDamage;
+    const poisonTickInterval = meleeStats.poisonTickInterval;
+    const poisonDuration = meleeStats.poisonDuration;
+    
+    // Set cooldown timer
+    this.meleeCooldownTimer = cooldown;
+    
+    // Sync melee cooldown to ProjectileManager for UI display
+    if (this.projectileManager) {
+      const playerId = 'local';
+      this.projectileManager.setMeleeCooldown(playerId, cooldown);
+    }
     
     // Update animation duration based on character
     this.swordSwingAnimationDuration = animationDuration;
     
+    // Store melee stats for damage over time
+    this.meleeDamagePerTick = damagePerTick;
+    this.meleeTickInterval = tickInterval;
+    this.meleeRange = radius;
+    this.meleePoisonDamage = poisonDamage;
+    this.meleePoisonTickInterval = poisonTickInterval;
+    this.meleePoisonDuration = poisonDuration;
+    
     // Create 360 degree damage circle visual effect
+    // Inner radius scales with range (87.5% of range for visual effect)
     const segments = 32;
-    const geometry = new THREE.RingGeometry(radius - 0.1, radius, segments);
+    const innerRadius = radius * 0.875; // Scale relative to range variable
+    const outerRadius = radius; // Use exact range for outer edge
+    const geometry = new THREE.RingGeometry(innerRadius, outerRadius, segments);
     // Use character color for sword swing
     const characterColor = this._getCharacterColorForParticles(characterName);
     const material = new THREE.MeshBasicMaterial({
@@ -896,61 +1246,20 @@ export class GameLoop {
     this.sceneManager.getScene().add(circle);
     
     // Spawn character-colored sword swing particles
+    // Pass animationDuration so particles match the animation duration
     if (this.characterManager.particleManager) {
       const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
-      this.characterManager.particleManager.spawnSwordSwingParticles(playerPos, characterColor, radius);
+      this.characterManager.particleManager.spawnSwordSwingParticles(playerPos, characterColor, radius, animationDuration);
     }
     
     // Start sword swing animation tracking
     this.swordSwingAnimationTime = animationDuration;
+    this.meleeDamageTickTimer = 0; // Reset damage tick timer
     
-    // Add damage to nearby entities (bots, remote players)
-    const playerPos = player.position;
+    // Clear previous affected entities - will be populated as damage is applied over time
+    this.meleeAffectedEntities.clear();
     
-    // Damage bots in range
-    if (this.botManager) {
-      this.botManager.getAllBots().forEach(bot => {
-        const distance = Math.sqrt(
-          Math.pow(bot.position.x - playerPos.x, 2) + 
-          Math.pow(bot.position.z - playerPos.z, 2)
-        );
-        if (distance <= radius) {
-          const botDied = this.botManager.damageBot(bot, swordDamage);
-          if (botDied) {
-            setTimeout(() => {
-              this.botManager.respawnBot(bot);
-            }, 2000);
-          }
-        }
-      });
-    }
-    
-    // Damage remote players in multiplayer mode
-    if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
-      const remotePlayers = this.remotePlayerManager.getRemotePlayers();
-      for (const [playerId, remotePlayer] of remotePlayers) {
-        const mesh = remotePlayer.mesh;
-        if (!mesh) continue;
-        
-        const distance = Math.sqrt(
-          Math.pow(mesh.position.x - playerPos.x, 2) + 
-          Math.pow(mesh.position.z - playerPos.z, 2)
-        );
-        if (distance <= radius) {
-          // Apply damage to remote player (server will sync)
-          if (mesh.userData && mesh.userData.health !== undefined) {
-            mesh.userData.health = Math.max(0, mesh.userData.health - swordDamage);
-            
-            // Send updated health to server for sync
-            this.multiplayerManager.sendPlayerDamage({
-              damage: swordDamage,
-              health: mesh.userData.health,
-              maxHealth: mesh.userData.maxHealth || 100
-            });
-          }
-        }
-      }
-    }
+    // Damage will be applied over time during the animation duration
   }
 
   /**

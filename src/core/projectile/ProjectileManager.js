@@ -36,6 +36,7 @@ export class ProjectileManager {
     // Cooldown tracking per player/character
     this.characterCooldowns = new Map(); // Firebolt cooldowns
     this.mortarCharacterCooldowns = new Map(); // Mortar cooldowns
+    this.meleeCharacterCooldowns = new Map(); // Melee cooldowns
   }
 
   /**
@@ -157,6 +158,9 @@ export class ProjectileManager {
     
     // Update mortar cooldowns
     this.updateCooldowns(dt, this.mortarCharacterCooldowns);
+    
+    // Update melee cooldowns
+    this.updateCooldowns(dt, this.meleeCharacterCooldowns);
     
     // Update mortars and check for ground impact
     this.updateMortars(dt);
@@ -468,6 +472,21 @@ export class ProjectileManager {
     // Reset all cooldowns when character changes
     this.characterCooldowns.clear();
     this.mortarCharacterCooldowns.clear();
+    this.meleeCharacterCooldowns.clear();
+  }
+  
+  /**
+   * Set melee cooldown for a player
+   * Called from GameLoop to sync melee cooldown timer
+   * @param {string} playerId - Player ID ('local' or player identifier)
+   * @param {number} cooldown - Cooldown value in seconds
+   */
+  setMeleeCooldown(playerId, cooldown) {
+    if (cooldown > 0) {
+      this.meleeCharacterCooldowns.set(playerId, cooldown);
+    } else {
+      this.meleeCharacterCooldowns.delete(playerId);
+    }
   }
 
   /**

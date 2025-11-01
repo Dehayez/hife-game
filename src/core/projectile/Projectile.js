@@ -100,22 +100,22 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
   let targetX = projectile.userData.targetX;
   let targetZ = projectile.userData.targetZ;
   
+  // Only track cursor/joystick if projectile was created with a target (right joystick or mouse)
+  // If targetX/targetZ were null initially, don't enable cursor following (character facing direction)
+  const wasCreatedWithTarget = projectile.userData.targetX !== null && projectile.userData.targetZ !== null;
+  
   // Continuously track cursor or joystick if enabled and tracking data is available
-  if (followStrength > 0 && inputManager && playerPosition) {
+  if (followStrength > 0 && inputManager && playerPosition && wasCreatedWithTarget) {
     let newTargetX = null;
     let newTargetZ = null;
     
-    // Check if right joystick is active for aiming (preferred for smooth 360-degree aiming)
+    // Check if right joystick is actively pushed for aiming (only when actively pushed)
     const rightJoystickDir = inputManager.getRightJoystickDirection();
-    const isRightJoystickActive = inputManager.isRightJoystickDirectionActive();
-    
-    // Check if left joystick is active for projectile direction (alternative control)
-    const leftJoystickDir = inputManager.getProjectileDirection();
-    const isLeftJoystickActive = inputManager.isProjectileDirectionActive();
+    const isRightJoystickPushed = inputManager.isRightJoystickPushed();
     
     // Prioritize right joystick for aiming (smooth 360-degree aiming in world space)
     // This allows continuous curving of projectiles while they're in flight
-    if (isRightJoystickActive && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0) && camera) {
+    if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0) && camera) {
       // Use camera-relative direction: convert joystick input to world space using camera orientation
       // This matches how mouse aiming works and accounts for camera angle
       
@@ -149,18 +149,6 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
       const targetDistance = 20; // Distance ahead to aim
       newTargetX = playerPosition.x + directionX * targetDistance;
       newTargetZ = playerPosition.z + directionZ * targetDistance;
-      
-      // Update stored target continuously for smooth curving
-      projectile.userData.targetX = newTargetX;
-      projectile.userData.targetZ = newTargetZ;
-      targetX = newTargetX;
-      targetZ = newTargetZ;
-    } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
-      // Fallback to left joystick direction for projectile curving
-      // leftJoystickDir is already normalized, so use it directly
-      const targetDistance = 20; // Distance ahead to aim
-      newTargetX = playerPosition.x + leftJoystickDir.x * targetDistance;
-      newTargetZ = playerPosition.z + leftJoystickDir.z * targetDistance;
       
       // Update stored target continuously for smooth curving
       projectile.userData.targetX = newTargetX;

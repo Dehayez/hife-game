@@ -14,13 +14,31 @@
  * Each character (Lucy and Herald) has their own melee stats.
  * 
  * Melee stats you can edit:
- *   - damage: How much damage the attack deals (number)
+ *   - damage: Damage per tick - how much damage each tick deals during animation (number)
+ *   - tickInterval: Seconds between damage ticks (e.g., 0.1 = 10 ticks/second) (number)
  *   - range: Attack range in units - how far the attack reaches (number)
+ *            ⚠️ All animations and particles scale with this value:
+ *               - Circle inner radius: range * 0.875
+ *               - Circle outer radius: range (exact)
+ *               - Particle size: range * 0.15 (15-25% of range)
+ *               - Particle speed: range * 2.5 (scales proportionally)
  *   - animationDuration: How long the animation lasts in seconds (number)
+ *                        ⚠️ Circle and particles use this for timing
+ *                        Damage is applied over this duration in ticks
+ *   - cooldown: Seconds between melee attacks (cooldown time) (number)
+ *   - poisonDamage: Poison damage per tick - damage dealt after animation ends (number)
+ *   - poisonTickInterval: Seconds between poison damage ticks (number)
+ *   - poisonDuration: How long poison lasts in seconds (total poison duration) (number)
  * 
  * Example locations:
  *   - Lucy melee stats: Around line 49-56
  *   - Herald melee stats: Around line 90-97
+ * 
+ * HOW VARIABLES ARE USED:
+ * - All abilities (melee, firebolt, mortar) use their stats variables
+ * - Animations scale with range/size using: variable * multiplier
+ * - Particles scale with range/size using: variable * 0.15 (or similar)
+ * - Everything scales proportionally - edit the base variable and everything updates!
  * 
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -68,9 +86,14 @@ export const CHARACTER_STATS = {
     // MELEE ATTACK STATS - Edit these values to change melee attack
     // ═══════════════════════════════════════════════════════════════════
     melee: {
-      damage: 30,              // Damage per hit (how much damage the attack deals)
-      range: 0.8,              // Attack range in units (how far the attack reaches)
-      animationDuration: 0.4   // Animation duration in seconds (how long the attack animation lasts)
+      damage: 10,              // Damage per tick (damage dealt each tick during animation)
+      tickInterval: 0.1,        // Seconds between damage ticks (10 ticks/second)
+      range: 1.4,               // Attack range in units (how far the attack reaches)
+      animationDuration: 2,    // Animation duration in seconds (how long the attack animation lasts)
+      cooldown: 3.0,           // Seconds between melee attacks (cooldown time)
+      poisonDamage: 1,         // Poison damage per tick (damage dealt after animation ends)
+      poisonTickInterval: 0.5, // Seconds between poison damage ticks (2 ticks/second)
+      poisonDuration: 3.0      // How long poison lasts in seconds (total poison duration)
     }
     // ═══════════════════════════════════════════════════════════════════
   },
@@ -109,9 +132,14 @@ export const CHARACTER_STATS = {
     // MELEE ATTACK STATS - Edit these values to change melee attack
     // ═══════════════════════════════════════════════════════════════════
     melee: {
-      damage: 30,              // Damage per hit (how much damage the attack deals)
-      range: 1.4,              // Attack range in units (how far the attack reaches)
-      animationDuration: 0.6   // Animation duration in seconds (how long the attack animation lasts)
+      damage: 12,              // Damage per tick (higher damage per tick than Lucy)
+      tickInterval: 0.1,        // Seconds between damage ticks (10 ticks/second)
+      range: 1.4,               // Attack range in units (larger for powerful warrior)
+      animationDuration: 0.6,  // Animation duration in seconds (longer for powerful swing)
+      cooldown: 4.0,           // Seconds between melee attacks (slower cooldown than Lucy)
+      poisonDamage: 1,         // Poison damage per tick (damage dealt after animation ends)
+      poisonTickInterval: 0.5,  // Seconds between poison damage ticks (2 ticks/second)
+      poisonDuration: 4.0       // How long poison lasts in seconds (longer poison duration)
     }
     // ═══════════════════════════════════════════════════════════════════
   }

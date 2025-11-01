@@ -94,9 +94,12 @@ export function createFireSplash(scene, x, y, z, mortarData) {
   
   particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   
+  // Particle size scales with splash radius (15% of splash radius)
+  const particleSize = splashRadius * 0.15; // Scale relative to splashRadius variable
+  
   const particleMaterial = new THREE.PointsMaterial({
     color: characterColor,
-    size: 0.15,
+    size: particleSize,
     transparent: true,
     opacity: 0.9,
     blending: THREE.AdditiveBlending,
