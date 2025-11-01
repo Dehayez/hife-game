@@ -49,6 +49,14 @@ export class InputManager {
     // Left joystick analog movement (for smooth 360-degree movement)
     this.gamepadMovementVector = { x: 0, y: 0 };
     
+    // Right joystick analog aiming (for smooth 360-degree aiming)
+    this.gamepadAimingVector = { x: 0, y: 0 };
+    this._gamepadAimingActive = false;
+    
+    // Right joystick normalized direction for projectile control (separate from cursor)
+    this.rightJoystickDirection = { x: 0, z: 0 }; // World space direction (normalized)
+    this._rightJoystickDirectionActive = false;
+    
     const stats = getMovementStats();
     this.moveSpeed = stats.moveSpeed;
     this.runSpeedMultiplier = stats.runSpeedMultiplier;
@@ -295,6 +303,16 @@ export class InputManager {
         this.projectileDirection.x = 0;
         this.projectileDirection.z = 0;
         this._projectileDirectionActive = false;
+        
+        // Clear aiming vector
+        this.gamepadAimingVector.x = 0;
+        this.gamepadAimingVector.y = 0;
+        this._gamepadAimingActive = false;
+        
+        // Clear right joystick direction
+        this.rightJoystickDirection.x = 0;
+        this.rightJoystickDirection.z = 0;
+        this._rightJoystickDirectionActive = false;
         
         console.log('⚠️ Gamepad inputs cleared');
       }
@@ -604,17 +622,45 @@ export class InputManager {
     const rightStickX = gamepad.axes[2];
     const rightStickY = gamepad.axes[3];
     
-    // Update mouse position based on right stick for aiming
+    // Apply dead zone to raw stick values
+    const rightXDead = Math.abs(rightStickX) > this.gamepadDeadZone ? rightStickX : 0;
+    const rightYDead = Math.abs(rightStickY) > this.gamepadDeadZone ? rightStickY : 0;
+    
+    // Store normalized right joystick direction (screen-relative, not world space)
+    // This will be converted to camera-relative world space in GameLoop
+    const rightStickLength = Math.sqrt(rightXDead * rightXDead + rightYDead * rightYDead);
+    if (rightStickLength > this.gamepadDeadZone) {
+      // Normalize and store joystick input (raw joystick space)
+      // X = right/left, Z = up/down (will be converted to camera-relative in GameLoop)
+      this.rightJoystickDirection.x = rightXDead / rightStickLength;
+      this.rightJoystickDirection.z = rightYDead / rightStickLength; // Store raw Y as Z (converted later)
+      this._rightJoystickDirectionActive = true;
+    } else {
+      // Clear direction when stick returns to neutral
+      this.rightJoystickDirection.x = 0;
+      this.rightJoystickDirection.z = 0;
+      this._rightJoystickDirectionActive = false;
+    }
+    
+    // Store analog aiming vector for cursor movement (screen space)
+    // This allows backwards compatibility with cursor-based aiming
     if (Math.abs(rightStickX) > this.gamepadDeadZone || Math.abs(rightStickY) > this.gamepadDeadZone) {
-      // Convert stick input to screen coordinates
-      // Scale factor for cursor movement speed
+      // Normalize to ensure smooth circular aiming (not square aiming)
+      const stickMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
+      if (stickMagnitude > 1.0) {
+        // Normalize if magnitude exceeds 1 (shouldn't happen but safety check)
+        this.gamepadAimingVector.x = rightStickX / stickMagnitude;
+        this.gamepadAimingVector.y = rightStickY / stickMagnitude;
+      } else {
+        // Use raw values for analog aiming (allows variable sensitivity based on stick position)
+        this.gamepadAimingVector.x = rightStickX;
+        this.gamepadAimingVector.y = rightStickY;
+      }
+      this._gamepadAimingActive = true;
+      
+      // Also update mouse position for backwards compatibility with cursor-based aiming
+      // This allows both joystick direction and cursor position to work
       const cursorSensitivity = 500; // pixels per second per stick unit
-      
-      // Update cursor position relative to screen center
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      
-      // Apply stick input with delta time
       const deltaX = rightStickX * cursorSensitivity * dt;
       const deltaY = rightStickY * cursorSensitivity * dt;
       
@@ -622,6 +668,11 @@ export class InputManager {
       this.mousePosition.x = Math.max(0, Math.min(window.innerWidth, this.mousePosition.x + deltaX));
       // Invert Y for right stick (up stick = move cursor up on screen)
       this.mousePosition.y = Math.max(0, Math.min(window.innerHeight, this.mousePosition.y - deltaY));
+    } else {
+      // Clear aiming when stick returns to neutral
+      this.gamepadAimingVector.x = 0;
+      this.gamepadAimingVector.y = 0;
+      this._gamepadAimingActive = false;
     }
   }
 
@@ -847,6 +898,38 @@ export class InputManager {
    */
   isProjectileDirectionActive() {
     return this._projectileDirectionActive;
+  }
+
+  /**
+   * Get right joystick aiming direction for smooth 360-degree aiming (screen space)
+   * @returns {Object} Aiming direction with x and y components (analog, -1 to 1 range)
+   */
+  getAimingDirection() {
+    return this.gamepadAimingVector;
+  }
+
+  /**
+   * Check if right joystick is active for aiming (screen space)
+   * @returns {boolean} True if right joystick is being used for aiming
+   */
+  isAimingActive() {
+    return this._gamepadAimingActive;
+  }
+
+  /**
+   * Get right joystick direction for projectile control (world space, normalized)
+   * @returns {Object} Direction with x and z components (normalized, world space)
+   */
+  getRightJoystickDirection() {
+    return this.rightJoystickDirection;
+  }
+
+  /**
+   * Check if right joystick direction is active for projectile control
+   * @returns {boolean} True if right joystick is being used for projectile direction
+   */
+  isRightJoystickDirectionActive() {
+    return this._rightJoystickDirectionActive;
   }
 }
 

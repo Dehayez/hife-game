@@ -105,18 +105,64 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
     let newTargetX = null;
     let newTargetZ = null;
     
-    // Check if left joystick is active for projectile direction (gamepad control)
-    const projectileDir = inputManager.getProjectileDirection();
-    const isJoystickActive = inputManager.isProjectileDirectionActive();
+    // Check if right joystick is active for aiming (preferred for smooth 360-degree aiming)
+    const rightJoystickDir = inputManager.getRightJoystickDirection();
+    const isRightJoystickActive = inputManager.isRightJoystickDirectionActive();
     
-    if (isJoystickActive && (projectileDir.x !== 0 || projectileDir.z !== 0)) {
-      // Use left joystick direction for projectile curving
-      // Calculate target point continuously based on current joystick position
-      const targetDistance = 20; // Distance ahead to aim
-      newTargetX = playerPosition.x + projectileDir.x * targetDistance;
-      newTargetZ = playerPosition.z + projectileDir.z * targetDistance;
+    // Check if left joystick is active for projectile direction (alternative control)
+    const leftJoystickDir = inputManager.getProjectileDirection();
+    const isLeftJoystickActive = inputManager.isProjectileDirectionActive();
+    
+    // Prioritize right joystick for aiming (smooth 360-degree aiming in world space)
+    // This allows continuous curving of projectiles while they're in flight
+    if (isRightJoystickActive && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0) && camera) {
+      // Use camera-relative direction: convert joystick input to world space using camera orientation
+      // This matches how mouse aiming works and accounts for camera angle
       
-      // Update stored target
+      // Get camera forward and right vectors (in world space)
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      
+      // Create a right vector perpendicular to camera direction (in XZ plane)
+      const cameraRight = new THREE.Vector3();
+      cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+      
+      // Create a forward vector in XZ plane (project camera direction onto ground)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+      
+      // Map joystick input to camera-relative direction
+      // Right stick X = right/left relative to camera view
+      // Right stick Z (from joystick Y) = up/down relative to camera view
+      // Note: Invert Z because gamepad Y is negative when pushed up
+      let directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
+      let directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+      
+      // Normalize direction
+      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (dirLength > 0.001) {
+        directionX /= dirLength;
+        directionZ /= dirLength;
+      }
+      
+      // Calculate target point continuously based on current joystick position
+      // This allows projectiles to curve smoothly while in flight
+      const targetDistance = 20; // Distance ahead to aim
+      newTargetX = playerPosition.x + directionX * targetDistance;
+      newTargetZ = playerPosition.z + directionZ * targetDistance;
+      
+      // Update stored target continuously for smooth curving
+      projectile.userData.targetX = newTargetX;
+      projectile.userData.targetZ = newTargetZ;
+      targetX = newTargetX;
+      targetZ = newTargetZ;
+    } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
+      // Fallback to left joystick direction for projectile curving
+      // leftJoystickDir is already normalized, so use it directly
+      const targetDistance = 20; // Distance ahead to aim
+      newTargetX = playerPosition.x + leftJoystickDir.x * targetDistance;
+      newTargetZ = playerPosition.z + leftJoystickDir.z * targetDistance;
+      
+      // Update stored target continuously for smooth curving
       projectile.userData.targetX = newTargetX;
       projectile.userData.targetZ = newTargetZ;
       targetX = newTargetX;

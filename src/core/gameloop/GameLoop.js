@@ -244,17 +244,56 @@ export class GameLoop {
       return;
     }
     
-    // Check if left joystick is active for projectile direction (gamepad control)
-    const projectileDir = this.inputManager.getProjectileDirection();
-    const isJoystickActive = this.inputManager.isProjectileDirectionActive();
+    // Check if right joystick is active for aiming (preferred for smooth 360-degree aiming)
+    const rightJoystickDir = this.inputManager.getRightJoystickDirection();
+    const isRightJoystickActive = this.inputManager.isRightJoystickDirectionActive();
+    
+    // Check if left joystick is active for projectile direction (alternative control)
+    const leftJoystickDir = this.inputManager.getProjectileDirection();
+    const isLeftJoystickActive = this.inputManager.isProjectileDirectionActive();
     
     let directionX, directionZ, targetX, targetZ;
     
-    if (isJoystickActive && (projectileDir.x !== 0 || projectileDir.z !== 0)) {
-      // Use left joystick direction for projectile control
-      // projectileDir is already normalized, so use it directly
-      directionX = projectileDir.x;
-      directionZ = projectileDir.z;
+    // Prioritize right joystick for aiming (smooth 360-degree aiming in world space)
+    if (isRightJoystickActive && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
+      // Use camera-relative direction: convert joystick input to world space using camera orientation
+      // This matches how mouse aiming works and accounts for camera angle
+      const camera = this.sceneManager.getCamera();
+      
+      // Get camera forward and right vectors (in world space)
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      
+      // Create a right vector perpendicular to camera direction (in XZ plane)
+      const cameraRight = new THREE.Vector3();
+      cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+      
+      // Create a forward vector in XZ plane (project camera direction onto ground)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+      
+      // Map joystick input to camera-relative direction
+      // Right stick X = right/left relative to camera view
+      // Right stick Z (from joystick Y) = up/down relative to camera view
+      // Note: Invert Z because gamepad Y is negative when pushed up
+      directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
+      directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+      
+      // Normalize direction
+      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (dirLength > 0.001) {
+        directionX /= dirLength;
+        directionZ /= dirLength;
+      }
+      
+      // Calculate target point in the direction of the joystick (for cursor following)
+      const targetDistance = 10; // Distance ahead to aim
+      targetX = playerPos.x + directionX * targetDistance;
+      targetZ = playerPos.z + directionZ * targetDistance;
+    } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
+      // Fallback to left joystick direction for projectile control
+      // leftJoystickDir is already normalized, so use it directly
+      directionX = leftJoystickDir.x;
+      directionZ = leftJoystickDir.z;
       
       // Calculate target point in the direction of the joystick (for cursor following)
       const targetDistance = 10; // Distance ahead to aim
@@ -343,16 +382,55 @@ export class GameLoop {
     
     let targetX, targetZ;
     
-    // Check if left joystick is active for projectile direction (gamepad control)
-    const projectileDir = this.inputManager.getProjectileDirection();
-    const isJoystickActive = this.inputManager.isProjectileDirectionActive();
+    // Check if right joystick is active for aiming (preferred for smooth 360-degree aiming)
+    const rightJoystickDir = this.inputManager.getRightJoystickDirection();
+    const isRightJoystickActive = this.inputManager.isRightJoystickDirectionActive();
     
-    if (isJoystickActive && (projectileDir.x !== 0 || projectileDir.z !== 0)) {
-      // Use left joystick direction for mortar target
+    // Check if left joystick is active for projectile direction (alternative control)
+    const leftJoystickDir = this.inputManager.getProjectileDirection();
+    const isLeftJoystickActive = this.inputManager.isProjectileDirectionActive();
+    
+    // Prioritize right joystick for aiming (smooth 360-degree aiming in world space)
+    if (isRightJoystickActive && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
+      // Use camera-relative direction: convert joystick input to world space using camera orientation
+      // This matches how mouse aiming works and accounts for camera angle
+      const camera = this.sceneManager.getCamera();
+      
+      // Get camera forward and right vectors (in world space)
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      
+      // Create a right vector perpendicular to camera direction (in XZ plane)
+      const cameraRight = new THREE.Vector3();
+      cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+      
+      // Create a forward vector in XZ plane (project camera direction onto ground)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+      
+      // Map joystick input to camera-relative direction
+      // Right stick X = right/left relative to camera view
+      // Right stick Z (from joystick Y) = up/down relative to camera view
+      // Note: Invert Z because gamepad Y is negative when pushed up
+      let directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
+      let directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+      
+      // Normalize direction
+      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (dirLength > 0.001) {
+        directionX /= dirLength;
+        directionZ /= dirLength;
+      }
+      
       // Calculate target point in the direction of the joystick
       const targetDistance = 15; // Distance ahead to aim mortar
-      targetX = playerPos.x + projectileDir.x * targetDistance;
-      targetZ = playerPos.z + projectileDir.z * targetDistance;
+      targetX = playerPos.x + directionX * targetDistance;
+      targetZ = playerPos.z + directionZ * targetDistance;
+    } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
+      // Fallback to left joystick direction for mortar target
+      // leftJoystickDir is already normalized, so use it directly
+      const targetDistance = 15; // Distance ahead to aim mortar
+      targetX = playerPos.x + leftJoystickDir.x * targetDistance;
+      targetZ = playerPos.z + leftJoystickDir.z * targetDistance;
     } else {
       // Fallback to mouse/cursor control
       const camera = this.sceneManager.getCamera();
