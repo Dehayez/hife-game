@@ -267,17 +267,26 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
   const newX = projectile.position.x + projectile.userData.velocityX * dt;
   const newZ = projectile.position.z + projectile.userData.velocityZ * dt;
   
+  // Update Y position to track character height
+  // If playerPosition is provided, projectiles should follow character's vertical position
+  let newY = projectile.position.y;
+  if (playerPosition) {
+    // Projectile follows character's Y position (height) during flight
+    newY = playerPosition.y;
+  }
+  
   // Check collision with walls
   let shouldRemove = false;
   if (collisionManager) {
     // Use character-specific size from projectile userData
     const projectileSize = projectile.userData.size || 0.1;
-    const nextPos = new THREE.Vector3(newX, projectile.position.y, newZ);
+    const nextPos = new THREE.Vector3(newX, newY, newZ);
     
     if (collisionManager.willCollide(nextPos, projectileSize)) {
       shouldRemove = true;
     } else {
       projectile.position.x = newX;
+      projectile.position.y = newY;
       projectile.position.z = newZ;
     }
   } else {
@@ -287,6 +296,7 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
       shouldRemove = true;
     } else {
       projectile.position.x = newX;
+      projectile.position.y = newY;
       projectile.position.z = newZ;
     }
   }
