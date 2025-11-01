@@ -72,6 +72,7 @@ export function createProjectile(scene, startX, startY, startZ, directionX, dire
     baseSpeed: baseSpeed, // Base speed for reference
     startSpeed: startSpeed, // Starting speed
     endSpeed: endSpeed, // Ending speed
+    currentMaxSpeed: startSpeed, // Track maximum speed achieved (can only increase)
     velocityX: normX * startSpeed,
     velocityZ: normZ * startSpeed,
     lifetime: 0,
@@ -280,21 +281,57 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
   // Update speed based on character type
   let targetSpeed;
   if (projectile.userData.characterName === 'herald' && inputManager) {
-    // Herald: Speed controlled by right joystick magnitude
-    // The further the joystick is pushed, the faster the projectile goes
-    const joystickMagnitude = inputManager.getRightJoystickMagnitude();
+    // Herald: Speed controlled by input method (can only increase, never decrease)
     const minSpeed = projectile.userData.startSpeed;
     const maxSpeed = projectile.userData.endSpeed;
+    const speedRange = maxSpeed - minSpeed;
     
-    if (joystickMagnitude > 0.01) {
-      // Joystick is being pushed - map magnitude to speed range
-      // Minimum magnitude (0.01) = minSpeed, maximum magnitude (1.0) = maxSpeed
-      const speedRange = maxSpeed - minSpeed;
-      targetSpeed = minSpeed + (speedRange * joystickMagnitude);
+    let calculatedSpeed = minSpeed;
+    
+    // Check if using gamepad (joystick control)
+    const joystickMagnitude = inputManager.getRightJoystickMagnitude();
+    if (joystickMagnitude > 0.01 && inputManager.getInputMode() === 'controller') {
+      // Gamepad: Speed controlled by right joystick magnitude
+      // The further the joystick is pushed, the faster the projectile goes
+      calculatedSpeed = minSpeed + (speedRange * joystickMagnitude);
+    } else if (camera && playerPosition && inputManager.getInputMode() === 'keyboard') {
+      // Keyboard/Mouse: Speed controlled by cursor distance from player
+      // Further cursor = faster projectile
+      const mousePos = inputManager.getMousePosition();
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      
+      // Intersect with ground plane at y = 0
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersect = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersect);
+      
+      // Calculate distance from player to cursor position
+      const distanceX = intersect.x - playerPosition.x;
+      const distanceZ = intersect.z - playerPosition.z;
+      const cursorDistance = Math.sqrt(distanceX * distanceX + distanceZ * distanceZ);
+      
+      // Map distance to speed (normalize to 0-1 range, max distance = 20 units)
+      const maxDistance = 20; // Maximum distance for full speed
+      const normalizedDistance = Math.min(cursorDistance / maxDistance, 1.0);
+      
+      // Further cursor = faster speed
+      calculatedSpeed = minSpeed + (speedRange * normalizedDistance);
     } else {
-      // Joystick not pushed - use minimum speed
-      targetSpeed = minSpeed;
+      // Fallback: use minimum speed
+      calculatedSpeed = minSpeed;
     }
+    
+    // Speed can only increase, never decrease
+    // Track the maximum speed achieved and use the higher value
+    if (calculatedSpeed > projectile.userData.currentMaxSpeed) {
+      projectile.userData.currentMaxSpeed = calculatedSpeed;
+    }
+    targetSpeed = projectile.userData.currentMaxSpeed;
   } else {
     // Lucy: Fixed speed or deceleration pattern (no joystick control)
     // Use base speed for consistent spraying behavior
