@@ -78,11 +78,17 @@ function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, cha
  * @param {number} targetZ - Target Z position
  * @param {string} characterName - Character name ('lucy' or 'herald')
  * @param {Object} collisionManager - Collision manager for ground height checks
- * @returns {THREE.Mesh} Tube mesh representing the arc preview
+ * @returns {THREE.Mesh|null} Tube mesh representing the arc preview, or null if too few points
  */
 export function createMortarArcPreview(scene, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
   // Calculate trajectory points
   const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, ARC_POINTS);
+  
+  // Ensure we have enough points (CatmullRomCurve3 needs at least 4 points)
+  if (points.length < 4) {
+    // If too few points, return null to indicate preview cannot be created
+    return null;
+  }
   
   // Adjust points to ground height if collision manager available
   if (collisionManager) {
@@ -136,6 +142,7 @@ export function createMortarArcPreview(scene, startX, startY, startZ, targetX, t
  * @param {number} targetZ - Target Z position
  * @param {string} characterName - Character name
  * @param {Object} collisionManager - Collision manager for ground height checks
+ * @returns {boolean} True if update was successful, false if too few points
  */
 export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
   // Recalculate trajectory points
@@ -143,8 +150,8 @@ export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX,
   
   // Ensure we have enough points (CatmullRomCurve3 needs at least 4 points)
   if (points.length < 4) {
-    // If too few points, just return without updating
-    return;
+    // If too few points, return false to indicate update failed
+    return false;
   }
   
   // Adjust points to ground height if collision manager available
@@ -187,6 +194,8 @@ export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX,
   if (arcTube.userData.characterName !== characterName) {
     arcTube.userData.characterName = characterName;
   }
+  
+  return true; // Indicate successful update
 }
 
 /**

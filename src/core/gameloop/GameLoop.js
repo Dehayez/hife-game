@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor, getMeleeStats } from '../projectile/CharacterStats.js';
+import { getCharacterColor, getMeleeStats, getMortarStats } from '../projectile/CharacterStats.js';
 import { setLastCharacter } from '../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../projectile/MortarArcPreview.js';
 
@@ -774,7 +774,8 @@ export class GameLoop {
       
       // Get joystick magnitude to scale distance (0 = character position, 1 = max range)
       const magnitude = this.inputManager.getRightJoystickMagnitude();
-      const maxDistance = 10; // Maximum mortar distance
+      const mortarStats = getMortarStats(characterName);
+      const maxDistance = mortarStats.maxRange; // Maximum mortar distance from stats
       
       // Scale distance based on magnitude (center = 0, max push = maxDistance)
       const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
@@ -786,35 +787,11 @@ export class GameLoop {
       targetX = playerPos.x + directionX * targetDistance;
       targetZ = playerPos.z + directionZ * targetDistance;
     } else {
-      // Use character facing direction when right joystick is not active
-      const lastFacing = this.characterManager.getLastFacing();
-      const camera = this.sceneManager.getCamera();
-      
-      // Get camera forward direction in world space
-      const cameraDir = new THREE.Vector3();
-      camera.getWorldDirection(cameraDir);
-      
-      // Project camera direction onto ground plane (XZ plane)
-      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
-      
-      // Shoot in the direction the character is looking
-      // If character is facing 'back' (towards camera, negative Z), shoot backward (towards camera)
-      // If character is facing 'front' (away from camera, positive Z), shoot forward (away from camera)
-      let directionX, directionZ;
-      if (lastFacing === 'back') {
-        // Shoot in back direction (same as camera forward, which is negative Z relative to camera)
-        directionX = cameraForward.x;
-        directionZ = cameraForward.z;
-      } else {
-        // Shoot in front direction (opposite of camera forward, which is positive Z relative to camera)
-        directionX = -cameraForward.x;
-        directionZ = -cameraForward.z;
-      }
-      
-      // Calculate target point in the direction of character facing
-      const targetDistance = 10; // Distance ahead to aim mortar
-      targetX = playerPos.x + directionX * targetDistance;
-      targetZ = playerPos.z + directionZ * targetDistance;
+      // When right joystick is not active, shoot straight up
+      // Use a tiny offset to ensure horizontal distance > 0.1 (required by Mortar.js)
+      // This makes it shoot essentially straight up while meeting the minimum distance requirement
+      targetX = playerPos.x + 0.15; // Small offset to ensure distance > 0.1
+      targetZ = playerPos.z;
     }
     
     // Create mortar
@@ -893,7 +870,8 @@ export class GameLoop {
       
       // Get joystick magnitude to scale distance (0 = character position, 1 = max range)
       const magnitude = this.inputManager.getRightJoystickMagnitude();
-      const maxDistance = 10; // Maximum mortar distance
+      const mortarStats = getMortarStats(characterName);
+      const maxDistance = mortarStats.maxRange; // Maximum mortar distance from stats
       
       // Scale distance based on magnitude (center = 0, max push = maxDistance)
       const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
@@ -917,11 +895,13 @@ export class GameLoop {
           characterName,
           this.collisionManager
         );
-        // Add to scene (createMortarArcPreview doesn't add it automatically)
-        this.sceneManager.getScene().add(this.mortarArcPreview);
+        // Add to scene if preview was successfully created (createMortarArcPreview returns null if too few points)
+        if (this.mortarArcPreview) {
+          this.sceneManager.getScene().add(this.mortarArcPreview);
+        }
       } else {
         // Update existing arc preview
-        updateMortarArcPreview(
+        const updateSuccess = updateMortarArcPreview(
           this.mortarArcPreview,
           playerPos.x,
           playerPos.y,
@@ -931,6 +911,11 @@ export class GameLoop {
           characterName,
           this.collisionManager
         );
+        // If update failed (too few points), remove the preview
+        if (!updateSuccess && this.mortarArcPreview) {
+          removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+          this.mortarArcPreview = null;
+        }
       }
     } else {
       // Remove arc preview when joystick is not active
