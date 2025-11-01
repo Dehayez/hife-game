@@ -100,69 +100,90 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
   let targetX = projectile.userData.targetX;
   let targetZ = projectile.userData.targetZ;
   
-  // Continuously track cursor if enabled and tracking data is available
-  if (followStrength > 0 && camera && inputManager && playerPosition) {
-    // Get current cursor position and convert to world coordinates
-    const mousePos = inputManager.getMousePosition();
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-    mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+  // Continuously track cursor or joystick if enabled and tracking data is available
+  if (followStrength > 0 && inputManager && playerPosition) {
+    let newTargetX = null;
+    let newTargetZ = null;
     
-    raycaster.setFromCamera(mouse, camera);
+    // Check if left joystick is active for projectile direction (gamepad control)
+    const projectileDir = inputManager.getProjectileDirection();
+    const isJoystickActive = inputManager.isProjectileDirectionActive();
     
-    // Intersect with ground plane at y = 0
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersect = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, intersect);
-    
-    // Get initial shooting direction from projectile userData
-    const initialDirX = projectile.userData.initialDirX;
-    const initialDirZ = projectile.userData.initialDirZ;
-    
-    if (initialDirX !== undefined && initialDirZ !== undefined) {
-      // Calculate vector from player to cursor
-      const toCursorX = intersect.x - playerPosition.x;
-      const toCursorZ = intersect.z - playerPosition.z;
-      const toCursorLength = Math.sqrt(toCursorX * toCursorX + toCursorZ * toCursorZ);
+    if (isJoystickActive && (projectileDir.x !== 0 || projectileDir.z !== 0)) {
+      // Use left joystick direction for projectile curving
+      // Calculate target point continuously based on current joystick position
+      const targetDistance = 20; // Distance ahead to aim
+      newTargetX = playerPosition.x + projectileDir.x * targetDistance;
+      newTargetZ = playerPosition.z + projectileDir.z * targetDistance;
       
-      if (toCursorLength > 0.01) {
-        // Normalize cursor direction from player
-        const cursorDirX = toCursorX / toCursorLength;
-        const cursorDirZ = toCursorZ / toCursorLength;
+      // Update stored target
+      projectile.userData.targetX = newTargetX;
+      projectile.userData.targetZ = newTargetZ;
+      targetX = newTargetX;
+      targetZ = newTargetZ;
+    } else if (camera) {
+      // Fallback to mouse/cursor tracking
+      const mousePos = inputManager.getMousePosition();
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      
+      // Intersect with ground plane at y = 0
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersect = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersect);
+      
+      // Get initial shooting direction from projectile userData
+      const initialDirX = projectile.userData.initialDirX;
+      const initialDirZ = projectile.userData.initialDirZ;
+      
+      if (initialDirX !== undefined && initialDirZ !== undefined) {
+        // Calculate vector from player to cursor
+        const toCursorX = intersect.x - playerPosition.x;
+        const toCursorZ = intersect.z - playerPosition.z;
+        const toCursorLength = Math.sqrt(toCursorX * toCursorX + toCursorZ * toCursorZ);
         
-        // Calculate dot product to check if cursor is ahead along shooting direction
-        const dotProduct = initialDirX * cursorDirX + initialDirZ * cursorDirZ;
-        
-        // If cursor is ahead (forward) along the shooting direction line, use it as target
-        // dotProduct > 0 means the cursor is generally in the forward direction
-        if (dotProduct > 0) {
-          // Project cursor position onto the shooting direction line
-          // Calculate distance along the shooting direction line from player to cursor projection
-          const cursorProjDist = toCursorLength * dotProduct;
+        if (toCursorLength > 0.01) {
+          // Normalize cursor direction from player
+          const cursorDirX = toCursorX / toCursorLength;
+          const cursorDirZ = toCursorZ / toCursorLength;
           
-          // Calculate distance from player to projectile along shooting direction
-          const projectileFromPlayerX = projectile.position.x - playerPosition.x;
-          const projectileFromPlayerZ = projectile.position.z - playerPosition.z;
-          const projectileDistFromPlayer = Math.sqrt(
-            projectileFromPlayerX * projectileFromPlayerX +
-            projectileFromPlayerZ * projectileFromPlayerZ
-          );
+          // Calculate dot product to check if cursor is ahead along shooting direction
+          const dotProduct = initialDirX * cursorDirX + initialDirZ * cursorDirZ;
           
-          // Project projectile position onto shooting direction line
-          if (projectileDistFromPlayer > 0.01) {
-            const projDirX = projectileFromPlayerX / projectileDistFromPlayer;
-            const projDirZ = projectileFromPlayerZ / projectileDistFromPlayer;
-            const projDotProduct = initialDirX * projDirX + initialDirZ * projDirZ;
-            const projectileProjDist = projectileDistFromPlayer * Math.max(0, projDotProduct);
+          // If cursor is ahead (forward) along the shooting direction line, use it as target
+          // dotProduct > 0 means the cursor is generally in the forward direction
+          if (dotProduct > 0) {
+            // Project cursor position onto the shooting direction line
+            // Calculate distance along the shooting direction line from player to cursor projection
+            const cursorProjDist = toCursorLength * dotProduct;
             
-            // If cursor projection is further along the shooting direction line than projectile, follow it
-            if (cursorProjDist > projectileProjDist) {
-              targetX = intersect.x;
-              targetZ = intersect.z;
-              // Update stored target
-              projectile.userData.targetX = targetX;
-              projectile.userData.targetZ = targetZ;
+            // Calculate distance from player to projectile along shooting direction
+            const projectileFromPlayerX = projectile.position.x - playerPosition.x;
+            const projectileFromPlayerZ = projectile.position.z - playerPosition.z;
+            const projectileDistFromPlayer = Math.sqrt(
+              projectileFromPlayerX * projectileFromPlayerX +
+              projectileFromPlayerZ * projectileFromPlayerZ
+            );
+            
+            // Project projectile position onto shooting direction line
+            if (projectileDistFromPlayer > 0.01) {
+              const projDirX = projectileFromPlayerX / projectileDistFromPlayer;
+              const projDirZ = projectileFromPlayerZ / projectileDistFromPlayer;
+              const projDotProduct = initialDirX * projDirX + initialDirZ * projDirZ;
+              const projectileProjDist = projectileDistFromPlayer * Math.max(0, projDotProduct);
+              
+              // If cursor projection is further along the shooting direction line than projectile, follow it
+              if (cursorProjDist > projectileProjDist) {
+                targetX = intersect.x;
+                targetZ = intersect.z;
+                // Update stored target
+                projectile.userData.targetX = targetX;
+                projectile.userData.targetZ = targetZ;
+              }
             }
           }
         }

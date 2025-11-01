@@ -235,28 +235,7 @@ export class GameLoop {
    * @private
    */
   _handleShootingInput(player) {
-    const camera = this.sceneManager.getCamera();
-    const mousePos = this.inputManager.getMousePosition();
-    
-    // Convert mouse to world coordinates on ground plane
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-    mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
-    
-    raycaster.setFromCamera(mouse, camera);
-    
-    // Intersect with ground plane at y = 0
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersect = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, intersect);
-    
-    // Calculate direction from player to intersect point
     const playerPos = player.position;
-    const directionX = intersect.x - playerPos.x;
-    const directionZ = intersect.z - playerPos.z;
-    
-    // Get current character name for projectile stats
     const characterName = this.characterManager.getCharacterName();
     const playerId = 'local';
     
@@ -265,70 +244,85 @@ export class GameLoop {
       return;
     }
     
-    // If no valid direction (too close to player), shoot forward
-    const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
-    if (dirLength < 0.1) {
-      // Shoot in camera forward direction
-      const cameraDir = new THREE.Vector3();
-      camera.getWorldDirection(cameraDir);
-      // Calculate a target point in front of the player for cursor following
-      const forwardTargetX = playerPos.x + cameraDir.x * 10;
-      const forwardTargetZ = playerPos.z + cameraDir.z * 10;
+    // Check if left joystick is active for projectile direction (gamepad control)
+    const projectileDir = this.inputManager.getProjectileDirection();
+    const isJoystickActive = this.inputManager.isProjectileDirectionActive();
+    
+    let directionX, directionZ, targetX, targetZ;
+    
+    if (isJoystickActive && (projectileDir.x !== 0 || projectileDir.z !== 0)) {
+      // Use left joystick direction for projectile control
+      // projectileDir is already normalized, so use it directly
+      directionX = projectileDir.x;
+      directionZ = projectileDir.z;
       
-      const projectile = this.projectileManager.createProjectile(
-        playerPos.x,
-        playerPos.y,
-        playerPos.z,
-        cameraDir.x,
-        cameraDir.z,
-        playerId,
-        characterName,
-        forwardTargetX,
-        forwardTargetZ
-      );
-      
-      // Send projectile to other players via multiplayer
-      if (projectile && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
-        this.multiplayerManager.sendProjectileCreate({
-          projectileType: 'firebolt',
-          startX: playerPos.x,
-          startY: playerPos.y,
-          startZ: playerPos.z,
-          directionX: cameraDir.x,
-          directionZ: cameraDir.z,
-          characterName: characterName,
-          targetX: forwardTargetX,
-          targetZ: forwardTargetZ
-        });
-      }
+      // Calculate target point in the direction of the joystick (for cursor following)
+      const targetDistance = 10; // Distance ahead to aim
+      targetX = playerPos.x + directionX * targetDistance;
+      targetZ = playerPos.z + directionZ * targetDistance;
     } else {
-      // Pass the cursor intersection point as target for following
-      const projectile = this.projectileManager.createProjectile(
-        playerPos.x,
-        playerPos.y,
-        playerPos.z,
-        directionX,
-        directionZ,
-        playerId,
-        characterName,
-        intersect.x,
-        intersect.z
-      );
+      // Fallback to mouse/cursor control
+      const camera = this.sceneManager.getCamera();
+      const mousePos = this.inputManager.getMousePosition();
       
-      // Send projectile to other players via multiplayer
-      if (projectile && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
-        this.multiplayerManager.sendProjectileCreate({
-          projectileType: 'firebolt',
-          startX: playerPos.x,
-          startY: playerPos.y,
-          startZ: playerPos.z,
-          directionX: directionX,
-          directionZ: directionZ,
-          characterName: characterName,
-          targetX: intersect.x,
-          targetZ: intersect.z
-        });
+      // Convert mouse to world coordinates on ground plane
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      
+      // Intersect with ground plane at y = 0
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersect = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersect);
+      
+      // Calculate direction from player to intersect point
+      directionX = intersect.x - playerPos.x;
+      directionZ = intersect.z - playerPos.z;
+      targetX = intersect.x;
+      targetZ = intersect.z;
+      
+      // If no valid direction (too close to player), shoot forward
+      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (dirLength < 0.1) {
+        // Shoot in camera forward direction
+        const cameraDir = new THREE.Vector3();
+        camera.getWorldDirection(cameraDir);
+        directionX = cameraDir.x;
+        directionZ = cameraDir.z;
+        targetX = playerPos.x + cameraDir.x * 10;
+        targetZ = playerPos.z + cameraDir.z * 10;
       }
+    }
+    
+    // Create projectile
+    const projectile = this.projectileManager.createProjectile(
+      playerPos.x,
+      playerPos.y,
+      playerPos.z,
+      directionX,
+      directionZ,
+      playerId,
+      characterName,
+      targetX,
+      targetZ
+    );
+    
+    // Send projectile to other players via multiplayer
+    if (projectile && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+      this.multiplayerManager.sendProjectileCreate({
+        projectileType: 'firebolt',
+        startX: playerPos.x,
+        startY: playerPos.y,
+        startZ: playerPos.z,
+        directionX: directionX,
+        directionZ: directionZ,
+        characterName: characterName,
+        targetX: targetX,
+        targetZ: targetZ
+      });
     }
   }
 
@@ -338,50 +332,71 @@ export class GameLoop {
    * @private
    */
   _handleMortarInput(player) {
-    const camera = this.sceneManager.getCamera();
-    const mousePos = this.inputManager.getMousePosition();
-    
-    // Convert mouse to world coordinates on ground plane
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-    mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
-    
-    raycaster.setFromCamera(mouse, camera);
-    
-    // Intersect with ground plane to get target position
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersect = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, intersect);
-    
     const playerPos = player.position;
     const characterName = this.characterManager.getCharacterName();
     const playerId = 'local';
     
     // Check if player can shoot mortar
-    if (this.projectileManager.canShootMortar(playerId)) {
-      const mortar = this.projectileManager.createMortar(
-        playerPos.x,
-        playerPos.y,
-        playerPos.z,
-        intersect.x,
-        intersect.z,
-        playerId,
-        characterName
-      );
+    if (!this.projectileManager.canShootMortar(playerId)) {
+      return;
+    }
+    
+    let targetX, targetZ;
+    
+    // Check if left joystick is active for projectile direction (gamepad control)
+    const projectileDir = this.inputManager.getProjectileDirection();
+    const isJoystickActive = this.inputManager.isProjectileDirectionActive();
+    
+    if (isJoystickActive && (projectileDir.x !== 0 || projectileDir.z !== 0)) {
+      // Use left joystick direction for mortar target
+      // Calculate target point in the direction of the joystick
+      const targetDistance = 15; // Distance ahead to aim mortar
+      targetX = playerPos.x + projectileDir.x * targetDistance;
+      targetZ = playerPos.z + projectileDir.z * targetDistance;
+    } else {
+      // Fallback to mouse/cursor control
+      const camera = this.sceneManager.getCamera();
+      const mousePos = this.inputManager.getMousePosition();
       
-      // Send mortar to other players via multiplayer
-      if (mortar && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
-        this.multiplayerManager.sendProjectileCreate({
-          projectileType: 'mortar',
-          startX: playerPos.x,
-          startY: playerPos.y,
-          startZ: playerPos.z,
-          targetX: intersect.x,
-          targetZ: intersect.z,
-          characterName: characterName
-        });
-      }
+      // Convert mouse to world coordinates on ground plane
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      
+      // Intersect with ground plane to get target position
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersect = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersect);
+      
+      targetX = intersect.x;
+      targetZ = intersect.z;
+    }
+    
+    // Create mortar
+    const mortar = this.projectileManager.createMortar(
+      playerPos.x,
+      playerPos.y,
+      playerPos.z,
+      targetX,
+      targetZ,
+      playerId,
+      characterName
+    );
+    
+    // Send mortar to other players via multiplayer
+    if (mortar && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+      this.multiplayerManager.sendProjectileCreate({
+        projectileType: 'mortar',
+        startX: playerPos.x,
+        startY: playerPos.y,
+        startZ: playerPos.z,
+        targetX: targetX,
+        targetZ: targetZ,
+        characterName: characterName
+      });
     }
   }
 

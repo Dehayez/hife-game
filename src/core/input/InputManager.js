@@ -42,6 +42,13 @@ export class InputManager {
     this._lastInputLog = null; // Track last input to avoid spam
     this._inputLogThrottle = 200; // Throttle input logs (ms)
     
+    // Left joystick direction for projectile control (separate from movement)
+    this.projectileDirection = { x: 0, z: 0 };
+    this._projectileDirectionActive = false;
+    
+    // Left joystick analog movement (for smooth 360-degree movement)
+    this.gamepadMovementVector = { x: 0, y: 0 };
+    
     const stats = getMovementStats();
     this.moveSpeed = stats.moveSpeed;
     this.runSpeedMultiplier = stats.runSpeedMultiplier;
@@ -279,6 +286,16 @@ export class InputManager {
         this.inputState.shoot = false;
         this.inputState.mortar = false;
         
+        // Clear gamepad movement vector
+        this.gamepadMovementVector.x = 0;
+        this.gamepadMovementVector.y = 0;
+        this._gamepadMovementActive = false;
+        
+        // Clear projectile direction
+        this.projectileDirection.x = 0;
+        this.projectileDirection.z = 0;
+        this._projectileDirectionActive = false;
+        
         console.log('⚠️ Gamepad inputs cleared');
       }
     });
@@ -466,85 +483,65 @@ export class InputManager {
     const hadKeyboardJump = this.inputState.jump && !this._gamepadJumpState;
     const hadKeyboardShift = this.inputState.shift && !this._gamepadShiftState;
 
-    // Left analog stick (axes 0 and 1) for movement
+    // Left analog stick (axes 0 and 1) 
     const leftStickX = gamepad.axes[0];
     const leftStickY = gamepad.axes[1];
     
-    // Apply dead zone
-    const leftX = Math.abs(leftStickX) > this.gamepadDeadZone ? leftStickX : 0;
-    const leftY = Math.abs(leftStickY) > this.gamepadDeadZone ? leftStickY : 0;
+    // Apply dead zone to raw stick values
+    const leftXDead = Math.abs(leftStickX) > this.gamepadDeadZone ? leftStickX : 0;
+    const leftYDead = Math.abs(leftStickY) > this.gamepadDeadZone ? leftStickY : 0;
     
-    // D-Pad (buttons 12-15 typically) - D-pad always takes precedence
-    let dPadActive = false;
-    if (gamepad.buttons[12] && gamepad.buttons[12].pressed) { // D-pad up
-      this.inputState.up = true;
-      this.inputState.down = false;
-      this.inputState.left = false;
-      this.inputState.right = false;
-      dPadActive = true;
-    }
-    if (gamepad.buttons[13] && gamepad.buttons[13].pressed) { // D-pad down
-      this.inputState.down = true;
-      this.inputState.up = false;
-      this.inputState.left = false;
-      this.inputState.right = false;
-      dPadActive = true;
-    }
-    if (gamepad.buttons[14] && gamepad.buttons[14].pressed) { // D-pad left
-      this.inputState.left = true;
-      this.inputState.right = false;
-      this.inputState.up = false;
-      this.inputState.down = false;
-      dPadActive = true;
-    }
-    if (gamepad.buttons[15] && gamepad.buttons[15].pressed) { // D-pad right
-      this.inputState.right = true;
-      this.inputState.left = false;
-      this.inputState.up = false;
-      this.inputState.down = false;
-      dPadActive = true;
-    }
-
-    // Movement (left stick) - only apply if no keyboard movement and D-pad not active
-    if (!hadKeyboardMovement && !dPadActive) {
-      // Invert Y axis for typical gamepad layout (up is negative)
-      const stickLeft = leftX < -this.gamepadDeadZone;
-      const stickRight = leftX > this.gamepadDeadZone;
-      const stickUp = leftY < -this.gamepadDeadZone;
-      const stickDown = leftY > this.gamepadDeadZone;
-      
-      // Only update if stick is actually being used
-      if (stickLeft || stickRight || stickUp || stickDown) {
-        this.inputState.left = stickLeft;
-        this.inputState.right = stickRight;
-        this.inputState.up = stickUp;
-        this.inputState.down = stickDown;
-        
-        if (!this._gamepadMovementActive && this._loggingEnabled) {
-          const directions = [];
-          if (stickUp) directions.push('UP');
-          if (stickDown) directions.push('DOWN');
-          if (stickLeft) directions.push('LEFT');
-          if (stickRight) directions.push('RIGHT');
-          this._logInput(`🎯 MOVEMENT (Left Stick)`, directions.join('+') || 'neutral', gamepad);
-        }
-        
-        this._gamepadMovementActive = true;
-      } else if (this._gamepadMovementActive) {
-        // Clear gamepad movement if stick is neutral
-        this.inputState.left = false;
-        this.inputState.right = false;
-        this.inputState.up = false;
-        this.inputState.down = false;
-        this._gamepadMovementActive = false;
-        
-        if (this._loggingEnabled) {
-          this._logInput('🎯 MOVEMENT (Left Stick)', 'neutral', gamepad);
-        }
+    // Store analog movement vector for smooth 360-degree movement
+    // This allows movement in all directions, not just cardinal
+    if (Math.abs(leftStickX) > this.gamepadDeadZone || Math.abs(leftStickY) > this.gamepadDeadZone) {
+      // Normalize to ensure smooth circular movement (not square movement)
+      const stickMagnitude = Math.sqrt(leftStickX * leftStickX + leftStickY * leftStickY);
+      if (stickMagnitude > 1.0) {
+        // Normalize if magnitude exceeds 1 (shouldn't happen but safety check)
+        this.gamepadMovementVector.x = leftStickX / stickMagnitude;
+        this.gamepadMovementVector.y = leftStickY / stickMagnitude;
+      } else {
+        // Use raw values for analog movement (allows variable speed based on stick position)
+        this.gamepadMovementVector.x = leftStickX;
+        this.gamepadMovementVector.y = leftStickY;
       }
+      this._gamepadMovementActive = true;
     } else {
-      // Keyboard or D-pad is active, clear gamepad movement flag
+      // Clear movement when stick returns to neutral
+      this.gamepadMovementVector.x = 0;
+      this.gamepadMovementVector.y = 0;
       this._gamepadMovementActive = false;
+    }
+    
+    // Store left stick direction for projectile control (raw, normalized)
+    // Always update projectile direction regardless of game mode
+    const leftStickLength = Math.sqrt(leftXDead * leftXDead + leftYDead * leftYDead);
+    if (leftStickLength > this.gamepadDeadZone) {
+      // Normalize and store direction
+      this.projectileDirection.x = leftXDead / leftStickLength;
+      this.projectileDirection.z = -leftYDead / leftStickLength; // Invert Y for 3D (up stick = forward in Z)
+      this._projectileDirectionActive = true;
+    } else {
+      // Clear projectile direction when stick returns to neutral
+      this.projectileDirection.x = 0;
+      this.projectileDirection.z = 0;
+      this._projectileDirectionActive = false;
+    }
+    
+    // Apply dead zone for binary movement check (used for old movement system, deprecated)
+    const leftX = leftXDead;
+    const leftY = leftYDead;
+    
+    // D-Pad is disabled - only joystick movement is allowed
+    // This ensures smooth 360-degree analog movement only
+    
+    // Clear keyboard movement states - movement is now joystick-only
+    // Keyboard movement is disabled per user request
+    if (hadKeyboardMovement) {
+      this.inputState.left = false;
+      this.inputState.right = false;
+      this.inputState.up = false;
+      this.inputState.down = false;
     }
 
     // Jump (typically button 0 or A button) - combine with keyboard
@@ -575,9 +572,8 @@ export class InputManager {
       this._gamepadShiftState = false;
     }
 
-    // Shoot (typically right trigger or right shoulder)
-    const shootPressed = (gamepad.buttons[7] && gamepad.buttons[7].value > 0.5) || // Right trigger
-                         (gamepad.buttons[5] && gamepad.buttons[5].pressed); // Right shoulder
+    // Shoot (typically right trigger RT) - firebolt
+    const shootPressed = (gamepad.buttons[7] && gamepad.buttons[7].value > 0.5); // Right trigger only
     
     if (shootPressed && !this.shootPressed) {
       this.shootPressed = true;
@@ -590,9 +586,8 @@ export class InputManager {
       this.inputState.shoot = false;
     }
 
-    // Mortar (typically right bumper/button 5)
-    const mortarPressed = (gamepad.buttons[5] && gamepad.buttons[5].pressed) || // Right shoulder
-                          (gamepad.buttons[2] && gamepad.buttons[2].pressed); // X button
+    // Mortar (RB button 5 only)
+    const mortarPressed = gamepad.buttons[5] && gamepad.buttons[5].pressed; // Right bumper (RB) only
     
     if (mortarPressed && !this.mortarPressed) {
       this.mortarPressed = true;
@@ -739,37 +734,9 @@ export class InputManager {
   setKeyState(e, pressed) {
     const keys = getKeyBindings();
     
-    // Arrow keys by value
-    if (keys.up.includes(e.key)) {
-      this.inputState.up = pressed;
-      this._gamepadMovementActive = false; // Clear gamepad movement when keyboard is used
-    }
-    if (keys.down.includes(e.key)) {
-      this.inputState.down = pressed;
-      this._gamepadMovementActive = false;
-    }
-    if (keys.left.includes(e.key)) {
-      this.inputState.left = pressed;
-      this._gamepadMovementActive = false;
-    }
-    if (keys.right.includes(e.key)) {
-      this.inputState.right = pressed;
-      this._gamepadMovementActive = false;
-    }
-    
-    // Layout-agnostic WASD using physical key codes (works for ZQSD on AZERTY)
-    if (keys.up.includes(e.code)) {
-      this.inputState.up = pressed;
-    }
-    if (keys.down.includes(e.code)) {
-      this.inputState.down = pressed;
-    }
-    if (keys.left.includes(e.code)) {
-      this.inputState.left = pressed;
-    }
-    if (keys.right.includes(e.code)) {
-      this.inputState.right = pressed;
-    }
+    // Movement keys are disabled - only joystick movement is allowed
+    // Arrow keys and WASD no longer control movement
+    // Keeping this code for other keys (shift, jump, etc.)
     
     // Shift key for running
     if (keys.run.includes(e.key)) {
@@ -784,9 +751,21 @@ export class InputManager {
 
   /**
    * Get input vector from current state
-   * @returns {THREE.Vector2} Normalized input vector
+   * Uses gamepad analog joystick for smooth 360-degree movement
+   * @returns {THREE.Vector2} Input vector (analog for joystick, normalized for keyboard)
    */
   getInputVector() {
+    // If gamepad is active and providing analog movement, use that (smooth 360-degree)
+    if (this._gamepadMovementActive && (this.gamepadMovementVector.x !== 0 || this.gamepadMovementVector.y !== 0)) {
+      // Return analog joystick values for smooth movement in all directions
+      // Y axis is inverted for gamepad (up stick = negative Y = forward in Z)
+      return new THREE.Vector2(
+        this.gamepadMovementVector.x,
+        -this.gamepadMovementVector.y // Invert Y for 3D space
+      );
+    }
+    
+    // Fallback to keyboard input (if any, but movement keys are now disabled)
     const input = new THREE.Vector2(
       (this.inputState.right ? 1 : 0) - (this.inputState.left ? 1 : 0),
       (this.inputState.up ? 1 : 0) - (this.inputState.down ? 1 : 0)
@@ -852,6 +831,22 @@ export class InputManager {
    */
   isMortarPressed() {
     return this.inputState.mortar;
+  }
+
+  /**
+   * Get left joystick direction for projectile control
+   * @returns {Object} Direction with x and z components (normalized, 0-1 range)
+   */
+  getProjectileDirection() {
+    return this.projectileDirection;
+  }
+
+  /**
+   * Check if left joystick is active for projectile direction
+   * @returns {boolean} True if left joystick is being used for projectile direction
+   */
+  isProjectileDirectionActive() {
+    return this._projectileDirectionActive;
   }
 }
 
