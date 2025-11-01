@@ -9,9 +9,10 @@ import { initRoomManager } from './ui/RoomManager.js';
 import { initBotControl } from './ui/BotControl.js';
 import { initCooldownIndicator } from './ui/CooldownIndicator.js';
 import { initConnectionStatus } from './ui/ConnectionStatus.js';
+import { initInputModeSwitcher } from './ui/InputModeSwitcher.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
-import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode } from './utils/StorageUtils.js';
+import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode, getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
 import { SceneManager } from './core/scene/SceneManager.js';
 import { LargeArenaSceneManager } from './core/scene/LargeArenaSceneManager.js';
 import { CharacterManager } from './core/character/CharacterManager.js';
@@ -57,6 +58,11 @@ if (isLargeArena) {
 const customFootstepPath = null;
 const characterManager = new CharacterManager(null, customFootstepPath);
 const inputManager = new InputManager();
+
+// Initialize input mode from storage (before other components use it)
+const savedInputMode = getLastInputMode();
+inputManager.setInputMode(savedInputMode);
+
 const entityManager = new EntityManager(sceneManager.getScene(), sceneManager.getArenaSize(), collisionManager);
 const gameModeManager = new GameModeManager(entityManager, urlArena);
 
@@ -489,6 +495,57 @@ if (gameMode === 'shooting') {
 const legendMount = document.getElementById('controls-legend') || document.body;
 initControlsLegend({
   mount: legendMount
+});
+
+// Initialize input mode switcher UI
+const inputModeMount = document.getElementById('input-mode-switcher') || document.body;
+
+// Check if controller is available before setting mode
+// If saved mode is controller but no controller is available, default to keyboard
+let initialInputMode = savedInputMode;
+if (initialInputMode === 'controller' && !inputManager.isGamepadConnected()) {
+  initialInputMode = 'keyboard';
+  // Save the corrected mode
+  setLastInputMode('keyboard');
+}
+
+inputManager.setInputMode(initialInputMode);
+
+const inputModeSwitcher = initInputModeSwitcher({
+  mount: inputModeMount,
+  options: ['keyboard', 'controller'],
+  value: initialInputMode,
+  onChange: (mode) => {
+    const success = inputManager.setInputMode(mode);
+    if (success) {
+      setLastInputMode(mode);
+    }
+  }
+});
+
+// Set initial controller availability status
+inputModeSwitcher.setControllerAvailable(inputManager.isGamepadConnected());
+
+// Set up callback for controller connection status changes
+inputManager.setOnControllerStatusChange((isConnected) => {
+  inputModeSwitcher.setControllerAvailable(isConnected);
+  
+  if (isConnected) {
+    // Auto-switch to controller mode when controller is detected
+    const success = inputManager.setInputMode('controller');
+    if (success) {
+      inputModeSwitcher.setValue('controller');
+      setLastInputMode('controller');
+    }
+  } else {
+    // If controller disconnects, InputManager will auto-switch to keyboard mode
+    // Update the UI switcher to reflect this change
+    const currentMode = inputManager.getInputMode();
+    if (currentMode === 'keyboard') {
+      inputModeSwitcher.setValue('keyboard');
+      setLastInputMode('keyboard');
+    }
+  }
 });
 
 // Initialize game mode display

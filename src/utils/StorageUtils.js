@@ -171,3 +171,37 @@ export function getMaxBotCount(arena = 'standard') {
   return arena === 'large' ? 25 : 10;
 }
 
+/**
+ * Get saved input mode preference
+ * @returns {string} Input mode ('keyboard' or 'controller', default 'keyboard')
+ */
+export function getLastInputMode() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_input_mode`;
+    const stored = localStorage.getItem(key);
+    return stored === 'controller' ? 'controller' : 'keyboard';
+  } catch (e) {
+    // Error reading input mode
+  }
+  return 'keyboard';
+}
+
+/**
+ * Save input mode preference
+ * @param {string} inputMode - Input mode ('keyboard' or 'controller')
+ * @returns {boolean} True if saved successfully
+ */
+export function setLastInputMode(inputMode) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_input_mode`;
+    if (inputMode === 'keyboard' || inputMode === 'controller') {
+      localStorage.setItem(key, inputMode);
+      return true;
+    }
+  } catch (e) {
+    // Error saving input mode
+  }
+  return false;
+}
+
+

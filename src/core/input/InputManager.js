@@ -78,8 +78,72 @@ export class InputManager {
     this.moveSpeed = stats.moveSpeed;
     this.runSpeedMultiplier = stats.runSpeedMultiplier;
     
+    // Input mode: 'keyboard' or 'controller'
+    this.inputMode = 'keyboard'; // Default to keyboard
+    
+    // Callback for controller connection status changes
+    this._onControllerStatusChange = null;
+    
     this._setupEventListeners();
     this._setupGamepadListeners();
+  }
+
+  /**
+   * Set callback for controller connection status changes
+   * @param {Function} callback - Callback function(isConnected: boolean) => void
+   */
+  setOnControllerStatusChange(callback) {
+    this._onControllerStatusChange = callback;
+  }
+
+  /**
+   * Set input mode ('keyboard' or 'controller')
+   * @param {string} mode - Input mode
+   */
+  setInputMode(mode) {
+    if (mode === 'keyboard' || mode === 'controller') {
+      // Prevent switching to controller mode if no controller is connected
+      if (mode === 'controller' && !this.gamepadConnected) {
+        console.warn('Cannot switch to controller mode: no controller detected');
+        return false;
+      }
+      
+      this.inputMode = mode;
+      
+      // Clear inputs when switching modes to prevent stuck states
+      if (mode === 'keyboard') {
+        // Clear gamepad-controlled inputs
+        this.gamepadMovementVector.x = 0;
+        this.gamepadMovementVector.y = 0;
+        this._gamepadMovementActive = false;
+        this.projectileDirection.x = 0;
+        this.projectileDirection.z = 0;
+        this._projectileDirectionActive = false;
+        this.gamepadAimingVector.x = 0;
+        this.gamepadAimingVector.y = 0;
+        this._gamepadAimingActive = false;
+        this.rightJoystickDirection.x = 0;
+        this.rightJoystickDirection.z = 0;
+        this._rightJoystickDirectionActive = false;
+      } else {
+        // Clear keyboard-controlled inputs
+        this.inputState.up = false;
+        this.inputState.down = false;
+        this.inputState.left = false;
+        this.inputState.right = false;
+      }
+      
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get current input mode
+   * @returns {string} Current input mode ('keyboard' or 'controller')
+   */
+  getInputMode() {
+    return this.inputMode;
   }
 
   /**
@@ -110,19 +174,25 @@ export class InputManager {
    */
   _setupEventListeners() {
     window.addEventListener('keydown', (e) => { 
-      this.setKeyState(e, true);
-      // Prevent default browser behavior for game keys
-      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
-          e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault();
+      // Only process keyboard input when in keyboard mode
+      if (this.inputMode === 'keyboard') {
+        this.setKeyState(e, true);
+        // Prevent default browser behavior for game keys
+        if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+            e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+        }
       }
     });
     window.addEventListener('keyup', (e) => { 
-      this.setKeyState(e, false);
-      // Prevent default browser behavior for game keys
-      if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
-          e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault();
+      // Only process keyboard input when in keyboard mode
+      if (this.inputMode === 'keyboard') {
+        this.setKeyState(e, false);
+        // Prevent default browser behavior for game keys
+        if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+            e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+        }
       }
     });
     
@@ -133,12 +203,15 @@ export class InputManager {
         return;
       }
       
-      if (e.button === 0) { // Left mouse button
-        this.shootPressed = true;
-        this.inputState.shoot = true;
-      } else if (e.button === 2) { // Right mouse button
-        this.mortarPressed = true;
-        this.inputState.mortar = true;
+      // Only process mouse input when in keyboard mode
+      if (this.inputMode === 'keyboard') {
+        if (e.button === 0) { // Left mouse button
+          this.shootPressed = true;
+          this.inputState.shoot = true;
+        } else if (e.button === 2) { // Right mouse button
+          this.mortarPressed = true;
+          this.inputState.mortar = true;
+        }
       }
     });
     
@@ -148,12 +221,15 @@ export class InputManager {
         return;
       }
       
-      if (e.button === 0) {
-        this.shootPressed = false;
-        this.inputState.shoot = false;
-      } else if (e.button === 2) {
-        this.mortarPressed = false;
-        this.inputState.mortar = false;
+      // Only process mouse input when in keyboard mode
+      if (this.inputMode === 'keyboard') {
+        if (e.button === 0) {
+          this.shootPressed = false;
+          this.inputState.shoot = false;
+        } else if (e.button === 2) {
+          this.mortarPressed = false;
+          this.inputState.mortar = false;
+        }
       }
     });
     
@@ -164,7 +240,7 @@ export class InputManager {
       }
     });
     
-    // Track mouse position
+    // Track mouse position (always track for cursor display, but only use for input in keyboard mode)
     window.addEventListener('mousemove', (e) => {
       this.mousePosition.x = e.clientX;
       this.mousePosition.y = e.clientY;
@@ -263,6 +339,11 @@ export class InputManager {
       
       // Show visual notification
       this._showGamepadNotification(gamepad, true);
+      
+      // Notify callback about controller connection
+      if (this._onControllerStatusChange) {
+        this._onControllerStatusChange(true);
+      }
     });
 
     window.addEventListener('gamepaddisconnected', (e) => {
@@ -275,6 +356,11 @@ export class InputManager {
         
         // Show visual notification
         this._showGamepadNotification(gamepad, false);
+        
+        // If currently in controller mode, auto-switch to keyboard mode
+        if (this.inputMode === 'controller') {
+          this.inputMode = 'keyboard';
+        }
         
         // Reset gamepad-controlled inputs
         this.inputState.up = false;
@@ -320,6 +406,11 @@ export class InputManager {
         this._rightJoystickMagnitude = 0;
         this._lastRightJoystickMagnitude = 0;
         this._rightJoystickInDeadZone = false;
+        
+        // Notify callback about controller disconnection
+        if (this._onControllerStatusChange) {
+          this._onControllerStatusChange(false);
+        }
       }
     });
 
@@ -368,6 +459,11 @@ export class InputManager {
             // Show visual notification
             this._showGamepadNotification(gamepad, true);
             
+            // Notify callback about controller connection
+            if (this._onControllerStatusChange) {
+              this._onControllerStatusChange(true);
+            }
+            
             break;
           }
         }
@@ -398,6 +494,11 @@ export class InputManager {
             // Show visual notification
             this._showGamepadNotification(gamepad, true);
             
+            // Notify callback about controller connection
+            if (this._onControllerStatusChange) {
+              this._onControllerStatusChange(true);
+            }
+            
             return true;
           }
         }
@@ -417,6 +518,11 @@ export class InputManager {
    * @param {number} dt - Delta time in seconds (optional, defaults to ~0.016 for 60fps)
    */
   updateGamepad(dt = 0.016) {
+    // Only process gamepad input when in controller mode
+    if (this.inputMode !== 'controller') {
+      return;
+    }
+
     // Check if Gamepad API is available
     if (!navigator.getGamepads) {
       return;
@@ -469,7 +575,7 @@ export class InputManager {
     // Update gamepad reference
     this.gamepad = gamepad;
 
-    // Store keyboard state before applying gamepad (keyboard takes precedence)
+    // Check for keyboard state (only relevant if somehow keyboard was used, but should be cleared in controller mode)
     const hadKeyboardMovement = this.inputState.up || this.inputState.down || 
                                   this.inputState.left || this.inputState.right;
     const hadKeyboardJump = this.inputState.jump && !this._gamepadJumpState;
@@ -527,8 +633,7 @@ export class InputManager {
     // D-Pad is disabled - only joystick movement is allowed
     // This ensures smooth 360-degree analog movement only
     
-    // Clear keyboard movement states - movement is now joystick-only
-    // Keyboard movement is disabled per user request
+    // Clear keyboard movement states when using controller (controller mode only)
     if (hadKeyboardMovement) {
       this.inputState.left = false;
       this.inputState.right = false;
@@ -837,9 +942,19 @@ export class InputManager {
   setKeyState(e, pressed) {
     const keys = getKeyBindings();
     
-    // Movement keys are disabled - only joystick movement is allowed
-    // Arrow keys and WASD no longer control movement
-    // Keeping this code for other keys (shift, jump, etc.)
+    // Movement keys (only processed in keyboard mode)
+    if (keys.up.includes(e.key)) {
+      this.inputState.up = pressed;
+    }
+    if (keys.down.includes(e.key)) {
+      this.inputState.down = pressed;
+    }
+    if (keys.left.includes(e.key)) {
+      this.inputState.left = pressed;
+    }
+    if (keys.right.includes(e.key)) {
+      this.inputState.right = pressed;
+    }
     
     // Shift key for running
     // Don't allow sprinting when mortar hold is active
@@ -859,12 +974,14 @@ export class InputManager {
 
   /**
    * Get input vector from current state
-   * Uses gamepad analog joystick for smooth 360-degree movement
+   * Uses gamepad analog joystick for smooth 360-degree movement in controller mode
+   * Uses keyboard input in keyboard mode
    * @returns {THREE.Vector2} Input vector (analog for joystick, normalized for keyboard)
    */
   getInputVector() {
-    // If gamepad is active and providing analog movement, use that (smooth 360-degree)
-    if (this._gamepadMovementActive && (this.gamepadMovementVector.x !== 0 || this.gamepadMovementVector.y !== 0)) {
+    // In controller mode, use gamepad analog joystick for smooth 360-degree movement
+    if (this.inputMode === 'controller' && this._gamepadMovementActive && 
+        (this.gamepadMovementVector.x !== 0 || this.gamepadMovementVector.y !== 0)) {
       // Return analog joystick values for smooth movement in all directions
       // Y axis is inverted for gamepad (up stick = negative Y = forward in Z)
       return new THREE.Vector2(
@@ -873,15 +990,20 @@ export class InputManager {
       );
     }
     
-    // Fallback to keyboard input (if any, but movement keys are now disabled)
-    const input = new THREE.Vector2(
-      (this.inputState.right ? 1 : 0) - (this.inputState.left ? 1 : 0),
-      (this.inputState.up ? 1 : 0) - (this.inputState.down ? 1 : 0)
-    );
+    // In keyboard mode, use keyboard input
+    if (this.inputMode === 'keyboard') {
+      const input = new THREE.Vector2(
+        (this.inputState.right ? 1 : 0) - (this.inputState.left ? 1 : 0),
+        (this.inputState.up ? 1 : 0) - (this.inputState.down ? 1 : 0)
+      );
+      
+      if (input.lengthSq() > 1) input.normalize();
+      
+      return input;
+    }
     
-    if (input.lengthSq() > 1) input.normalize();
-    
-    return input;
+    // Fallback: no input
+    return new THREE.Vector2(0, 0);
   }
 
   /**

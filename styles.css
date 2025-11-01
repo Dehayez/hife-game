@@ -57,6 +57,7 @@ html, body { height: 100%; margin: 0; }
 .ui__choice:hover { transform: translateY(-1px); border-color: var(--color-border-medium-3); }
 .ui__choice.is-active { outline: none; border-color: var(--character-active-color, var(--color-accent)) !important; background: var(--color-bg-secondary); box-shadow: 0 0 0 2px rgba(var(--character-active-color-rgb, var(--color-accent-rgb)), 0.25) inset; }
 .ui__choice-img { width: 25px; height: auto; image-rendering: pixelated; object-fit: contain; }
+.ui__choice-icon { display: block; text-align: center; line-height: 1; }
 .ui__choice-caption { font-size: 12px; opacity: 0.9; }
 
 /* Start button */
