@@ -826,13 +826,14 @@ export class GameLoop {
       }
     }
     
-    // Handle preview (LT) - only show when in mortar hold mode
-    if (this.mortarHoldActive && leftTriggerInput) {
-      // Show preview while LT is held
+    // Handle preview - show when right joystick is used in mortar hold mode
+    const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
+    if (this.mortarHoldActive && isRightJoystickPushed) {
+      // Show preview while right joystick is used
       this._updateMortarArcPreview(player);
     } else {
-      // Hide preview when LT is not held
-      if (this.mortarArcPreview && (!leftTriggerInput || !this.mortarHoldActive)) {
+      // Hide preview when joystick is not being used
+      if (this.mortarArcPreview && (!isRightJoystickPushed || !this.mortarHoldActive)) {
         removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
         this.mortarArcPreview = null;
       }
@@ -1049,13 +1050,13 @@ export class GameLoop {
   
   /**
    * Update mortar arc preview visualization
-   * Shows predicted trajectory when LT is held while holding RB
+   * Shows predicted trajectory when right joystick is used while holding RB
    * @param {THREE.Mesh} player - Player mesh
    * @private
    */
   _updateMortarArcPreview(player) {
-    // Only show preview when holding RB and LT
-    if (!this.mortarHoldActive || !this.inputManager.isLeftTriggerPressed()) {
+    // Only show preview when holding RB and using right joystick
+    if (!this.mortarHoldActive || !this.inputManager.isRightJoystickPushed()) {
       return;
     }
     

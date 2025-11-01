@@ -101,12 +101,9 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
   let targetX = projectile.userData.targetX;
   let targetZ = projectile.userData.targetZ;
   
-  // Only track cursor/joystick if projectile was created with a target (right joystick or mouse)
-  // If targetX/targetZ were null initially, don't enable cursor following (character facing direction)
-  const wasCreatedWithTarget = projectile.userData.targetX !== null && projectile.userData.targetZ !== null;
-  
-  // Continuously track cursor or joystick if enabled and tracking data is available
-  if (followStrength > 0 && inputManager && playerPosition && wasCreatedWithTarget) {
+  // Track cursor/joystick if enabled and tracking data is available
+  // Allow joystick control even if projectile wasn't created with a target (for post-fire control)
+  if (followStrength > 0 && inputManager && playerPosition) {
     let newTargetX = null;
     let newTargetZ = null;
     
@@ -116,6 +113,7 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
     
     // Prioritize right joystick for aiming (smooth 360-degree aiming in world space)
     // This allows continuous curving of projectiles while they're in flight
+    // Works even if projectile was fired without a target initially
     if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0) && camera) {
       // Use camera-relative direction: convert joystick input to world space using camera orientation
       // This matches how mouse aiming works and accounts for camera angle
@@ -156,8 +154,9 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
       projectile.userData.targetZ = newTargetZ;
       targetX = newTargetX;
       targetZ = newTargetZ;
-    } else if (camera) {
-      // Fallback to mouse/cursor tracking
+    } else if (camera && targetX !== null && targetZ !== null) {
+      // Fallback to mouse/cursor tracking (only if projectile was created with a target)
+      // This preserves the original behavior for mouse-aimed projectiles
       const mousePos = inputManager.getMousePosition();
       const raycaster = new THREE.Raycaster();
       const mouse = new THREE.Vector2();
