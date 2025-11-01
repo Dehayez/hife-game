@@ -88,6 +88,10 @@ export class GameLoop {
     }
     
     const player = this.characterManager.getPlayer();
+    
+    // Update gamepad input state (polling each frame)
+    this.inputManager.updateGamepad(dt);
+    
     const input = this.inputManager.getInputVector();
     const mode = this.gameModeManager ? this.gameModeManager.getMode() : 'free-play';
     const requiresStart = mode === 'time-trial' || mode === 'survival';

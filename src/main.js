@@ -692,6 +692,31 @@ window.debugRemotePlayers = () => {
   }
 };
 
+// Expose inputManager for gamepad debugging/activation
+if (typeof inputManager !== 'undefined') {
+  window.activateGamepad = () => {
+    if (inputManager) {
+      return inputManager.forceGamepadActivation();
+    } else {
+      console.error('InputManager not initialized');
+      return false;
+    }
+  };
+  
+  window.toggleGamepadLogging = (enabled) => {
+    if (inputManager) {
+      inputManager.setLoggingEnabled(enabled !== undefined ? enabled : !inputManager._loggingEnabled);
+    }
+  };
+  
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🎮 GAMEPAD DEBUG CONTROLS');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('  activateGamepad()     - Manually detect/activate gamepad');
+  console.log('  toggleGamepadLogging() - Toggle input logging on/off');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+}
+
 // Start the game
 (async () => {
   // Get loading screen element
