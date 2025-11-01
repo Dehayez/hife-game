@@ -341,7 +341,11 @@ export class CharacterManager {
       collisionManager,
       this.soundManager,
       () => this.isOnBaseGround(),
-      dt
+      dt,
+      () => {
+        // Landing callback - play landing animation
+        this.playLandingAnimation();
+      }
     );
   }
 
@@ -370,6 +374,9 @@ export class CharacterManager {
       this.player.userData.health = this.characterData.health;
       this.player.userData.maxHealth = this.characterData.maxHealth;
     }
+    
+    // Play spawn animation
+    this.playSpawnAnimation();
   }
 
   /**
@@ -395,6 +402,12 @@ export class CharacterManager {
    */
   takeDamage(damage) {
     this.characterData.health = Math.max(0, this.characterData.health - damage);
+    
+    // Play hit animation if not already dead
+    if (this.characterData.health > 0) {
+      this.playHitAnimation();
+    }
+    
     return this.characterData.health <= 0;
   }
 
@@ -405,6 +418,105 @@ export class CharacterManager {
   setHealth(health) {
     const healthStats = getCharacterHealthStats();
     this.characterData.health = Math.max(0, Math.min(healthStats.maxHealth, health));
+  }
+
+  /**
+   * Play landing animation
+   */
+  playLandingAnimation() {
+    if (!this.animations || !this.player) return;
+    
+    const animKey = this.lastFacing === 'back' ? 'landing_back' : 'landing_front';
+    const newKey = setCharacterAnimation(
+      this.player,
+      animKey,
+      this.animations,
+      this.currentAnimKey,
+      true,
+      () => {
+        // When landing animation completes, return to idle
+        this.currentAnimKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
+        this.setCurrentAnim(this.currentAnimKey, true);
+      }
+    );
+    
+    this.currentAnimKey = newKey;
+  }
+
+  /**
+   * Play hit animation
+   */
+  playHitAnimation() {
+    if (!this.animations || !this.player) return;
+    
+    const animKey = this.lastFacing === 'back' ? 'hit_back' : 'hit_front';
+    const newKey = setCharacterAnimation(
+      this.player,
+      animKey,
+      this.animations,
+      this.currentAnimKey,
+      true,
+      () => {
+        // When hit animation completes, return to idle/walk based on current state
+        const idleKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
+        this.currentAnimKey = idleKey;
+        this.setCurrentAnim(this.currentAnimKey, true);
+      }
+    );
+    
+    this.currentAnimKey = newKey;
+  }
+
+  /**
+   * Play death animation
+   */
+  playDeathAnimation() {
+    if (!this.animations || !this.player) return;
+    
+    const animKey = this.lastFacing === 'back' ? 'death_back' : 'death_front';
+    const newKey = setCharacterAnimation(
+      this.player,
+      animKey,
+      this.animations,
+      this.currentAnimKey,
+      true
+    );
+    
+    this.currentAnimKey = newKey;
+  }
+
+  /**
+   * Play spawn animation
+   */
+  playSpawnAnimation() {
+    if (!this.animations || !this.player) return;
+    
+    const animKey = this.lastFacing === 'back' ? 'spawn_back' : 'spawn_front';
+    const newKey = setCharacterAnimation(
+      this.player,
+      animKey,
+      this.animations,
+      this.currentAnimKey,
+      true,
+      () => {
+        // When spawn animation completes, return to idle
+        this.currentAnimKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
+        this.setCurrentAnim(this.currentAnimKey, true);
+      }
+    );
+    
+    this.currentAnimKey = newKey;
+  }
+
+  /**
+   * Check if currently playing a special animation (hit, death, spawn, landing)
+   * @returns {boolean} True if playing special animation
+   */
+  isPlayingSpecialAnimation() {
+    return this.currentAnimKey.includes('hit') || 
+           this.currentAnimKey.includes('death') || 
+           this.currentAnimKey.includes('spawn') ||
+           this.currentAnimKey.includes('landing');
   }
 }
 

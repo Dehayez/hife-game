@@ -80,6 +80,7 @@ export function createMortar(scene, startX, startY, startZ, targetX, targetZ, pl
     type: 'mortar',
     playerId: playerId,
     characterName: characterName,
+    characterColor: characterColor, // Store character color for impact effects
     velocityX: launchVelocityX,
     velocityY: launchVelocityY,
     velocityZ: launchVelocityZ,
@@ -187,8 +188,20 @@ export function updateMortar(mortar, dt, collisionManager) {
  * Remove mortar from scene and clean up resources
  * @param {THREE.Mesh} mortar - Mortar mesh
  * @param {Object} scene - THREE.js scene
+ * @param {Object} particleManager - Optional particle manager for impact effects
  */
-export function removeMortar(mortar, scene) {
+export function removeMortar(mortar, scene, particleManager = null) {
+  // Spawn impact particles if particle manager available
+  if (particleManager && mortar.userData) {
+    const characterColor = mortar.userData.characterColor || 0xffaa00;
+    particleManager.spawnImpactParticles(
+      mortar.position.clone(),
+      characterColor,
+      20, // More particles for mortar impact
+      1.0 // Larger spread radius
+    );
+  }
+  
   // Remove trail light
   if (mortar.userData.trailLight) {
     scene.remove(mortar.userData.trailLight);

@@ -15,13 +15,23 @@ export class ParticleManager {
   /**
    * Create a new ParticleManager
    * @param {Object} scene - THREE.js scene
+   * @param {Object} collisionManager - Optional collision manager for particle collision detection
    */
-  constructor(scene) {
+  constructor(scene, collisionManager = null) {
     this.scene = scene;
+    this.collisionManager = collisionManager;
     this.smokeParticles = [];
     
     const stats = getSmokeStats();
     this.maxParticles = stats.maxParticles;
+  }
+
+  /**
+   * Set the collision manager (can be set after construction)
+   * @param {Object} collisionManager - Collision manager instance
+   */
+  setCollisionManager(collisionManager) {
+    this.collisionManager = collisionManager;
   }
 
   /**
@@ -109,6 +119,54 @@ export class ParticleManager {
 
       // Update position (skip velocity for sword swing particles - they follow character instead)
       if (!data.followCharacter) {
+        // Calculate next position
+        const nextPos = particle.position.clone().add(data.velocity.clone().multiplyScalar(dt));
+        
+        // Check collision for impact particles (particles that should bounce)
+        if (data.isImpactParticle && this.collisionManager) {
+          const particleSize = 0.05; // Small size for collision check
+          
+          // Ensure Y position is reasonable (particles should be at ground level or slightly above)
+          const groundY = Math.max(0, particle.position.y);
+          nextPos.y = groundY;
+          
+          // Check if next position would collide
+          if (this.collisionManager.willCollide(nextPos, particleSize)) {
+            // Reflect velocity off the wall
+            // Simple reflection: reflect velocity vector based on collision direction
+            // We'll reflect based on which axis has the collision
+            
+            // Try to determine collision normal by checking each axis separately
+            const currentPos = particle.position.clone();
+            currentPos.y = groundY;
+            
+            const testX = new THREE.Vector3(nextPos.x, groundY, currentPos.z);
+            const testZ = new THREE.Vector3(currentPos.x, groundY, nextPos.z);
+            
+            let reflectionApplied = false;
+            
+            // Check X-axis collision
+            if (this.collisionManager.willCollide(testX, particleSize)) {
+              data.velocity.x *= -0.5; // Reflect X velocity with damping
+              reflectionApplied = true;
+            }
+            
+            // Check Z-axis collision
+            if (this.collisionManager.willCollide(testZ, particleSize)) {
+              data.velocity.z *= -0.5; // Reflect Z velocity with damping
+              reflectionApplied = true;
+            }
+            
+            // If reflection was applied, reduce speed slightly (damping)
+            if (reflectionApplied) {
+              data.velocity.multiplyScalar(0.8); // Reduce speed after bounce
+              // Keep current position instead of moving to next position
+              continue;
+            }
+          }
+        }
+        
+        // Move particle if no collision
         particle.position.add(data.velocity.clone().multiplyScalar(dt));
         
         // Slow down over time (drag effect)
@@ -324,6 +382,79 @@ export class ParticleManager {
         particle.position.x += deltaX;
         particle.position.y += deltaY;
         particle.position.z += deltaZ;
+      }
+    }
+  }
+
+  /**
+   * Spawn impact particles at position (for projectiles/mortars hitting)
+   * @param {THREE.Vector3} position - Impact position
+   * @param {number} characterColor - Character color (hex number)
+   * @param {number} particleCount - Number of particles (default: 12)
+   * @param {number} spreadRadius - Spread radius (default: 0.5)
+   */
+  spawnImpactParticles(position, characterColor, particleCount = 12, spreadRadius = 0.5) {
+    // Convert hex to Color
+    const baseColor = new THREE.Color(characterColor);
+    
+    for (let i = 0; i < particleCount; i++) {
+      // Create impact particle
+      const size = 0.1 + Math.random() * 0.1;
+      const geometry = new THREE.PlaneGeometry(size, size);
+      
+      // Character color with variation, brighter for impact
+      const particleColor = new THREE.Color(
+        Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.4),
+        Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.4),
+        Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.4)
+      );
+      
+      const material = new THREE.MeshBasicMaterial({
+        color: particleColor,
+        transparent: true,
+        opacity: 0.8 + Math.random() * 0.2,
+        side: THREE.DoubleSide,
+        alphaTest: 0.05,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      
+      const particle = new THREE.Mesh(geometry, material);
+      
+      // Position particle in a sphere around impact point
+      const angle = Math.random() * Math.PI * 2;
+      const elevation = (Math.random() - 0.5) * Math.PI * 0.5;
+      const distance = Math.random() * spreadRadius;
+      
+      particle.position.copy(position);
+      particle.position.x += Math.cos(angle) * Math.cos(elevation) * distance;
+      particle.position.y += Math.sin(elevation) * distance;
+      particle.position.z += Math.sin(angle) * Math.cos(elevation) * distance;
+      
+      // Velocity: outward from impact point
+      const speed = 2 + Math.random() * 3;
+      const dirX = Math.cos(angle) * Math.cos(elevation);
+      const dirY = Math.sin(elevation);
+      const dirZ = Math.sin(angle) * Math.cos(elevation);
+      
+      particle.userData = {
+        velocity: new THREE.Vector3(dirX * speed, dirY * speed, dirZ * speed),
+        lifetime: 0,
+        maxLifetime: 0.3 + Math.random() * 0.2,
+        initialSize: size,
+        initialOpacity: material.opacity,
+        isImpactParticle: true // Mark as impact particle for collision detection
+      };
+      
+      this.scene.add(particle);
+      this.smokeParticles.push(particle);
+      
+      // Remove oldest particles if we exceed max
+      if (this.smokeParticles.length > this.maxParticles) {
+        const oldest = this.smokeParticles.shift();
+        this.scene.remove(oldest);
+        oldest.geometry.dispose();
+        oldest.material.dispose();
       }
     }
   }

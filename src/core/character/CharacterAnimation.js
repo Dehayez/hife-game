@@ -15,11 +15,28 @@ import { getCharacterParticleStats } from './CharacterStats.js';
 export async function loadCharacterAnimations(characterName) {
   const baseSpritePath = `/assets/characters/${characterName}/`;
   
+  // Load base animations first
+  const idle_front = await loadAnimationSmart(baseSpritePath + 'idle_front', 4, 1);
+  const idle_back = await loadAnimationSmart(baseSpritePath + 'idle_back', 4, 1);
+  const walk_front = await loadAnimationSmart(baseSpritePath + 'walk_front', 8, 4);
+  const walk_back = await loadAnimationSmart(baseSpritePath + 'walk_back', 8, 4);
+  
+  // Try to load new animations, fallback to idle if not found
   const loaded = {
-    idle_front: await loadAnimationSmart(baseSpritePath + 'idle_front', 4, 1),
-    idle_back: await loadAnimationSmart(baseSpritePath + 'idle_back', 4, 1),
-    walk_front: await loadAnimationSmart(baseSpritePath + 'walk_front', 8, 4),
-    walk_back: await loadAnimationSmart(baseSpritePath + 'walk_back', 8, 4)
+    idle_front,
+    idle_back,
+    walk_front,
+    walk_back,
+    jump_front: await loadAnimationSmart(baseSpritePath + 'jump_front', 8, 1).catch(() => idle_front),
+    jump_back: await loadAnimationSmart(baseSpritePath + 'jump_back', 8, 1).catch(() => idle_back),
+    landing_front: await loadAnimationSmart(baseSpritePath + 'landing_front', 8, 1).catch(() => idle_front),
+    landing_back: await loadAnimationSmart(baseSpritePath + 'landing_back', 8, 1).catch(() => idle_back),
+    hit_front: await loadAnimationSmart(baseSpritePath + 'hit_front', 12, 1).catch(() => idle_front),
+    hit_back: await loadAnimationSmart(baseSpritePath + 'hit_back', 12, 1).catch(() => idle_back),
+    death_front: await loadAnimationSmart(baseSpritePath + 'death_front', 8, 1).catch(() => idle_front),
+    death_back: await loadAnimationSmart(baseSpritePath + 'death_back', 8, 1).catch(() => idle_back),
+    spawn_front: await loadAnimationSmart(baseSpritePath + 'spawn_front', 8, 1).catch(() => idle_front),
+    spawn_back: await loadAnimationSmart(baseSpritePath + 'spawn_back', 8, 1).catch(() => idle_back)
   };
   
   return loaded;
@@ -32,9 +49,10 @@ export async function loadCharacterAnimations(characterName) {
  * @param {Object} animations - Animations object
  * @param {string} currentAnimKey - Current animation key (will be updated)
  * @param {boolean} force - Force animation change even if already playing
+ * @param {Function} onComplete - Optional callback when animation completes (for one-shot animations)
  * @returns {string} New animation key
  */
-export function setCharacterAnimation(player, key, animations, currentAnimKey, force = false) {
+export function setCharacterAnimation(player, key, animations, currentAnimKey, force = false, onComplete = null) {
   if (!animations) return currentAnimKey;
   if (!force && currentAnimKey === key) return currentAnimKey;
   
@@ -44,6 +62,7 @@ export function setCharacterAnimation(player, key, animations, currentAnimKey, f
   // Reset timing so first frame shows immediately
   anim.frameIndex = 0;
   anim.timeAcc = 0;
+  anim.onComplete = onComplete; // Store callback for one-shot animations
   
   const spriteMat = player.material;
   spriteMat.map = anim.mode === 'frames' ? anim.textures[0] : anim.texture;
@@ -90,9 +109,27 @@ export function updateCharacterAnimation(
   const currentFps = isRunning && isWalkAnim ? anim.fps * 1.4 : anim.fps;
   
   const frameDuration = 1 / currentFps;
+  
+  // Check if this is a one-shot animation (hit, death, spawn, landing)
+  const isOneShotAnim = currentAnimKey.includes('hit') || 
+                        currentAnimKey.includes('death') || 
+                        currentAnimKey.includes('spawn') ||
+                        currentAnimKey.includes('landing');
+  
   while (anim.timeAcc >= frameDuration) {
     anim.timeAcc -= frameDuration;
-    anim.frameIndex = (anim.frameIndex + 1) % anim.frameCount;
+    
+    // For one-shot animations, don't loop - stop at last frame
+    if (isOneShotAnim && anim.frameIndex >= anim.frameCount - 1) {
+      // Animation complete - call callback if provided
+      if (anim.onComplete) {
+        anim.onComplete();
+        anim.onComplete = null;
+      }
+      break; // Don't advance frame, stay on last frame
+    } else {
+      anim.frameIndex = (anim.frameIndex + 1) % anim.frameCount;
+    }
     
     // Play footstep sound when walking and grounded
     if (isWalkAnim && isGrounded && soundManager) {
@@ -168,12 +205,29 @@ export function updateCharacterMovement(
   let newSmokeSpawnTimer = smokeSpawnTimer;
   let shouldPlayFootstep = false;
 
+  // Check for special animation states first (hit, death, spawn)
+  const isSpecialAnim = currentAnimKey.includes('hit') || 
+                         currentAnimKey.includes('death') || 
+                         currentAnimKey.includes('spawn') ||
+                         currentAnimKey.includes('landing');
+  
+  // Don't override special animations unless they're complete
+  if (isSpecialAnim) {
+    // Let special animations play out
+    return {
+      currentAnimKey: currentAnimKey,
+      lastFacing: lastFacing,
+      smokeSpawnTimer: smokeSpawnTimer,
+      shouldPlayFootstep: false
+    };
+  }
+  
   // Choose animation based on movement, jumping state, and last facing (front/back)
   if (isJumping) {
-    // Use idle animation when jumping
+    // Use jump animation when jumping
     newCurrentAnimKey = setCharacterAnimation(
       player,
-      newLastFacing === 'back' ? 'idle_back' : 'idle_front',
+      newLastFacing === 'back' ? 'jump_back' : 'jump_front',
       animations,
       currentAnimKey
     );

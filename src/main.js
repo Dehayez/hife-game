@@ -70,14 +70,14 @@ characterManager.initializePlayer(sceneManager.getScene());
 characterManager.setCollisionManager(collisionManager);
 
 // Initialize particle manager for smoke effects
-const particleManager = new ParticleManager(sceneManager.getScene());
+const particleManager = new ParticleManager(sceneManager.getScene(), collisionManager);
 characterManager.setParticleManager(particleManager);
 
 // Initialize remote player manager for multiplayer
 const remotePlayerManager = new RemotePlayerManager(sceneManager.getScene());
 
 // Initialize projectile manager for shooting mode
-const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager);
+const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager, particleManager);
 
 // Initialize bot manager for shooting mode
 const botManager = new BotManager(sceneManager.getScene(), collisionManager, projectileManager);

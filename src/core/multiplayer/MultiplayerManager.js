@@ -128,6 +128,8 @@ export class MultiplayerManager {
     
     this.socket.on('connect_error', (error) => {
       // Connection error occurred, but Socket.io will attempt to reconnect
+      // Suppress console errors since we have a visual indicator
+      // (Socket.io logs these errors automatically, but we handle them silently)
       if (this.connectionState === 'connected') {
         this._updateConnectionState('reconnecting');
       } else {
@@ -144,6 +146,7 @@ export class MultiplayerManager {
     });
     
     this.socket.on('reconnect_error', (error) => {
+      // Suppress console errors since we have a visual indicator
       this._updateConnectionState('reconnecting');
     });
     

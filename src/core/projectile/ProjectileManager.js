@@ -23,10 +23,12 @@ export class ProjectileManager {
    * Create a new ProjectileManager
    * @param {Object} scene - THREE.js scene
    * @param {Object} collisionManager - Collision manager for wall/ground checks
+   * @param {Object} particleManager - Optional particle manager for impact effects
    */
-  constructor(scene, collisionManager = null) {
+  constructor(scene, collisionManager = null, particleManager = null) {
     this.scene = scene;
     this.collisionManager = collisionManager;
+    this.particleManager = particleManager;
     
     // Active projectile arrays
     this.projectiles = [];
@@ -45,6 +47,14 @@ export class ProjectileManager {
    */
   setCollisionManager(collisionManager) {
     this.collisionManager = collisionManager;
+  }
+
+  /**
+   * Set the particle manager (can be set after construction)
+   * @param {Object} particleManager - Particle manager instance
+   */
+  setParticleManager(particleManager) {
+    this.particleManager = particleManager;
   }
 
   /**
@@ -361,7 +371,7 @@ export class ProjectileManager {
    * @param {THREE.Mesh} projectile - Projectile mesh
    */
   removeProjectile(projectile) {
-    removeProjectile(projectile, this.scene);
+    removeProjectile(projectile, this.scene, this.particleManager);
     
     // Remove from array
     const index = this.projectiles.indexOf(projectile);
@@ -375,7 +385,7 @@ export class ProjectileManager {
    * @param {THREE.Mesh} mortar - Mortar mesh
    */
   removeMortar(mortar) {
-    removeMortarMesh(mortar, this.scene);
+    removeMortarMesh(mortar, this.scene, this.particleManager);
     
     // Remove from array
     const index = this.mortars.indexOf(mortar);

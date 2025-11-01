@@ -949,18 +949,24 @@ export class GameLoop {
       }
       
       if (isDead) {
-        // Player died - respawn
-        if (this.gameModeManager && this.gameModeManager.modeState) {
-          this.gameModeManager.modeState.deaths++;
-        }
-        const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
-        this.characterManager.respawn(currentMode, this.collisionManager);
+        // Player died - play death animation first
+        this.characterManager.playDeathAnimation();
         
-        // Update userData after respawn
-        if (player && player.userData) {
-          player.userData.health = this.characterManager.getHealth();
-          player.userData.maxHealth = this.characterManager.getMaxHealth();
-        }
+        // Wait a bit before respawning (let death animation play)
+        setTimeout(() => {
+          // Player died - respawn
+          if (this.gameModeManager && this.gameModeManager.modeState) {
+            this.gameModeManager.modeState.deaths++;
+          }
+          const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
+          this.characterManager.respawn(currentMode, this.collisionManager);
+          
+          // Update userData after respawn
+          if (player && player.userData) {
+            player.userData.health = this.characterManager.getHealth();
+            player.userData.maxHealth = this.characterManager.getMaxHealth();
+          }
+        }, 500); // Wait 500ms for death animation
       }
     }
   }
