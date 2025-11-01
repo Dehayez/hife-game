@@ -277,16 +277,12 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
     }
   }
   
-  // Update speed based on right joystick magnitude (if available)
-  // The further the joystick is pushed, the faster the projectile goes
+  // Update speed based on character type
   let targetSpeed;
-  if (inputManager) {
-    // Speed controlled by right joystick magnitude for both characters
-    // Get current joystick magnitude (0-1 range)
+  if (projectile.userData.characterName === 'herald' && inputManager) {
+    // Herald: Speed controlled by right joystick magnitude
+    // The further the joystick is pushed, the faster the projectile goes
     const joystickMagnitude = inputManager.getRightJoystickMagnitude();
-    
-    // Use joystick magnitude to control speed
-    // Map magnitude to speed range: minSpeed (when not pushed) to maxSpeed (when fully pushed)
     const minSpeed = projectile.userData.startSpeed;
     const maxSpeed = projectile.userData.endSpeed;
     
@@ -300,7 +296,8 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
       targetSpeed = minSpeed;
     }
   } else {
-    // Fallback: use base speed if no joystick control available (keyboard mode)
+    // Lucy: Fixed speed or deceleration pattern (no joystick control)
+    // Use base speed for consistent spraying behavior
     targetSpeed = projectile.userData.baseSpeed;
   }
   
