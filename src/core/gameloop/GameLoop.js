@@ -39,6 +39,8 @@ export class GameLoop {
     this.isRunning = false;
     this.lastShootInput = false;
     this.lastMortarInput = false;
+    this.lastCharacterSwapInput = false;
+    this.lastSwordSwingInput = false;
   }
 
   /**
@@ -145,8 +147,33 @@ export class GameLoop {
       this.characterManager.jump();
     }
     
+    // Handle double jump input
+    if (canMove && this.inputManager.isDoubleJumpDetected()) {
+      this.characterManager.doubleJump();
+    }
+    
     // Update jump physics
     this.characterManager.updateJumpPhysics(dt, this.collisionManager);
+    
+    // Handle character swap (Y button)
+    const characterSwapInput = this.inputManager.isCharacterSwapPressed();
+    if (characterSwapInput && !this.lastCharacterSwapInput) {
+      this._handleCharacterSwap();
+    }
+    this.lastCharacterSwapInput = characterSwapInput;
+    
+    // Handle sword swing (B button)
+    const swordSwingInput = this.inputManager.isSwordSwingPressed();
+    if (swordSwingInput && !this.lastSwordSwingInput) {
+      this._handleSwordSwing(player);
+    }
+    this.lastSwordSwingInput = swordSwingInput;
+    
+    // Handle heal (X button - hold to heal)
+    const healInput = this.inputManager.isHealPressed();
+    if (healInput) {
+      this._handleHeal(player, dt);
+    }
     
     // Check for respawn system
     const shouldRespawn = this.collisionManager.updateRespawnSystem(
@@ -421,8 +448,16 @@ export class GameLoop {
         directionZ /= dirLength;
       }
       
+      // Get joystick magnitude to scale distance (0 = min distance, 1 = max distance)
+      const magnitude = this.inputManager.getRightJoystickMagnitude();
+      const minDistance = 5; // Minimum mortar distance
+      const maxDistance = 25; // Maximum mortar distance
+      // Scale distance based on magnitude (remap from dead zone to full range)
+      const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
+      const normalizedMagnitude = Math.max(0, (magnitude - deadZoneMagnitude) / (1 - deadZoneMagnitude));
+      const targetDistance = minDistance + (normalizedMagnitude * (maxDistance - minDistance));
+      
       // Calculate target point in the direction of the joystick
-      const targetDistance = 15; // Distance ahead to aim mortar
       targetX = playerPos.x + directionX * targetDistance;
       targetZ = playerPos.z + directionZ * targetDistance;
     } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
@@ -666,6 +701,81 @@ export class GameLoop {
       // Before game starts, keep character idle
       this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera(), false);
     }
+  }
+
+  /**
+   * Handle character swap input (Y button)
+   * @private
+   */
+  _handleCharacterSwap() {
+    const currentChar = this.characterManager.getCharacterName();
+    const newChar = currentChar === 'lucy' ? 'herald' : 'lucy';
+    
+    // Trigger fast smoke particle burst
+    const player = this.characterManager.getPlayer();
+    if (player && this.characterManager.particleManager) {
+      // Spawn lots of smoke particles quickly
+      for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+          const pos = new THREE.Vector3(
+            player.position.x + (Math.random() - 0.5) * 0.5,
+            player.position.y,
+            player.position.z + (Math.random() - 0.5) * 0.5
+          );
+          this.characterManager.particleManager.spawnSmokeParticle(pos);
+        }, i * 10); // Spread over 200ms
+      }
+    }
+    
+    // Load the new character
+    this.characterManager.loadCharacter(newChar).then(() => {
+      console.log(`🔄 Swapped to ${newChar}`);
+    });
+  }
+
+  /**
+   * Handle heal input (X button - hold to heal)
+   * @param {THREE.Mesh} player - Player mesh
+   * @param {number} dt - Delta time
+   * @private
+   */
+  _handleHeal(player, dt) {
+    // Heal slowly over time while held
+    const healRate = 5; // HP per second
+    const newHealth = Math.min(
+      this.characterManager.getHealth() + healRate * dt,
+      this.characterManager.getMaxHealth()
+    );
+    
+    if (newHealth > this.characterManager.getHealth()) {
+      this.characterManager.setHealth(newHealth);
+      
+      // Add healing particles
+      if (this.characterManager.particleManager) {
+        // Spawn healing particles around character
+        if (Math.random() < 0.3) { // 30% chance per frame
+          const pos = new THREE.Vector3(
+            player.position.x + (Math.random() - 0.5) * 0.5,
+            player.position.y + Math.random() * 0.3,
+            player.position.z + (Math.random() - 0.5) * 0.5
+          );
+          this.characterManager.particleManager.spawnSmokeParticle(pos);
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle sword swing input (B button)
+   * @param {THREE.Mesh} player - Player mesh
+   * @private
+   */
+  _handleSwordSwing(player) {
+    console.log('⚔️ Sword swing!');
+    
+    // TODO: Add 360 degree damage circle
+    // TODO: Add visual effect (flat circle around character)
+    // For now, just log it
   }
 }
 

@@ -60,7 +60,8 @@ export class CharacterManager {
       wasGrounded: true,
       jumpCooldown: 0,
       health: getCharacterHealthStats().defaultHealth,
-      maxHealth: getCharacterHealthStats().maxHealth
+      maxHealth: getCharacterHealthStats().maxHealth,
+      hasDoubleJumped: false
     };
     
     // Sound manager
@@ -292,6 +293,29 @@ export class CharacterManager {
       this.soundManager,
       () => this.isOnBaseGround()
     );
+  }
+
+  /**
+   * Make character double jump (while in air)
+   */
+  doubleJump() {
+    const physicsStats = getCharacterPhysicsStats();
+    
+    // Only allow double jump if in air and haven't double jumped yet
+    if (!this.characterData.isGrounded && !this.characterData.hasDoubleJumped && this.characterData.jumpCooldown <= 0) {
+      this.characterData.velocityY = physicsStats.jumpForce * 0.8; // Slightly weaker than normal jump
+      this.characterData.hasDoubleJumped = true;
+      this.characterData.jumpCooldown = physicsStats.jumpCooldownTime;
+      
+      // Play jump sound
+      if (this.soundManager) {
+        this.soundManager.playJump(false); // Double jump always uses regular jump sound
+      }
+      
+      return true;
+    }
+    
+    return false;
   }
 
   /**

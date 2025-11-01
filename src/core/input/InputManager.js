@@ -24,12 +24,19 @@ export class InputManager {
       shift: false,
       jump: false,
       shoot: false,
-      mortar: false
+      mortar: false,
+      characterSwap: false,
+      heal: false,
+      swordSwing: false,
+      doubleJump: false
     };
     
     this.mousePosition = { x: 0, y: 0 };
     this.shootPressed = false;
     this.mortarPressed = false;
+    this.characterSwapPressed = false;
+    this.healPressed = false;
+    this.swordSwingPressed = false;
     
     // Gamepad state
     this.gamepad = null;
@@ -38,6 +45,8 @@ export class InputManager {
     this._gamepadJumpState = false;
     this._gamepadShiftState = false;
     this._gamepadMovementActive = false; // Track if gamepad is controlling movement
+    this._lastJumpPressTime = 0; // For double jump detection
+    this._doubleJumpTimeWindow = 300; // ms window for double jump
     this._loggingEnabled = true; // Enable detailed input logging
     this._lastInputLog = null; // Track last input to avoid spam
     this._inputLogThrottle = 200; // Throttle input logs (ms)
@@ -56,6 +65,10 @@ export class InputManager {
     // Right joystick normalized direction for projectile control (separate from cursor)
     this.rightJoystickDirection = { x: 0, z: 0 }; // World space direction (normalized)
     this._rightJoystickDirectionActive = false;
+    this._lastRightJoystickDirection = { x: 0, z: 0 }; // Last valid direction before entering dead zone
+    this._rightJoystickMagnitude = 0; // Raw magnitude (0-1) for distance scaling
+    this._lastRightJoystickMagnitude = 0; // Last valid magnitude
+    this._rightJoystickInDeadZone = false; // Track when stick is in dead zone
     
     const stats = getMovementStats();
     this.moveSpeed = stats.moveSpeed;
@@ -293,6 +306,10 @@ export class InputManager {
         this.inputState.jump = false;
         this.inputState.shoot = false;
         this.inputState.mortar = false;
+        this.inputState.characterSwap = false;
+        this.inputState.heal = false;
+        this.inputState.swordSwing = false;
+        this.inputState.doubleJump = false;
         
         // Clear gamepad movement vector
         this.gamepadMovementVector.x = 0;
@@ -313,6 +330,11 @@ export class InputManager {
         this.rightJoystickDirection.x = 0;
         this.rightJoystickDirection.z = 0;
         this._rightJoystickDirectionActive = false;
+        this._lastRightJoystickDirection.x = 0;
+        this._lastRightJoystickDirection.z = 0;
+        this._rightJoystickMagnitude = 0;
+        this._lastRightJoystickMagnitude = 0;
+        this._rightJoystickInDeadZone = false;
         
         console.log('⚠️ Gamepad inputs cleared');
       }
@@ -562,18 +584,36 @@ export class InputManager {
       this.inputState.down = false;
     }
 
-    // Jump (typically button 0 or A button) - combine with keyboard
-    const gamepadJump = (gamepad.buttons[0] && gamepad.buttons[0].pressed) ||
-                        (gamepad.buttons[1] && gamepad.buttons[1].pressed); // Also support B button
-    if (gamepadJump && this._loggingEnabled) {
-      this._logInput('🅰️ JUMP', gamepadJump ? 'pressed' : 'released', gamepad);
-    }
+    // Jump (A button 0 only) - combine with keyboard
+    const gamepadJump = gamepad.buttons[0] && gamepad.buttons[0].pressed; // A button only
+    
+    // Detect double jump: track press timing
+    const now = Date.now();
+    const isJumpPress = (gamepadJump || hadKeyboardJump) && !this.inputState.jump;
+    
     if (gamepadJump || hadKeyboardJump) {
       this.inputState.jump = true;
       this._gamepadJumpState = gamepadJump;
+      
+      // Detect double jump: two presses within time window
+      if (isJumpPress && now - this._lastJumpPressTime < this._doubleJumpTimeWindow && this._lastJumpPressTime > 0) {
+        this.inputState.doubleJump = true;
+        if (this._loggingEnabled) {
+          this._logInput('🔄 DOUBLE JUMP', 'detected', gamepad);
+        }
+      }
+      
+      // Update last jump time on press
+      if (isJumpPress) {
+        this._lastJumpPressTime = now;
+        if (!this.inputState.doubleJump && this._loggingEnabled) {
+          this._logInput('🅰️ JUMP', 'pressed', gamepad);
+        }
+      }
     } else {
       this.inputState.jump = hadKeyboardJump || false;
       this._gamepadJumpState = false;
+      this.inputState.doubleJump = false;
     }
 
     // Run/Sprint (typically left shoulder button or left trigger) - combine with keyboard
@@ -618,9 +658,56 @@ export class InputManager {
       this.inputState.mortar = false;
     }
 
+    // Character Swap (Y button 3 only) - with smoke particles
+    const characterSwapPressed = gamepad.buttons[3] && gamepad.buttons[3].pressed; // Y button only
+    
+    if (characterSwapPressed && !this.characterSwapPressed) {
+      this.characterSwapPressed = true;
+      this.inputState.characterSwap = true;
+      if (this._loggingEnabled) {
+        this._logInput('🔄 CHARACTER SWAP', 'pressed', gamepad);
+      }
+    } else if (!characterSwapPressed && this.characterSwapPressed) {
+      this.characterSwapPressed = false;
+      this.inputState.characterSwap = false;
+    }
+
+    // Heal (X button 2) - hold to heal
+    const healPressed = gamepad.buttons[2] && gamepad.buttons[2].pressed; // X button only
+    
+    if (healPressed !== this.healPressed) {
+      this.healPressed = healPressed;
+      this.inputState.heal = healPressed;
+      if (healPressed && this._loggingEnabled) {
+        this._logInput('💚 HEAL', 'pressed', gamepad);
+      } else if (!healPressed && this._loggingEnabled) {
+        this._logInput('💚 HEAL', 'released', gamepad);
+      }
+    }
+
+    // Sword Swing (B button 1) - 360 degree attack
+    const swordSwingPressed = gamepad.buttons[1] && gamepad.buttons[1].pressed; // B button only
+    
+    if (swordSwingPressed && !this.swordSwingPressed) {
+      this.swordSwingPressed = true;
+      this.inputState.swordSwing = true;
+      if (this._loggingEnabled) {
+        this._logInput('⚔️ SWORD SWING', 'pressed', gamepad);
+      }
+    } else if (!swordSwingPressed && this.swordSwingPressed) {
+      this.swordSwingPressed = false;
+      this.inputState.swordSwing = false;
+    }
+
     // Right analog stick (axes 2 and 3) for aiming/shooting direction
     const rightStickX = gamepad.axes[2];
     const rightStickY = gamepad.axes[3];
+    
+    // Check if stick is actually released (raw values very close to zero)
+    const isStickReleased = Math.abs(rightStickX) < 0.05 && Math.abs(rightStickY) < 0.05;
+    
+    // Calculate raw magnitude (0-1) from raw stick values
+    const rawMagnitude = Math.min(1, Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY));
     
     // Apply dead zone to raw stick values
     const rightXDead = Math.abs(rightStickX) > this.gamepadDeadZone ? rightStickX : 0;
@@ -635,11 +722,39 @@ export class InputManager {
       this.rightJoystickDirection.x = rightXDead / rightStickLength;
       this.rightJoystickDirection.z = rightYDead / rightStickLength; // Store raw Y as Z (converted later)
       this._rightJoystickDirectionActive = true;
-    } else {
-      // Clear direction when stick returns to neutral
+      this._rightJoystickInDeadZone = false;
+      // Store magnitude for distance scaling
+      this._rightJoystickMagnitude = rawMagnitude;
+      this._lastRightJoystickMagnitude = rawMagnitude;
+      // Save this direction as the last valid direction
+      this._lastRightJoystickDirection.x = this.rightJoystickDirection.x;
+      this._lastRightJoystickDirection.z = this.rightJoystickDirection.z;
+    } else if (isStickReleased) {
+      // Stick is fully released - clear the active flag
+      this._rightJoystickDirectionActive = false;
+      this._rightJoystickInDeadZone = false;
       this.rightJoystickDirection.x = 0;
       this.rightJoystickDirection.z = 0;
-      this._rightJoystickDirectionActive = false;
+      this._rightJoystickMagnitude = 0;
+    } else {
+      // When in dead zone but not fully released, keep the last valid direction
+      // This allows mortar aiming when RB is pressed even if stick is near center
+      if (this._rightJoystickDirectionActive && !this._rightJoystickInDeadZone) {
+        // First time entering dead zone - preserve the last direction and magnitude
+        this._rightJoystickInDeadZone = true;
+        // Use last saved direction and magnitude
+        this.rightJoystickDirection.x = this._lastRightJoystickDirection.x;
+        this.rightJoystickDirection.z = this._lastRightJoystickDirection.z;
+        this._rightJoystickMagnitude = this._lastRightJoystickMagnitude;
+        // Keep active flag set so mortar can use this direction
+      } else if (!this._rightJoystickDirectionActive) {
+        // Clear if was never active
+        this._rightJoystickInDeadZone = false;
+        this.rightJoystickDirection.x = 0;
+        this.rightJoystickDirection.z = 0;
+        this._rightJoystickMagnitude = 0;
+      }
+      // If already in dead zone and was active, keep the last direction and magnitude
     }
     
     // Store analog aiming vector for cursor movement (screen space)
@@ -930,6 +1045,46 @@ export class InputManager {
    */
   isRightJoystickDirectionActive() {
     return this._rightJoystickDirectionActive;
+  }
+
+  /**
+   * Get right joystick magnitude for projectile distance scaling
+   * @returns {number} Magnitude from 0 to 1 (0 = no input, 1 = fully pressed)
+   */
+  getRightJoystickMagnitude() {
+    return this._rightJoystickMagnitude;
+  }
+
+  /**
+   * Check if character swap button is pressed
+   * @returns {boolean} True if character swap button is pressed
+   */
+  isCharacterSwapPressed() {
+    return this.inputState.characterSwap;
+  }
+
+  /**
+   * Check if heal button is pressed (held)
+   * @returns {boolean} True if heal button is pressed
+   */
+  isHealPressed() {
+    return this.inputState.heal;
+  }
+
+  /**
+   * Check if sword swing button is pressed
+   * @returns {boolean} True if sword swing button is pressed
+   */
+  isSwordSwingPressed() {
+    return this.inputState.swordSwing;
+  }
+
+  /**
+   * Check if double jump was detected
+   * @returns {boolean} True if double jump was detected
+   */
+  isDoubleJumpDetected() {
+    return this.inputState.doubleJump;
   }
 }
 

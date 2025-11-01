@@ -63,6 +63,8 @@ export function updateCharacterPhysics(
     player.position.y = groundHeight + movementStats.playerHeight * 0.5;
     characterData.velocityY = 0;
     characterData.isGrounded = true;
+    // Reset double jump flag when landing
+    characterData.hasDoubleJumped = false;
     
     // Play landing sound if we just landed (transitioned from not grounded to grounded)
     if (!wasGrounded && soundManager) {
@@ -124,6 +126,7 @@ export function initializeCharacterPhysics(characterData) {
   characterData.wasGrounded = true;
   characterData.jumpCooldown = 0;
   characterData.health = healthStats.defaultHealth;
+  characterData.hasDoubleJumped = false;
 }
 
 /**
@@ -143,6 +146,7 @@ export function respawnCharacterPhysics(player, characterData) {
   characterData.isGrounded = true;
   characterData.wasGrounded = true; // Prevent landing sound on respawn
   characterData.jumpCooldown = 0;
+  characterData.hasDoubleJumped = false;
   
   // Reset health
   characterData.health = healthStats.maxHealth;
