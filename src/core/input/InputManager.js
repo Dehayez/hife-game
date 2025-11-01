@@ -39,6 +39,28 @@ export class InputManager {
   }
 
   /**
+   * Check if click target is a UI element
+   * @param {Event} e - Mouse event
+   * @returns {boolean} True if click is on a UI element
+   * @private
+   */
+  _isUIElement(e) {
+    let target = e.target;
+    // Check if target or any parent has a class starting with "ui__"
+    while (target && target !== document.body) {
+      if (target.classList) {
+        for (const className of target.classList) {
+          if (className.startsWith('ui__') || className === 'ui') {
+            return true;
+          }
+        }
+      }
+      target = target.parentElement;
+    }
+    return false;
+  }
+
+  /**
    * Setup event listeners for keyboard and mouse
    * @private
    */
@@ -62,6 +84,11 @@ export class InputManager {
     
     // Mouse click for shooting
     window.addEventListener('mousedown', (e) => {
+      // Don't shoot if clicking on UI elements
+      if (this._isUIElement(e)) {
+        return;
+      }
+      
       if (e.button === 0) { // Left mouse button
         this.shootPressed = true;
         this.inputState.shoot = true;
@@ -72,6 +99,11 @@ export class InputManager {
     });
     
     window.addEventListener('mouseup', (e) => {
+      // Don't process shooting if clicking on UI elements
+      if (this._isUIElement(e)) {
+        return;
+      }
+      
       if (e.button === 0) {
         this.shootPressed = false;
         this.inputState.shoot = false;
@@ -81,9 +113,11 @@ export class InputManager {
       }
     });
     
-    // Prevent context menu on right click
+    // Prevent context menu on right click (unless on UI)
     window.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
+      if (!this._isUIElement(e)) {
+        e.preventDefault();
+      }
     });
     
     // Track mouse position

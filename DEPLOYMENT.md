@@ -2,9 +2,20 @@
 
 ## Quick Setup Steps
 
-1. **Deploy WebSocket Server** (Railway/Render/Fly.io)
+1. **Deploy WebSocket Server** (Railway/Render/Fly.io/DigitalOcean)
 2. **Set Environment Variable** in Netlify: `VITE_WEBSOCKET_URL`
 3. **Update Config** (if needed): `src/config/multiplayer.js`
+
+## 🎮 DigitalOcean Deployment (Recommended if you have a droplet)
+
+**See [DIGITALOCEAN_SETUP.md](./DIGITALOCEAN_SETUP.md) for complete step-by-step guide.**
+
+Quick overview:
+- Deploy server.js on your DigitalOcean droplet
+- Set up nginx as reverse proxy
+- Configure SSL with Let's Encrypt
+- Set up subdomain ws.hife.be
+- Configure Netlify environment variable
 
 ## WebSocket Server Deployment Options
 
