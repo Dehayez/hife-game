@@ -95,7 +95,6 @@ export function initBotControl({ mount, botManager, healthBarManager, arenaManag
 
       return bot;
     } catch (err) {
-      console.error('Failed to create bot:', err);
       return null;
     }
   }

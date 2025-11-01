@@ -81,8 +81,6 @@ export async function loadAllCharacterSounds(characterName, soundManager) {
   const obstacleFootstepSound = await loadCharacterSound(characterName, 'footstep_obstacle');
   if (obstacleFootstepSound && soundManager) {
     soundManager.loadObstacleFootstepSound(obstacleFootstepSound);
-  } else {
-    console.warn(`No obstacle footstep sound found for character: ${characterName}`);
   }
   
   // Load jump sound

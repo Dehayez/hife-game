@@ -161,7 +161,7 @@ export function initRoomManager({ mount, multiplayerManager, onRoomCreated, onRo
         }, 2000);
       }
     }).catch(err => {
-      console.error('Failed to copy link:', err);
+      // Failed to copy link
     });
   }
 

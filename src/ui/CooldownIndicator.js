@@ -16,7 +16,6 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   };
   
   if (!mount) {
-    console.warn('CooldownIndicator: No mount element provided');
     return defaultReturn;
   }
 

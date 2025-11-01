@@ -309,20 +309,11 @@ export class CharacterManager {
   doubleJump() {
     const physicsStats = getCharacterPhysicsStats();
     
-    console.log('doubleJump called:', {
-      isGrounded: this.characterData.isGrounded,
-      velocityY: this.characterData.velocityY,
-      hasDoubleJumped: this.characterData.hasDoubleJumped,
-      jumpCooldown: this.characterData.jumpCooldown
-    });
-    
     // Only allow double jump if in air, going upward (positive velocityY), and haven't double jumped yet
     if (!this.characterData.isGrounded && this.characterData.velocityY > 0 && !this.characterData.hasDoubleJumped && this.characterData.jumpCooldown <= 0) {
       this.characterData.velocityY = physicsStats.jumpForce * 0.8; // Slightly weaker than normal jump
       this.characterData.hasDoubleJumped = true;
       this.characterData.jumpCooldown = physicsStats.jumpCooldownTime;
-      
-      console.log('✅ Double jump executed! New velocityY:', this.characterData.velocityY);
       
       // Play jump sound
       if (this.soundManager) {
@@ -332,7 +323,6 @@ export class CharacterManager {
       return true;
     }
     
-    console.log('❌ Double jump blocked by conditions');
     return false;
   }
 

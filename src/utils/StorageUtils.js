@@ -11,7 +11,7 @@ export function getHighScore(mode, arena = 'standard') {
       return parsed.highScore || 0;
     }
   } catch (e) {
-    console.error('Error reading high score:', e);
+    // Error reading high score
   }
   return 0;
 }
@@ -25,7 +25,7 @@ export function setHighScore(mode, score, arena = 'standard') {
       return true;
     }
   } catch (e) {
-    console.error('Error saving high score:', e);
+    // Error saving high score
   }
   return false;
 }
@@ -39,7 +39,7 @@ export function getBestTime(mode, arena = 'standard') {
       return parsed.bestTime || null;
     }
   } catch (e) {
-    console.error('Error reading best time:', e);
+    // Error reading best time
   }
   return null;
 }
@@ -63,7 +63,7 @@ export function setBestTime(mode, time, arena = 'standard') {
       return true;
     }
   } catch (e) {
-    console.error('Error saving best time:', e);
+    // Error saving best time
   }
   return false;
 }
@@ -85,7 +85,7 @@ export function getLastCharacter() {
     const stored = localStorage.getItem(key);
     return stored || null;
   } catch (e) {
-    console.error('Error reading last character:', e);
+    // Error reading last character
   }
   return null;
 }
@@ -96,7 +96,7 @@ export function setLastCharacter(characterName) {
     localStorage.setItem(key, characterName);
     return true;
   } catch (e) {
-    console.error('Error saving last character:', e);
+    // Error saving last character
   }
   return false;
 }
@@ -107,7 +107,7 @@ export function getLastGameMode() {
     const stored = localStorage.getItem(key);
     return stored || null;
   } catch (e) {
-    console.error('Error reading last game mode:', e);
+    // Error reading last game mode
   }
   return null;
 }
@@ -118,7 +118,7 @@ export function setLastGameMode(gameMode) {
     localStorage.setItem(key, gameMode);
     return true;
   } catch (e) {
-    console.error('Error saving last game mode:', e);
+    // Error saving last game mode
   }
   return false;
 }
@@ -137,7 +137,7 @@ export function getBotCount(arena = 'standard') {
       return Math.max(0, Math.floor(parsed.botCount || 0));
     }
   } catch (e) {
-    console.error('Error reading bot count:', e);
+    // Error reading bot count
   }
   return 0;
 }
@@ -155,7 +155,7 @@ export function setBotCount(botCount, arena = 'standard') {
     localStorage.setItem(key, JSON.stringify({ botCount: count }));
     return true;
   } catch (e) {
-    console.error('Error saving bot count:', e);
+    // Error saving bot count
   }
   return false;
 }

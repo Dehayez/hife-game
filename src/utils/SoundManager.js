@@ -42,7 +42,6 @@ export class SoundManager {
       
       // Handle loading errors gracefully
       this.footstepAudio.addEventListener('error', (e) => {
-        console.warn(`Failed to load footstep sound from ${path}:`, e);
         this.footstepAudio = null;
         this._footstepReady = false;
       });
@@ -62,7 +61,6 @@ export class SoundManager {
       // Try to load immediately
       this.footstepAudio.load();
     } catch (error) {
-      console.warn(`Error creating footstep audio from ${path}:`, error);
       this.footstepAudio = null;
       this._footstepReady = false;
     }
@@ -81,7 +79,6 @@ export class SoundManager {
       
       // Handle loading errors gracefully
       this.obstacleFootstepAudio.addEventListener('error', (e) => {
-        console.warn(`Failed to load obstacle footstep sound from ${path}:`, e);
         this.obstacleFootstepAudio = null;
         this._obstacleFootstepReady = false;
       });
@@ -101,7 +98,6 @@ export class SoundManager {
       // Try to load immediately
       this.obstacleFootstepAudio.load();
     } catch (error) {
-      console.warn(`Error creating obstacle footstep audio from ${path}:`, error);
       this.obstacleFootstepAudio = null;
     }
   }
@@ -129,7 +125,6 @@ export class SoundManager {
       
       // Handle loading errors gracefully
       this.jumpAudio.addEventListener('error', (e) => {
-        console.warn(`Failed to load jump sound from ${path}:`, e);
         this.jumpAudio = null;
         this._jumpReady = false;
       });
@@ -149,7 +144,6 @@ export class SoundManager {
       // Try to load immediately
       this.jumpAudio.load();
     } catch (error) {
-      console.warn(`Error creating jump audio from ${path}:`, error);
       this.jumpAudio = null;
       this._jumpReady = false;
     }
@@ -168,7 +162,6 @@ export class SoundManager {
       
       // Handle loading errors gracefully
       this.obstacleJumpAudio.addEventListener('error', (e) => {
-        console.warn(`Failed to load obstacle jump sound from ${path}:`, e);
         this.obstacleJumpAudio = null;
         this._obstacleJumpReady = false;
       });
@@ -188,7 +181,6 @@ export class SoundManager {
       // Try to load immediately
       this.obstacleJumpAudio.load();
     } catch (error) {
-      console.warn(`Error creating obstacle jump audio from ${path}:`, error);
       this.obstacleJumpAudio = null;
     }
   }
@@ -208,7 +200,6 @@ export class SoundManager {
       // Create audio context - may need user interaction first
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     } catch (error) {
-      console.warn('Audio context initialization failed:', error);
       this.soundEnabled = false;
     }
   }
@@ -222,7 +213,7 @@ export class SoundManager {
           this._initAudioContext();
         }
       } catch (error) {
-        console.warn('Audio context resume failed:', error);
+        // Audio context resume failed
       }
     }
     return this.audioContext && this.audioContext.state === 'running';
@@ -258,9 +249,6 @@ export class SoundManager {
               })
               .catch(err => {
                 // Auto-play may be blocked or audio failed to load, fall back to footstep
-                if (err.name !== 'NotAllowedError') {
-                  console.warn('Error playing jump sound:', err);
-                }
               });
             return; // Return immediately, promise will handle success/failure
           } else {
@@ -276,7 +264,6 @@ export class SoundManager {
           // Fall through to footstep fallback below
         }
       } catch (err) {
-        console.warn('Error playing jump sound:', err);
         // Fall through to footstep fallback below
       }
     }
@@ -288,9 +275,7 @@ export class SoundManager {
         audioClone.volume = this.masterVolume * 0.6; // 60% of normal volume (quieter)
         audioClone.currentTime = 0;
         audioClone.play().catch(err => {
-          if (err.name !== 'NotAllowedError') {
-            console.warn('Error playing jump sound:', err);
-          }
+          // Error playing jump sound
         });
         return;
       } catch (err) {
@@ -305,9 +290,7 @@ export class SoundManager {
         audioClone.volume = this.masterVolume * 0.6; // 60% of normal volume (quieter)
         audioClone.currentTime = 0;
         audioClone.play().catch(err => {
-          if (err.name !== 'NotAllowedError') {
-            console.warn('Error playing jump sound:', err);
-          }
+          // Error playing jump sound
         });
         return;
       } catch (err) {
@@ -412,9 +395,7 @@ export class SoundManager {
         audioClone.volume = this.masterVolume * 1.5; // 50% louder for impact
         audioClone.currentTime = 0;
         audioClone.play().catch(err => {
-          if (err.name !== 'NotAllowedError') {
-            console.warn('Error playing landing sound:', err);
-          }
+          // Error playing landing sound
         });
         return;
       } catch (err) {
@@ -429,9 +410,7 @@ export class SoundManager {
         audioClone.volume = this.masterVolume * 1.5; // 50% louder for impact
         audioClone.currentTime = 0;
         audioClone.play().catch(err => {
-          if (err.name !== 'NotAllowedError') {
-            console.warn('Error playing landing sound:', err);
-          }
+          // Error playing landing sound
         });
         return;
       } catch (err) {
@@ -553,9 +532,6 @@ export class SoundManager {
               })
               .catch(err => {
                 // Auto-play may be blocked or audio failed to load, fall back to procedural
-                if (err.name !== 'NotAllowedError') {
-                  console.warn('Error playing custom obstacle footstep sound:', err);
-                }
                 // Fall through to procedural sound
                 this._playProceduralFootstep(isObstacle);
               });
@@ -575,7 +551,6 @@ export class SoundManager {
           return;
         }
       } catch (err) {
-        console.warn('Error playing custom obstacle footstep sound:', err);
         // Fall through to procedural sound
         this._playProceduralFootstep(isObstacle);
         return;
@@ -605,9 +580,6 @@ export class SoundManager {
               })
               .catch(err => {
                 // Auto-play may be blocked or audio failed to load, fall back to procedural
-                if (err.name !== 'NotAllowedError') {
-                  console.warn('Error playing custom footstep sound:', err);
-                }
                 // Fall through to procedural sound
                 this._playProceduralFootstep(isObstacle);
               });
@@ -627,7 +599,6 @@ export class SoundManager {
           return;
         }
       } catch (err) {
-        console.warn('Error playing custom footstep sound:', err);
         // Fall through to procedural sound
         this._playProceduralFootstep(isObstacle);
         return;
@@ -761,7 +732,6 @@ export class SoundManager {
    */
   loadBackgroundMusic(path) {
     if (!path) {
-      console.warn('Background music path is null or undefined');
       return;
     }
 
@@ -781,7 +751,6 @@ export class SoundManager {
 
       // Handle loading errors gracefully
       this.backgroundMusic.addEventListener('error', (e) => {
-        console.warn(`Failed to load background music from ${path}:`, e);
         this.backgroundMusic = null;
       });
 
@@ -801,7 +770,6 @@ export class SoundManager {
       // Try to load immediately
       this.backgroundMusic.load();
     } catch (error) {
-      console.warn(`Error creating background music audio from ${path}:`, error);
       this.backgroundMusic = null;
     }
   }
@@ -811,12 +779,10 @@ export class SoundManager {
    */
   playBackgroundMusic() {
     if (!this.backgroundMusic) {
-      console.warn('Background music not loaded. Cannot play.');
       return;
     }
 
     if (!this.soundEnabled) {
-      console.warn('Sound is disabled. Cannot play background music.');
       return;
     }
 
@@ -833,18 +799,12 @@ export class SoundManager {
           })
           .catch(err => {
             // Silently handle autoplay blocking - it's expected behavior in browsers
-            if (err.name !== 'NotAllowedError') {
-              console.warn('Error playing background music:', err);
-            }
             // Mark that we need user interaction
             this._backgroundMusicPlaying = false;
           });
       }
     } catch (err) {
       // Silently handle autoplay blocking - it's expected behavior in browsers
-      if (err.name !== 'NotAllowedError') {
-        console.warn('Error playing background music:', err);
-      }
       this._backgroundMusicPlaying = false;
     }
   }
@@ -858,7 +818,7 @@ export class SoundManager {
     try {
       this.backgroundMusic.pause();
     } catch (err) {
-      console.warn('Error pausing background music:', err);
+      // Error pausing background music
     }
   }
 
@@ -872,7 +832,7 @@ export class SoundManager {
       this.backgroundMusic.pause();
       this.backgroundMusic.currentTime = 0;
     } catch (err) {
-      console.warn('Error stopping background music:', err);
+      // Error stopping background music
     }
   }
 

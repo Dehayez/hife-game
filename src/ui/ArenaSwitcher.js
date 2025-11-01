@@ -6,7 +6,6 @@ export function initArenaSwitcher(config) {
   const { mount, options, value, onChange } = config;
   
   if (!mount) {
-    console.warn('ArenaSwitcher: No mount element provided');
     return;
   }
 

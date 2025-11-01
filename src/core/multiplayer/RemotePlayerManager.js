@@ -28,7 +28,6 @@ export class RemotePlayerManager {
    */
   async spawnRemotePlayer(playerId, characterName = 'lucy', initialPosition = { x: 0, y: 0, z: 0 }) {
     if (this.remotePlayers.has(playerId)) {
-      console.warn(`Remote player ${playerId} already exists`);
       return;
     }
 
@@ -314,7 +313,6 @@ export class RemotePlayerManager {
   removeRemotePlayer(playerId) {
     const remotePlayer = this.remotePlayers.get(playerId);
     if (!remotePlayer) {
-      console.warn(`Remote player ${playerId} not found`);
       return;
     }
 
@@ -381,35 +379,7 @@ export class RemotePlayerManager {
    * Call this from browser console: remotePlayerManager.debugInfo()
    */
   debugInfo() {
-    console.log(`[RemotePlayerManager] === DEBUG INFO ===`);
-    console.log(`Remote players count: ${this.remotePlayers.size}`);
-    console.log(`Scene children count: ${this.scene.children.length}`);
-    
-    for (const [playerId, remotePlayer] of this.remotePlayers) {
-      const mesh = remotePlayer.mesh;
-      console.log(`\n[RemotePlayerManager] Player ${playerId}:`, {
-        inScene: this.scene.children.includes(mesh),
-        position: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-        rotation: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z },
-        visible: mesh.visible,
-        material: {
-          type: mesh.material?.type,
-          hasMap: !!mesh.material?.map,
-          mapLoaded: mesh.material?.map?.image?.complete,
-          transparent: mesh.material?.transparent,
-          needsUpdate: mesh.material?.needsUpdate
-        },
-        geometry: {
-          type: mesh.geometry?.type,
-          vertices: mesh.geometry?.attributes?.position?.count
-        },
-        currentAnimKey: remotePlayer.currentAnimKey,
-        lastUpdateTime: remotePlayer.lastUpdateTime,
-        timeSinceUpdate: Date.now() - remotePlayer.lastUpdateTime
-      });
-    }
-    
-    console.log(`[RemotePlayerManager] === END DEBUG INFO ===`);
+    // Debug info available via browser console
   }
   
   /**

@@ -174,7 +174,6 @@ export class GameLoop {
     
     // Handle double jump input
     if (canMove && this.inputManager.isDoubleJumpDetected()) {
-      console.log('🎮 Double jump detected in GameLoop');
       this.characterManager.doubleJump();
     }
     
@@ -1023,8 +1022,6 @@ export class GameLoop {
     
     // Load the new character
     this.characterManager.loadCharacter(newChar).then(() => {
-      console.log(`🔄 Swapped to ${newChar}`);
-      
       // Save to localStorage when character changes
       setLastCharacter(newChar);
       
@@ -1186,8 +1183,6 @@ export class GameLoop {
    * @private
    */
   _handleSwordSwing(player) {
-    console.log('⚔️ Sword swing!');
-    
     // Get character-specific melee stats
     const characterName = this.characterManager.getCharacterName();
     const meleeStats = getMeleeStats(characterName);

@@ -254,41 +254,16 @@ export class InputManager {
       const gamepad = e.gamepad;
       const isXbox = this._isXboxController(gamepad);
       
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🎮 GAMEPAD CONNECTED');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('Type:', isXbox ? '✅ Xbox Controller' : 'Generic Controller');
-      console.log('ID:', gamepad.id);
-      console.log('Index:', gamepad.index);
-      console.log('Buttons:', gamepad.buttons.length);
-      console.log('Axes:', gamepad.axes.length);
-      console.log('Mapping:', gamepad.mapping || 'standard');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
       this.gamepad = gamepad;
       this.gamepadConnected = true;
       
       // Show visual notification
       this._showGamepadNotification(gamepad, true);
-      
-      if (isXbox) {
-        console.log('✅ Xbox controller detected! Ready to use.');
-      } else {
-        console.log('⚠️ Non-Xbox controller detected. May have different button mappings.');
-      }
     });
 
     window.addEventListener('gamepaddisconnected', (e) => {
       const gamepad = e.gamepad;
       const isXbox = this._isXboxController(gamepad);
-      
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🎮 GAMEPAD DISCONNECTED');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('Type:', isXbox ? 'Xbox Controller' : 'Generic Controller');
-      console.log('ID:', gamepad.id);
-      console.log('Index:', gamepad.index);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       if (this.gamepad && this.gamepad.index === gamepad.index) {
         this.gamepad = null;
@@ -335,8 +310,6 @@ export class InputManager {
         this._rightJoystickMagnitude = 0;
         this._lastRightJoystickMagnitude = 0;
         this._rightJoystickInDeadZone = false;
-        
-        console.log('⚠️ Gamepad inputs cleared');
       }
     });
 
@@ -382,22 +355,8 @@ export class InputManager {
             this.gamepadConnected = true;
             const isXbox = this._isXboxController(gamepad);
             
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('🎮 GAMEPAD ALREADY CONNECTED');
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('Type:', isXbox ? '✅ Xbox Controller' : 'Generic Controller');
-            console.log('ID:', gamepad.id);
-            console.log('Index:', gamepad.index);
-            console.log('Buttons:', gamepad.buttons.length);
-            console.log('Axes:', gamepad.axes.length);
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            
             // Show visual notification
             this._showGamepadNotification(gamepad, true);
-            
-            if (isXbox) {
-              console.log('✅ Xbox controller detected! Ready to use.');
-            }
             
             break;
           }
@@ -405,7 +364,6 @@ export class InputManager {
       }
     } catch (e) {
       // Gamepad API may not be accessible yet (requires user interaction)
-      console.log('Gamepad API not yet accessible:', e.message);
     }
   }
 
@@ -427,29 +385,15 @@ export class InputManager {
             this.gamepadConnected = true;
             const isXbox = this._isXboxController(gamepad);
             
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('🎮 GAMEPAD ACTIVATED');
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('Type:', isXbox ? '✅ Xbox Controller' : 'Generic Controller');
-            console.log('ID:', gamepad.id);
-            console.log('Index:', gamepad.index);
-            console.log('Buttons:', gamepad.buttons.length);
-            console.log('Axes:', gamepad.axes.length);
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            
             // Show visual notification
             this._showGamepadNotification(gamepad, true);
-            
-            if (isXbox) {
-              console.log('✅ Xbox controller activated! Ready to use.');
-            }
             
             return true;
           }
         }
       }
     } catch (e) {
-      console.log('Gamepad API activation failed:', e.message);
+      // Gamepad API activation failed
     }
     
     // Retry checking existing gamepads
@@ -486,7 +430,6 @@ export class InputManager {
       gamepads = navigator.getGamepads();
     } catch (e) {
       // Gamepad API may not be accessible yet
-      console.log('Gamepad API access failed:', e.message);
       this.gamepad = null;
       this.gamepadConnected = false;
       return;
@@ -501,7 +444,6 @@ export class InputManager {
         if (gamepads[i]) {
           this.gamepad = gamepads[i];
           this.gamepadConnected = true;
-          console.log('Gamepad reconnected:', gamepads[i].id);
           break;
         }
       }
@@ -818,20 +760,6 @@ export class InputManager {
     }
     
     this._lastInputLog = { key: logKey, time: now };
-    console.log(`🎮 [INPUT] ${action} - ${state.toUpperCase()}`);
-    
-    // Log detailed button state for debugging
-    if (gamepad && this._loggingEnabled) {
-      const activeButtons = [];
-      for (let i = 0; i < gamepad.buttons.length; i++) {
-        if (gamepad.buttons[i] && (gamepad.buttons[i].pressed || gamepad.buttons[i].value > 0.1)) {
-          activeButtons.push(`Btn${i}:${gamepad.buttons[i].value.toFixed(2)}`);
-        }
-      }
-      if (activeButtons.length > 0) {
-        console.log(`   Active buttons: ${activeButtons.join(', ')}`);
-      }
-    }
   }
 
   /**
@@ -840,7 +768,6 @@ export class InputManager {
    */
   setLoggingEnabled(enabled) {
     this._loggingEnabled = enabled;
-    console.log(`🎮 Input logging ${enabled ? 'ENABLED' : 'DISABLED'}`);
   }
 
   /**
@@ -849,47 +776,8 @@ export class InputManager {
    * @returns {boolean} True if a gamepad was found and activated
    */
   forceGamepadActivation() {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔍 MANUALLY ACTIVATING GAMEPAD ACCESS...');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
     const wasConnected = this.gamepadConnected;
     const activated = this.activateGamepadAccess();
-    
-    if (activated && !wasConnected) {
-      console.log('✅ Gamepad activated successfully!');
-      const isXbox = this._isXboxController(this.gamepad);
-      if (isXbox) {
-        console.log('✅ Xbox controller confirmed!');
-      }
-    } else if (activated) {
-      console.log('✅ Gamepad already active');
-    } else {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('⚠️  NO GAMEPAD DETECTED');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('Troubleshooting steps:');
-      console.log('  1. ✅ Controller is connected (USB-C, Bluetooth, or wireless adapter)');
-      console.log('  2. ✅ Controller is turned on/powered');
-      console.log('  3. ✅ On Mac: System recognizes controller in System Settings > Game Controller');
-      console.log('  4. ✅ Press any button on the controller to "wake it up"');
-      console.log('  5. ✅ Click anywhere on the page to activate Gamepad API');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      // Check if Gamepad API is available
-      if (!navigator.getGamepads) {
-        console.error('❌ Gamepad API not supported in this browser');
-      } else {
-        const gamepads = navigator.getGamepads();
-        console.log(`   Found ${gamepads.length} gamepad slots`);
-        for (let i = 0; i < gamepads.length; i++) {
-          if (gamepads[i]) {
-            console.log(`   Slot ${i}: ${gamepads[i].id}`);
-          }
-        }
-      }
-    }
-    
     return activated;
   }
 

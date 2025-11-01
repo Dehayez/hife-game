@@ -74,7 +74,6 @@ export class MultiplayerManager {
   _setupSocket() {
     // Load Socket.io client from CDN if not already loaded
     if (typeof io === 'undefined') {
-      console.error('Socket.io client not loaded. Please add <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script> to index.html');
       return;
     }
     
@@ -83,7 +82,6 @@ export class MultiplayerManager {
     });
     
     this.socket.on('connect', () => {
-      console.log('Connected to multiplayer server');
       this.localPlayerId = this.socket.id;
       
       // Trigger connection callback if set
@@ -93,11 +91,11 @@ export class MultiplayerManager {
     });
     
     this.socket.on('disconnect', () => {
-      console.log('Disconnected from multiplayer server');
+      // Disconnected from multiplayer server
     });
     
     this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      // Connection error
     });
     
     // Handle player joined

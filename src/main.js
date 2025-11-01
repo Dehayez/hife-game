@@ -130,7 +130,7 @@ const multiplayerManager = new MultiplayerManager(
           }, 50);
         }
       } catch (error) {
-        console.error('Error spawning remote player:', error);
+        // Error spawning remote player
       }
     }
   },
@@ -185,7 +185,7 @@ const multiplayerManager = new MultiplayerManager(
               isGrounded: data.isGrounded
             });
           }).catch(error => {
-            console.error('Error spawning remote player:', error);
+            // Error spawning remote player
           });
         } else {
           // Update existing remote player
@@ -251,7 +251,7 @@ const multiplayerManager = new MultiplayerManager(
         if (remotePlayer) {
           // Update character for remote player (async)
           remotePlayerManager.updateRemotePlayerCharacter(playerId, data.characterName).catch(error => {
-            console.error('Error updating remote player character:', error);
+            // Error updating remote player character
           });
           
           // Update player info
@@ -547,7 +547,7 @@ const roomManager = initRoomManager({
       }
       gameModeManager.startMode();
     } catch (error) {
-      console.error('Failed to create room:', error);
+      // Failed to create room
     }
   },
   onRoomJoined: async (roomCode) => {
@@ -609,7 +609,7 @@ const roomManager = initRoomManager({
       }
       gameModeManager.startMode();
     } catch (error) {
-      console.error('Failed to join room:', error);
+      // Failed to join room
     }
   }
 });
@@ -629,7 +629,7 @@ if (urlRoom) {
       await multiplayerManager.joinRoom(urlRoom.toUpperCase(), gameState);
       roomManager.update();
     } catch (error) {
-      console.error('Failed to auto-join room:', error);
+      // Failed to auto-join room
       // Retry after a delay
       setTimeout(() => {
         attemptAutoJoin();
@@ -702,8 +702,6 @@ if (backgroundMusicPath) {
 window.debugRemotePlayers = () => {
   if (remotePlayerManager) {
     remotePlayerManager.debugInfo();
-  } else {
-    console.error('RemotePlayerManager not initialized');
   }
 };
 
@@ -712,10 +710,8 @@ if (typeof inputManager !== 'undefined') {
   window.activateGamepad = () => {
     if (inputManager) {
       return inputManager.forceGamepadActivation();
-    } else {
-      console.error('InputManager not initialized');
-      return false;
     }
+    return false;
   };
   
   window.toggleGamepadLogging = (enabled) => {
@@ -723,13 +719,6 @@ if (typeof inputManager !== 'undefined') {
       inputManager.setLoggingEnabled(enabled !== undefined ? enabled : !inputManager._loggingEnabled);
     }
   };
-  
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🎮 GAMEPAD DEBUG CONTROLS');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  activateGamepad()     - Manually detect/activate gamepad');
-  console.log('  toggleGamepadLogging() - Toggle input logging on/off');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 // Start the game
