@@ -410,6 +410,11 @@ initGameModeSwitcher({
     // Save to localStorage when game mode changes
     setLastGameMode(mode);
     
+    // Update legend when game mode changes
+    if (controlsLegend) {
+      controlsLegend.update();
+    }
+    
     // Clear projectiles when leaving shooting mode
     if (mode !== 'shooting' && projectileManager) {
       projectileManager.clearAll();
@@ -493,8 +498,17 @@ if (gameMode === 'shooting') {
 
 // Initialize controls legend
 const legendMount = document.getElementById('controls-legend') || document.body;
-initControlsLegend({
-  mount: legendMount
+const controlsLegend = initControlsLegend({
+  mount: legendMount,
+  inputManager: inputManager,
+  gameModeManager: gameModeManager
+});
+
+// Update legend when game mode changes
+gameModeManager.setOnModeChangeCallback(() => {
+  if (controlsLegend) {
+    controlsLegend.update();
+  }
 });
 
 // Initialize input mode switcher UI
@@ -519,6 +533,10 @@ const inputModeSwitcher = initInputModeSwitcher({
     const success = inputManager.setInputMode(mode);
     if (success) {
       setLastInputMode(mode);
+      // Update legend when input mode changes
+      if (controlsLegend) {
+        controlsLegend.update();
+      }
     }
   }
 });
@@ -536,6 +554,10 @@ inputManager.setOnControllerStatusChange((isConnected) => {
     if (success) {
       inputModeSwitcher.setValue('controller');
       setLastInputMode('controller');
+      // Update legend when switching to controller mode
+      if (controlsLegend) {
+        controlsLegend.update();
+      }
     }
   } else {
     // If controller disconnects, InputManager will auto-switch to keyboard mode
@@ -544,6 +566,10 @@ inputManager.setOnControllerStatusChange((isConnected) => {
     if (currentMode === 'keyboard') {
       inputModeSwitcher.setValue('keyboard');
       setLastInputMode('keyboard');
+      // Update legend when switching to keyboard mode
+      if (controlsLegend) {
+        controlsLegend.update();
+      }
     }
   }
 });

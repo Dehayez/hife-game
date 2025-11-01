@@ -172,6 +172,13 @@ html, body { height: 100%; margin: 0; }
   grid-row: 2;
 }
 
+/* Legend content container */
+.ui__legend-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 /* Game mode display */
 .ui__mode-display { 
   background: var(--color-bg-panel); 
