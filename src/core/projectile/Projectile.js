@@ -17,9 +17,11 @@ import { getFireboltStats, getCharacterColor } from './CharacterStats.js';
  * @param {number} directionZ - Direction Z component
  * @param {string} playerId - Player ID ('local' or player identifier)
  * @param {string} characterName - Character name ('lucy' or 'herald')
+ * @param {number} targetX - Optional target X position for cursor following
+ * @param {number} targetZ - Optional target Z position for cursor following
  * @returns {THREE.Mesh|null} Created projectile mesh or null if on cooldown
  */
-export function createProjectile(scene, startX, startY, startZ, directionX, directionZ, playerId, characterName) {
+export function createProjectile(scene, startX, startY, startZ, directionX, directionZ, playerId, characterName, targetX = null, targetZ = null) {
   // Get character-specific firebolt stats
   const stats = getFireboltStats(characterName);
   const characterColor = getCharacterColor(characterName);
@@ -62,7 +64,12 @@ export function createProjectile(scene, startX, startY, startZ, directionX, dire
     trailLight: trailLight,
     damage: stats.damage,
     size: stats.size,
-    hasHit: false // Flag to track if projectile has hit something
+    hasHit: false, // Flag to track if projectile has hit something
+    targetX: targetX, // Target X position for cursor following
+    targetZ: targetZ, // Target Z position for cursor following
+    cursorFollowStrength: stats.cursorFollowStrength || 0, // How much to follow cursor
+    initialDirX: normX, // Initial shooting direction X
+    initialDirZ: normZ // Initial shooting direction Z
   };
   
   scene.add(projectile);
@@ -74,15 +81,131 @@ export function createProjectile(scene, startX, startY, startZ, directionX, dire
  * @param {THREE.Mesh} projectile - Projectile mesh
  * @param {number} dt - Delta time in seconds
  * @param {Object} collisionManager - Collision manager for wall checks
+ * @param {Object} camera - THREE.js camera (optional, for cursor tracking)
+ * @param {Object} inputManager - Input manager (optional, for cursor tracking)
+ * @param {Object} playerPosition - Player position vector (optional, for cursor tracking)
  * @returns {boolean} True if projectile should be removed
  */
-export function updateProjectile(projectile, dt, collisionManager) {
+export function updateProjectile(projectile, dt, collisionManager, camera = null, inputManager = null, playerPosition = null) {
   // Update lifetime
   projectile.userData.lifetime += dt;
   
   // Remove if lifetime exceeded
   if (projectile.userData.lifetime >= projectile.userData.maxLifetime) {
     return true;
+  }
+  
+  // Apply cursor following if enabled and cursor tracking is available
+  const followStrength = projectile.userData.cursorFollowStrength || 0;
+  let targetX = projectile.userData.targetX;
+  let targetZ = projectile.userData.targetZ;
+  
+  // Continuously track cursor if enabled and tracking data is available
+  if (followStrength > 0 && camera && inputManager && playerPosition) {
+    // Get current cursor position and convert to world coordinates
+    const mousePos = inputManager.getMousePosition();
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+    mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+    
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Intersect with ground plane at y = 0
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const intersect = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, intersect);
+    
+    // Get initial shooting direction from projectile userData
+    const initialDirX = projectile.userData.initialDirX;
+    const initialDirZ = projectile.userData.initialDirZ;
+    
+    if (initialDirX !== undefined && initialDirZ !== undefined) {
+      // Calculate vector from player to cursor
+      const toCursorX = intersect.x - playerPosition.x;
+      const toCursorZ = intersect.z - playerPosition.z;
+      const toCursorLength = Math.sqrt(toCursorX * toCursorX + toCursorZ * toCursorZ);
+      
+      if (toCursorLength > 0.01) {
+        // Normalize cursor direction from player
+        const cursorDirX = toCursorX / toCursorLength;
+        const cursorDirZ = toCursorZ / toCursorLength;
+        
+        // Calculate dot product to check if cursor is ahead along shooting direction
+        const dotProduct = initialDirX * cursorDirX + initialDirZ * cursorDirZ;
+        
+        // If cursor is ahead (forward) along the shooting direction line, use it as target
+        // dotProduct > 0 means the cursor is generally in the forward direction
+        if (dotProduct > 0) {
+          // Project cursor position onto the shooting direction line
+          // Calculate distance along the shooting direction line from player to cursor projection
+          const cursorProjDist = toCursorLength * dotProduct;
+          
+          // Calculate distance from player to projectile along shooting direction
+          const projectileFromPlayerX = projectile.position.x - playerPosition.x;
+          const projectileFromPlayerZ = projectile.position.z - playerPosition.z;
+          const projectileDistFromPlayer = Math.sqrt(
+            projectileFromPlayerX * projectileFromPlayerX +
+            projectileFromPlayerZ * projectileFromPlayerZ
+          );
+          
+          // Project projectile position onto shooting direction line
+          if (projectileDistFromPlayer > 0.01) {
+            const projDirX = projectileFromPlayerX / projectileDistFromPlayer;
+            const projDirZ = projectileFromPlayerZ / projectileDistFromPlayer;
+            const projDotProduct = initialDirX * projDirX + initialDirZ * projDirZ;
+            const projectileProjDist = projectileDistFromPlayer * Math.max(0, projDotProduct);
+            
+            // If cursor projection is further along the shooting direction line than projectile, follow it
+            if (cursorProjDist > projectileProjDist) {
+              targetX = intersect.x;
+              targetZ = intersect.z;
+              // Update stored target
+              projectile.userData.targetX = targetX;
+              projectile.userData.targetZ = targetZ;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Apply cursor following if target is set
+  if (followStrength > 0 && targetX !== null && targetZ !== null) {
+    // Calculate direction to target
+    const toTargetX = targetX - projectile.position.x;
+    const toTargetZ = targetZ - projectile.position.z;
+    const toTargetLength = Math.sqrt(toTargetX * toTargetX + toTargetZ * toTargetZ);
+    
+    if (toTargetLength > 0.01) {
+      // Normalize target direction
+      const targetDirX = toTargetX / toTargetLength;
+      const targetDirZ = toTargetZ / toTargetLength;
+      
+      // Interpolate between current velocity direction and target direction
+      const stats = getFireboltStats(projectile.userData.characterName);
+      const currentSpeed = Math.sqrt(
+        projectile.userData.velocityX * projectile.userData.velocityX +
+        projectile.userData.velocityZ * projectile.userData.velocityZ
+      ) || stats.projectileSpeed;
+      
+      // Get current velocity direction
+      const currentDirX = projectile.userData.velocityX / currentSpeed;
+      const currentDirZ = projectile.userData.velocityZ / currentSpeed;
+      
+      // Lerp towards target direction based on follow strength
+      const newDirX = currentDirX + (targetDirX - currentDirX) * followStrength * dt * 5;
+      const newDirZ = currentDirZ + (targetDirZ - currentDirZ) * followStrength * dt * 5;
+      
+      // Normalize and update velocity
+      const newDirLength = Math.sqrt(newDirX * newDirX + newDirZ * newDirZ);
+      if (newDirLength > 0.001) {
+        const normNewDirX = newDirX / newDirLength;
+        const normNewDirZ = newDirZ / newDirLength;
+        projectile.userData.velocityX = normNewDirX * currentSpeed;
+        projectile.userData.velocityZ = normNewDirZ * currentSpeed;
+      }
+    }
   }
   
   // Calculate new position

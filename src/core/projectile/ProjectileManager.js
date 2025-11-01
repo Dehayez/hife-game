@@ -55,9 +55,11 @@ export class ProjectileManager {
    * @param {number} directionZ - Direction Z component
    * @param {string} playerId - Player ID ('local' or player identifier)
    * @param {string} characterName - Character name ('lucy' or 'herald')
+   * @param {number} targetX - Optional target X position for cursor following
+   * @param {number} targetZ - Optional target Z position for cursor following
    * @returns {THREE.Mesh|null} Created projectile mesh or null if on cooldown
    */
-  createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy') {
+  createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy', targetX = null, targetZ = null) {
     // Get character-specific firebolt stats
     const stats = getFireboltStats(characterName);
     
@@ -74,7 +76,9 @@ export class ProjectileManager {
       directionX,
       directionZ,
       playerId,
-      characterName
+      characterName,
+      targetX,
+      targetZ
     );
     
     if (!projectile) return null;
@@ -128,6 +132,18 @@ export class ProjectileManager {
     this.mortarCharacterCooldowns.set(playerId, stats.cooldown);
     
     return mortar;
+  }
+
+  /**
+   * Set references for cursor tracking (camera and input manager)
+   * @param {Object} camera - THREE.js camera
+   * @param {Object} inputManager - Input manager instance
+   * @param {Object} playerPosition - Player position vector
+   */
+  setCursorTracking(camera, inputManager, playerPosition) {
+    this.camera = camera;
+    this.inputManager = inputManager;
+    this.playerPosition = playerPosition;
   }
 
   /**
@@ -264,7 +280,14 @@ export class ProjectileManager {
       }
       
       // Update projectile using Projectile module
-      const shouldRemove = updateProjectile(projectile, dt, this.collisionManager);
+      const shouldRemove = updateProjectile(
+        projectile,
+        dt,
+        this.collisionManager,
+        this.camera,
+        this.inputManager,
+        this.playerPosition
+      );
       
       if (shouldRemove) {
         projectilesToRemove.push(projectile);

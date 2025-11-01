@@ -124,6 +124,15 @@ export class GameLoop {
     
     // Handle shooting mode
     if (mode === 'shooting' && this.projectileManager) {
+      // Set up cursor tracking for projectiles (update player position each frame)
+      if (player) {
+        const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+        this.projectileManager.setCursorTracking(
+          this.sceneManager.getCamera(),
+          this.inputManager,
+          playerPos
+        );
+      }
       this._handleShootingMode(dt, player);
     }
     
@@ -258,6 +267,10 @@ export class GameLoop {
       // Shoot in camera forward direction
       const cameraDir = new THREE.Vector3();
       camera.getWorldDirection(cameraDir);
+      // Calculate a target point in front of the player for cursor following
+      const forwardTargetX = playerPos.x + cameraDir.x * 10;
+      const forwardTargetZ = playerPos.z + cameraDir.z * 10;
+      
       const projectile = this.projectileManager.createProjectile(
         playerPos.x,
         playerPos.y,
@@ -265,7 +278,9 @@ export class GameLoop {
         cameraDir.x,
         cameraDir.z,
         playerId,
-        characterName
+        characterName,
+        forwardTargetX,
+        forwardTargetZ
       );
       
       // Send projectile to other players via multiplayer
@@ -277,10 +292,13 @@ export class GameLoop {
           startZ: playerPos.z,
           directionX: cameraDir.x,
           directionZ: cameraDir.z,
-          characterName: characterName
+          characterName: characterName,
+          targetX: forwardTargetX,
+          targetZ: forwardTargetZ
         });
       }
     } else {
+      // Pass the cursor intersection point as target for following
       const projectile = this.projectileManager.createProjectile(
         playerPos.x,
         playerPos.y,
@@ -288,7 +306,9 @@ export class GameLoop {
         directionX,
         directionZ,
         playerId,
-        characterName
+        characterName,
+        intersect.x,
+        intersect.z
       );
       
       // Send projectile to other players via multiplayer
@@ -300,7 +320,9 @@ export class GameLoop {
           startZ: playerPos.z,
           directionX: directionX,
           directionZ: directionZ,
-          characterName: characterName
+          characterName: characterName,
+          targetX: intersect.x,
+          targetZ: intersect.z
         });
       }
     }

@@ -29,7 +29,8 @@ export const CHARACTER_STATS = {
       cooldown: 0.6,           // Seconds between shots
       projectileSpeed: 8,      // Units per second
       size: 0.08,              // Projectile radius (smaller)
-      lifetime: 3              // Seconds before projectile despawns
+      lifetime: 3,             // Seconds before projectile despawns
+      cursorFollowStrength: 0.3 // How much projectile follows cursor (0.0 = none, 1.0 = full)
     },
     
     // Mortar Ability Stats
@@ -59,7 +60,8 @@ export const CHARACTER_STATS = {
       cooldown: 0.8,           // Seconds between shots (slower than Lucy)
       projectileSpeed: 9,      // Units per second (slightly faster)
       size: 0.18,              // Projectile radius (larger than Lucy)
-      lifetime: 3              // Seconds before projectile despawns
+      lifetime: 3,             // Seconds before projectile despawns
+      cursorFollowStrength: 0.5 // How much projectile follows cursor (0.0 = none, 1.0 = full)
     },
     
     // Mortar Ability Stats

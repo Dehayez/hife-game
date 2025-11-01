@@ -225,7 +225,9 @@ const multiplayerManager = new MultiplayerManager(
             data.directionX,
             data.directionZ,
             playerId,
-            characterName
+            characterName,
+            data.targetX || null,
+            data.targetZ || null
           );
         }
       }
