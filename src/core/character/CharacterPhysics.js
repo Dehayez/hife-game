@@ -15,7 +15,6 @@ import { getCharacterPhysicsStats, getCharacterMovementStats, getCharacterHealth
  * @param {Object} soundManager - Sound manager for landing sounds
  * @param {Function} isOnBaseGround - Function to check if on base ground
  * @param {number} dt - Delta time in seconds
- * @param {Function} onLanding - Optional callback when landing (for animation)
  */
 export function updateCharacterPhysics(
   player,
@@ -24,8 +23,7 @@ export function updateCharacterPhysics(
   collisionManager,
   soundManager,
   isOnBaseGround,
-  dt,
-  onLanding = null
+  dt
 ) {
   const physicsStats = getCharacterPhysicsStats();
   const movementStats = getCharacterMovementStats();
@@ -72,11 +70,6 @@ export function updateCharacterPhysics(
     if (!wasGrounded && soundManager) {
       const isObstacle = !isOnBaseGround();
       soundManager.playLanding(isObstacle);
-      
-      // Trigger landing animation callback if provided
-      if (onLanding) {
-        onLanding();
-      }
     }
   } else {
     characterData.isGrounded = false;

@@ -27,10 +27,6 @@ export async function loadCharacterAnimations(characterName) {
     idle_back,
     walk_front,
     walk_back,
-    jump_front: await loadAnimationSmart(baseSpritePath + 'jump_front', 8, 1).catch(() => idle_front),
-    jump_back: await loadAnimationSmart(baseSpritePath + 'jump_back', 8, 1).catch(() => idle_back),
-    landing_front: await loadAnimationSmart(baseSpritePath + 'landing_front', 8, 1).catch(() => idle_front),
-    landing_back: await loadAnimationSmart(baseSpritePath + 'landing_back', 8, 1).catch(() => idle_back),
     hit_front: await loadAnimationSmart(baseSpritePath + 'hit_front', 12, 1).catch(() => idle_front),
     hit_back: await loadAnimationSmart(baseSpritePath + 'hit_back', 12, 1).catch(() => idle_back),
     death_front: await loadAnimationSmart(baseSpritePath + 'death_front', 8, 1).catch(() => idle_front),
@@ -99,7 +95,35 @@ export function updateCharacterAnimation(
   if (!animations) return;
   
   const anim = animations[currentAnimKey];
-  if (!anim || anim.frameCount <= 1) return;
+  if (!anim) return;
+  
+  // Early return if animation is invalid - don't process single frame animations as one-shot
+  // This prevents issues when fallback animations (idle) are used for hit/death/spawn
+  const isOneShotAnim = currentAnimKey.includes('hit') || 
+                        currentAnimKey.includes('death') || 
+                        currentAnimKey.includes('spawn');
+  
+  // For one-shot animations, verify they're not fallbacks
+  if (isOneShotAnim) {
+    const expectedFallback = currentAnimKey.includes('front') ? 'idle_front' : 'idle_back';
+    const fallbackAnim = animations[expectedFallback];
+    
+    // If this one-shot animation is actually the fallback (idle), treat it as normal animation
+    if (anim === fallbackAnim) {
+      // This is a fallback, don't treat as one-shot - just return without processing
+      // This prevents the animation from stopping at last frame incorrectly
+      return;
+    }
+  }
+  
+  if (anim.frameCount <= 1) {
+    // Single frame animation - call callback immediately if it's a one-shot
+    if (isOneShotAnim && anim.onComplete) {
+      anim.onComplete();
+      anim.onComplete = null;
+    }
+    return;
+  }
   
   const isWalkAnim = currentAnimKey === 'walk_front' || currentAnimKey === 'walk_back';
   
@@ -109,12 +133,6 @@ export function updateCharacterAnimation(
   const currentFps = isRunning && isWalkAnim ? anim.fps * 1.4 : anim.fps;
   
   const frameDuration = 1 / currentFps;
-  
-  // Check if this is a one-shot animation (hit, death, spawn, landing)
-  const isOneShotAnim = currentAnimKey.includes('hit') || 
-                        currentAnimKey.includes('death') || 
-                        currentAnimKey.includes('spawn') ||
-                        currentAnimKey.includes('landing');
   
   while (anim.timeAcc >= frameDuration) {
     anim.timeAcc -= frameDuration;
@@ -208,8 +226,7 @@ export function updateCharacterMovement(
   // Check for special animation states first (hit, death, spawn)
   const isSpecialAnim = currentAnimKey.includes('hit') || 
                          currentAnimKey.includes('death') || 
-                         currentAnimKey.includes('spawn') ||
-                         currentAnimKey.includes('landing');
+                         currentAnimKey.includes('spawn');
   
   // Don't override special animations unless they're complete
   if (isSpecialAnim) {
@@ -224,10 +241,10 @@ export function updateCharacterMovement(
   
   // Choose animation based on movement, jumping state, and last facing (front/back)
   if (isJumping) {
-    // Use jump animation when jumping
+    // Use idle animation when jumping
     newCurrentAnimKey = setCharacterAnimation(
       player,
-      newLastFacing === 'back' ? 'jump_back' : 'jump_front',
+      newLastFacing === 'back' ? 'idle_back' : 'idle_front',
       animations,
       currentAnimKey
     );

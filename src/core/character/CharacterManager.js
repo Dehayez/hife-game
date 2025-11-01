@@ -341,11 +341,7 @@ export class CharacterManager {
       collisionManager,
       this.soundManager,
       () => this.isOnBaseGround(),
-      dt,
-      () => {
-        // Landing callback - play landing animation
-        this.playLandingAnimation();
-      }
+      dt
     );
   }
 
@@ -421,35 +417,24 @@ export class CharacterManager {
   }
 
   /**
-   * Play landing animation
-   */
-  playLandingAnimation() {
-    if (!this.animations || !this.player) return;
-    
-    const animKey = this.lastFacing === 'back' ? 'landing_back' : 'landing_front';
-    const newKey = setCharacterAnimation(
-      this.player,
-      animKey,
-      this.animations,
-      this.currentAnimKey,
-      true,
-      () => {
-        // When landing animation completes, return to idle
-        this.currentAnimKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
-        this.setCurrentAnim(this.currentAnimKey, true);
-      }
-    );
-    
-    this.currentAnimKey = newKey;
-  }
-
-  /**
    * Play hit animation
    */
   playHitAnimation() {
     if (!this.animations || !this.player) return;
     
     const animKey = this.lastFacing === 'back' ? 'hit_back' : 'hit_front';
+    const idleKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
+    
+    // Check if hit animation actually exists (not a fallback to idle)
+    const hitAnim = this.animations[animKey];
+    const idleAnim = this.animations[idleKey];
+    
+    // If hit animation is actually the idle animation (fallback), skip animation
+    if (hitAnim === idleAnim) {
+      // Hit animation doesn't exist, just skip - don't play animation
+      return;
+    }
+    
     const newKey = setCharacterAnimation(
       this.player,
       animKey,
@@ -458,7 +443,6 @@ export class CharacterManager {
       true,
       () => {
         // When hit animation completes, return to idle/walk based on current state
-        const idleKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
         this.currentAnimKey = idleKey;
         this.setCurrentAnim(this.currentAnimKey, true);
       }
@@ -509,14 +493,13 @@ export class CharacterManager {
   }
 
   /**
-   * Check if currently playing a special animation (hit, death, spawn, landing)
+   * Check if currently playing a special animation (hit, death, spawn)
    * @returns {boolean} True if playing special animation
    */
   isPlayingSpecialAnimation() {
     return this.currentAnimKey.includes('hit') || 
            this.currentAnimKey.includes('death') || 
-           this.currentAnimKey.includes('spawn') ||
-           this.currentAnimKey.includes('landing');
+           this.currentAnimKey.includes('spawn');
   }
 }
 
