@@ -2,46 +2,100 @@
  * CharacterStats.js
  * 
  * Centralized configuration for all character ability stats.
- * This file provides a clear view of every ability stat for every character.
  * 
- * Add new characters or modify ability stats here.
+ * This file merges global base stats with character-specific multipliers/overrides.
  * 
  * ═══════════════════════════════════════════════════════════════════
- * TO EDIT MELEE ATTACK STATS:
+ * HOW TO EDIT STATS:
  * ═══════════════════════════════════════════════════════════════════
  * 
- * Scroll down to find each character's "MELEE ATTACK STATS" section.
- * Each character (Lucy and Herald) has their own melee stats.
+ * 1. GLOBAL BASE STATS (affects all characters):
+ *    Edit: src/core/projectile/GlobalCharacterStats.js
+ *    - Change base values here to affect all characters
+ *    - Example: Increase base damage from 20 to 25 = all characters get +5 damage
  * 
- * Melee stats you can edit:
- *   - damage: Damage per tick - how much damage each tick deals during animation (number)
- *   - tickInterval: Seconds between damage ticks (e.g., 0.1 = 10 ticks/second) (number)
- *   - range: Attack range in units - how far the attack reaches (number)
- *            ⚠️ All animations and particles scale with this value:
- *               - Circle inner radius: range * 0.875
- *               - Circle outer radius: range (exact)
- *               - Particle size: range * 0.15 (15-25% of range)
- *               - Particle speed: range * 2.5 (scales proportionally)
- *   - animationDuration: How long the animation lasts in seconds (number)
- *                        ⚠️ Circle and particles use this for timing
- *                        Damage is applied over this duration in ticks
- *   - cooldown: Seconds between melee attacks (cooldown time) (number)
- *   - poisonDamage: Poison damage per tick - damage dealt after animation ends (number)
- *   - poisonTickInterval: Seconds between poison damage ticks (number)
- *   - poisonDuration: How long poison lasts in seconds (total poison duration) (number)
+ * 2. CHARACTER-SPECIFIC STATS (affects one character):
+ *    Edit: src/core/projectile/characters/Lucy.js or Herald.js
+ *    - Use multipliers (e.g., 0.5 = 50% of base, 1.5 = 150% of base)
+ *    - Use overrides (direct values that replace base)
+ *    - Example: Lucy damage: 0.5 means Lucy gets 50% of global base damage
  * 
- * Example locations:
- *   - Lucy melee stats: Around line 49-56
- *   - Herald melee stats: Around line 90-97
+ * ═══════════════════════════════════════════════════════════════════
+ * HOW IT WORKS:
+ * ═══════════════════════════════════════════════════════════════════
  * 
- * HOW VARIABLES ARE USED:
- * - All abilities (melee, firebolt, mortar) use their stats variables
- * - Animations scale with range/size using: variable * multiplier
- * - Particles scale with range/size using: variable * 0.15 (or similar)
- * - Everything scales proportionally - edit the base variable and everything updates!
+ * Final stat = Global Base × Character Multiplier (or Character Override)
+ * 
+ * Example:
+ *   Global base damage: 20
+ *   Lucy multiplier: 0.5
+ *   Lucy final damage: 20 × 0.5 = 10
+ * 
+ *   Global base damage: 20
+ *   Herald multiplier: 1.75
+ *   Herald final damage: 20 × 1.75 = 35
  * 
  * ═══════════════════════════════════════════════════════════════════
  */
+
+import { GLOBAL_BASE_STATS } from './GlobalCharacterStats.js';
+import { LUCY_STATS } from './characters/Lucy.js';
+import { HERALD_STATS } from './characters/Herald.js';
+
+/**
+ * Deep merge function that applies multipliers or overrides
+ * @param {Object} base - Base stats object
+ * @param {Object} character - Character-specific multipliers/overrides
+ * @returns {Object} Merged stats object
+ */
+function mergeStats(base, character) {
+  const result = {};
+  
+  // Copy base values
+  for (const key in base) {
+    if (typeof base[key] === 'object' && base[key] !== null && !Array.isArray(base[key])) {
+      // Recursively merge nested objects
+      result[key] = mergeStats(base[key], character[key] || {});
+    } else {
+      // For primitive values, start with base value
+      result[key] = base[key];
+    }
+  }
+  
+  // Apply character overrides/multipliers
+  for (const key in character) {
+    if (typeof character[key] === 'object' && character[key] !== null && !Array.isArray(character[key])) {
+      // Recursively merge nested objects
+      result[key] = mergeStats(result[key] || {}, character[key]);
+    } else if (character[key] !== undefined) {
+      // Apply multiplier or override
+      if (typeof base[key] === 'number' && typeof character[key] === 'number') {
+        // Both are numbers - apply as multiplier
+        result[key] = base[key] * character[key];
+      } else {
+        // Non-number override (like name, color) or base doesn't exist
+        result[key] = character[key];
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Merge global base stats with character-specific stats
+ * @param {Object} characterStats - Character-specific stats object
+ * @returns {Object} Complete merged character stats
+ */
+function createCharacterStats(characterStats) {
+  return {
+    name: characterStats.name,
+    color: characterStats.color,
+    firebolt: mergeStats(GLOBAL_BASE_STATS.firebolt, characterStats.firebolt || {}),
+    mortar: mergeStats(GLOBAL_BASE_STATS.mortar, characterStats.mortar || {}),
+    melee: mergeStats(GLOBAL_BASE_STATS.melee, characterStats.melee || {})
+  };
+}
 
 /**
  * Character Ability Stats Configuration
@@ -52,97 +106,8 @@
  * 3. Melee (sword swing attack)
  */
 export const CHARACTER_STATS = {
-  /**
-   * Lucy - Agile spellcaster
-   * Fast, lower damage attacks with smaller projectiles
-   */
-  lucy: {
-    name: 'Lucy',
-    color: 0x9c57b6, // Purple color (#9c57b6)
-    
-    // Firebolt Ability Stats
-    firebolt: {
-      damage: 10,              // Damage per hit (lower for Uzi-like rapid fire)
-      cooldown: 0.15,          // Seconds between shots (Uzi-like rapid fire)
-      projectileSpeed: 12,     // Units per second (faster)
-      size: 0.08,              // Projectile radius (smaller)
-      lifetime: 3,             // Seconds before projectile despawns
-      cursorFollowStrength: 0.3 // How much projectile follows cursor (0.0 = none, 1.0 = full)
-    },
-    
-    // Mortar Ability Stats
-    mortar: {
-      damage: 35,              // Direct hit damage
-      areaDamage: 10,          // Area damage per tick (5 ticks/second)
-      cooldown: 2.5,           // Seconds between mortar shots
-      arcHeight: 3.0,          // Maximum height of arc trajectory
-      splashRadius: 0.8,       // Radius of fire splash area
-      fireDuration: 1.5,       // How long fire persists on ground (seconds)
-      shrinkDelay: 0.8,        // Wait time before fire starts shrinking (seconds)
-      size: 0.12               // Mortar projectile radius
-    },
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // MELEE ATTACK STATS - Edit these values to change melee attack
-    // ═══════════════════════════════════════════════════════════════════
-    melee: {
-      damage: 10,              // Damage per tick (damage dealt each tick during animation)
-      tickInterval: 0.1,        // Seconds between damage ticks (10 ticks/second)
-      range: 1.4,               // Attack range in units (how far the attack reaches)
-      animationDuration: 2,    // Animation duration in seconds (how long the attack animation lasts)
-      cooldown: 3.0,           // Seconds between melee attacks (cooldown time)
-      poisonDamage: 1,         // Poison damage per tick (damage dealt after animation ends)
-      poisonTickInterval: 0.5, // Seconds between poison damage ticks (2 ticks/second)
-      poisonDuration: 3.0      // How long poison lasts in seconds (total poison duration)
-    }
-    // ═══════════════════════════════════════════════════════════════════
-  },
-  
-  /**
-   * Herald - Powerful warrior
-   * Slower, higher damage attacks with larger projectiles
-   */
-  herald: {
-    name: 'Herald',
-    color: 0xf5ba0b, // Gold color (#f5ba0b)
-    
-    // Firebolt Ability Stats
-    firebolt: {
-      damage: 35,              // Damage per hit (balanced with lucy)
-      cooldown: 0.8,           // Seconds between shots (slower than Lucy)
-      projectileSpeed: 9,      // Units per second (slightly faster)
-      size: 0.18,              // Projectile radius (larger than Lucy)
-      lifetime: 3,             // Seconds before projectile despawns
-      cursorFollowStrength: 0.5 // How much projectile follows cursor (0.0 = none, 1.0 = full)
-    },
-    
-    // Mortar Ability Stats
-    mortar: {
-      damage: 35,              // Direct hit damage (higher than Lucy)
-      areaDamage: 5,          // Area damage per tick (higher than Lucy)
-      cooldown: 3.5,           // Seconds between mortar shots (slower than Lucy)
-      arcHeight: 4.0,          // Maximum height of arc trajectory (higher arc)
-      splashRadius: 1.0,       // Radius of fire splash area (larger than Lucy)
-      fireDuration: 2.0,       // How long fire persists on ground (longer than Lucy)
-      shrinkDelay: 1.0,        // Wait time before fire starts shrinking (longer than Lucy)
-      size: 0.25               // Mortar projectile radius (larger fireball)
-    },
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // MELEE ATTACK STATS - Edit these values to change melee attack
-    // ═══════════════════════════════════════════════════════════════════
-    melee: {
-      damage: 12,              // Damage per tick (higher damage per tick than Lucy)
-      tickInterval: 0.1,        // Seconds between damage ticks (10 ticks/second)
-      range: 1.4,               // Attack range in units (larger for powerful warrior)
-      animationDuration: 0.6,  // Animation duration in seconds (longer for powerful swing)
-      cooldown: 4.0,           // Seconds between melee attacks (slower cooldown than Lucy)
-      poisonDamage: 1,         // Poison damage per tick (damage dealt after animation ends)
-      poisonTickInterval: 0.5,  // Seconds between poison damage ticks (2 ticks/second)
-      poisonDuration: 4.0       // How long poison lasts in seconds (longer poison duration)
-    }
-    // ═══════════════════════════════════════════════════════════════════
-  }
+  lucy: createCharacterStats(LUCY_STATS),
+  herald: createCharacterStats(HERALD_STATS)
 };
 
 /**
@@ -193,4 +158,3 @@ export function getMeleeStats(characterName) {
   const stats = getCharacterStats(characterName);
   return stats.melee;
 }
-
