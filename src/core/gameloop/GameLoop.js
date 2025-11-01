@@ -922,20 +922,31 @@ export class GameLoop {
     
     const characterName = this.characterManager.getCharacterName();
     const characterColor = this._getCharacterColorForParticles(characterName);
+    const isHerald = characterName === 'herald';
     
     // Create container group for visual effects
     const visualGroup = new THREE.Group();
     
-    // Create main glowing orb/sphere effect
+    // Create main glowing orb/sphere effect with reflection and glow (like fireball/firebolt)
     const geometry = new THREE.SphereGeometry(0.3, 16, 16);
-    const material = new THREE.MeshBasicMaterial({
+    const material = new THREE.MeshStandardMaterial({
       color: characterColor,
+      emissive: characterColor,
+      emissiveIntensity: isHerald ? 1.2 : 0.8,
+      metalness: 0.7,
+      roughness: 0.2,
       transparent: true,
-      opacity: 0.6,
-      side: THREE.DoubleSide
+      opacity: 0.6
     });
     
     const visual = new THREE.Mesh(geometry, material);
+    visual.castShadow = true;
+    
+    // Add glow effect with point light (like fireball/firebolt)
+    const lightIntensity = isHerald ? 2.0 : 1.2;
+    const lightRange = isHerald ? 5 : 3;
+    const glowLight = new THREE.PointLight(characterColor, lightIntensity, lightRange);
+    glowLight.position.set(0, 0, 0); // Position relative to visualGroup
     
     // Create cooldown ring indicator (torus ring around the sphere)
     const ringGeometry = new THREE.TorusGeometry(0.4, 0.03, 8, 32);
@@ -949,7 +960,9 @@ export class GameLoop {
     cooldownRing.rotation.x = Math.PI / 2; // Rotate to be horizontal
     cooldownRing.visible = false; // Hidden by default when ready
     
+    // Add visual first (so it's children[0]), then light, then ring
     visualGroup.add(visual);
+    visualGroup.add(glowLight);
     visualGroup.add(cooldownRing);
     
     visualGroup.position.set(
@@ -966,6 +979,8 @@ export class GameLoop {
     visual.userData.characterColor = characterColor;
     visual.userData.cooldownRing = cooldownRing;
     visual.userData.rotationPhase = 0; // For rotating ring animation
+    visual.userData.glowLight = glowLight; // Store light reference for updates
+    visual.userData.baseLightIntensity = lightIntensity; // Store base light intensity
     
     this.mortarHoldVisual = visualGroup;
     this.sceneManager.getScene().add(visualGroup);
@@ -983,6 +998,7 @@ export class GameLoop {
         if (child.material) child.material.dispose();
       });
       
+      // Remove from scene before disposing
       this.sceneManager.getScene().remove(this.mortarHoldVisual);
       this.mortarHoldVisual = null;
     }
@@ -998,6 +1014,7 @@ export class GameLoop {
   _updateMortarHoldVisualAnimation(dt, isOnCooldown, cooldownPercentage) {
     const visual = this.mortarHoldVisual.children[0]; // Main sphere
     const pulseData = visual.userData;
+    const glowLight = pulseData.glowLight;
     
     if (isOnCooldown) {
       // On cooldown: fireball orange color, slower pulse, growing opacity
@@ -1032,6 +1049,14 @@ export class GameLoop {
         colorMix
       );
       visual.material.color.copy(currentColor);
+      visual.material.emissive.copy(currentColor); // Update emissive for glow
+      
+      // Update light color and intensity based on progress
+      if (glowLight) {
+        glowLight.color.copy(currentColor);
+        const lightIntensity = pulseData.baseLightIntensity * 0.3 * progress; // Grow light intensity with progress
+        glowLight.intensity = lightIntensity + Math.sin(pulseData.pulsePhase) * lightIntensity * 0.2;
+      }
       
       // Base opacity grows with progress, with small pulsing variation
       const pulseOpacityVariation = Math.sin(pulseData.pulsePhase) * 0.1;
@@ -1042,9 +1067,17 @@ export class GameLoop {
       const pulseScale = pulseData.baseScale + Math.sin(pulseData.pulsePhase) * 0.2;
       visual.scale.set(pulseScale, pulseScale, pulseScale);
       
-      // Bright character color
+      // Bright character color with emissive glow
       visual.material.color.setHex(pulseData.characterColor);
+      visual.material.emissive.setHex(pulseData.characterColor); // Update emissive for glow
       visual.material.opacity = 0.6 + Math.sin(pulseData.pulsePhase) * 0.2; // Smooth pulsing opacity
+      
+      // Update light color and intensity (pulsing)
+      if (glowLight) {
+        glowLight.color.setHex(pulseData.characterColor);
+        const pulseLightIntensity = pulseData.baseLightIntensity + Math.sin(pulseData.pulsePhase) * pulseData.baseLightIntensity * 0.3;
+        glowLight.intensity = pulseLightIntensity;
+      }
     }
   }
   
