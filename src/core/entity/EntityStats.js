@@ -68,7 +68,7 @@ export const ENTITY_STATS = {
     pillarRoughness: 0.8,     // Pillar roughness
     crystalSize: 0.35,        // Crystal size
     crystalDetail: 1,         // Crystal detail level
-    crystalColor: 0x6ab89a,   // Crystal color (mystical green)
+    crystalColor: 0xffcc44,   // Crystal color (main color)
     crystalEmissive: 0x4a8a7a, // Crystal emissive color
     crystalEmissiveIntensity: 0.6, // Crystal emissive intensity
     crystalMetalness: 0.7,    // Crystal metalness
@@ -78,20 +78,20 @@ export const ENTITY_STATS = {
     ringTube: 0.05,           // Ring tube radius
     ringSegments: 8,          // Ring radial segments
     ringTubularSegments: 16,  // Ring tubular segments
-    ringColor: 0x6ab89a,      // Ring color
+    ringColor: 0xffcc44,      // Ring color
     ringEmissive: 0x4a8a7a,   // Ring emissive color
     ringEmissiveIntensity: 0.5, // Ring emissive intensity
     ringMetalness: 0.6,      // Ring metalness
     ringRoughness: 0.3,      // Ring roughness
-    lightColor: 0x6ab89a,    // Glow light color
+    lightColor: 0xffcc44,    // Glow light color
     lightIntensity: 0.6,      // Glow light intensity
     lightRange: 3,            // Glow light range
     lightHeight: 2,           // Glow light height
     activatedCrystalColor: 0x8aefcf,  // Activated crystal color
-    activatedCrystalEmissive: 0x6ab89a, // Activated crystal emissive color
+    activatedCrystalEmissive: 0xffcc44, // Activated crystal emissive color
     activatedCrystalEmissiveIntensity: 1.0, // Activated crystal emissive intensity
     activatedRingColor: 0x8aefcf,    // Activated ring color
-    activatedRingEmissive: 0x6ab89a,  // Activated ring emissive color
+    activatedRingEmissive: 0xffcc44,  // Activated ring emissive color
     activatedRingEmissiveIntensity: 0.8, // Activated ring emissive intensity
     activatedLightColor: 0x8aefcf,   // Activated light color
     activatedLightIntensity: 1.0      // Activated light intensity

@@ -301,8 +301,8 @@ export class CharacterManager {
   doubleJump() {
     const physicsStats = getCharacterPhysicsStats();
     
-    // Only allow double jump if in air and haven't double jumped yet
-    if (!this.characterData.isGrounded && !this.characterData.hasDoubleJumped && this.characterData.jumpCooldown <= 0) {
+    // Only allow double jump if in air, going upward (positive velocityY), and haven't double jumped yet
+    if (!this.characterData.isGrounded && this.characterData.velocityY > 0 && !this.characterData.hasDoubleJumped && this.characterData.jumpCooldown <= 0) {
       this.characterData.velocityY = physicsStats.jumpForce * 0.8; // Slightly weaker than normal jump
       this.characterData.hasDoubleJumped = true;
       this.characterData.jumpCooldown = physicsStats.jumpCooldownTime;

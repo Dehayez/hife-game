@@ -83,7 +83,7 @@ export const SCENE_STATS = {
     magicLight1Intensity: 0.5,
     magicLight2Color: 0x4fa88a,
     magicLight2Intensity: 0.5,
-    centerLightColor: 0x6ab89a,
+    centerLightColor: 0xffcc44,
     centerLightIntensity: 0.3,
     shadowMapSize: 2048,
     shadowBias: -0.0001,

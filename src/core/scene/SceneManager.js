@@ -100,7 +100,7 @@ export class SceneManager {
     this.scene.add(magicLight2);
     
     // Subtle glowing magical light in center (slightly dimmed)
-    const centerLight = new THREE.PointLight(0x6ab89a, 0.3, 12);
+    const centerLight = new THREE.PointLight(0xffcc44, 0.3, 12);
     centerLight.position.set(0, 2, 0);
     this.scene.add(centerLight);
   }

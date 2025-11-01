@@ -91,7 +91,7 @@ export class LargeArenaSceneManager {
     magicLight2.position.set(15, 3, 15);
     this.scene.add(magicLight2);
     
-    const centerLight = new THREE.PointLight(0x6ab89a, 0.3, 15);
+    const centerLight = new THREE.PointLight(0xffcc44, 0.3, 15);
     centerLight.position.set(0, 2, 0);
     this.scene.add(centerLight);
   }

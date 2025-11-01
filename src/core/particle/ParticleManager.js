@@ -146,6 +146,63 @@ export class ParticleManager {
   }
 
   /**
+   * Spawn a healing particle at position (green, smaller, faster)
+   * @param {THREE.Vector3} position - Spawn position
+   */
+  spawnHealingParticle(position) {
+    // Create healing particle geometry and material (smaller than smoke)
+    const size = 0.15 + Math.random() * 0.1; // Much smaller than smoke
+    const geometry = new THREE.PlaneGeometry(size, size);
+    
+    // Healing color - green with variation
+    const greenColor = new THREE.Color(
+      0.3 + Math.random() * 0.2, // R
+      0.8 + Math.random() * 0.2, // G - bright green
+      0.4 + Math.random() * 0.2  // B
+    );
+    
+    const material = new THREE.MeshBasicMaterial({
+      color: greenColor,
+      transparent: true,
+      opacity: 0.2,
+      side: THREE.DoubleSide,
+      alphaTest: 0.05,
+      depthWrite: false
+    });
+
+    const particle = new THREE.Mesh(geometry, material);
+    
+    // Position particle around character
+    particle.position.copy(position);
+    particle.position.y += Math.random() * 0.3;
+    
+    // Initialize particle properties (rise faster and fade quicker)
+    const stats = getSmokeStats();
+    particle.userData = {
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * 0.5,
+        0.8 + Math.random() * 0.5, // Rise quickly
+        (Math.random() - 0.5) * 0.5
+      ),
+      lifetime: 0,
+      maxLifetime: 0.5 + Math.random() * 0.3, // Shorter lifetime
+      initialSize: size,
+      initialOpacity: material.opacity
+    };
+
+    this.scene.add(particle);
+    this.smokeParticles.push(particle);
+
+    // Remove oldest particles if we exceed max
+    if (this.smokeParticles.length > this.maxParticles) {
+      const oldest = this.smokeParticles.shift();
+      this.scene.remove(oldest);
+      oldest.geometry.dispose();
+      oldest.material.dispose();
+    }
+  }
+
+  /**
    * Clear all particles
    */
   clear() {

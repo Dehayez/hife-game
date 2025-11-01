@@ -21,7 +21,7 @@ export const CHARACTER_STATS = {
    */
   lucy: {
     name: 'Lucy',
-    color: 0xff6b9d, // Pink/magenta color
+    color: 0x9c57b6, // Purple color (#9c57b6)
     
     // Firebolt Ability Stats
     firebolt: {
@@ -52,7 +52,7 @@ export const CHARACTER_STATS = {
    */
   herald: {
     name: 'Herald',
-    color: 0xff8c42, // Orange color
+    color: 0xf5ba0b, // Gold color (#f5ba0b)
     
     // Firebolt Ability Stats
     firebolt: {

@@ -430,6 +430,14 @@ initGameModeSwitcher({
           healthBarManager.createHealthBar(player, true);
         }
       }
+      
+      // Restore saved bot count when entering shooting mode
+      if (botControl && typeof botControl.restoreSavedBots === 'function') {
+        // Delay slightly to ensure everything is initialized
+        setTimeout(() => {
+          botControl.restoreSavedBots();
+        }, 100);
+      }
     } else {
       if (roomPanel) roomPanel.style.display = 'none';
       if (botControlPanel) botControlPanel.style.display = 'none';
@@ -632,7 +640,9 @@ if (urlRoom) {
 const botControl = initBotControl({
   mount: botControlMount,
   botManager: botManager,
-  healthBarManager: healthBarManager
+  healthBarManager: healthBarManager,
+  arenaManager: arenaManager,
+  sceneManager: sceneManager
 });
 
 // Show/hide bot control based on mode
@@ -737,6 +747,14 @@ if (typeof inputManager !== 'undefined') {
       player.userData.health = characterManager.getHealth();
       player.userData.maxHealth = characterManager.getMaxHealth();
       healthBarManager.createHealthBar(player, true);
+      
+      // Restore saved bot count when starting in shooting mode
+      if (botControl && typeof botControl.restoreSavedBots === 'function') {
+        // Delay slightly to ensure everything is initialized
+        setTimeout(() => {
+          botControl.restoreSavedBots();
+        }, 200);
+      }
     }
     
     gameLoop.start();

@@ -123,3 +123,51 @@ export function setLastGameMode(gameMode) {
   return false;
 }
 
+/**
+ * Get saved bot count for Mystic Battle (shooting mode) for a specific arena
+ * @param {string} arena - Arena key ('standard' or 'large')
+ * @returns {number} Bot count (default 0)
+ */
+export function getBotCount(arena = 'standard') {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}shooting_bot_count_${arena}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return Math.max(0, Math.floor(parsed.botCount || 0));
+    }
+  } catch (e) {
+    console.error('Error reading bot count:', e);
+  }
+  return 0;
+}
+
+/**
+ * Save bot count for Mystic Battle (shooting mode) for a specific arena
+ * @param {number} botCount - Bot count to save
+ * @param {string} arena - Arena key ('standard' or 'large')
+ * @returns {boolean} True if saved successfully
+ */
+export function setBotCount(botCount, arena = 'standard') {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}shooting_bot_count_${arena}`;
+    const count = Math.max(0, Math.floor(botCount || 0));
+    localStorage.setItem(key, JSON.stringify({ botCount: count }));
+    return true;
+  } catch (e) {
+    console.error('Error saving bot count:', e);
+  }
+  return false;
+}
+
+/**
+ * Get maximum bot count allowed for an arena
+ * @param {string} arena - Arena key ('standard' or 'large')
+ * @returns {number} Maximum bot count
+ */
+export function getMaxBotCount(arena = 'standard') {
+  // 20x20 arena (standard): max 10 bots
+  // 40x40 arena (large): max 25 bots
+  return arena === 'large' ? 25 : 10;
+}
+

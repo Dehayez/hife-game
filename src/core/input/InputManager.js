@@ -46,7 +46,7 @@ export class InputManager {
     this._gamepadShiftState = false;
     this._gamepadMovementActive = false; // Track if gamepad is controlling movement
     this._lastJumpPressTime = 0; // For double jump detection
-    this._doubleJumpTimeWindow = 300; // ms window for double jump
+    this._doubleJumpTimeWindow = 500; // ms window for double jump
     this._loggingEnabled = true; // Enable detailed input logging
     this._lastInputLog = null; // Track last input to avoid spam
     this._inputLogThrottle = 200; // Throttle input logs (ms)
@@ -592,10 +592,8 @@ export class InputManager {
     const isJumpPress = (gamepadJump || hadKeyboardJump) && !this.inputState.jump;
     
     if (gamepadJump || hadKeyboardJump) {
-      this.inputState.jump = true;
-      this._gamepadJumpState = gamepadJump;
-      
       // Detect double jump: two presses within time window
+      // Must check before updating _lastJumpPressTime
       if (isJumpPress && now - this._lastJumpPressTime < this._doubleJumpTimeWindow && this._lastJumpPressTime > 0) {
         this.inputState.doubleJump = true;
         if (this._loggingEnabled) {
@@ -603,7 +601,10 @@ export class InputManager {
         }
       }
       
-      // Update last jump time on press
+      this.inputState.jump = true;
+      this._gamepadJumpState = gamepadJump;
+      
+      // Update last jump time on press (after double jump check)
       if (isJumpPress) {
         this._lastJumpPressTime = now;
         if (!this.inputState.doubleJump && this._loggingEnabled) {

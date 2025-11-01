@@ -752,14 +752,14 @@ export class GameLoop {
       
       // Add healing particles
       if (this.characterManager.particleManager) {
-        // Spawn healing particles around character
-        if (Math.random() < 0.3) { // 30% chance per frame
+        // Spawn more green healing particles around character
+        for (let i = 0; i < 5; i++) {
           const pos = new THREE.Vector3(
             player.position.x + (Math.random() - 0.5) * 0.5,
             player.position.y + Math.random() * 0.3,
             player.position.z + (Math.random() - 0.5) * 0.5
           );
-          this.characterManager.particleManager.spawnSmokeParticle(pos);
+          this.characterManager.particleManager.spawnHealingParticle(pos);
         }
       }
     }
@@ -773,9 +773,55 @@ export class GameLoop {
   _handleSwordSwing(player) {
     console.log('⚔️ Sword swing!');
     
-    // TODO: Add 360 degree damage circle
-    // TODO: Add visual effect (flat circle around character)
-    // For now, just log it
+    // Create 360 degree damage circle visual effect
+    const radius = 2;
+    const segments = 32;
+    const geometry = new THREE.RingGeometry(radius - 0.1, radius, segments);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xff0000, // Red circle
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
+    
+    const circle = new THREE.Mesh(geometry, material);
+    circle.rotation.x = -Math.PI / 2; // Lay flat on ground
+    // Position at stomach level (mid-way up player height ~0.6)
+    circle.position.set(player.position.x, player.position.y + .2, player.position.z);
+    
+    // Add to scene
+    this.sceneManager.getScene().add(circle);
+    
+    // Remove after animation
+    setTimeout(() => {
+      this.sceneManager.getScene().remove(circle);
+      geometry.dispose();
+      material.dispose();
+    }, 500);
+    
+    // Add damage to nearby entities (bots, remote players)
+    const swordDamage = 10;
+    const playerPos = player.position;
+    
+    // Damage bots in range
+    if (this.botManager) {
+      this.botManager.getAllBots().forEach(bot => {
+        const distance = Math.sqrt(
+          Math.pow(bot.position.x - playerPos.x, 2) + 
+          Math.pow(bot.position.z - playerPos.z, 2)
+        );
+        if (distance <= radius) {
+          const botDied = this.botManager.damageBot(bot, swordDamage);
+          if (botDied) {
+            setTimeout(() => {
+              this.botManager.respawnBot(bot);
+            }, 2000);
+          }
+        }
+      });
+    }
+    
+    // TODO: Damage remote players in multiplayer mode
   }
 }
 

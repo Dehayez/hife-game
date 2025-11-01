@@ -26,8 +26,8 @@ export const HEALTH_BAR_STATS = {
    */
   colors: {
     background: 0x1a3008,      // Dark forest green matching game walls
-    highHealth: 0x6ab89a,      // Mystical green (matches UI theme) - >60%
-    mediumHealth: 0xff8c42,    // Amber/orange (matches Herald's color) - 30-60%
+    highHealth: 0x4fa88a,      // Green color for high health - >60%
+    mediumHealth: 0xf5ba0b,    // Gold (matches Herald's color) - 30-60%
     lowHealth: 0xcc4444        // Dark red (matches gem color from game) - <30%
   },
   
