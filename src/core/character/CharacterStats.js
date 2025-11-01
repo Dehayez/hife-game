@@ -36,7 +36,8 @@ export const CHARACTER_STATS = {
     gravity: -30,              // Gravity force (negative pulls down)
     jumpForce: 8,              // Upward velocity when jumping
     groundY: 0,                // Default ground level
-    jumpCooldownTime: 0.6      // Seconds between jumps (prevents rapid jumping)
+    jumpCooldownTime: 0.6,     // Seconds between jumps (prevents rapid jumping)
+    levitationForce: 20        // Upward force when levitating (reduces gravity effect)
   },
   
   /**

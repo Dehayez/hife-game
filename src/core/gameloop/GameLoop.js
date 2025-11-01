@@ -218,7 +218,8 @@ export class GameLoop {
     }
     
     // Update jump physics
-    this.characterManager.updateJumpPhysics(dt, this.collisionManager);
+    const isLevitating = this.inputManager.isLevitatePressed();
+    this.characterManager.updateJumpPhysics(dt, this.collisionManager, isLevitating);
     
     // Handle character swap (Y button)
     const characterSwapInput = this.inputManager.isCharacterSwapPressed();

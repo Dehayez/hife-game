@@ -28,7 +28,8 @@ export class InputManager {
       characterSwap: false,
       heal: false,
       swordSwing: false,
-      doubleJump: false
+      doubleJump: false,
+      levitate: false
     };
     
     this.mousePosition = { x: 0, y: 0 };
@@ -131,6 +132,7 @@ export class InputManager {
         this.inputState.down = false;
         this.inputState.left = false;
         this.inputState.right = false;
+        this.inputState.levitate = false;
       }
       
       return true;
@@ -375,6 +377,7 @@ export class InputManager {
         this.inputState.heal = false;
         this.inputState.swordSwing = false;
         this.inputState.doubleJump = false;
+        this.inputState.levitate = false;
         
         // Reset mortar hold state
         this.mortarHoldPressed = false;
@@ -674,10 +677,13 @@ export class InputManager {
       this.inputState.doubleJump = false;
     }
 
-    // Run/Sprint (typically left shoulder button or left trigger) - combine with keyboard
+    // Levitation (LB button 4) - hold to levitate
+    const levitatePressed = gamepad.buttons[4] && gamepad.buttons[4].pressed; // Left bumper (LB)
+    this.inputState.levitate = levitatePressed;
+    
+    // Run/Sprint (left trigger only now) - combine with keyboard
     // Don't allow sprinting while holding mortar spell
-    const gamepadShift = (gamepad.buttons[4] && gamepad.buttons[4].pressed) || // Left shoulder
-                          (gamepad.buttons[6] && gamepad.buttons[6].value > 0.5); // Left trigger
+    const gamepadShift = (gamepad.buttons[6] && gamepad.buttons[6].value > 0.5); // Left trigger only
     if (gamepadShift && this._loggingEnabled) {
       this._logInput('🏃 SPRINT', gamepadShift ? 'pressed' : 'released', gamepad);
     }
@@ -1208,6 +1214,14 @@ export class InputManager {
    */
   isDoubleJumpDetected() {
     return this.inputState.doubleJump;
+  }
+
+  /**
+   * Check if levitate key is pressed
+   * @returns {boolean} True if levitate key is pressed
+   */
+  isLevitatePressed() {
+    return this.inputState.levitate;
   }
 }
 

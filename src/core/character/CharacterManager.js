@@ -343,8 +343,9 @@ export class CharacterManager {
    * Update jump physics and ground collision
    * @param {number} dt - Delta time in seconds
    * @param {Object} collisionManager - Collision manager
+   * @param {boolean} isLevitating - Whether character is levitating
    */
-  updateJumpPhysics(dt, collisionManager) {
+  updateJumpPhysics(dt, collisionManager, isLevitating = false) {
     if (!this.player) return;
     
     updateCharacterPhysics(
@@ -354,7 +355,8 @@ export class CharacterManager {
       collisionManager,
       this.soundManager,
       () => this.isOnBaseGround(),
-      dt
+      dt,
+      isLevitating
     );
   }
 

@@ -15,6 +15,7 @@ import { getCharacterPhysicsStats, getCharacterMovementStats, getCharacterHealth
  * @param {Object} soundManager - Sound manager for landing sounds
  * @param {Function} isOnBaseGround - Function to check if on base ground
  * @param {number} dt - Delta time in seconds
+ * @param {boolean} isLevitating - Whether character is levitating
  */
 export function updateCharacterPhysics(
   player,
@@ -23,7 +24,8 @@ export function updateCharacterPhysics(
   collisionManager,
   soundManager,
   isOnBaseGround,
-  dt
+  dt,
+  isLevitating = false
 ) {
   const physicsStats = getCharacterPhysicsStats();
   const movementStats = getCharacterMovementStats();
@@ -36,6 +38,11 @@ export function updateCharacterPhysics(
 
   // Apply gravity
   characterData.velocityY += physicsStats.gravity * dt;
+  
+  // Apply levitation force if levitating
+  if (isLevitating) {
+    characterData.velocityY += physicsStats.levitationForce * dt;
+  }
 
   // Update vertical position
   player.position.y += characterData.velocityY * dt;

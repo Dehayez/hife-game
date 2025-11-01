@@ -240,47 +240,63 @@ export function updateCharacterMovement(
   }
   
   // Choose animation based on movement, jumping state, and last facing (front/back)
-  if (isJumping) {
-    // Use idle animation when jumping
-    newCurrentAnimKey = setCharacterAnimation(
-      player,
-      newLastFacing === 'back' ? 'idle_back' : 'idle_front',
-      animations,
-      currentAnimKey
-    );
-  } else if (input.lengthSq() > 0.0001) {
+  if (input.lengthSq() > 0.0001) {
+    // Update facing direction when moving (works for both grounded and levitating)
     // Only change facing when moving along Z (forward/back)
     if (Math.abs(velocity.z) > 1e-4) {
       newLastFacing = velocity.z < 0 ? 'back' : 'front';
     }
-    const newAnimKey = newLastFacing === 'back' ? 'walk_back' : 'walk_front';
-    newCurrentAnimKey = setCharacterAnimation(player, newAnimKey, animations, currentAnimKey);
     
-    // Play footstep sound immediately when starting to move
-    const nowWalking = newCurrentAnimKey === 'walk_front' || newCurrentAnimKey === 'walk_back';
-    if (wasIdle && nowWalking && isGrounded) {
-      const isObstacle = !isOnBaseGround();
-      shouldPlayFootstep = true;
-      if (soundManager) {
-        soundManager.playFootstep(isObstacle);
+    if (isJumping) {
+      // Use idle animation when jumping/levitating (but still update facing)
+      newCurrentAnimKey = setCharacterAnimation(
+        player,
+        newLastFacing === 'back' ? 'idle_back' : 'idle_front',
+        animations,
+        currentAnimKey
+      );
+    } else {
+      // Use walk animation when grounded and moving
+      const newAnimKey = newLastFacing === 'back' ? 'walk_back' : 'walk_front';
+      newCurrentAnimKey = setCharacterAnimation(player, newAnimKey, animations, currentAnimKey);
+      
+      // Play footstep sound immediately when starting to move
+      const nowWalking = newCurrentAnimKey === 'walk_front' || newCurrentAnimKey === 'walk_back';
+      if (wasIdle && nowWalking && isGrounded) {
+        const isObstacle = !isOnBaseGround();
+        shouldPlayFootstep = true;
+        if (soundManager) {
+          soundManager.playFootstep(isObstacle);
+        }
       }
-    }
-    
-    // Spawn smoke particles when running and grounded
-    const particleStats = getCharacterParticleStats();
-    if (isRunning && isGrounded && particleManager) {
-      if (smokeSpawnTimer <= 0) {
-        particleManager.spawnSmokeParticle(player.position);
-        newSmokeSpawnTimer = particleStats.smokeSpawnInterval;
+      
+      // Spawn smoke particles when running and grounded
+      const particleStats = getCharacterParticleStats();
+      if (isRunning && isGrounded && particleManager) {
+        if (smokeSpawnTimer <= 0) {
+          particleManager.spawnSmokeParticle(player.position);
+          newSmokeSpawnTimer = particleStats.smokeSpawnInterval;
+        }
       }
     }
   } else {
-    newCurrentAnimKey = setCharacterAnimation(
-      player,
-      newLastFacing === 'back' ? 'idle_back' : 'idle_front',
-      animations,
-      currentAnimKey
-    );
+    // No movement input - use idle animation
+    if (isJumping) {
+      // Use idle animation when jumping/levitating (keep current facing)
+      newCurrentAnimKey = setCharacterAnimation(
+        player,
+        newLastFacing === 'back' ? 'idle_back' : 'idle_front',
+        animations,
+        currentAnimKey
+      );
+    } else {
+      newCurrentAnimKey = setCharacterAnimation(
+        player,
+        newLastFacing === 'back' ? 'idle_back' : 'idle_front',
+        animations,
+        currentAnimKey
+      );
+    }
     // Reset smoke timer when not moving
     newSmokeSpawnTimer = 0;
   }
