@@ -149,6 +149,7 @@ export class GameLoop {
     
     // Handle double jump input
     if (canMove && this.inputManager.isDoubleJumpDetected()) {
+      console.log('🎮 Double jump detected in GameLoop');
       this.characterManager.doubleJump();
     }
     
@@ -451,7 +452,7 @@ export class GameLoop {
       // Get joystick magnitude to scale distance (0 = min distance, 1 = max distance)
       const magnitude = this.inputManager.getRightJoystickMagnitude();
       const minDistance = 5; // Minimum mortar distance
-      const maxDistance = 25; // Maximum mortar distance
+      const maxDistance = 15; // Maximum mortar distance
       // Scale distance based on magnitude (remap from dead zone to full range)
       const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
       const normalizedMagnitude = Math.max(0, (magnitude - deadZoneMagnitude) / (1 - deadZoneMagnitude));
@@ -774,7 +775,7 @@ export class GameLoop {
     console.log('⚔️ Sword swing!');
     
     // Create 360 degree damage circle visual effect
-    const radius = 2;
+    const radius = 1.0; // Shorter radius for closer combat
     const segments = 32;
     const geometry = new THREE.RingGeometry(radius - 0.1, radius, segments);
     const material = new THREE.MeshBasicMaterial({
@@ -821,7 +822,32 @@ export class GameLoop {
       });
     }
     
-    // TODO: Damage remote players in multiplayer mode
+    // Damage remote players in multiplayer mode
+    if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+      const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+      for (const [playerId, remotePlayer] of remotePlayers) {
+        const mesh = remotePlayer.mesh;
+        if (!mesh) continue;
+        
+        const distance = Math.sqrt(
+          Math.pow(mesh.position.x - playerPos.x, 2) + 
+          Math.pow(mesh.position.z - playerPos.z, 2)
+        );
+        if (distance <= radius) {
+          // Apply damage to remote player (server will sync)
+          if (mesh.userData && mesh.userData.health !== undefined) {
+            mesh.userData.health = Math.max(0, mesh.userData.health - swordDamage);
+            
+            // Send updated health to server for sync
+            this.multiplayerManager.sendPlayerDamage({
+              damage: swordDamage,
+              health: mesh.userData.health,
+              maxHealth: mesh.userData.maxHealth || 100
+            });
+          }
+        }
+      }
+    }
   }
 }
 
