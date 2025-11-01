@@ -70,6 +70,8 @@ export class GameLoop {
     
     // Mortar arc preview visualization
     this.mortarArcPreview = null; // Reference to arc preview line
+    this._lastArcPreviewUpdate = 0; // Timestamp of last arc preview update
+    this._arcPreviewUpdateInterval = 16; // Update every ~16ms (60fps max)
   }
 
   /**
@@ -847,6 +849,14 @@ export class GameLoop {
    * @private
    */
   _updateMortarArcPreview(player) {
+    const now = performance.now();
+    
+    // Throttle updates for smoother performance (only update every ~16ms)
+    if (now - this._lastArcPreviewUpdate < this._arcPreviewUpdateInterval) {
+      return;
+    }
+    this._lastArcPreviewUpdate = now;
+    
     const playerPos = player.position;
     const characterName = this.characterManager.getCharacterName();
     

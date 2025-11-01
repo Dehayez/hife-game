@@ -6,10 +6,16 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getMortarStats, getCharacterColor } from './CharacterStats.js';
+import { getMortarStats } from './CharacterStats.js';
 
 // Use same physics constants as Mortar.js
 const MORTAR_GRAVITY = -20; // Gravity for arc trajectory
+
+// Arc preview visual settings
+const ARC_TUBE_RADIUS = 0.08; // Thickness of the arc preview tube
+const ARC_COLOR = 0xffffff; // White color
+const ARC_OPACITY = 0.05;
+const ARC_POINTS = 60; // More points for smoother curve
 
 /**
  * Calculate trajectory points for arc preview
@@ -22,7 +28,7 @@ const MORTAR_GRAVITY = -20; // Gravity for arc trajectory
  * @param {number} numPoints - Number of points to generate for the arc (default: 50)
  * @returns {Array<THREE.Vector3>} Array of points along the trajectory
  */
-function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, numPoints = 50) {
+function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, numPoints = ARC_POINTS) {
   const stats = getMortarStats(characterName);
   
   // Calculate horizontal distance
@@ -72,14 +78,11 @@ function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, cha
  * @param {number} targetZ - Target Z position
  * @param {string} characterName - Character name ('lucy' or 'herald')
  * @param {Object} collisionManager - Collision manager for ground height checks
- * @returns {THREE.Line} Line object representing the arc preview
+ * @returns {THREE.Mesh} Tube mesh representing the arc preview
  */
 export function createMortarArcPreview(scene, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
-  // Get character color
-  const characterColor = getCharacterColor(characterName);
-  
   // Calculate trajectory points
-  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, 50);
+  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, ARC_POINTS);
   
   // Adjust points to ground height if collision manager available
   if (collisionManager) {
@@ -92,33 +95,40 @@ export function createMortarArcPreview(scene, startX, startY, startZ, targetX, t
     }
   }
   
-  // Create geometry from points
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  // Create curve from points
+  const curve = new THREE.CatmullRomCurve3(points);
   
-  // Create material with character color
-  const material = new THREE.LineBasicMaterial({
-    color: characterColor,
-    linewidth: 2,
+  // Create tube geometry along the curve
+  const tubeGeometry = new THREE.TubeGeometry(curve, ARC_POINTS, ARC_TUBE_RADIUS, 8, false);
+  
+  // Create material with grey/white color, opacity, and blur effect
+  const material = new THREE.MeshBasicMaterial({
+    color: ARC_COLOR,
     transparent: true,
-    opacity: 0.7
+    opacity: ARC_OPACITY,
+    depthWrite: false, // Allow transparency blending
+    blending: THREE.AdditiveBlending, // Additive blending for glow effect
+    side: THREE.DoubleSide
   });
   
-  // Create line
-  const arcLine = new THREE.Line(geometry, material);
+  // Create tube mesh
+  const arcTube = new THREE.Mesh(tubeGeometry, material);
   
-  // Store metadata
-  arcLine.userData = {
+  // Store metadata and references for smooth updates
+  arcTube.userData = {
     type: 'mortarArcPreview',
     characterName: characterName,
-    characterColor: characterColor
+    curve: curve, // Store curve reference for updates
+    geometry: tubeGeometry // Store geometry reference
   };
   
-  return arcLine;
+  return arcTube;
 }
 
 /**
  * Update mortar arc preview position
- * @param {THREE.Line} arcLine - Arc preview line object
+ * Optimized for smooth updates by reusing geometry buffers
+ * @param {THREE.Mesh} arcTube - Arc preview tube mesh object
  * @param {number} startX - Starting X position
  * @param {number} startY - Starting Y position
  * @param {number} startZ - Starting Z position
@@ -127,9 +137,15 @@ export function createMortarArcPreview(scene, startX, startY, startZ, targetX, t
  * @param {string} characterName - Character name
  * @param {Object} collisionManager - Collision manager for ground height checks
  */
-export function updateMortarArcPreview(arcLine, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
+export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
   // Recalculate trajectory points
-  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, 50);
+  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, ARC_POINTS);
+  
+  // Ensure we have enough points (CatmullRomCurve3 needs at least 4 points)
+  if (points.length < 4) {
+    // If too few points, just return without updating
+    return;
+  }
   
   // Adjust points to ground height if collision manager available
   if (collisionManager) {
@@ -142,34 +158,51 @@ export function updateMortarArcPreview(arcLine, startX, startY, startZ, targetX,
     }
   }
   
-  // Update geometry
-  arcLine.geometry.dispose();
-  arcLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
+  // Always create a new curve from fresh points to avoid undefined point issues
+  const curve = new THREE.CatmullRomCurve3(points.map(p => p.clone()));
   
-  // Update userData if character changed
-  if (arcLine.userData.characterName !== characterName) {
-    arcLine.userData.characterName = characterName;
-    // Update color if character changed
-    const characterColor = getCharacterColor(characterName);
-    arcLine.userData.characterColor = characterColor;
-    arcLine.material.color.setHex(characterColor);
+  // Store old geometry for disposal
+  const oldGeometry = arcTube.geometry;
+  
+  // Create new geometry with updated curve
+  const newGeometry = new THREE.TubeGeometry(curve, ARC_POINTS, ARC_TUBE_RADIUS, 8, false);
+  
+  // Replace geometry (this is faster than removing/adding to scene)
+  arcTube.geometry = newGeometry;
+  
+  // Update userData with new curve reference
+  arcTube.userData.curve = curve;
+  
+  // Dispose old geometry asynchronously to avoid frame drops
+  if (oldGeometry && oldGeometry !== newGeometry) {
+    // Use requestAnimationFrame to defer disposal until next frame
+    requestAnimationFrame(() => {
+      if (oldGeometry && oldGeometry !== arcTube.geometry) {
+        oldGeometry.dispose();
+      }
+    });
+  }
+  
+  // Update userData if character changed (though color stays grey/white)
+  if (arcTube.userData.characterName !== characterName) {
+    arcTube.userData.characterName = characterName;
   }
 }
 
 /**
  * Remove mortar arc preview from scene
- * @param {THREE.Line} arcLine - Arc preview line object
+ * @param {THREE.Mesh} arcTube - Arc preview tube mesh object
  * @param {Object} scene - THREE.js scene
  */
-export function removeMortarArcPreview(arcLine, scene) {
-  if (arcLine && arcLine.geometry) {
-    arcLine.geometry.dispose();
+export function removeMortarArcPreview(arcTube, scene) {
+  if (arcTube && arcTube.geometry) {
+    arcTube.geometry.dispose();
   }
-  if (arcLine && arcLine.material) {
-    arcLine.material.dispose();
+  if (arcTube && arcTube.material) {
+    arcTube.material.dispose();
   }
-  if (scene && arcLine) {
-    scene.remove(arcLine);
+  if (scene && arcTube) {
+    scene.remove(arcTube);
   }
 }
 
