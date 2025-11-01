@@ -52,14 +52,28 @@ export function createProjectile(scene, startX, startY, startZ, directionX, dire
   trailLight.position.set(startX, startY, startZ);
   scene.add(trailLight);
   
+  // Calculate initial speed based on acceleration/deceleration pattern
+  const baseSpeed = stats.projectileSpeed;
+  const minSpeed = (stats.minSpeed !== undefined ? stats.minSpeed : 1.0) * baseSpeed;
+  const maxSpeed = (stats.maxSpeed !== undefined ? stats.maxSpeed : 1.0) * baseSpeed;
+  
+  // Herald: start slow (minSpeed) and continuously accelerate (no max cap)
+  // Lucy: start fast (maxSpeed) and decelerate to slow (minSpeed)
+  const startSpeed = characterName === 'herald' ? minSpeed : maxSpeed;
+  // For Herald, endSpeed can exceed maxSpeed to keep accelerating
+  const endSpeed = characterName === 'herald' ? maxSpeed * 1.5 : minSpeed; // Herald accelerates 50% beyond maxSpeed
+  
   // Store projectile data with character-specific stats
   projectile.userData = {
     type: 'projectile',
     playerId: playerId,
     characterName: characterName,
     characterColor: characterColor, // Store character color for impact effects
-    velocityX: normX * stats.projectileSpeed,
-    velocityZ: normZ * stats.projectileSpeed,
+    baseSpeed: baseSpeed, // Base speed for reference
+    startSpeed: startSpeed, // Starting speed
+    endSpeed: endSpeed, // Ending speed
+    velocityX: normX * startSpeed,
+    velocityZ: normZ * startSpeed,
     lifetime: 0,
     maxLifetime: stats.lifetime,
     trailLight: trailLight,
@@ -261,6 +275,46 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
         projectile.userData.velocityZ = normNewDirZ * currentSpeed;
       }
     }
+  }
+  
+  // Update speed based on right joystick magnitude (if available)
+  // The further the joystick is pushed, the faster the projectile goes
+  let targetSpeed;
+  if (inputManager) {
+    // Speed controlled by right joystick magnitude for both characters
+    // Get current joystick magnitude (0-1 range)
+    const joystickMagnitude = inputManager.getRightJoystickMagnitude();
+    
+    // Use joystick magnitude to control speed
+    // Map magnitude to speed range: minSpeed (when not pushed) to maxSpeed (when fully pushed)
+    const minSpeed = projectile.userData.startSpeed;
+    const maxSpeed = projectile.userData.endSpeed;
+    
+    if (joystickMagnitude > 0.01) {
+      // Joystick is being pushed - map magnitude to speed range
+      // Minimum magnitude (0.01) = minSpeed, maximum magnitude (1.0) = maxSpeed
+      const speedRange = maxSpeed - minSpeed;
+      targetSpeed = minSpeed + (speedRange * joystickMagnitude);
+    } else {
+      // Joystick not pushed - use minimum speed
+      targetSpeed = minSpeed;
+    }
+  } else {
+    // Fallback: use base speed if no joystick control available (keyboard mode)
+    targetSpeed = projectile.userData.baseSpeed;
+  }
+  
+  // Get current velocity direction (may have been modified by cursor following)
+  const currentVelocityX = projectile.userData.velocityX;
+  const currentVelocityZ = projectile.userData.velocityZ;
+  const currentVelocityLength = Math.sqrt(currentVelocityX * currentVelocityX + currentVelocityZ * currentVelocityZ);
+  
+  // Normalize direction and apply speed based on acceleration/deceleration
+  if (currentVelocityLength > 0.001) {
+    const dirX = currentVelocityX / currentVelocityLength;
+    const dirZ = currentVelocityZ / currentVelocityLength;
+    projectile.userData.velocityX = dirX * targetSpeed;
+    projectile.userData.velocityZ = dirZ * targetSpeed;
   }
   
   // Calculate new position
