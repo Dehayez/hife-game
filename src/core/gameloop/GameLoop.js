@@ -72,6 +72,14 @@ export class GameLoop {
     this.mortarArcPreview = null; // Reference to arc preview line
     this._lastArcPreviewUpdate = 0; // Timestamp of last arc preview update
     this._arcPreviewUpdateInterval = 16; // Update every ~16ms (60fps max)
+    
+    // Mortar hold state tracking
+    this.mortarHoldActive = false; // True when in mortar hold mode (toggled with RB)
+    this.mortarHoldVisual = null; // Visual effect for holding mortar spell
+    this.lastMortarHoldInput = false; // Track RB press for toggle detection
+    this.lastLeftTriggerInput = false; // Track LT press/release
+    this.lastRightTriggerInput = false; // Track RT press/release
+    this.mortarReleaseCooldown = 0; // Cooldown timer after releasing mortar (prevents immediate firebolt)
   }
 
   /**
@@ -93,6 +101,11 @@ export class GameLoop {
     if (this.mortarArcPreview) {
       removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
       this.mortarArcPreview = null;
+    }
+    
+    // Clean up mortar hold visual when stopping
+    if (this.mortarHoldVisual) {
+      this._removeMortarHoldVisual();
     }
   }
 
@@ -183,6 +196,15 @@ export class GameLoop {
         removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
         this.mortarArcPreview = null;
       }
+      // Clean up mortar hold visual when not in shooting mode
+      if (this.mortarHoldVisual) {
+        this._removeMortarHoldVisual();
+      }
+      // Reset mortar hold state
+      if (this.mortarHoldActive) {
+        this.mortarHoldActive = false;
+        this.inputManager.setMortarHoldActive(false);
+      }
     }
     
     // Handle jump input
@@ -269,7 +291,9 @@ export class GameLoop {
     this._handleMovement(dt, player, input, canMove);
     
     // Update character animation
-    this.characterManager.updateAnimation(dt, this.inputManager.isRunning());
+    // isRunning() already checks mortarHoldActive internally
+    const isRunningForAnimation = this.inputManager.isRunning();
+    this.characterManager.updateAnimation(dt, isRunningForAnimation);
     
     // Update death fade effect
     const fadeComplete = this.characterManager.updateDeathFade(dt);
@@ -549,7 +573,9 @@ export class GameLoop {
     this.sceneManager.updateBlinkingEyes(dt);
 
     // Camera follows player
-    this.sceneManager.updateCamera(player.position, this.inputManager.isRunning());
+    // isRunning() already checks mortarHoldActive internally
+    const isRunningForCamera = this.inputManager.isRunning();
+    this.sceneManager.updateCamera(player.position, isRunningForCamera);
   }
 
   /**
@@ -562,22 +588,44 @@ export class GameLoop {
     // Update projectiles
     this.projectileManager.update(dt);
     
-    // Handle shooting input (left mouse click) - auto-fire on hold
-    const shootInput = this.inputManager.isShootPressed();
-    if (shootInput) {
-      this._handleShootingInput(player);
+    // Update mortar release cooldown timer
+    if (this.mortarReleaseCooldown > 0) {
+      this.mortarReleaseCooldown -= dt;
+      if (this.mortarReleaseCooldown < 0) {
+        this.mortarReleaseCooldown = 0;
+      }
     }
-    this.lastShootInput = shootInput;
     
-    // Handle mortar input (right mouse click)
-    const mortarInput = this.inputManager.isMortarPressed();
-    if (mortarInput && !this.lastMortarInput) {
-      this._handleMortarInput(player);
+    // Handle shooting input (left mouse click / RT) - auto-fire on hold
+    // Don't allow shooting when mortar hold is active (RT is used for mortar release)
+    // Also prevent shooting immediately after releasing mortar (cooldown period)
+    if (!this.mortarHoldActive && this.mortarReleaseCooldown <= 0) {
+      const shootInput = this.inputManager.isShootPressed();
+      if (shootInput) {
+        this._handleShootingInput(player);
+      }
+      this.lastShootInput = shootInput;
+    } else {
+      // Clear shoot input when in mortar hold mode or during cooldown
+      this.lastShootInput = false;
     }
-    this.lastMortarInput = mortarInput;
     
-    // Update mortar arc preview when right joystick is active
-    this._updateMortarArcPreview(player);
+    // Handle mortar hold system (RB hold, LT preview, RT release)
+    this._handleMortarHoldSystem(player, dt);
+    
+    // Legacy mortar input (right mouse click) - only if not using gamepad hold system
+    if (!this.mortarHoldActive) {
+      const mortarInput = this.inputManager.isMortarPressed();
+      if (mortarInput && !this.lastMortarInput) {
+        // Only handle mouse click if not holding RB
+        if (!this.inputManager.isMortarHoldPressed()) {
+          this._handleMortarInput(player);
+        }
+      }
+      this.lastMortarInput = mortarInput;
+    } else {
+      this.lastMortarInput = false;
+    }
     
     // Check projectile collisions
     this._handleProjectileCollisions(player);
@@ -720,112 +768,155 @@ export class GameLoop {
   }
 
   /**
-   * Handle mortar input
+   * Handle mortar hold system (RB toggle, LT preview, RT release)
+   * @param {THREE.Mesh} player - Player mesh
+   * @param {number} dt - Delta time
+   * @private
+   */
+  _handleMortarHoldSystem(player, dt) {
+    const mortarHoldInput = this.inputManager.isMortarHoldPressed();
+    const leftTriggerInput = this.inputManager.isLeftTriggerPressed();
+    const rightTriggerInput = this.inputManager.isRightTriggerPressed();
+    
+    // Handle RB toggle to enter/exit mortar hold mode
+    if (mortarHoldInput && !this.lastMortarHoldInput) {
+      // RB just pressed - toggle mortar hold mode
+      if (this.mortarHoldActive) {
+        // Already holding - drop the spell (exit hold mode)
+        this.mortarHoldActive = false;
+        this.inputManager.setMortarHoldActive(false);
+        this._removeMortarHoldVisual();
+        // Remove preview if active
+        if (this.mortarArcPreview) {
+          removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+          this.mortarArcPreview = null;
+        }
+      } else {
+        // Not holding - enter mortar hold mode
+        this.mortarHoldActive = true;
+        this.inputManager.setMortarHoldActive(true);
+        this._createMortarHoldVisual(player);
+        // Reset cooldown when entering mortar hold mode (so canceling doesn't block shooting)
+        this.mortarReleaseCooldown = 0;
+      }
+    }
+    
+    // Update mortar hold visual position and animation if active
+    if (this.mortarHoldActive && this.mortarHoldVisual) {
+      this.mortarHoldVisual.position.set(
+        player.position.x,
+        player.position.y + 0.5,
+        player.position.z
+      );
+      
+      // Update pulsing animation
+      const pulseData = this.mortarHoldVisual.userData;
+      pulseData.pulsePhase += dt * pulseData.pulseSpeed * Math.PI * 2;
+      const pulseScale = pulseData.baseScale + Math.sin(pulseData.pulsePhase) * 0.2;
+      this.mortarHoldVisual.scale.set(pulseScale, pulseScale, pulseScale);
+    }
+    
+    // Handle preview (LT) - only show when in mortar hold mode
+    if (this.mortarHoldActive && leftTriggerInput) {
+      // Show preview while LT is held
+      this._updateMortarArcPreview(player);
+    } else {
+      // Hide preview when LT is not held
+      if (this.mortarArcPreview && (!leftTriggerInput || !this.mortarHoldActive)) {
+        removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+        this.mortarArcPreview = null;
+      }
+    }
+    
+    // Handle release (RT) - release mortar when RT is pressed while in mortar hold mode
+    if (this.mortarHoldActive && rightTriggerInput && !this.lastRightTriggerInput) {
+      // RT just pressed - release mortar
+      this._handleMortarInput(player);
+      // Exit mortar hold mode after release
+      this.mortarHoldActive = false;
+      this.inputManager.setMortarHoldActive(false);
+      this._removeMortarHoldVisual();
+      // Remove preview
+      if (this.mortarArcPreview) {
+        removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+        this.mortarArcPreview = null;
+      }
+      // Set cooldown to prevent immediate firebolt shooting (0.3 seconds)
+      this.mortarReleaseCooldown = 0.3;
+      // Reset lastRightTriggerInput to prevent immediate shooting after release
+      this.lastRightTriggerInput = true; // Set to true so shooting won't trigger immediately
+    }
+    
+    // Update tracking variables
+    this.lastMortarHoldInput = mortarHoldInput;
+    this.lastLeftTriggerInput = leftTriggerInput;
+    this.lastRightTriggerInput = rightTriggerInput;
+  }
+  
+  /**
+   * Create visual effect for holding mortar spell
    * @param {THREE.Mesh} player - Player mesh
    * @private
    */
-  _handleMortarInput(player) {
-    const playerPos = player.position;
+  _createMortarHoldVisual(player) {
+    if (this.mortarHoldVisual) {
+      // Already exists, remove old one
+      this._removeMortarHoldVisual();
+    }
+    
     const characterName = this.characterManager.getCharacterName();
-    const playerId = 'local';
+    const characterColor = this._getCharacterColorForParticles(characterName);
     
-    // Check if player can shoot mortar
-    if (!this.projectileManager.canShootMortar(playerId)) {
-      return;
-    }
+    // Create a glowing orb/sphere effect around the character
+    const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+    const material = new THREE.MeshBasicMaterial({
+      color: characterColor,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    });
     
-    let targetX, targetZ;
-    
-    // Check if right joystick is active for aiming (preferred for smooth 360-degree aiming)
-    // Check raw joystick values directly instead of boolean flag to ensure it only works when actively pushed
-    const rightJoystickDir = this.inputManager.getRightJoystickDirection();
-    const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
-    
-    // Prioritize right joystick for aiming only when actively pushed (smooth 360-degree aiming in world space)
-    if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
-      // Use camera-relative direction: convert joystick input to world space using camera orientation
-      // This matches how mouse aiming works and accounts for camera angle
-      const camera = this.sceneManager.getCamera();
-      
-      // Get camera forward and right vectors (in world space)
-      const cameraDir = new THREE.Vector3();
-      camera.getWorldDirection(cameraDir);
-      
-      // Create a right vector perpendicular to camera direction (in XZ plane)
-      const cameraRight = new THREE.Vector3();
-      cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
-      
-      // Create a forward vector in XZ plane (project camera direction onto ground)
-      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
-      
-      // Map joystick input to camera-relative direction
-      // Right stick X = right/left relative to camera view
-      // Right stick Z (from joystick Y) = up/down relative to camera view
-      // Note: Invert Z because gamepad Y is negative when pushed up
-      let directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
-      let directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
-      
-      // Normalize direction
-      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
-      if (dirLength > 0.001) {
-        directionX /= dirLength;
-        directionZ /= dirLength;
-      }
-      
-      // Get joystick magnitude to scale distance (0 = character position, 1 = max range)
-      const magnitude = this.inputManager.getRightJoystickMagnitude();
-      const mortarStats = getMortarStats(characterName);
-      const maxDistance = mortarStats.maxRange; // Maximum mortar distance from stats
-      
-      // Scale distance based on magnitude (center = 0, max push = maxDistance)
-      const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
-      const normalizedMagnitude = Math.max(0, Math.min(1, (magnitude - deadZoneMagnitude) / (1 - deadZoneMagnitude)));
-      const targetDistance = normalizedMagnitude * maxDistance;
-      
-      // Calculate target point in the direction of the joystick
-      // If joystick is centered (distance = 0), target will be at character position
-      targetX = playerPos.x + directionX * targetDistance;
-      targetZ = playerPos.z + directionZ * targetDistance;
-    } else {
-      // When right joystick is not active, shoot straight up
-      // Use a tiny offset to ensure horizontal distance > 0.1 (required by Mortar.js)
-      // This makes it shoot essentially straight up while meeting the minimum distance requirement
-      targetX = playerPos.x + 0.15; // Small offset to ensure distance > 0.1
-      targetZ = playerPos.z;
-    }
-    
-    // Create mortar
-    const mortar = this.projectileManager.createMortar(
-      playerPos.x,
-      playerPos.y,
-      playerPos.z,
-      targetX,
-      targetZ,
-      playerId,
-      characterName
+    const visual = new THREE.Mesh(geometry, material);
+    visual.position.set(
+      player.position.x,
+      player.position.y + 0.5,
+      player.position.z
     );
     
-    // Send mortar to other players via multiplayer
-    if (mortar && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
-      this.multiplayerManager.sendProjectileCreate({
-        projectileType: 'mortar',
-        startX: playerPos.x,
-        startY: playerPos.y,
-        startZ: playerPos.z,
-        targetX: targetX,
-        targetZ: targetZ,
-        characterName: characterName
-      });
+    // Add pulsing animation
+    visual.userData.pulseSpeed = 2.0; // Pulses per second
+    visual.userData.pulsePhase = 0;
+    visual.userData.baseScale = 1.0;
+    
+    this.mortarHoldVisual = visual;
+    this.sceneManager.getScene().add(visual);
+  }
+  
+  /**
+   * Remove visual effect for holding mortar spell
+   * @private
+   */
+  _removeMortarHoldVisual() {
+    if (this.mortarHoldVisual) {
+      this.sceneManager.getScene().remove(this.mortarHoldVisual);
+      this.mortarHoldVisual.geometry.dispose();
+      this.mortarHoldVisual.material.dispose();
+      this.mortarHoldVisual = null;
     }
   }
-
+  
   /**
    * Update mortar arc preview visualization
-   * Shows predicted trajectory when right joystick is active
+   * Shows predicted trajectory when LT is held while holding RB
    * @param {THREE.Mesh} player - Player mesh
    * @private
    */
   _updateMortarArcPreview(player) {
+    // Only show preview when holding RB and LT
+    if (!this.mortarHoldActive || !this.inputManager.isLeftTriggerPressed()) {
+      return;
+    }
+    
     const now = performance.now();
     
     // Throttle updates for smoother performance (only update every ~16ms)
@@ -841,7 +932,9 @@ export class GameLoop {
     const rightJoystickDir = this.inputManager.getRightJoystickDirection();
     const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
     
-    // Only show arc preview when right joystick is actively being pushed
+    let targetX, targetZ;
+    
+    // Use right joystick if active, otherwise use character facing direction
     if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
       // Calculate target position (same logic as _handleMortarInput)
       const camera = this.sceneManager.getCamera();
@@ -879,50 +972,162 @@ export class GameLoop {
       const targetDistance = normalizedMagnitude * maxDistance;
       
       // Calculate target point in the direction of the joystick
-      const targetX = playerPos.x + directionX * targetDistance;
-      const targetZ = playerPos.z + directionZ * targetDistance;
+      targetX = playerPos.x + directionX * targetDistance;
+      targetZ = playerPos.z + directionZ * targetDistance;
+    } else {
+      // Use character facing direction when joystick is not active
+      const lastFacing = this.characterManager.getLastFacing();
+      const camera = this.sceneManager.getCamera();
       
-      // Create or update arc preview
-      if (!this.mortarArcPreview) {
-        // Create new arc preview
-        this.mortarArcPreview = createMortarArcPreview(
-          this.sceneManager.getScene(),
-          playerPos.x,
-          playerPos.y,
-          playerPos.z,
-          targetX,
-          targetZ,
-          characterName,
-          this.collisionManager
-        );
-        // Add to scene if preview was successfully created (createMortarArcPreview returns null if too few points)
-        if (this.mortarArcPreview) {
-          this.sceneManager.getScene().add(this.mortarArcPreview);
-        }
+      // Get camera forward direction in world space
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      
+      // Project camera direction onto ground plane (XZ plane)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+      
+      // Use default distance
+      const mortarStats = getMortarStats(characterName);
+      const defaultDistance = mortarStats.maxRange * 0.5; // Default to half max range
+      
+      if (lastFacing === 'back') {
+        targetX = playerPos.x + cameraForward.x * defaultDistance;
+        targetZ = playerPos.z + cameraForward.z * defaultDistance;
       } else {
-        // Update existing arc preview
-        const updateSuccess = updateMortarArcPreview(
-          this.mortarArcPreview,
-          playerPos.x,
-          playerPos.y,
-          playerPos.z,
-          targetX,
-          targetZ,
-          characterName,
-          this.collisionManager
-        );
-        // If update failed (too few points), remove the preview
-        if (!updateSuccess && this.mortarArcPreview) {
-          removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
-          this.mortarArcPreview = null;
-        }
+        targetX = playerPos.x - cameraForward.x * defaultDistance;
+        targetZ = playerPos.z - cameraForward.z * defaultDistance;
+      }
+    }
+    
+    // Create or update arc preview
+    if (!this.mortarArcPreview) {
+      // Create new arc preview
+      this.mortarArcPreview = createMortarArcPreview(
+        this.sceneManager.getScene(),
+        playerPos.x,
+        playerPos.y,
+        playerPos.z,
+        targetX,
+        targetZ,
+        characterName,
+        this.collisionManager
+      );
+      // Add to scene if preview was successfully created
+      if (this.mortarArcPreview) {
+        this.sceneManager.getScene().add(this.mortarArcPreview);
       }
     } else {
-      // Remove arc preview when joystick is not active
-      if (this.mortarArcPreview) {
+      // Update existing arc preview
+      const updateSuccess = updateMortarArcPreview(
+        this.mortarArcPreview,
+        playerPos.x,
+        playerPos.y,
+        playerPos.z,
+        targetX,
+        targetZ,
+        characterName,
+        this.collisionManager
+      );
+      // If update failed (too few points), remove the preview
+      if (!updateSuccess && this.mortarArcPreview) {
         removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
         this.mortarArcPreview = null;
       }
+    }
+  }
+
+  /**
+   * Handle mortar input
+   * @param {THREE.Mesh} player - Player mesh
+   * @private
+   */
+  _handleMortarInput(player) {
+    const playerPos = player.position;
+    const characterName = this.characterManager.getCharacterName();
+    const playerId = 'local';
+    
+    // Check if player can shoot mortar
+    if (!this.projectileManager.canShootMortar(playerId)) {
+      return;
+    }
+    
+    let targetX, targetZ;
+    
+    // When releasing from hold mode, use the preview direction if available
+    // Otherwise use right joystick or character facing direction
+    const rightJoystickDir = this.inputManager.getRightJoystickDirection();
+    const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
+    
+    // Prioritize right joystick for aiming only when actively pushed (smooth 360-degree aiming in world space)
+    if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
+      // Use camera-relative direction: convert joystick input to world space using camera orientation
+      const camera = this.sceneManager.getCamera();
+      
+      // Get camera forward and right vectors (in world space)
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      
+      // Create a right vector perpendicular to camera direction (in XZ plane)
+      const cameraRight = new THREE.Vector3();
+      cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+      
+      // Create a forward vector in XZ plane (project camera direction onto ground)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+      
+      // Map joystick input to camera-relative direction
+      let directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
+      let directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+      
+      // Normalize direction
+      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (dirLength > 0.001) {
+        directionX /= dirLength;
+        directionZ /= dirLength;
+      }
+      
+      // Get joystick magnitude to scale distance (0 = character position, 1 = max range)
+      const magnitude = this.inputManager.getRightJoystickMagnitude();
+      const mortarStats = getMortarStats(characterName);
+      const maxDistance = mortarStats.maxRange; // Maximum mortar distance from stats
+      
+      // Scale distance based on magnitude (center = 0, max push = maxDistance)
+      const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
+      const normalizedMagnitude = Math.max(0, Math.min(1, (magnitude - deadZoneMagnitude) / (1 - deadZoneMagnitude)));
+      const targetDistance = normalizedMagnitude * maxDistance;
+      
+      // Calculate target point in the direction of the joystick
+      // If joystick is centered (distance = 0), target will be at character position
+      targetX = playerPos.x + directionX * targetDistance;
+      targetZ = playerPos.z + directionZ * targetDistance;
+    } else {
+      // When right joystick is not active, shoot straight up
+      // Use a tiny offset to ensure horizontal distance > 0.1 (required by Mortar.js)
+      targetX = playerPos.x + 0.15; // Small offset to ensure distance > 0.1
+      targetZ = playerPos.z;
+    }
+    
+    // Create mortar
+    const mortar = this.projectileManager.createMortar(
+      playerPos.x,
+      playerPos.y,
+      playerPos.z,
+      targetX,
+      targetZ,
+      playerId,
+      characterName
+    );
+    
+    // Send mortar to other players via multiplayer
+    if (mortar && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+      this.multiplayerManager.sendProjectileCreate({
+        projectileType: 'mortar',
+        startX: playerPos.x,
+        startY: playerPos.y,
+        startZ: playerPos.z,
+        targetX: targetX,
+        targetZ: targetZ,
+        characterName: characterName
+      });
     }
   }
 
@@ -1090,6 +1295,7 @@ export class GameLoop {
       return;
     }
     
+    // Movement is allowed while holding mortar spell (can move and aim)
     if (canMove) {
       const currentSpeed = this.inputManager.getCurrentSpeed();
       const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
@@ -1102,6 +1308,7 @@ export class GameLoop {
       }
 
       // Update character movement and animation
+      // isRunning() already checks mortarHoldActive internally, so we can use it directly
       const isRunning = this.inputManager.isRunning();
       this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera(), isRunning);
       this.characterManager.updateSmokeSpawnTimer(dt);

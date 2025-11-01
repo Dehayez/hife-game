@@ -34,6 +34,10 @@ export class InputManager {
     this.mousePosition = { x: 0, y: 0 };
     this.shootPressed = false;
     this.mortarPressed = false;
+    this.mortarHoldPressed = false; // Track RB press state for toggle detection
+    this.mortarHoldActive = false; // Track mortar hold toggle state (set by GameLoop)
+    this.leftTriggerPressed = false; // Track LT (left trigger) for preview
+    this.rightTriggerPressed = false; // Track RT (right trigger) for release
     this.characterSwapPressed = false;
     this.healPressed = false;
     this.swordSwingPressed = false;
@@ -285,6 +289,12 @@ export class InputManager {
         this.inputState.heal = false;
         this.inputState.swordSwing = false;
         this.inputState.doubleJump = false;
+        
+        // Reset mortar hold state
+        this.mortarHoldPressed = false;
+        this.mortarHoldActive = false;
+        this.leftTriggerPressed = false;
+        this.rightTriggerPressed = false;
         
         // Clear gamepad movement vector
         this.gamepadMovementVector.x = 0;
@@ -560,12 +570,17 @@ export class InputManager {
     }
 
     // Run/Sprint (typically left shoulder button or left trigger) - combine with keyboard
+    // Don't allow sprinting while holding mortar spell
     const gamepadShift = (gamepad.buttons[4] && gamepad.buttons[4].pressed) || // Left shoulder
                           (gamepad.buttons[6] && gamepad.buttons[6].value > 0.5); // Left trigger
     if (gamepadShift && this._loggingEnabled) {
       this._logInput('🏃 SPRINT', gamepadShift ? 'pressed' : 'released', gamepad);
     }
-    if (gamepadShift || hadKeyboardShift) {
+    // Prevent sprinting when mortar hold is active
+    if (this.mortarHoldActive) {
+      this.inputState.shift = false;
+      this._gamepadShiftState = false;
+    } else if (gamepadShift || hadKeyboardShift) {
       this.inputState.shift = true;
       this._gamepadShiftState = gamepadShift;
     } else {
@@ -574,31 +589,64 @@ export class InputManager {
     }
 
     // Shoot (typically right trigger RT) - firebolt
+    // Don't allow RT to fire firebolts when mortar hold is active (RT is used for mortar release)
     const shootPressed = (gamepad.buttons[7] && gamepad.buttons[7].value > 0.5); // Right trigger only
     
-    if (shootPressed && !this.shootPressed) {
-      this.shootPressed = true;
-      this.inputState.shoot = true;
-      if (this._loggingEnabled) {
-        this._logInput('🔫 SHOOT (Firebolt)', 'pressed', gamepad);
-      }
-    } else if (!shootPressed && this.shootPressed) {
+    // If mortar hold is active, prevent RT from firing firebolts
+    // Always clear shoot state when mortar hold is active, regardless of RT state
+    if (this.mortarHoldActive) {
+      // Force clear shoot state - RT is reserved for mortar release
       this.shootPressed = false;
       this.inputState.shoot = false;
+    } else {
+      // Normal shooting behavior when not in mortar hold mode
+      if (shootPressed && !this.shootPressed) {
+        this.shootPressed = true;
+        this.inputState.shoot = true;
+        if (this._loggingEnabled) {
+          this._logInput('🔫 SHOOT (Firebolt)', 'pressed', gamepad);
+        }
+      } else if (!shootPressed && this.shootPressed) {
+        this.shootPressed = false;
+        this.inputState.shoot = false;
+      }
     }
 
-    // Mortar (RB button 5 only)
-    const mortarPressed = gamepad.buttons[5] && gamepad.buttons[5].pressed; // Right bumper (RB) only
+    // Mortar Toggle (RB button 5) - press once to enter hold mode, press again to drop
+    const mortarHoldPressed = gamepad.buttons[5] && gamepad.buttons[5].pressed; // Right bumper (RB) only
     
-    if (mortarPressed && !this.mortarPressed) {
-      this.mortarPressed = true;
-      this.inputState.mortar = true;
+    if (mortarHoldPressed && !this.mortarHoldPressed) {
+      this.mortarHoldPressed = true;
+      this.inputState.mortar = true; // Keep for compatibility
       if (this._loggingEnabled) {
-        this._logInput('💣 MORTAR', 'pressed', gamepad);
+        this._logInput('💣 MORTAR TOGGLE', 'pressed', gamepad);
       }
-    } else if (!mortarPressed && this.mortarPressed) {
-      this.mortarPressed = false;
-      this.inputState.mortar = false;
+    } else if (!mortarHoldPressed && this.mortarHoldPressed) {
+      this.mortarHoldPressed = false;
+      this.inputState.mortar = false; // Keep for compatibility (will be overridden by toggle state)
+    }
+    
+    // Legacy mortar support (for mouse right click) - preserve mouse state
+    // Note: mortarPressed is set by mouse events, mortarHoldPressed is set by gamepad
+    
+    // Left Trigger (LT) - button 6 for preview while holding mortar
+    const leftTriggerPressed = gamepad.buttons[6] && gamepad.buttons[6].value > 0.5;
+    
+    if (leftTriggerPressed !== this.leftTriggerPressed) {
+      this.leftTriggerPressed = leftTriggerPressed;
+      if (this._loggingEnabled) {
+        this._logInput('👁️ LEFT TRIGGER (Preview)', leftTriggerPressed ? 'pressed' : 'released', gamepad);
+      }
+    }
+    
+    // Right Trigger (RT) - button 7 for releasing mortar (already tracked for shoot)
+    const rightTriggerPressed = gamepad.buttons[7] && gamepad.buttons[7].value > 0.5;
+    
+    if (rightTriggerPressed !== this.rightTriggerPressed) {
+      this.rightTriggerPressed = rightTriggerPressed;
+      if (this._loggingEnabled && this.mortarHoldPressed) {
+        this._logInput('🚀 RIGHT TRIGGER (Release Mortar)', rightTriggerPressed ? 'pressed' : 'released', gamepad);
+      }
     }
 
     // Character Swap (Y button 3 only) - with smoke particles
@@ -794,8 +842,13 @@ export class InputManager {
     // Keeping this code for other keys (shift, jump, etc.)
     
     // Shift key for running
+    // Don't allow sprinting when mortar hold is active
     if (keys.run.includes(e.key)) {
-      this.inputState.shift = pressed;
+      if (this.mortarHoldActive) {
+        this.inputState.shift = false; // Prevent sprinting while holding mortar
+      } else {
+        this.inputState.shift = pressed;
+      }
     }
     
     // Space key for jumping
@@ -836,6 +889,10 @@ export class InputManager {
    * @returns {number} Current speed (base speed or running speed)
    */
   getCurrentSpeed() {
+    // Don't allow sprinting when mortar hold is active
+    if (this.mortarHoldActive) {
+      return this.moveSpeed;
+    }
     return this.inputState.shift ? this.moveSpeed * this.runSpeedMultiplier : this.moveSpeed;
   }
 
@@ -844,6 +901,10 @@ export class InputManager {
    * @returns {boolean} True if running (shift held)
    */
   isRunning() {
+    // Don't allow running when mortar hold is active
+    if (this.mortarHoldActive) {
+      return false;
+    }
     return this.inputState.shift;
   }
 
@@ -869,6 +930,10 @@ export class InputManager {
    * @returns {boolean} True if shoot button is pressed
    */
   isShootPressed() {
+    // Don't allow shooting when mortar hold is active (RT is used for mortar release)
+    if (this.mortarHoldActive) {
+      return false;
+    }
     return this.inputState.shoot;
   }
 
@@ -881,11 +946,43 @@ export class InputManager {
   }
 
   /**
-   * Check if mortar button is pressed
+   * Check if mortar button is pressed (mouse right click or RB hold)
    * @returns {boolean} True if mortar button is pressed
    */
   isMortarPressed() {
-    return this.inputState.mortar;
+    return this.inputState.mortar || this.mortarHoldPressed;
+  }
+  
+  /**
+   * Set mortar hold active state (called by GameLoop to sync toggle state)
+   * @param {boolean} active - True if mortar hold mode is active
+   */
+  setMortarHoldActive(active) {
+    this.mortarHoldActive = active;
+  }
+  
+  /**
+   * Check if mortar hold button (RB) is pressed (for toggle detection)
+   * @returns {boolean} True if RB is currently pressed
+   */
+  isMortarHoldPressed() {
+    return this.mortarHoldPressed;
+  }
+  
+  /**
+   * Check if left trigger (LT) is pressed
+   * @returns {boolean} True if LT is pressed
+   */
+  isLeftTriggerPressed() {
+    return this.leftTriggerPressed;
+  }
+  
+  /**
+   * Check if right trigger (RT) is pressed
+   * @returns {boolean} True if RT is pressed
+   */
+  isRightTriggerPressed() {
+    return this.rightTriggerPressed;
   }
 
   /**
