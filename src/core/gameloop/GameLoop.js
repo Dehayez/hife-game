@@ -885,22 +885,33 @@ export class GameLoop {
     }
     
     // Handle release (RT) - release mortar when RT is pressed while in mortar hold mode
+    // Only allow release if not on cooldown (RT should not drop the spell when on cooldown)
     if (this.mortarHoldActive && rightTriggerInput && !this.lastRightTriggerInput) {
-      // RT just pressed - release mortar
-      this._handleMortarInput(player);
-      // Exit mortar hold mode after release
-      this.mortarHoldActive = false;
-      this.inputManager.setMortarHoldActive(false);
-      this._removeMortarHoldVisual();
-      // Remove preview
-      if (this.mortarArcPreview) {
-        removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
-        this.mortarArcPreview = null;
+      // Check cooldown status before allowing release
+      const characterName = this.characterManager.getCharacterName();
+      const playerId = 'local';
+      const cooldownInfo = this.projectileManager.getMortarCooldownInfo(playerId, characterName);
+      const canShoot = cooldownInfo.canShoot;
+      
+      // Only release if not on cooldown
+      if (canShoot) {
+        // RT just pressed - release mortar
+        this._handleMortarInput(player);
+        // Exit mortar hold mode after release
+        this.mortarHoldActive = false;
+        this.inputManager.setMortarHoldActive(false);
+        this._removeMortarHoldVisual();
+        // Remove preview
+        if (this.mortarArcPreview) {
+          removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+          this.mortarArcPreview = null;
+        }
+        // Set cooldown to prevent immediate firebolt shooting (0.3 seconds)
+        this.mortarReleaseCooldown = 0.3;
+        // Reset lastRightTriggerInput to prevent immediate shooting after release
+        this.lastRightTriggerInput = true; // Set to true so shooting won't trigger immediately
       }
-      // Set cooldown to prevent immediate firebolt shooting (0.3 seconds)
-      this.mortarReleaseCooldown = 0.3;
-      // Reset lastRightTriggerInput to prevent immediate shooting after release
-      this.lastRightTriggerInput = true; // Set to true so shooting won't trigger immediately
+      // If on cooldown, RT does nothing (spell stays held, can only be dropped with RB)
     }
     
     // Update tracking variables
