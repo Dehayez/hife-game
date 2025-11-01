@@ -475,6 +475,25 @@ export class ProjectileManager {
   }
 
   /**
+   * Get mortar cooldown information for a player
+   * @param {string} playerId - Player ID to check
+   * @param {string} characterName - Character name to get max cooldown time
+   * @returns {Object} Cooldown info with remaining time, percentage, and canShoot flag
+   */
+  getMortarCooldownInfo(playerId, characterName) {
+    const currentCooldown = this.mortarCharacterCooldowns.get(playerId) || 0;
+    const stats = getMortarStats(characterName);
+    const maxCooldown = stats.cooldown;
+    const percentage = maxCooldown > 0 ? (currentCooldown / maxCooldown) : 0;
+    
+    return {
+      remaining: currentCooldown,
+      percentage: Math.max(0, Math.min(1, percentage)),
+      canShoot: currentCooldown <= 0
+    };
+  }
+
+  /**
    * Reset all cooldowns when character changes
    * @param {string} characterName - Character name (not currently used but kept for API consistency)
    */

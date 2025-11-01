@@ -49,7 +49,7 @@ export const GLOBAL_BASE_STATS = {
     areaDamage: 8,           // Base area damage per tick
     cooldown: 3.0,           // Base seconds between mortar shots
     arcHeight: 2.5,          // Base maximum height of arc trajectory
-    maxRange: 6,            // Base maximum horizontal range in units
+    maxRange: 8,            // Base maximum horizontal range in units
     splashRadius: 0.9,       // Base radius of fire splash area
     fireDuration: 1.75,      // Base how long fire persists on ground (seconds)
     shrinkDelay: 0.9,        // Base wait time before fire starts shrinking (seconds)

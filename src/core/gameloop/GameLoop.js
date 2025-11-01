@@ -803,17 +803,27 @@ export class GameLoop {
     
     // Update mortar hold visual position and animation if active
     if (this.mortarHoldActive && this.mortarHoldVisual) {
+      const characterName = this.characterManager.getCharacterName();
+      const playerId = 'local';
+      
+      // Check cooldown status
+      const cooldownInfo = this.projectileManager.getMortarCooldownInfo(playerId, characterName);
+      const isOnCooldown = !cooldownInfo.canShoot;
+      
       this.mortarHoldVisual.position.set(
         player.position.x,
         player.position.y + 0.5,
         player.position.z
       );
       
-      // Update pulsing animation
-      const pulseData = this.mortarHoldVisual.userData;
-      pulseData.pulsePhase += dt * pulseData.pulseSpeed * Math.PI * 2;
-      const pulseScale = pulseData.baseScale + Math.sin(pulseData.pulsePhase) * 0.2;
-      this.mortarHoldVisual.scale.set(pulseScale, pulseScale, pulseScale);
+      // Update visual based on cooldown status
+      this._updateMortarHoldVisualAnimation(dt, isOnCooldown, cooldownInfo.percentage);
+      
+      // Update cooldown ring if it exists
+      const visual = this.mortarHoldVisual.children[0];
+      if (visual && visual.userData.cooldownRing) {
+        this._updateCooldownRing(dt, isOnCooldown, cooldownInfo.percentage);
+      }
     }
     
     // Handle preview (LT) - only show when in mortar hold mode
@@ -867,7 +877,10 @@ export class GameLoop {
     const characterName = this.characterManager.getCharacterName();
     const characterColor = this._getCharacterColorForParticles(characterName);
     
-    // Create a glowing orb/sphere effect around the character
+    // Create container group for visual effects
+    const visualGroup = new THREE.Group();
+    
+    // Create main glowing orb/sphere effect
     const geometry = new THREE.SphereGeometry(0.3, 16, 16);
     const material = new THREE.MeshBasicMaterial({
       color: characterColor,
@@ -877,19 +890,39 @@ export class GameLoop {
     });
     
     const visual = new THREE.Mesh(geometry, material);
-    visual.position.set(
+    
+    // Create cooldown ring indicator (torus ring around the sphere)
+    const ringGeometry = new THREE.TorusGeometry(0.4, 0.03, 8, 32);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffaa00, // Fireball orange color
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
+    const cooldownRing = new THREE.Mesh(ringGeometry, ringMaterial);
+    cooldownRing.rotation.x = Math.PI / 2; // Rotate to be horizontal
+    cooldownRing.visible = false; // Hidden by default when ready
+    
+    visualGroup.add(visual);
+    visualGroup.add(cooldownRing);
+    
+    visualGroup.position.set(
       player.position.x,
       player.position.y + 0.5,
       player.position.z
     );
     
-    // Add pulsing animation
-    visual.userData.pulseSpeed = 2.0; // Pulses per second
+    // Store animation data and references
+    visual.userData.pulseSpeed = 2.0; // Pulses per second when ready
+    visual.userData.pulseSpeedCooldown = 0.8; // Slower pulse when on cooldown
     visual.userData.pulsePhase = 0;
     visual.userData.baseScale = 1.0;
+    visual.userData.characterColor = characterColor;
+    visual.userData.cooldownRing = cooldownRing;
+    visual.userData.rotationPhase = 0; // For rotating ring animation
     
-    this.mortarHoldVisual = visual;
-    this.sceneManager.getScene().add(visual);
+    this.mortarHoldVisual = visualGroup;
+    this.sceneManager.getScene().add(visualGroup);
   }
   
   /**
@@ -898,10 +931,119 @@ export class GameLoop {
    */
   _removeMortarHoldVisual() {
     if (this.mortarHoldVisual) {
+      // Dispose of all children geometries and materials
+      this.mortarHoldVisual.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+      
       this.sceneManager.getScene().remove(this.mortarHoldVisual);
-      this.mortarHoldVisual.geometry.dispose();
-      this.mortarHoldVisual.material.dispose();
       this.mortarHoldVisual = null;
+    }
+  }
+  
+  /**
+   * Update mortar hold visual animation based on cooldown status
+   * @param {number} dt - Delta time in seconds
+   * @param {boolean} isOnCooldown - Whether spell is on cooldown
+   * @param {number} cooldownPercentage - Cooldown progress (0-1)
+   * @private
+   */
+  _updateMortarHoldVisualAnimation(dt, isOnCooldown, cooldownPercentage) {
+    const visual = this.mortarHoldVisual.children[0]; // Main sphere
+    const pulseData = visual.userData;
+    
+    if (isOnCooldown) {
+      // On cooldown: fireball orange color, slower pulse, growing opacity
+      const fireballOrange = 0xffaa00; // Same as fireball color
+      const darkOrange = 0xcc8800; // Darker shade for pulsing
+      
+      // Calculate cooldown progress (0 = just started, 1 = almost ready)
+      const progress = 1 - cooldownPercentage;
+      
+      // Sphere grows from small to full size as cooldown progresses
+      // Start at 0.3x scale, grow to full baseScale (1.0x) when ready
+      const minScale = 0.3;
+      const maxScale = pulseData.baseScale;
+      const growthScale = minScale + (maxScale - minScale) * progress;
+      
+      // Opacity grows from low to high as cooldown progresses
+      const minOpacity = 0.2;
+      const maxOpacity = 0.7;
+      const growthOpacity = minOpacity + (maxOpacity - minOpacity) * progress;
+      
+      // Pulse between orange and dark orange (smaller pulse during cooldown)
+      pulseData.pulsePhase += dt * pulseData.pulseSpeedCooldown * Math.PI * 2;
+      const pulseVariation = Math.sin(pulseData.pulsePhase) * 0.1; // Smaller pulse variation
+      const pulseScale = growthScale + pulseVariation;
+      visual.scale.set(pulseScale, pulseScale, pulseScale);
+      
+      // Color transition between orange shades
+      const colorMix = (Math.sin(pulseData.pulsePhase) + 1) * 0.5;
+      const currentColor = new THREE.Color().lerpColors(
+        new THREE.Color(darkOrange),
+        new THREE.Color(fireballOrange),
+        colorMix
+      );
+      visual.material.color.copy(currentColor);
+      
+      // Base opacity grows with progress, with small pulsing variation
+      const pulseOpacityVariation = Math.sin(pulseData.pulsePhase) * 0.1;
+      visual.material.opacity = growthOpacity + pulseOpacityVariation;
+    } else {
+      // Ready: bright character color, smooth pulsing at full size
+      pulseData.pulsePhase += dt * pulseData.pulseSpeed * Math.PI * 2;
+      const pulseScale = pulseData.baseScale + Math.sin(pulseData.pulsePhase) * 0.2;
+      visual.scale.set(pulseScale, pulseScale, pulseScale);
+      
+      // Bright character color
+      visual.material.color.setHex(pulseData.characterColor);
+      visual.material.opacity = 0.6 + Math.sin(pulseData.pulsePhase) * 0.2; // Smooth pulsing opacity
+    }
+  }
+  
+  /**
+   * Update cooldown ring indicator
+   * @param {number} dt - Delta time in seconds
+   * @param {boolean} isOnCooldown - Whether spell is on cooldown
+   * @param {number} cooldownPercentage - Cooldown progress (0-1)
+   * @private
+   */
+  _updateCooldownRing(dt, isOnCooldown, cooldownPercentage) {
+    const visual = this.mortarHoldVisual.children[0];
+    const cooldownRing = visual.userData.cooldownRing;
+    
+    if (isOnCooldown) {
+      // Show ring and animate it
+      cooldownRing.visible = true;
+      
+      // Rotate ring slowly
+      visual.userData.rotationPhase += dt * 2.0; // Rotations per second
+      cooldownRing.rotation.z = visual.userData.rotationPhase;
+      
+      // Update ring color based on cooldown progress (orange -> brighter orange as it charges)
+      const progress = 1 - cooldownPercentage; // Invert so 0 = just started, 1 = almost ready
+      const fireballOrange = 0xffaa00; // Fireball orange color
+      const brightOrange = 0xffcc44; // Brighter orange/yellow
+      
+      // Lerp from fireball orange to bright orange as cooldown progresses
+      const ringColor = new THREE.Color().lerpColors(
+        new THREE.Color(fireballOrange),
+        new THREE.Color(brightOrange),
+        progress
+      );
+      cooldownRing.material.color.copy(ringColor);
+      
+      // Pulse ring opacity based on progress
+      const pulseOpacity = 0.6 + Math.sin(visual.userData.rotationPhase * 4) * 0.2;
+      cooldownRing.material.opacity = pulseOpacity;
+      
+      // Scale ring slightly based on progress (grows as cooldown progresses)
+      const scale = 0.9 + progress * 0.1;
+      cooldownRing.scale.set(scale, scale, scale);
+    } else {
+      // Hide ring when ready
+      cooldownRing.visible = false;
     }
   }
   
