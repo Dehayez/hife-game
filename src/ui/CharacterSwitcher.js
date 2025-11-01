@@ -9,6 +9,21 @@ export function initCharacterSwitcher({ mount, options, value, onChange }) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
+  /**
+   * Get character color values for UI styling
+   * @param {string} characterName - Character name ('lucy' or 'herald')
+   * @returns {{color: string, rgb: string}} Color hex and RGB values
+   */
+  function getCharacterColorValues(characterName) {
+    if (characterName === 'lucy') {
+      return { color: '#9c57b6', rgb: '156, 87, 182' };
+    } else if (characterName === 'herald') {
+      return { color: '#f5ba0b', rgb: '245, 186, 11' };
+    }
+    // Default fallback
+    return { color: '#9c57b6', rgb: '156, 87, 182' };
+  }
+
   function createChoice(name) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -49,12 +64,29 @@ export function initCharacterSwitcher({ mount, options, value, onChange }) {
       const isActive = b.dataset.name === name;
       b.classList.toggle('is-active', isActive);
       b.setAttribute('aria-pressed', String(isActive));
+      
+      // Set character-specific color for active border
+      if (isActive) {
+        const colorValues = getCharacterColorValues(name);
+        b.style.setProperty('--character-active-color', colorValues.color);
+        b.style.setProperty('--character-active-color-rgb', colorValues.rgb);
+      } else {
+        // Clear character color styles when not active
+        b.style.removeProperty('--character-active-color');
+        b.style.removeProperty('--character-active-color-rgb');
+      }
     }
   }
 
   options.forEach((name) => {
     const btn = createChoice(name);
-    if (name === value) btn.classList.add('is-active');
+    if (name === value) {
+      btn.classList.add('is-active');
+      // Set character-specific color for initial active state
+      const colorValues = getCharacterColorValues(name);
+      btn.style.setProperty('--character-active-color', colorValues.color);
+      btn.style.setProperty('--character-active-color-rgb', colorValues.rgb);
+    }
     buttons.set(name, btn);
     wrapper.appendChild(btn);
   });

@@ -302,7 +302,7 @@ if (urlCharacter) {
 // Initialize character switcher UI
 const AVAILABLE_CHARACTERS = ['lucy', 'herald'];
 const switcherMount = document.getElementById('char-switcher') || document.body;
-initCharacterSwitcher({
+const characterSwitcher = initCharacterSwitcher({
   mount: switcherMount,
   options: AVAILABLE_CHARACTERS,
   value: characterName,
@@ -328,6 +328,11 @@ initCharacterSwitcher({
       }
     }
   }
+});
+
+// Connect character switcher UI to game loop so UI updates when controller changes character
+gameLoop.setCharacterUIUpdateCallback((characterName) => {
+  characterSwitcher.setValue(characterName);
 });
 
 

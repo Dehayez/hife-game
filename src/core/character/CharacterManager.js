@@ -285,6 +285,14 @@ export class CharacterManager {
   }
 
   /**
+   * Get character facing direction
+   * @returns {string} Character facing direction ('front' or 'back')
+   */
+  getLastFacing() {
+    return this.lastFacing;
+  }
+
+  /**
    * Make character jump
    */
   jump() {
@@ -357,11 +365,15 @@ export class CharacterManager {
 
   /**
    * Respawn character
+   * @param {string} gameMode - Optional game mode ('shooting' for random spawn)
+   * @param {Object} collisionManager - Optional collision manager for ground height checks
    */
-  respawn() {
+  respawn(gameMode = null, collisionManager = null) {
     if (!this.player) return;
     
-    respawnCharacterPhysics(this.player, this.characterData);
+    // Use collision manager from this instance if not provided
+    const colManager = collisionManager || this.collisionManager;
+    respawnCharacterPhysics(this.player, this.characterData, gameMode, colManager);
     
     // Update player userData health
     if (this.player.userData) {

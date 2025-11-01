@@ -133,13 +133,42 @@ export function initializeCharacterPhysics(characterData) {
  * Respawn character physics
  * @param {THREE.Mesh} player - Player mesh
  * @param {Object} characterData - Character data object
+ * @param {string} gameMode - Optional game mode ('shooting' for random spawn)
+ * @param {Object} collisionManager - Optional collision manager for ground height checks
  */
-export function respawnCharacterPhysics(player, characterData) {
+export function respawnCharacterPhysics(player, characterData, gameMode = null, collisionManager = null) {
   const movementStats = getCharacterMovementStats();
   const healthStats = getCharacterHealthStats();
   
-  // Reset position to center of arena
-  player.position.set(0, movementStats.playerHeight * 0.5, 0);
+  let spawnX = 0;
+  let spawnZ = 0;
+  
+  // For shooting mode (Mystic Battle), spawn at random position
+  if (gameMode === 'shooting' && collisionManager) {
+    // Get arena size (try to get from collision manager or use default)
+    const arenaSize = collisionManager.arenaSize || 20;
+    const halfArena = arenaSize / 2 - 2; // Leave margin from edges
+    
+    // Generate random position within arena bounds
+    spawnX = (Math.random() - 0.5) * arenaSize * 0.8; // Use 80% of arena size for safety
+    spawnZ = (Math.random() - 0.5) * arenaSize * 0.8;
+    
+    // Clamp to arena bounds
+    spawnX = Math.max(-halfArena, Math.min(halfArena, spawnX));
+    spawnZ = Math.max(-halfArena, Math.min(halfArena, spawnZ));
+  }
+  
+  // Get ground height at spawn position
+  const groundHeight = collisionManager 
+    ? collisionManager.getGroundHeight(spawnX, spawnZ, movementStats.playerSize)
+    : 0;
+  
+  // Reset position (center for non-shooting modes, random for shooting mode)
+  player.position.set(
+    spawnX,
+    groundHeight + movementStats.playerHeight * 0.5,
+    spawnZ
+  );
   
   // Reset physics
   characterData.velocityY = 0;

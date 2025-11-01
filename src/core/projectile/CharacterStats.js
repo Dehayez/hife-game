@@ -5,14 +5,33 @@
  * This file provides a clear view of every ability stat for every character.
  * 
  * Add new characters or modify ability stats here.
+ * 
+ * ═══════════════════════════════════════════════════════════════════
+ * TO EDIT MELEE ATTACK STATS:
+ * ═══════════════════════════════════════════════════════════════════
+ * 
+ * Scroll down to find each character's "MELEE ATTACK STATS" section.
+ * Each character (Lucy and Herald) has their own melee stats.
+ * 
+ * Melee stats you can edit:
+ *   - damage: How much damage the attack deals (number)
+ *   - range: Attack range in units - how far the attack reaches (number)
+ *   - animationDuration: How long the animation lasts in seconds (number)
+ * 
+ * Example locations:
+ *   - Lucy melee stats: Around line 49-56
+ *   - Herald melee stats: Around line 90-97
+ * 
+ * ═══════════════════════════════════════════════════════════════════
  */
 
 /**
  * Character Ability Stats Configuration
  * 
- * Each character has stats for two abilities:
+ * Each character has stats for three abilities:
  * 1. Firebolt (regular projectile)
  * 2. Mortar (arc projectile with fire splash)
+ * 3. Melee (sword swing attack)
  */
 export const CHARACTER_STATS = {
   /**
@@ -25,9 +44,9 @@ export const CHARACTER_STATS = {
     
     // Firebolt Ability Stats
     firebolt: {
-      damage: 20,              // Damage per hit
-      cooldown: 0.6,           // Seconds between shots
-      projectileSpeed: 8,      // Units per second
+      damage: 10,              // Damage per hit (lower for Uzi-like rapid fire)
+      cooldown: 0.15,          // Seconds between shots (Uzi-like rapid fire)
+      projectileSpeed: 12,     // Units per second (faster)
       size: 0.08,              // Projectile radius (smaller)
       lifetime: 3,             // Seconds before projectile despawns
       cursorFollowStrength: 0.3 // How much projectile follows cursor (0.0 = none, 1.0 = full)
@@ -43,7 +62,17 @@ export const CHARACTER_STATS = {
       fireDuration: 1.5,       // How long fire persists on ground (seconds)
       shrinkDelay: 0.8,        // Wait time before fire starts shrinking (seconds)
       size: 0.12               // Mortar projectile radius
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // MELEE ATTACK STATS - Edit these values to change melee attack
+    // ═══════════════════════════════════════════════════════════════════
+    melee: {
+      damage: 30,              // Damage per hit (how much damage the attack deals)
+      range: 0.8,              // Attack range in units (how far the attack reaches)
+      animationDuration: 0.4   // Animation duration in seconds (how long the attack animation lasts)
     }
+    // ═══════════════════════════════════════════════════════════════════
   },
   
   /**
@@ -56,7 +85,7 @@ export const CHARACTER_STATS = {
     
     // Firebolt Ability Stats
     firebolt: {
-      damage: 35,              // Damage per hit (higher than Lucy)
+      damage: 35,              // Damage per hit (balanced with lucy)
       cooldown: 0.8,           // Seconds between shots (slower than Lucy)
       projectileSpeed: 9,      // Units per second (slightly faster)
       size: 0.18,              // Projectile radius (larger than Lucy)
@@ -74,7 +103,17 @@ export const CHARACTER_STATS = {
       fireDuration: 2.0,       // How long fire persists on ground (longer than Lucy)
       shrinkDelay: 1.0,        // Wait time before fire starts shrinking (longer than Lucy)
       size: 0.25               // Mortar projectile radius (larger fireball)
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // MELEE ATTACK STATS - Edit these values to change melee attack
+    // ═══════════════════════════════════════════════════════════════════
+    melee: {
+      damage: 30,              // Damage per hit (how much damage the attack deals)
+      range: 1.4,              // Attack range in units (how far the attack reaches)
+      animationDuration: 0.6   // Animation duration in seconds (how long the attack animation lasts)
     }
+    // ═══════════════════════════════════════════════════════════════════
   }
 };
 
@@ -115,5 +154,15 @@ export function getMortarStats(characterName) {
 export function getCharacterColor(characterName) {
   const stats = getCharacterStats(characterName);
   return stats.color;
+}
+
+/**
+ * Get melee attack stats for a character
+ * @param {string} characterName - Character name
+ * @returns {Object} Melee ability stats
+ */
+export function getMeleeStats(characterName) {
+  const stats = getCharacterStats(characterName);
+  return stats.melee;
 }
 

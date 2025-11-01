@@ -107,11 +107,19 @@ export class ParticleManager {
         continue;
       }
 
-      // Update position
-      particle.position.add(data.velocity.clone().multiplyScalar(dt));
-      
-      // Slow down over time (drag effect)
-      data.velocity.multiplyScalar(stats.dragFactor);
+      // Update position (skip velocity for sword swing particles - they follow character instead)
+      if (!data.followCharacter) {
+        particle.position.add(data.velocity.clone().multiplyScalar(dt));
+        
+        // Slow down over time (drag effect)
+        data.velocity.multiplyScalar(stats.dragFactor);
+      } else {
+        // For sword swing particles, apply velocity but they'll also follow character
+        particle.position.add(data.velocity.clone().multiplyScalar(dt));
+        
+        // Slow down over time (drag effect) - less drag for sword swing
+        data.velocity.multiplyScalar(0.95); // Slower drag for sword swing
+      }
 
       // Fade out over time
       const lifeProgress = data.lifetime / data.maxLifetime;
@@ -146,23 +154,36 @@ export class ParticleManager {
   }
 
   /**
-   * Spawn a healing particle at position (green, smaller, faster)
+   * Spawn a healing particle at position (character color or green, smaller, faster)
    * @param {THREE.Vector3} position - Spawn position
+   * @param {number} characterColor - Optional character color (hex number)
    */
-  spawnHealingParticle(position) {
+  spawnHealingParticle(position, characterColor = null) {
     // Create healing particle geometry and material (smaller than smoke)
     const size = 0.15 + Math.random() * 0.1; // Much smaller than smoke
     const geometry = new THREE.PlaneGeometry(size, size);
     
-    // Healing color - green with variation
-    const greenColor = new THREE.Color(
-      0.3 + Math.random() * 0.2, // R
-      0.8 + Math.random() * 0.2, // G - bright green
-      0.4 + Math.random() * 0.2  // B
-    );
+    // Use character color if provided, otherwise use green with variation
+    let particleColor;
+    if (characterColor !== null) {
+      // Convert hex to Color and add some variation
+      const baseColor = new THREE.Color(characterColor);
+      particleColor = new THREE.Color(
+        baseColor.r + (Math.random() - 0.5) * 0.2,
+        baseColor.g + (Math.random() - 0.5) * 0.2,
+        baseColor.b + (Math.random() - 0.5) * 0.2
+      );
+    } else {
+      // Healing color - green with variation
+      particleColor = new THREE.Color(
+        0.3 + Math.random() * 0.2, // R
+        0.8 + Math.random() * 0.2, // G - bright green
+        0.4 + Math.random() * 0.2  // B
+      );
+    }
     
     const material = new THREE.MeshBasicMaterial({
-      color: greenColor,
+      color: particleColor,
       transparent: true,
       opacity: 0.2,
       side: THREE.DoubleSide,
@@ -199,6 +220,105 @@ export class ParticleManager {
       this.scene.remove(oldest);
       oldest.geometry.dispose();
       oldest.material.dispose();
+    }
+  }
+
+  /**
+   * Spawn sword swing particles at position (character-colored, circular burst)
+   * @param {THREE.Vector3} position - Spawn position (character position)
+   * @param {number} characterColor - Character color (hex number)
+   * @param {number} radius - Radius of the sword swing (default: 1.0)
+   */
+  spawnSwordSwingParticles(position, characterColor, radius = 1.0) {
+    const particleCount = 16; // Number of particles in the circle
+    
+    // Convert hex to Color
+    const baseColor = new THREE.Color(characterColor);
+    
+    for (let i = 0; i < particleCount; i++) {
+      // Calculate angle for circular distribution
+      const angle = (i / particleCount) * Math.PI * 2;
+      
+      // Create sword swing particle
+      const size = 0.12 + Math.random() * 0.08;
+      const geometry = new THREE.PlaneGeometry(size, size);
+      
+      // Character color with slight variation
+      const particleColor = new THREE.Color(
+        Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.3)
+      );
+      
+      const material = new THREE.MeshBasicMaterial({
+        color: particleColor,
+        transparent: true,
+        opacity: 0.9 + Math.random() * 0.1,
+        side: THREE.DoubleSide,
+        alphaTest: 0.05,
+        depthWrite: false
+      });
+      
+      const particle = new THREE.Mesh(geometry, material);
+      
+      // Position particle in a circle around the character
+      const offsetX = Math.cos(angle) * radius * (0.8 + Math.random() * 0.4);
+      const offsetZ = Math.sin(angle) * radius * (0.8 + Math.random() * 0.4);
+      particle.position.copy(position);
+      particle.position.x += offsetX;
+      particle.position.z += offsetZ;
+      particle.position.y = position.y + 0.2 + Math.random() * 0.3;
+      
+      // Velocity: outward from center with slight upward motion
+      const speed = 2.5 + Math.random() * 1.5;
+      const outwardDir = new THREE.Vector3(offsetX, 0, offsetZ).normalize();
+      particle.userData = {
+        velocity: new THREE.Vector3(
+          outwardDir.x * speed,
+          0.5 + Math.random() * 0.5, // Slight upward motion
+          outwardDir.z * speed
+        ),
+        lifetime: 0,
+        maxLifetime: 0.3 + Math.random() * 0.2, // Short, fast animation
+        initialSize: size,
+        initialOpacity: material.opacity,
+        followCharacter: true // Mark for following character
+      };
+      
+      this.scene.add(particle);
+      this.smokeParticles.push(particle);
+      
+      // Remove oldest particles if we exceed max
+      if (this.smokeParticles.length > this.maxParticles) {
+        const oldest = this.smokeParticles.shift();
+        this.scene.remove(oldest);
+        oldest.geometry.dispose();
+        oldest.material.dispose();
+      }
+    }
+  }
+
+  /**
+   * Update sword swing particles to follow character
+   * @param {THREE.Vector3} characterPosition - Current character position
+   * @param {THREE.Vector3} lastCharacterPosition - Previous character position (for delta movement)
+   */
+  updateSwordSwingParticles(characterPosition, lastCharacterPosition) {
+    if (!lastCharacterPosition) return;
+    
+    // Calculate character movement delta
+    const deltaX = characterPosition.x - lastCharacterPosition.x;
+    const deltaY = characterPosition.y - lastCharacterPosition.y;
+    const deltaZ = characterPosition.z - lastCharacterPosition.z;
+    
+    // Update all sword swing particles to follow character movement
+    for (const particle of this.smokeParticles) {
+      if (particle.userData.followCharacter) {
+        // Move particle by the same delta as the character
+        particle.position.x += deltaX;
+        particle.position.y += deltaY;
+        particle.position.z += deltaZ;
+      }
     }
   }
 

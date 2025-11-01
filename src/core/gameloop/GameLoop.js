@@ -6,6 +6,8 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { getCharacterColor, getMeleeStats } from '../projectile/CharacterStats.js';
+import { setLastCharacter } from '../../utils/StorageUtils.js';
 
 export class GameLoop {
   /**
@@ -41,6 +43,15 @@ export class GameLoop {
     this.lastMortarInput = false;
     this.lastCharacterSwapInput = false;
     this.lastSwordSwingInput = false;
+    
+    // Sword swing animation tracking
+    this.swordSwingAnimationTime = 0;
+    this.swordSwingAnimationDuration = 0.5; // Default duration (will be updated per character)
+    this.lastCharacterPositionForSwing = null; // Track character position for swing follow
+    this.swordSwingCircle = null; // Reference to the sword swing circle visual effect
+    
+    // Callback to update character UI when character changes via controller
+    this.characterUIUpdateCallback = null;
   }
 
   /**
@@ -188,7 +199,8 @@ export class GameLoop {
     if (shouldRespawn) {
       // Reset overlay immediately before respawning
       this.collisionManager.resetRespawn();
-      this.characterManager.respawn();
+      const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
+      this.characterManager.respawn(currentMode, this.collisionManager);
     }
     
     // Handle movement
@@ -204,6 +216,47 @@ export class GameLoop {
       this.characterManager.particleManager.billboardToCamera(
         this.sceneManager.getCamera()
       );
+      
+      // Update sword swing particles to follow character during animation
+      if (this.swordSwingAnimationTime > 0 && player) {
+        const currentPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+        if (this.lastCharacterPositionForSwing) {
+          this.characterManager.particleManager.updateSwordSwingParticles(
+            currentPos,
+            this.lastCharacterPositionForSwing
+          );
+        }
+        this.lastCharacterPositionForSwing = currentPos.clone();
+      } else if (this.swordSwingAnimationTime <= 0) {
+        this.lastCharacterPositionForSwing = null;
+      }
+    }
+
+    // Update sword swing animation timer and circle position
+    if (this.swordSwingAnimationTime > 0 && player) {
+      this.swordSwingAnimationTime -= dt;
+      
+      // Update circle position to follow character
+      if (this.swordSwingCircle) {
+        this.swordSwingCircle.position.set(
+          player.position.x,
+          player.position.y + 0.2,
+          player.position.z
+        );
+      }
+      
+      // Clean up when animation ends
+      if (this.swordSwingAnimationTime <= 0) {
+        this.swordSwingAnimationTime = 0;
+        
+        // Remove and dispose of circle
+        if (this.swordSwingCircle) {
+          this.sceneManager.getScene().remove(this.swordSwingCircle);
+          this.swordSwingCircle.geometry.dispose();
+          this.swordSwingCircle.material.dispose();
+          this.swordSwingCircle = null;
+        }
+      }
     }
 
     // Update magical particle animations
@@ -226,9 +279,9 @@ export class GameLoop {
     // Update projectiles
     this.projectileManager.update(dt);
     
-    // Handle shooting input (left mouse click)
+    // Handle shooting input (left mouse click) - auto-fire on hold
     const shootInput = this.inputManager.isShootPressed();
-    if (shootInput && !this.lastShootInput) {
+    if (shootInput) {
       this._handleShootingInput(player);
     }
     this.lastShootInput = shootInput;
@@ -328,40 +381,41 @@ export class GameLoop {
       targetX = playerPos.x + directionX * targetDistance;
       targetZ = playerPos.z + directionZ * targetDistance;
     } else {
-      // Fallback to mouse/cursor control
+      // Fallback: Use character facing direction when right joystick is not active
+      const lastFacing = this.characterManager.getLastFacing();
       const camera = this.sceneManager.getCamera();
-      const mousePos = this.inputManager.getMousePosition();
       
-      // Convert mouse to world coordinates on ground plane
-      const raycaster = new THREE.Raycaster();
-      const mouse = new THREE.Vector2();
-      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      // Get camera forward direction in world space
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
       
-      raycaster.setFromCamera(mouse, camera);
+      // Project camera direction onto ground plane (XZ plane)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
       
-      // Intersect with ground plane at y = 0
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersect = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, intersect);
-      
-      // Calculate direction from player to intersect point
-      directionX = intersect.x - playerPos.x;
-      directionZ = intersect.z - playerPos.z;
-      targetX = intersect.x;
-      targetZ = intersect.z;
-      
-      // If no valid direction (too close to player), shoot forward
-      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
-      if (dirLength < 0.1) {
-        // Shoot in camera forward direction
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
-        directionX = cameraDir.x;
-        directionZ = cameraDir.z;
-        targetX = playerPos.x + cameraDir.x * 10;
-        targetZ = playerPos.z + cameraDir.z * 10;
+      // Shoot in the direction the character is looking
+      // If character is facing 'back' (towards camera, negative Z), shoot backward (towards camera)
+      // If character is facing 'front' (away from camera, positive Z), shoot forward (away from camera)
+      if (lastFacing === 'back') {
+        // Shoot in back direction (same as camera forward, which is negative Z relative to camera)
+        directionX = cameraForward.x;
+        directionZ = cameraForward.z;
+      } else {
+        // Shoot in front direction (opposite of camera forward, which is positive Z relative to camera)
+        directionX = -cameraForward.x;
+        directionZ = -cameraForward.z;
       }
+      
+      // Normalize direction
+      const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (dirLength > 0.001) {
+        directionX /= dirLength;
+        directionZ /= dirLength;
+      }
+      
+      // Calculate target point in the direction of character facing
+      const targetDistance = 10; // Distance ahead to aim
+      targetX = playerPos.x + directionX * targetDistance;
+      targetZ = playerPos.z + directionZ * targetDistance;
     }
     
     // Create projectile
@@ -449,44 +503,55 @@ export class GameLoop {
         directionZ /= dirLength;
       }
       
-      // Get joystick magnitude to scale distance (0 = min distance, 1 = max distance)
+      // Get joystick magnitude to scale distance (0 = character position, 1 = max range)
       const magnitude = this.inputManager.getRightJoystickMagnitude();
-      const minDistance = 5; // Minimum mortar distance
-      const maxDistance = 15; // Maximum mortar distance
-      // Scale distance based on magnitude (remap from dead zone to full range)
+      const maxDistance = 10; // Maximum mortar distance
+      
+      // Scale distance based on magnitude (center = 0, max push = maxDistance)
       const deadZoneMagnitude = this.inputManager.gamepadDeadZone;
-      const normalizedMagnitude = Math.max(0, (magnitude - deadZoneMagnitude) / (1 - deadZoneMagnitude));
-      const targetDistance = minDistance + (normalizedMagnitude * (maxDistance - minDistance));
+      const normalizedMagnitude = Math.max(0, Math.min(1, (magnitude - deadZoneMagnitude) / (1 - deadZoneMagnitude)));
+      const targetDistance = normalizedMagnitude * maxDistance;
       
       // Calculate target point in the direction of the joystick
+      // If joystick is centered (distance = 0), target will be at character position
       targetX = playerPos.x + directionX * targetDistance;
       targetZ = playerPos.z + directionZ * targetDistance;
     } else if (isLeftJoystickActive && (leftJoystickDir.x !== 0 || leftJoystickDir.z !== 0)) {
       // Fallback to left joystick direction for mortar target
       // leftJoystickDir is already normalized, so use it directly
-      const targetDistance = 15; // Distance ahead to aim mortar
+      const targetDistance = 10; // Distance ahead to aim mortar
       targetX = playerPos.x + leftJoystickDir.x * targetDistance;
       targetZ = playerPos.z + leftJoystickDir.z * targetDistance;
     } else {
-      // Fallback to mouse/cursor control
+      // Fallback: Use character facing direction when right joystick is not active
+      const lastFacing = this.characterManager.getLastFacing();
       const camera = this.sceneManager.getCamera();
-      const mousePos = this.inputManager.getMousePosition();
       
-      // Convert mouse to world coordinates on ground plane
-      const raycaster = new THREE.Raycaster();
-      const mouse = new THREE.Vector2();
-      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      // Get camera forward direction in world space
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
       
-      raycaster.setFromCamera(mouse, camera);
+      // Project camera direction onto ground plane (XZ plane)
+      const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
       
-      // Intersect with ground plane to get target position
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersect = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, intersect);
+      // Shoot in the direction the character is looking
+      // If character is facing 'back' (towards camera, negative Z), shoot backward (towards camera)
+      // If character is facing 'front' (away from camera, positive Z), shoot forward (away from camera)
+      let directionX, directionZ;
+      if (lastFacing === 'back') {
+        // Shoot in back direction (same as camera forward, which is negative Z relative to camera)
+        directionX = cameraForward.x;
+        directionZ = cameraForward.z;
+      } else {
+        // Shoot in front direction (opposite of camera forward, which is positive Z relative to camera)
+        directionX = -cameraForward.x;
+        directionZ = -cameraForward.z;
+      }
       
-      targetX = intersect.x;
-      targetZ = intersect.z;
+      // Calculate target point in the direction of character facing
+      const targetDistance = 10; // Distance ahead to aim mortar
+      targetX = playerPos.x + directionX * targetDistance;
+      targetZ = playerPos.z + directionZ * targetDistance;
     }
     
     // Create mortar
@@ -662,7 +727,8 @@ export class GameLoop {
         if (this.gameModeManager && this.gameModeManager.modeState) {
           this.gameModeManager.modeState.deaths++;
         }
-        this.characterManager.respawn();
+        const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
+        this.characterManager.respawn(currentMode, this.collisionManager);
         
         // Update userData after respawn
         if (player && player.userData) {
@@ -731,6 +797,27 @@ export class GameLoop {
     // Load the new character
     this.characterManager.loadCharacter(newChar).then(() => {
       console.log(`🔄 Swapped to ${newChar}`);
+      
+      // Save to localStorage when character changes
+      setLastCharacter(newChar);
+      
+      // Update multiplayer if in a room
+      if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+        // Send character change event
+        this.multiplayerManager.sendCharacterChange(newChar);
+        
+        // Also update player info in connected players
+        const localPlayerId = this.multiplayerManager.getLocalPlayerId();
+        const playerInfo = this.multiplayerManager.getPlayerInfo(localPlayerId);
+        if (playerInfo) {
+          playerInfo.characterName = newChar;
+        }
+      }
+      
+      // Update UI to reflect the character change
+      if (this.characterUIUpdateCallback) {
+        this.characterUIUpdateCallback(newChar);
+      }
     });
   }
 
@@ -751,16 +838,18 @@ export class GameLoop {
     if (newHealth > this.characterManager.getHealth()) {
       this.characterManager.setHealth(newHealth);
       
-      // Add healing particles
+      // Add healing particles with character color
       if (this.characterManager.particleManager) {
-        // Spawn more green healing particles around character
+        const characterName = this.characterManager.getCharacterName();
+        const characterColor = this._getCharacterColorForParticles(characterName);
+        // Spawn healing particles with character color around character
         for (let i = 0; i < 5; i++) {
           const pos = new THREE.Vector3(
             player.position.x + (Math.random() - 0.5) * 0.5,
             player.position.y + Math.random() * 0.3,
             player.position.z + (Math.random() - 0.5) * 0.5
           );
-          this.characterManager.particleManager.spawnHealingParticle(pos);
+          this.characterManager.particleManager.spawnHealingParticle(pos, characterColor);
         }
       }
     }
@@ -774,12 +863,23 @@ export class GameLoop {
   _handleSwordSwing(player) {
     console.log('⚔️ Sword swing!');
     
+    // Get character-specific melee stats
+    const characterName = this.characterManager.getCharacterName();
+    const meleeStats = getMeleeStats(characterName);
+    const radius = meleeStats.range;
+    const swordDamage = meleeStats.damage;
+    const animationDuration = meleeStats.animationDuration;
+    
+    // Update animation duration based on character
+    this.swordSwingAnimationDuration = animationDuration;
+    
     // Create 360 degree damage circle visual effect
-    const radius = 1.0; // Shorter radius for closer combat
     const segments = 32;
     const geometry = new THREE.RingGeometry(radius - 0.1, radius, segments);
+    // Use character color for sword swing
+    const characterColor = this._getCharacterColorForParticles(characterName);
     const material = new THREE.MeshBasicMaterial({
-      color: 0xff0000, // Red circle
+      color: characterColor,
       transparent: true,
       opacity: 0.8,
       side: THREE.DoubleSide
@@ -787,21 +887,24 @@ export class GameLoop {
     
     const circle = new THREE.Mesh(geometry, material);
     circle.rotation.x = -Math.PI / 2; // Lay flat on ground
-    // Position at stomach level (mid-way up player height ~0.6)
     circle.position.set(player.position.x, player.position.y + .2, player.position.z);
+    
+    // Store reference to circle for following character during animation
+    this.swordSwingCircle = circle;
     
     // Add to scene
     this.sceneManager.getScene().add(circle);
     
-    // Remove after animation
-    setTimeout(() => {
-      this.sceneManager.getScene().remove(circle);
-      geometry.dispose();
-      material.dispose();
-    }, 500);
+    // Spawn character-colored sword swing particles
+    if (this.characterManager.particleManager) {
+      const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+      this.characterManager.particleManager.spawnSwordSwingParticles(playerPos, characterColor, radius);
+    }
+    
+    // Start sword swing animation tracking
+    this.swordSwingAnimationTime = animationDuration;
     
     // Add damage to nearby entities (bots, remote players)
-    const swordDamage = 10;
     const playerPos = player.position;
     
     // Damage bots in range
@@ -848,6 +951,24 @@ export class GameLoop {
         }
       }
     }
+  }
+
+  /**
+   * Set callback to update character UI when character changes via controller
+   * @param {Function} callback - Callback function that takes characterName as parameter
+   */
+  setCharacterUIUpdateCallback(callback) {
+    this.characterUIUpdateCallback = callback;
+  }
+
+  /**
+   * Get character color for particles/effects
+   * @param {string} characterName - Character name
+   * @returns {number} Character color as hex number
+   * @private
+   */
+  _getCharacterColorForParticles(characterName) {
+    return getCharacterColor(characterName);
   }
 }
 
