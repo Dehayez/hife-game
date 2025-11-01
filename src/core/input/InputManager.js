@@ -1165,9 +1165,12 @@ export class InputManager {
 
   /**
    * Check if right joystick is actively being pushed (checks raw values directly)
-   * @returns {boolean} True if right joystick raw values exceed dead zone
+   * Only returns true if in controller mode
+   * @returns {boolean} True if right joystick raw values exceed dead zone and in controller mode
    */
   isRightJoystickPushed() {
+    // Only check joystick if in controller mode
+    if (this.inputMode !== 'controller') return false;
     if (!this.gamepad || !this.gamepadConnected) return false;
     const rightStickX = this.gamepad.axes[2];
     const rightStickY = this.gamepad.axes[3];
