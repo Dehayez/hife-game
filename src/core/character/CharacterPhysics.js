@@ -39,8 +39,8 @@ export function updateCharacterPhysics(
   // Apply gravity
   characterData.velocityY += physicsStats.gravity * dt;
   
-  // Apply levitation force if levitating
-  if (isLevitating) {
+  // Apply levitation force if levitating and going down (not jumping up)
+  if (isLevitating && characterData.velocityY < 0) {
     characterData.velocityY += physicsStats.levitationForce * dt;
   }
 

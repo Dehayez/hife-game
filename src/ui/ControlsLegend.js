@@ -279,11 +279,11 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     const levitateKeys = document.createElement('div');
     levitateKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
-    const lbButton = document.createElement('div');
-    lbButton.className = 'ui__legend-key ui__legend-key--xbox';
-    lbButton.innerHTML = '<span class="xbox-button">LB</span>';
-    lbButton.title = 'Xbox Left Bumper';
-    levitateKeys.appendChild(lbButton);
+    const levitateAButton = document.createElement('div');
+    levitateAButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-a';
+    levitateAButton.innerHTML = '<span class="xbox-button">A</span>';
+    levitateAButton.title = 'Xbox A Button';
+    levitateKeys.appendChild(levitateAButton);
     
     levitateGroup.appendChild(levitateKeys);
     actionsSection.appendChild(levitateGroup);

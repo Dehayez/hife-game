@@ -161,7 +161,7 @@ export class GameMenu {
 
   setupControllerNavigation() {
     // Poll for gamepad inputs (gamepad API doesn't fire events, need to poll)
-    // Start polling immediately to handle A button when menu is closed
+    // Start polling to handle controller navigation when menu is open
     this.controllerPollInterval = null;
     this.startControllerPolling();
   }
@@ -285,25 +285,19 @@ export class GameMenu {
 
     // Note: Start button (9) is handled in main.js to avoid double-toggling
     
-    // A button (0) - Open menu if closed, or activate focused element if open
-    // Handle this even when menu is closed
+    // Only process navigation and button presses when menu is open
+    if (!this.isVisible) return;
+
+    // A button (0) - Activate focused element when menu is open
     if (gamepad.buttons[0]?.pressed) {
       if (!this.controllerNavigation.buttonPressed.has(0)) {
         this.controllerNavigation.buttonPressed.add(0);
-        if (!this.isVisible) {
-          // Open menu if closed
-          this.show();
-        } else {
-          // Activate focused element if menu is open
-          this.activateFocusedElement();
-        }
+        // Activate focused element if menu is open
+        this.activateFocusedElement();
       }
     } else {
       this.controllerNavigation.buttonPressed.delete(0);
     }
-
-    // Only process navigation when menu is open
-    if (!this.isVisible) return;
 
     // Back button (8) - Close menu if open
     if (gamepad.buttons[8]?.pressed) {
