@@ -85,7 +85,8 @@ export function createProjectile(scene, startX, startY, startZ, directionX, dire
     targetZ: targetZ, // Target Z position for cursor following
     cursorFollowStrength: stats.cursorFollowStrength || 0, // How much to follow cursor
     initialDirX: normX, // Initial shooting direction X
-    initialDirZ: normZ // Initial shooting direction Z
+    initialDirZ: normZ, // Initial shooting direction Z
+    shooterY: startY // Store shooter's Y position (bot or player) to follow their height
   };
   
   scene.add(projectile);
@@ -355,11 +356,15 @@ export function updateProjectile(projectile, dt, collisionManager, camera = null
   const newX = projectile.position.x + projectile.userData.velocityX * dt;
   const newZ = projectile.position.z + projectile.userData.velocityZ * dt;
   
-  // Update Y position to track character height
-  // If playerPosition is provided, projectiles should follow character's vertical position
+  // Update Y position to track shooter's height (the one who shot it, not necessarily the player)
+  // Use stored shooterY from userData (set when projectile was created)
   let newY = projectile.position.y;
-  if (playerPosition) {
-    // Projectile follows character's Y position (height) during flight
+  if (projectile.userData.shooterY !== undefined) {
+    // Projectile follows shooter's Y position (height) during flight
+    // This ensures bot projectiles follow bot height, not player height
+    newY = projectile.userData.shooterY;
+  } else if (playerPosition) {
+    // Fallback: if shooterY not set, use playerPosition (for backwards compatibility)
     newY = playerPosition.y;
   }
   

@@ -26,45 +26,42 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   </head>
   <body class="app">
-    <div class="ui ui--legend ui--legend-left">
-      <div id="controls-legend"></div>
-    </div>
-    <div class="ui ui--legend ui--legend-right">
-      <div class="ui__panel">
-        <h1 class="ui__title">Arena</h1>
-        <div id="arena-switcher"></div>
-      </div>
-      <div class="ui__panel">
-        <h1 class="ui__title">Game Mode</h1>
-        <div id="game-mode-switcher"></div>
-      </div>
-      <div class="ui__panel">
-        <h1 class="ui__title">Input Mode</h1>
-        <div id="input-mode-switcher"></div>
-      </div>
-      <div id="game-mode-display"></div>
-      <div class="ui__panel" id="room-manager-panel" style="display: none;">
-        <h1 class="ui__title">Multiplayer Room</h1>
-        <div id="room-manager"></div>
-      </div>
-      <div class="ui__panel" id="bot-control-panel" style="display: none;">
-        <h1 class="ui__title">Bot Control</h1>
-        <div id="bot-control"></div>
-      </div>
-    </div>
+    <!-- Menu button (always visible) -->
+    <button id="menu-toggle" class="menu-toggle" aria-label="Toggle game menu" title="Press ESC to open menu">
+      <span class="menu-toggle__icon">☰</span>
+    </button>
+
+    <!-- Connection status (always visible, top right) -->
+    <div id="connection-status"></div>
+
+    <!-- Cooldown indicator (shooting mode only) -->
     <div id="cooldown-indicator"></div>
-    <div class="ui ui--overlay">
-      <div class="ui__panel">
-        <h1 class="ui__title">Choose Character</h1>
-        <div id="char-switcher"></div>
-      </div>
-    </div>
+
+    <!-- Controls legend (toggleable, can be hidden) -->
+    <div id="controls-legend-wrapper" class="controls-legend-wrapper"></div>
+
+    <!-- Game menu overlay (hidden by default) -->
+    <div id="game-menu-root"></div>
+
+    <!-- Hidden mount points for UI components (will be integrated into menu) -->
+    <div id="char-switcher" style="display: none;"></div>
+    <div id="arena-switcher" style="display: none;"></div>
+    <div id="game-mode-switcher" style="display: none;"></div>
+    <div id="input-mode-switcher" style="display: none;"></div>
+    <div id="game-mode-display" style="display: none;"></div>
+    <div id="room-manager" style="display: none;"></div>
+    <div id="bot-control" style="display: none;"></div>
+    <div id="controls-legend" style="display: none;"></div>
+
+    <!-- Loading screen -->
     <div id="loading-screen" class="loading-screen">
       <div class="loading-screen__content">
         <div class="loading-screen__spinner"></div>
         <div class="loading-screen__text">Loading game...</div>
       </div>
     </div>
+
+    <!-- Game canvas -->
     <canvas id="app-canvas" class="canvas"></canvas>
     <script type="module" src="./src/main.js"></script>
   </body>

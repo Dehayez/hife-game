@@ -212,8 +212,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     movementKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const leftStick = document.createElement('div');
-    leftStick.className = 'ui__legend-key';
+    leftStick.className = 'ui__legend-key ui__legend-key--xbox';
     leftStick.innerHTML = '🎮 Left Stick';
+    leftStick.title = 'Xbox Left Analog Stick';
     movementKeys.appendChild(leftStick);
     
     movementGroup.appendChild(movementKeys);
@@ -237,8 +238,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     runKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const ltKey = document.createElement('div');
-    ltKey.className = 'ui__legend-key';
-    ltKey.textContent = 'LT';
+    ltKey.className = 'ui__legend-key ui__legend-key--xbox';
+    ltKey.innerHTML = '<span class="xbox-button">LT</span>';
+    ltKey.title = 'Xbox Left Trigger';
     runKeys.appendChild(ltKey);
     
     runGroup.appendChild(runKeys);
@@ -257,8 +259,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     jumpKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const aButton = document.createElement('div');
-    aButton.className = 'ui__legend-key';
-    aButton.textContent = 'A';
+    aButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-a';
+    aButton.innerHTML = '<span class="xbox-button">A</span>';
+    aButton.title = 'Xbox A Button';
     jumpKeys.appendChild(aButton);
     
     jumpGroup.appendChild(jumpKeys);
@@ -277,8 +280,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     levitateKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const lbButton = document.createElement('div');
-    lbButton.className = 'ui__legend-key';
-    lbButton.textContent = 'LB';
+    lbButton.className = 'ui__legend-key ui__legend-key--xbox';
+    lbButton.innerHTML = '<span class="xbox-button">LB</span>';
+    lbButton.title = 'Xbox Left Bumper';
     levitateKeys.appendChild(lbButton);
     
     levitateGroup.appendChild(levitateKeys);
@@ -318,8 +322,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
       aimKeys.className = 'ui__legend-keys ui__legend-keys--run';
       
       const rightStick = document.createElement('div');
-      rightStick.className = 'ui__legend-key';
+      rightStick.className = 'ui__legend-key ui__legend-key--xbox';
       rightStick.innerHTML = '🎮 Right Stick';
+      rightStick.title = 'Xbox Right Analog Stick';
       aimKeys.appendChild(rightStick);
       
       aimGroup.appendChild(aimKeys);
@@ -338,8 +343,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
       fireboltKeys.className = 'ui__legend-keys ui__legend-keys--run';
       
       const rtButton = document.createElement('div');
-      rtButton.className = 'ui__legend-key';
-      rtButton.textContent = 'RT';
+      rtButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-rt';
+      rtButton.innerHTML = '<span class="xbox-button">RT</span>';
+      rtButton.title = 'Xbox Right Trigger';
       fireboltKeys.appendChild(rtButton);
       
       fireboltGroup.appendChild(fireboltKeys);
@@ -358,8 +364,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
       mortarHoldKeys.className = 'ui__legend-keys ui__legend-keys--run';
       
       const rbButton = document.createElement('div');
-      rbButton.className = 'ui__legend-key';
-      rbButton.textContent = 'RB';
+      rbButton.className = 'ui__legend-key ui__legend-key--xbox';
+      rbButton.innerHTML = '<span class="xbox-button">RB</span>';
+      rbButton.title = 'Xbox Right Bumper';
       mortarHoldKeys.appendChild(rbButton);
       
       mortarHoldGroup.appendChild(mortarHoldKeys);
@@ -378,8 +385,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
       mortarReleaseKeys.className = 'ui__legend-keys ui__legend-keys--run';
       
       const rtRelease = document.createElement('div');
-      rtRelease.className = 'ui__legend-key';
-      rtRelease.textContent = 'RT';
+      rtRelease.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-rt';
+      rtRelease.innerHTML = '<span class="xbox-button">RT</span>';
+      rtRelease.title = 'Xbox Right Trigger';
       mortarReleaseKeys.appendChild(rtRelease);
       
       mortarReleaseGroup.appendChild(mortarReleaseKeys);
@@ -424,8 +432,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     swapKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const yButton = document.createElement('div');
-    yButton.className = 'ui__legend-key';
-    yButton.textContent = 'Y';
+    yButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-y';
+    yButton.innerHTML = '<span class="xbox-button">Y</span>';
+    yButton.title = 'Xbox Y Button';
     swapKeys.appendChild(yButton);
     
     swapGroup.appendChild(swapKeys);
@@ -444,8 +453,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     healKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const xButton = document.createElement('div');
-    xButton.className = 'ui__legend-key';
-    xButton.textContent = 'X';
+    xButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-x';
+    xButton.innerHTML = '<span class="xbox-button">X</span>';
+    xButton.title = 'Xbox X Button';
     healKeys.appendChild(xButton);
     
     healGroup.appendChild(healKeys);
@@ -464,8 +474,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     swordKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const bButton = document.createElement('div');
-    bButton.className = 'ui__legend-key';
-    bButton.textContent = 'B';
+    bButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-b';
+    bButton.innerHTML = '<span class="xbox-button">B</span>';
+    bButton.title = 'Xbox B Button';
     swordKeys.appendChild(bButton);
     
     swordGroup.appendChild(swordKeys);

@@ -82,6 +82,9 @@ export class InputManager {
     // Input mode: 'keyboard' or 'controller'
     this.inputMode = 'keyboard'; // Default to keyboard
     
+    // Flag to block inputs (e.g., when menu is open)
+    this._inputBlocked = false;
+    
     // Callback for controller connection status changes
     this._onControllerStatusChange = null;
     
@@ -516,6 +519,33 @@ export class InputManager {
   }
 
   /**
+   * Set flag to block gamepad inputs (e.g., when menu is open)
+   * @param {boolean} blocked - True to block inputs, false to allow
+   */
+  setInputBlocked(blocked) {
+    this._inputBlocked = blocked;
+    
+    // Clear all inputs when blocked
+    if (blocked) {
+      this.inputState.up = false;
+      this.inputState.down = false;
+      this.inputState.left = false;
+      this.inputState.right = false;
+      this.inputState.jump = false;
+      this.inputState.shift = false;
+      this.inputState.shoot = false;
+      this.inputState.mortar = false;
+      this.inputState.levitate = false;
+      this.inputState.characterSwap = false;
+      this.inputState.heal = false;
+      this.inputState.swordSwing = false;
+      this.gamepadMovementVector.x = 0;
+      this.gamepadMovementVector.y = 0;
+      this._gamepadMovementActive = false;
+    }
+  }
+
+  /**
    * Update gamepad input state
    * Should be called each frame from the game loop
    * @param {number} dt - Delta time in seconds (optional, defaults to ~0.016 for 60fps)
@@ -523,6 +553,11 @@ export class InputManager {
   updateGamepad(dt = 0.016) {
     // Only process gamepad input when in controller mode
     if (this.inputMode !== 'controller') {
+      return;
+    }
+    
+    // Block inputs if requested (e.g., menu is open)
+    if (this._inputBlocked) {
       return;
     }
 

@@ -58,6 +58,14 @@ export class ProjectileManager {
   }
 
   /**
+   * Set the bot manager (for tracking bot projectile heights)
+   * @param {Object} botManager - Bot manager instance
+   */
+  setBotManager(botManager) {
+    this.botManager = botManager;
+  }
+
+  /**
    * Create a firebolt projectile
    * @param {number} startX - Starting X position
    * @param {number} startY - Starting Y position (character height)
@@ -291,6 +299,22 @@ export class ProjectileManager {
       if (projectile.userData.hasHit) {
         projectilesToRemove.push(projectile);
         continue;
+      }
+      
+      // Update shooter Y position dynamically
+      // For bot projectiles, get current bot Y position
+      // For player projectiles, use player position Y
+      if (projectile.userData.playerId !== 'local' && this.botManager) {
+        // This is a bot projectile - find the bot and get its current Y position
+        const bots = this.botManager.getBots();
+        const bot = bots.find(b => b.userData.id === projectile.userData.playerId);
+        if (bot) {
+          // Update shooterY to bot's current Y position
+          projectile.userData.shooterY = bot.position.y;
+        }
+      } else if (projectile.userData.playerId === 'local' && this.playerPosition) {
+        // This is a player projectile - use player's current Y position
+        projectile.userData.shooterY = this.playerPosition.y;
       }
       
       // Update projectile using Projectile module

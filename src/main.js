@@ -1,5 +1,6 @@
 // Minimal dependencies via CDN ESM
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { GameMenu } from './ui/GameMenu.js';
 import { initCharacterSwitcher } from './ui/CharacterSwitcher.js';
 import { initControlsLegend } from './ui/ControlsLegend.js';
 import { initGameModeSwitcher } from './ui/GameModeSwitcher.js';
@@ -87,6 +88,9 @@ const projectileManager = new ProjectileManager(sceneManager.getScene(), collisi
 
 // Initialize bot manager for shooting mode
 const botManager = new BotManager(sceneManager.getScene(), collisionManager, projectileManager, particleManager);
+
+// Connect bot manager to projectile manager so bot projectiles follow bot height
+projectileManager.setBotManager(botManager);
 
 // Initialize health bar manager (camera will be set later)
 const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);
@@ -306,8 +310,19 @@ if (urlCharacter) {
   setLastCharacter(urlCharacter);
 }
 
-// Initialize character switcher UI
+// Initialize all UI components first, then organize into menu
 const AVAILABLE_CHARACTERS = ['lucy', 'herald'];
+
+// Helper function to get current game state (needed for character switcher callback)
+function getCurrentGameState() {
+  return {
+    arena: arenaManager.getCurrentArena(),
+    gameMode: gameModeManager.getMode(),
+    characterName: characterManager.getCharacterName()
+  };
+}
+
+// Initialize character switcher UI
 const switcherMount = document.getElementById('char-switcher') || document.body;
 const characterSwitcher = initCharacterSwitcher({
   mount: switcherMount,
@@ -365,25 +380,15 @@ function updateURLParam(paramName, paramValue) {
   return url.toString();
 }
 
-// Initialize arena switcher UI
+// Get mount points
 const arenaMount = document.getElementById('arena-switcher') || document.body;
-initArenaSwitcher({
-  mount: arenaMount,
-  options: arenaManager.getArenas(),
-  value: urlArena,
-  onChange: (arena) => {
-    // Reload page with new arena to reinitialize everything
-    window.location.href = updateURLParam('arena', arena);
-  }
-});
-
-// Get room manager elements (defined early so they can be referenced in callbacks)
 const roomMount = document.getElementById('room-manager') || document.body;
-const roomPanel = document.getElementById('room-manager-panel');
 const botControlMount = document.getElementById('bot-control') || document.body;
-const botControlPanel = document.getElementById('bot-control-panel');
 const cooldownMount = document.getElementById('cooldown-indicator') || document.body;
 const connectionStatusMount = document.getElementById('connection-status') || document.body;
+const legendMount = document.getElementById('controls-legend') || document.body;
+const inputModeMount = document.getElementById('input-mode-switcher') || document.body;
+const modeDisplayMount = document.getElementById('game-mode-display') || document.body;
 
 // Initialize cooldown indicator UI early (before it's referenced in callbacks)
 let cooldownIndicator = initCooldownIndicator({
@@ -397,6 +402,48 @@ initConnectionStatus({
   mount: connectionStatusMount,
   multiplayerManager: multiplayerManager
 });
+
+// Initialize Game Menu (must be done early to set up structure)
+const gameMenuRoot = document.getElementById('game-menu-root');
+let isMenuOpen = false;
+const gameMenu = new GameMenu({
+  onVisibilityChange: (isVisible) => {
+    isMenuOpen = isVisible;
+    // Block/unblock gamepad inputs
+    if (inputManager) {
+      inputManager.setInputBlocked(isVisible);
+    }
+  },
+  onMenuOpen: () => {
+    isMenuOpen = true;
+    // Block gamepad inputs from reaching the game
+    if (inputManager) {
+      inputManager.setInputBlocked(true);
+    }
+  },
+  onMenuClose: () => {
+    isMenuOpen = false;
+    // Re-enable gamepad inputs
+    if (inputManager) {
+      inputManager.setInputBlocked(false);
+    }
+  }
+});
+
+// Set up menu toggle button
+const menuToggleButton = document.getElementById('menu-toggle');
+if (menuToggleButton) {
+  menuToggleButton.addEventListener('click', () => {
+    gameMenu.toggle();
+  });
+}
+
+// Initialize controls legend wrapper (toggleable)
+const controlsLegendWrapper = document.getElementById('controls-legend-wrapper');
+let isControlsLegendVisible = true; // Default to visible
+if (controlsLegendWrapper) {
+  controlsLegendWrapper.classList.add('is-visible');
+}
 
 // Initialize game mode switcher UI
 const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
@@ -433,11 +480,8 @@ initGameModeSwitcher({
       window.history.pushState({}, '', url);
     }
     
-    // Show/hide room manager and bot control based on mode
+    // Show/hide cooldown indicator and shooting mode elements based on mode
     if (mode === 'shooting') {
-      if (roomPanel) roomPanel.style.display = 'block';
-      if (botControlPanel) botControlPanel.style.display = 'block';
-      
       // Show cooldown indicator
       if (cooldownIndicator) {
         cooldownIndicator.show();
@@ -462,10 +506,10 @@ initGameModeSwitcher({
           botControl.restoreSavedBots();
         }, 100);
       }
-    } else {
-      if (roomPanel) roomPanel.style.display = 'none';
-      if (botControlPanel) botControlPanel.style.display = 'none';
       
+      // Update menu to show multiplayer section when entering shooting mode
+      updateMenuForMode(mode);
+    } else {
       // Hide cooldown indicator
       if (cooldownIndicator) {
         cooldownIndicator.hide();
@@ -478,26 +522,26 @@ initGameModeSwitcher({
       if (healthBarManager) {
         healthBarManager.clearAll();
       }
+      
+      // Update menu to hide multiplayer section when leaving shooting mode
+      updateMenuForMode(mode);
     }
   },
   gameModeManager: gameModeManager
 });
 
-// Show/hide room manager and cooldown indicator based on initial mode
+// Show/hide cooldown indicator based on initial mode
 if (gameMode === 'shooting') {
-  if (roomPanel) roomPanel.style.display = 'block';
   if (cooldownIndicator) {
     cooldownIndicator.show();
   }
 } else {
-  if (roomPanel) roomPanel.style.display = 'none';
   if (cooldownIndicator) {
     cooldownIndicator.hide();
   }
 }
 
-// Initialize controls legend
-const legendMount = document.getElementById('controls-legend') || document.body;
+// Initialize controls legend (will be moved to menu)
 const controlsLegend = initControlsLegend({
   mount: legendMount,
   inputManager: inputManager,
@@ -512,7 +556,6 @@ gameModeManager.setOnModeChangeCallback(() => {
 });
 
 // Initialize input mode switcher UI
-const inputModeMount = document.getElementById('input-mode-switcher') || document.body;
 
 // Check if controller is available before setting mode
 // If saved mode is controller but no controller is available, default to keyboard
@@ -575,23 +618,174 @@ inputManager.setOnControllerStatusChange((isConnected) => {
 });
 
 // Initialize game mode display
-const modeDisplayMount = document.getElementById('game-mode-display') || document.body;
 initGameModeDisplay({
   mount: modeDisplayMount,
   gameModeManager: gameModeManager,
   characterManager: characterManager
 });
 
-// Helper function to get current game state
-function getCurrentGameState() {
-  return {
-    arena: arenaManager.getCurrentArena(),
-    gameMode: gameModeManager.getMode(),
-    characterName: characterManager.getCharacterName()
-  };
+// Initialize arena switcher UI
+initArenaSwitcher({
+  mount: arenaMount,
+  options: arenaManager.getArenas(),
+  value: urlArena,
+  onChange: (arena) => {
+    // Reload page with new arena to reinitialize everything
+    window.location.href = updateURLParam('arena', arena);
+  }
+});
+
+// Function to update menu sections based on game mode
+function updateMenuForMode(mode) {
+  const multiplayerPanel = gameMenu.getPanel('multiplayer');
+  const botSection = gameMenu.getSection('multiplayer', 'game-menu__section--bot-control');
+  
+  if (mode === 'shooting') {
+    // Show bot control section if it exists
+    if (botSection) {
+      botSection.style.display = 'block';
+    }
+  } else {
+    // Hide bot control section if it exists
+    if (botSection) {
+      botSection.style.display = 'none';
+    }
+  }
 }
 
-// Initialize room manager UI for shooting mode
+// Build menu structure with all UI components
+// Settings Tab
+const settingsPanel = gameMenu.getPanel('settings');
+
+// Character Selection Section
+const charSection = gameMenu.addSection('settings', {
+  title: 'Character',
+  className: 'game-menu__section--character'
+});
+if (charSection && switcherMount.firstChild) {
+  const charContent = charSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (charContent) {
+    // Move the character switcher element to menu
+    while (switcherMount.firstChild) {
+      charContent.appendChild(switcherMount.firstChild);
+    }
+  }
+}
+
+// Arena Selection Section
+const arenaSection = gameMenu.addSection('settings', {
+  title: 'Arena',
+  className: 'game-menu__section--arena'
+});
+if (arenaSection && arenaMount.firstChild) {
+  const arenaContent = arenaSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (arenaContent) {
+    // Move all children from arenaMount to menu
+    while (arenaMount.firstChild) {
+      arenaContent.appendChild(arenaMount.firstChild);
+    }
+  }
+}
+
+// Game Mode Section
+const gameModeSection = gameMenu.addSection('settings', {
+  title: 'Game Mode',
+  className: 'game-menu__section--game-mode'
+});
+if (gameModeSection && gameModeMount.firstChild) {
+  const gameModeContent = gameModeSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (gameModeContent) {
+    while (gameModeMount.firstChild) {
+      gameModeContent.appendChild(gameModeMount.firstChild);
+    }
+  }
+}
+
+// Input Mode Section
+const inputModeSection = gameMenu.addSection('settings', {
+  title: 'Input Mode',
+  className: 'game-menu__section--input-mode'
+});
+if (inputModeSection && inputModeMount.firstChild) {
+  const inputModeContent = inputModeSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (inputModeContent) {
+    while (inputModeMount.firstChild) {
+      inputModeContent.appendChild(inputModeMount.firstChild);
+    }
+  }
+}
+
+// Game Mode Display Section
+const modeDisplaySection = gameMenu.addSection('settings', {
+  title: 'Current Game Mode',
+  className: 'game-menu__section--mode-display'
+});
+if (modeDisplaySection && modeDisplayMount.firstChild) {
+  const modeDisplayContent = modeDisplaySection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (modeDisplayContent) {
+    while (modeDisplayMount.firstChild) {
+      modeDisplayContent.appendChild(modeDisplayMount.firstChild);
+    }
+  }
+}
+
+// Multiplayer Tab - sections will be populated after room manager and bot control are initialized
+
+// Controls Tab
+const controlsPanel = gameMenu.getPanel('controls');
+
+// Controls Legend Section
+const legendSection = gameMenu.addSection('controls', {
+  title: 'Controls',
+  className: 'game-menu__section--controls-legend'
+});
+if (legendSection) {
+  const legendContent = legendSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (legendContent) {
+    // Move legend to menu (keep original, don't clone) if it exists
+    if (legendMount && legendMount.firstChild) {
+      while (legendMount.firstChild) {
+        legendContent.appendChild(legendMount.firstChild);
+      }
+    }
+    
+    // Add toggle button to show/hide controls legend in-game
+    const toggleButton = document.createElement('button');
+    toggleButton.className = 'ui__button ui__button--secondary';
+    toggleButton.textContent = isControlsLegendVisible ? 'Hide Controls (In-Game)' : 'Show Controls (In-Game)';
+    toggleButton.style.marginTop = '12px';
+    toggleButton.addEventListener('click', () => {
+      isControlsLegendVisible = !isControlsLegendVisible;
+      if (controlsLegendWrapper) {
+        controlsLegendWrapper.classList.toggle('is-visible', isControlsLegendVisible);
+      }
+      toggleButton.textContent = isControlsLegendVisible ? 'Hide Controls (In-Game)' : 'Show Controls (In-Game)';
+    });
+    legendContent.appendChild(toggleButton);
+    
+    // Move controls legend to wrapper for in-game display (keep original in menu)
+    if (controlsLegendWrapper) {
+      // Create a separate instance for in-game display
+      const inGameLegend = initControlsLegend({
+        mount: controlsLegendWrapper,
+        inputManager: inputManager,
+        gameModeManager: gameModeManager
+      });
+      // Update in-game legend when main legend updates
+      if (controlsLegend && inGameLegend) {
+        const originalUpdate = controlsLegend.update;
+        controlsLegend.update = function() {
+          originalUpdate.call(this);
+          if (inGameLegend.update) {
+            inGameLegend.update();
+          }
+        };
+      }
+    }
+  }
+}
+
+// Initialize room manager UI for shooting mode (before bot control)
 const roomManager = initRoomManager({
   mount: roomMount,
   multiplayerManager: multiplayerManager,
@@ -741,11 +935,37 @@ const botControl = initBotControl({
   sceneManager: sceneManager
 });
 
-// Show/hide bot control based on mode
-if (gameMode === 'shooting') {
-  if (botControlPanel) botControlPanel.style.display = 'block';
-} else {
-  if (botControlPanel) botControlPanel.style.display = 'none';
+// Now populate multiplayer tab sections with initialized components
+// Room Manager Section
+const roomSection = gameMenu.addSection('multiplayer', {
+  title: 'Multiplayer Room',
+  className: 'game-menu__section--room-manager'
+});
+if (roomSection && roomMount.firstChild) {
+  const roomContent = roomSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (roomContent) {
+    while (roomMount.firstChild) {
+      roomContent.appendChild(roomMount.firstChild);
+    }
+  }
+}
+
+// Bot Control Section (only visible in shooting mode)
+const botSection = gameMenu.addSection('multiplayer', {
+  title: 'Bot Control',
+  className: 'game-menu__section--bot-control'
+});
+if (botSection && botControlMount.firstChild) {
+  const botContent = botSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  if (botContent) {
+    while (botControlMount.firstChild) {
+      botContent.appendChild(botControlMount.firstChild);
+    }
+  }
+  // Hide by default if not in shooting mode
+  if (gameMode !== 'shooting') {
+    botSection.style.display = 'none';
+  }
 }
 
 
@@ -863,9 +1083,26 @@ if (typeof inputManager !== 'undefined') {
 
   // Wrap gameLoop.tick to update cooldown indicator and sync positions
   const originalTick = gameLoop.tick.bind(gameLoop);
+  let lastStartButtonState = false;
+  
   gameLoop.tick = function() {
     const now = performance.now();
     originalTick();
+    
+    // Handle Xbox Start button (button 9) to toggle menu
+    // Works regardless of menu state (can open or close)
+    const gamepads = navigator.getGamepads();
+    if (gamepads && gamepads.length > 0) {
+      const gamepad = gamepads[0];
+      if (gamepad) {
+        const startButtonPressed = gamepad.buttons[9]?.pressed || false;
+        if (startButtonPressed && !lastStartButtonState) {
+          // Start button just pressed - toggle menu
+          gameMenu.toggle();
+        }
+        lastStartButtonState = startButtonPressed;
+      }
+    }
     
     // Update cooldown indicator each frame (only if in shooting mode)
     if (cooldownIndicator && gameModeManager && gameModeManager.getMode() === 'shooting') {
