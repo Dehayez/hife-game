@@ -52,7 +52,6 @@ export function loadSpriteSheet(basePathPng) {
     }
   }).catch((error) => {
     // No metadata; single frame (expected in some cases)
-    console.debug('No metadata found for sprite sheet, using defaults:', basePathPng);
     anim.frameCount = 1;
     anim.fps = 6;
     tex.repeat.set(1, 1);
@@ -67,7 +66,6 @@ export async function tryLoadJson(path) {
     if (!res.ok) return null;
     return await res.json();
   } catch (error) {
-    console.debug('Failed to load JSON:', path);
     return null;
   }
 }
@@ -96,7 +94,6 @@ export async function loadAnimationSmart(basePathNoExt, fallbackFps = 8, default
         textures.length = 0;
       } else {
         // Some frames missing; invalidate sequence
-        console.debug(`Frame ${i} missing for ${basePathNoExt}, falling back to spritesheet`);
         textures.length = 0;
       }
       break;
