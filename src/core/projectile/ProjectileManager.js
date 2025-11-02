@@ -303,19 +303,20 @@ export class ProjectileManager {
       
       // Update shooter Y position dynamically
       // For bot projectiles, get current bot Y position
-      // For player projectiles, use player position Y
+      // For player projectiles, shooterY is set once at creation time and never updated
+      // This prevents existing projectiles from changing height when player jumps
       if (projectile.userData.playerId !== 'local' && this.botManager) {
         // This is a bot projectile - find the bot and get its current Y position
         const bots = this.botManager.getBots();
         const bot = bots.find(b => b.userData.id === projectile.userData.playerId);
         if (bot) {
-          // Update shooterY to bot's current Y position
+          // Update shooterY to bot's current Y position (bots can move continuously)
           projectile.userData.shooterY = bot.position.y;
         }
-      } else if (projectile.userData.playerId === 'local' && this.playerPosition) {
-        // This is a player projectile - use player's current Y position
-        projectile.userData.shooterY = this.playerPosition.y;
       }
+      // Note: For local player projectiles, shooterY is set once at creation time (in Projectile.js)
+      // and is never updated here. This ensures projectiles fire from jump height but
+      // don't change trajectory when player continues jumping.
       
       // Update projectile using Projectile module
       const shouldRemove = updateProjectile(
