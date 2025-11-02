@@ -34,9 +34,9 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
   // Render keyboard/mouse controls
   function renderKeyboardControls(container, isShootingMode) {
     // Movement section
-    const movementSection = document.createElement('div');
-    movementSection.className = 'ui__legend-section';
-    
+  const movementSection = document.createElement('div');
+  movementSection.className = 'ui__legend-section';
+
     const movementGroup = document.createElement('div');
     movementGroup.className = 'ui__legend-group';
     
@@ -48,17 +48,17 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     const movementKeys = document.createElement('div');
     movementKeys.className = 'ui__legend-keys ui__legend-keys--arrows';
     
-    const arrowKeysData = [
-      { key: 'up', label: '↑', className: 'ui__legend-key--up' },
-      { key: 'left', label: '←', className: 'ui__legend-key--left' },
-      { key: 'down', label: '↓', className: 'ui__legend-key--down' },
-      { key: 'right', label: '→', className: 'ui__legend-key--right' }
-    ];
-    
-    arrowKeysData.forEach(keyData => {
-      const keyBox = document.createElement('div');
-      keyBox.className = `ui__legend-key ${keyData.className}`;
-      keyBox.textContent = keyData.label;
+  const arrowKeysData = [
+    { key: 'up', label: '↑', className: 'ui__legend-key--up' },
+    { key: 'left', label: '←', className: 'ui__legend-key--left' },
+    { key: 'down', label: '↓', className: 'ui__legend-key--down' },
+    { key: 'right', label: '→', className: 'ui__legend-key--right' }
+  ];
+  
+  arrowKeysData.forEach(keyData => {
+    const keyBox = document.createElement('div');
+    keyBox.className = `ui__legend-key ${keyData.className}`;
+    keyBox.textContent = keyData.label;
       movementKeys.appendChild(keyBox);
     });
     
@@ -66,49 +66,49 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     movementSection.appendChild(movementGroup);
     container.appendChild(movementSection);
 
-    // Actions section
-    const actionsSection = document.createElement('div');
-    actionsSection.className = 'ui__legend-section';
+  // Actions section
+  const actionsSection = document.createElement('div');
+  actionsSection.className = 'ui__legend-section';
 
     // Run
-    const runGroup = document.createElement('div');
-    runGroup.className = 'ui__legend-group';
-    
-    const runLabel = document.createElement('span');
-    runLabel.className = 'ui__legend-label';
-    runLabel.textContent = 'Run:';
-    runGroup.appendChild(runLabel);
-    
-    const runKeys = document.createElement('div');
-    runKeys.className = 'ui__legend-keys ui__legend-keys--run';
-    
-    const shiftKey = document.createElement('div');
-    shiftKey.className = 'ui__legend-key ui__legend-key--shift';
-    shiftKey.innerHTML = '⇧ Shift';
-    runKeys.appendChild(shiftKey);
-    
-    runGroup.appendChild(runKeys);
-    actionsSection.appendChild(runGroup);
+  const runGroup = document.createElement('div');
+  runGroup.className = 'ui__legend-group';
+  
+  const runLabel = document.createElement('span');
+  runLabel.className = 'ui__legend-label';
+  runLabel.textContent = 'Run:';
+  runGroup.appendChild(runLabel);
+  
+  const runKeys = document.createElement('div');
+  runKeys.className = 'ui__legend-keys ui__legend-keys--run';
+  
+  const shiftKey = document.createElement('div');
+  shiftKey.className = 'ui__legend-key ui__legend-key--shift';
+  shiftKey.innerHTML = '⇧ Shift';
+  runKeys.appendChild(shiftKey);
+  
+  runGroup.appendChild(runKeys);
+  actionsSection.appendChild(runGroup);
 
     // Jump
-    const jumpGroup = document.createElement('div');
-    jumpGroup.className = 'ui__legend-group';
-    
-    const jumpLabel = document.createElement('span');
-    jumpLabel.className = 'ui__legend-label';
-    jumpLabel.textContent = 'Jump:';
-    jumpGroup.appendChild(jumpLabel);
-    
-    const jumpKeys = document.createElement('div');
-    jumpKeys.className = 'ui__legend-keys ui__legend-keys--jump';
-    
-    const spaceKey = document.createElement('div');
-    spaceKey.className = 'ui__legend-key ui__legend-key--space';
-    spaceKey.innerHTML = 'Space';
-    jumpKeys.appendChild(spaceKey);
-    
-    jumpGroup.appendChild(jumpKeys);
-    actionsSection.appendChild(jumpGroup);
+  const jumpGroup = document.createElement('div');
+  jumpGroup.className = 'ui__legend-group';
+  
+  const jumpLabel = document.createElement('span');
+  jumpLabel.className = 'ui__legend-label';
+  jumpLabel.textContent = 'Jump:';
+  jumpGroup.appendChild(jumpLabel);
+  
+  const jumpKeys = document.createElement('div');
+  jumpKeys.className = 'ui__legend-keys ui__legend-keys--jump';
+  
+  const spaceKey = document.createElement('div');
+  spaceKey.className = 'ui__legend-key ui__legend-key--space';
+  spaceKey.innerHTML = 'Space';
+  jumpKeys.appendChild(spaceKey);
+  
+  jumpGroup.appendChild(jumpKeys);
+  actionsSection.appendChild(jumpGroup);
 
     container.appendChild(actionsSection);
 
