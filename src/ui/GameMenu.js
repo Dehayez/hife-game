@@ -277,37 +277,73 @@ export class GameMenu {
       return;
     }
 
-    // Simple linear navigation (one direction at a time)
-    // Don't wrap - stop at boundaries
-    let nextIndex = currentIndex;
+    // Get bounding rectangle of current element
+    const currentRect = focusableElements[currentIndex].getBoundingClientRect();
+    const currentCenterX = currentRect.left + currentRect.width / 2;
+    const currentCenterY = currentRect.top + currentRect.height / 2;
 
-    switch (direction) {
-      case 'up':
-        nextIndex = currentIndex - 1;
-        if (nextIndex < 0) return; // Stop at first element, don't wrap
-        break;
-      case 'down':
-        nextIndex = currentIndex + 1;
-        if (nextIndex >= focusableElements.length) return; // Stop at last element, don't wrap
-        break;
-      case 'left':
-        nextIndex = currentIndex - 1;
-        if (nextIndex < 0) return; // Stop at first element, don't wrap
-        break;
-      case 'right':
-        nextIndex = currentIndex + 1;
-        if (nextIndex >= focusableElements.length) return; // Stop at last element, don't wrap
-        break;
+    let bestElement = null;
+    let bestDistance = Infinity;
+
+    // Find the closest element in the specified direction
+    for (let i = 0; i < focusableElements.length; i++) {
+      if (i === currentIndex) continue;
+
+      const rect = focusableElements[i].getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      let isInDirection = false;
+      let distance = 0;
+
+      switch (direction) {
+        case 'down':
+          // Element must be below (higher Y) and horizontally aligned
+          isInDirection = centerY > currentCenterY && 
+                         Math.abs(centerX - currentCenterX) < Math.max(rect.width, currentRect.width);
+          if (isInDirection) {
+            // Prefer closest vertically, then closest horizontally
+            distance = (centerY - currentCenterY) + Math.abs(centerX - currentCenterX) * 0.1;
+          }
+          break;
+        case 'up':
+          // Element must be above (lower Y) and horizontally aligned
+          isInDirection = centerY < currentCenterY && 
+                         Math.abs(centerX - currentCenterX) < Math.max(rect.width, currentRect.width);
+          if (isInDirection) {
+            distance = (currentCenterY - centerY) + Math.abs(centerX - currentCenterX) * 0.1;
+          }
+          break;
+        case 'right':
+          // Element must be to the right (higher X) and vertically aligned
+          isInDirection = centerX > currentCenterX && 
+                         Math.abs(centerY - currentCenterY) < Math.max(rect.height, currentRect.height);
+          if (isInDirection) {
+            distance = (centerX - currentCenterX) + Math.abs(centerY - currentCenterY) * 0.1;
+          }
+          break;
+        case 'left':
+          // Element must be to the left (lower X) and vertically aligned
+          isInDirection = centerX < currentCenterX && 
+                         Math.abs(centerY - currentCenterY) < Math.max(rect.height, currentRect.height);
+          if (isInDirection) {
+            distance = (currentCenterX - centerX) + Math.abs(centerY - currentCenterY) * 0.1;
+          }
+          break;
+      }
+
+      if (isInDirection && distance < bestDistance) {
+        bestDistance = distance;
+        bestElement = focusableElements[i];
+      }
     }
 
-    // Ensure index is within bounds
-    nextIndex = Math.max(0, Math.min(focusableElements.length - 1, nextIndex));
-    
-    // Focus next element
-    if (focusableElements[nextIndex]) {
-      focusableElements[nextIndex].focus();
-      this.highlightElement(focusableElements[nextIndex]);
-    }
+    // If no element found in that direction, stop (don't wrap)
+    if (!bestElement) return;
+
+    // Focus the best element
+    bestElement.focus();
+    this.highlightElement(bestElement);
   }
 
   getFocusableElements() {
