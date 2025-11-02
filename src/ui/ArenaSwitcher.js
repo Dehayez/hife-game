@@ -9,29 +9,63 @@ export function initArenaSwitcher(config) {
     return;
   }
 
-  // Create dropdown UI
-  const container = document.createElement('div');
-  container.className = 'ui__control';
-  
-  const select = document.createElement('select');
-  select.className = 'ui__select';
-  select.id = 'arena-select';
-  
-  // Add options
-  options.forEach(arena => {
-    const option = document.createElement('option');
-    option.value = arena.value;
-    option.textContent = arena.label;
-    option.selected = arena.value === value;
-    select.appendChild(option);
-  });
-  
-  // Handle change
-  select.addEventListener('change', (e) => {
-    onChange(e.target.value);
-  });
-  
-  container.appendChild(select);
-  mount.appendChild(container);
-}
+  const wrapper = document.createElement('div');
+  wrapper.className = 'ui__choices';
 
+  const buttons = new Map();
+
+  function createChoice(arena) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ui__choice';
+    btn.setAttribute('aria-pressed', String(arena.value === value));
+    btn.dataset.value = arena.value;
+
+    // Use caption for text-only choices (similar to character switcher)
+    const caption = document.createElement('span');
+    caption.className = 'ui__choice-caption';
+    caption.textContent = arena.label;
+
+    btn.appendChild(caption);
+
+    btn.addEventListener('click', () => {
+      selectValue(arena.value);
+      onChange(arena.value);
+    });
+    
+    // Prevent spacebar from activating focused button
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+      }
+    });
+
+    return btn;
+  }
+
+  function selectValue(arenaValue) {
+    value = arenaValue;
+    for (const [, b] of buttons) {
+      const isActive = b.dataset.value === arenaValue;
+      b.classList.toggle('is-active', isActive);
+      b.setAttribute('aria-pressed', String(isActive));
+    }
+  }
+
+  options.forEach((arena) => {
+    const btn = createChoice(arena);
+    if (arena.value === value) {
+      btn.classList.add('is-active');
+    }
+    buttons.set(arena.value, btn);
+    wrapper.appendChild(btn);
+  });
+
+  mount.appendChild(wrapper);
+
+  return {
+    setValue(next) {
+      if (buttons.has(next)) selectValue(next);
+    }
+  };
+}
