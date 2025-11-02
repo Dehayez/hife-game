@@ -55,24 +55,23 @@ html, body { height: 100%; margin: 0; }
 .ui__choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
 .ui__choice { background: var(--color-bg-secondary); border: 1px solid var(--color-border-medium); border-radius: 8px; padding: 8px; cursor: pointer; color: var(--color-text-primary); display: flex; flex-direction: column; align-items: center; gap: 6px; transition: transform 0.06s ease, border-color 0.06s ease, background 0.06s ease; }
 .ui__choice:hover { transform: translateY(-1px); border-color: var(--color-border-medium-3); }
-.ui__choice.is-active { outline: none; border-color: var(--character-active-color, var(--color-accent)) !important; background: var(--color-bg-secondary); box-shadow: 0 0 0 2px rgba(var(--character-active-color-rgb, var(--color-accent-rgb)), 0.25) inset; }
+.ui__choice.is-active { outline: none; border-color: var(--color-border-medium-3) !important; background: var(--color-bg-secondary); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6) inset; }
 .ui__choice-img { width: 25px; height: auto; image-rendering: pixelated; object-fit: contain; }
 .ui__choice-icon { display: block; text-align: center; line-height: 1; }
 .ui__choice-caption { font-size: 12px; opacity: 0.9; }
 
 /* Start button */
 .ui__start-button { 
-  background: var(--color-accent) !important; 
-  color: var(--color-text-white); 
-  border: none; 
+  background: var(--color-bg-secondary) !important; 
+  color: var(--color-text-primary); 
+  border: 1px solid var(--color-border-medium); 
   border-radius: 8px; 
   padding: 12px 24px; 
   font-size: 16px; 
   font-weight: 600; 
   cursor: pointer; 
   font-family: system-ui, -apple-system, sans-serif; 
-  transition: transform 0.1s ease, background 0.1s ease; 
-  box-shadow: 0 4px 12px rgba(var(--color-accent-rgb), 0.3);
+  transition: transform 0.1s ease, border-color 0.1s ease; 
   width: 100%;
   height: 48px;
   margin-top: 16px;
@@ -82,8 +81,8 @@ html, body { height: 100%; margin: 0; }
 }
 .ui__start-button:hover { 
   transform: translateY(-1px); 
-  background: var(--color-accent-hover) !important; 
-  box-shadow: 0 6px 16px rgba(var(--color-accent-rgb), 0.4);
+  border-color: var(--color-accent) !important; 
+  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.2);
 }
 .ui__start-button:active { 
   transform: translateY(0); 
@@ -246,16 +245,16 @@ html, body { height: 100%; margin: 0; }
 
 /* Restart button */
 .ui__restart-button { 
-  background: rgba(var(--color-accent-rgb), 0.2); 
-  color: var(--color-accent) !important; 
-  border: 1px solid rgba(var(--color-accent-rgb), 0.3); 
+  background: var(--color-bg-secondary); 
+  color: var(--color-text-primary) !important; 
+  border: 1px solid var(--color-border-medium); 
   border-radius: 6px; 
   padding: 8px 16px; 
   font-size: 13px; 
   font-weight: 500; 
   cursor: pointer; 
   font-family: system-ui, -apple-system, sans-serif; 
-  transition: transform 0.1s ease, background 0.1s ease, border-color 0.1s ease; 
+  transition: transform 0.1s ease, border-color 0.1s ease; 
   width: 100%;
   margin-top: 12px;
   display: flex;
@@ -264,8 +263,8 @@ html, body { height: 100%; margin: 0; }
 }
 .ui__restart-button:hover { 
   transform: translateY(-1px); 
-  background: rgba(var(--color-accent-rgb), 0.3); 
-  border-color: rgba(var(--color-accent-rgb), 0.5);
+  border-color: var(--color-accent) !important; 
+  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.2);
 }
 .ui__restart-button:active { 
   transform: translateY(0); 
@@ -289,13 +288,13 @@ html, body { height: 100%; margin: 0; }
 .ui__room-code {
   font-size: 24px;
   font-weight: 600;
-  color: var(--color-accent) !important;
+  color: var(--color-text-primary) !important;
   font-family: 'Courier New', monospace;
   text-align: center;
   letter-spacing: 2px;
   padding: 8px;
-  background: rgba(var(--color-accent-rgb), 0.1);
-  border: 1px solid rgba(var(--color-accent-rgb), 0.3);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-medium);
   border-radius: 6px;
 }
 
@@ -333,22 +332,23 @@ html, body { height: 100%; margin: 0; }
 }
 
 .ui__button {
-  background: var(--color-accent) !important;
-  color: var(--color-text-white);
-  border: none;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-medium);
   border-radius: 6px;
   padding: 8px 16px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   font-family: system-ui, -apple-system, sans-serif;
-  transition: transform 0.1s ease, background 0.1s ease;
+  transition: transform 0.1s ease, border-color 0.1s ease;
   white-space: nowrap;
 }
 
 .ui__button:hover {
   transform: translateY(-1px);
-  background: var(--color-accent-hover) !important;
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.2);
 }
 
 .ui__button:active {
@@ -356,19 +356,21 @@ html, body { height: 100%; margin: 0; }
 }
 
 .ui__button--primary {
-  background: var(--color-accent) !important;
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-medium);
 }
 
 .ui__button--secondary {
-  background: rgba(var(--color-accent-rgb), 0.2);
-  color: var(--color-text-white) !important;
-  border: 1px solid rgba(var(--color-accent-rgb), 0.3);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--color-border-medium);
 }
 
 .ui__button--secondary:hover {
-  background: rgba(var(--color-accent-rgb), 0.3);
-  border-color: rgba(var(--color-accent-rgb), 0.5);
-  color: var(--color-text-white) !important;
+  background: var(--color-bg-secondary);
+  border-color: var(--color-accent) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.2);
 }
 
 .ui__button--small {
@@ -736,9 +738,10 @@ html, body { height: 100%; margin: 0; }
 }
 
 .game-menu__tab.is-active {
-  background: var(--color-accent) !important;
-  color: var(--color-bg-primary) !important;
-  border-color: var(--color-accent) !important;
+  background: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border-medium-3) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6) inset;
 }
 
 .game-menu__tab-icon {
