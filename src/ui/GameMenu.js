@@ -247,10 +247,10 @@ export class GameMenu {
     
     if (direction === 'left') {
       newIndex = tabIndex - 1;
-      if (newIndex < 0) newIndex = this.tabs.length - 1; // Wrap to last tab
+      if (newIndex < 0) return; // Stop at first tab, don't wrap
     } else {
       newIndex = tabIndex + 1;
-      if (newIndex >= this.tabs.length) newIndex = 0; // Wrap to first tab
+      if (newIndex >= this.tabs.length) return; // Stop at last tab, don't wrap
     }
     
     this.switchTab(this.tabs[newIndex].id);
@@ -278,24 +278,25 @@ export class GameMenu {
     }
 
     // Simple linear navigation (one direction at a time)
+    // Don't wrap - stop at boundaries
     let nextIndex = currentIndex;
 
     switch (direction) {
       case 'up':
         nextIndex = currentIndex - 1;
-        if (nextIndex < 0) nextIndex = focusableElements.length - 1; // Wrap to last
+        if (nextIndex < 0) return; // Stop at first element, don't wrap
         break;
       case 'down':
         nextIndex = currentIndex + 1;
-        if (nextIndex >= focusableElements.length) nextIndex = 0; // Wrap to first
+        if (nextIndex >= focusableElements.length) return; // Stop at last element, don't wrap
         break;
       case 'left':
         nextIndex = currentIndex - 1;
-        if (nextIndex < 0) nextIndex = focusableElements.length - 1; // Wrap to last
+        if (nextIndex < 0) return; // Stop at first element, don't wrap
         break;
       case 'right':
         nextIndex = currentIndex + 1;
-        if (nextIndex >= focusableElements.length) nextIndex = 0; // Wrap to first
+        if (nextIndex >= focusableElements.length) return; // Stop at last element, don't wrap
         break;
     }
 
