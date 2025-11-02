@@ -313,15 +313,14 @@ export class GameMenu {
     const panel = this.getCurrentPanel();
     if (!panel) return [];
 
-    // Get all focusable elements: buttons, inputs, selects, section headers
+    // Get all focusable elements: buttons, inputs, selects
     const selectors = [
       'button',
       'input',
       'select',
       'textarea',
       'a[href]',
-      '[tabindex]:not([tabindex="-1"])',
-      '.game-menu__section-header'
+      '[tabindex]:not([tabindex="-1"])'
     ].join(', ');
 
     return Array.from(panel.querySelectorAll(selectors)).filter(el => {
@@ -361,14 +360,16 @@ export class GameMenu {
     }
 
     // Activate based on element type
-    if (focused.classList.contains('game-menu__section-header')) {
-      // Toggle section expand/collapse
-      focused.click();
-    } else if (focused.tagName === 'BUTTON') {
+    if (focused.tagName === 'BUTTON') {
       // Click button
       focused.click();
     } else if (focused.tagName === 'SELECT' || focused.tagName === 'INPUT') {
       // Focus input/select (already focused, so no action needed)
+      // For selects, open dropdown on A button
+      if (focused.tagName === 'SELECT') {
+        focused.focus();
+        focused.click();
+      }
     }
   }
 
@@ -469,52 +470,20 @@ export class GameMenu {
       section.classList.add(sectionConfig.className);
     }
     
-    // Create collapsible section header
+    // Create section header (non-collapsible)
     if (sectionConfig.title) {
       const header = document.createElement('div');
       header.className = 'game-menu__section-header';
-      header.setAttribute('role', 'button');
-      header.setAttribute('tabindex', '0');
-      header.setAttribute('aria-expanded', 'true');
       
       const title = document.createElement('h3');
       title.className = 'game-menu__section-title';
       title.textContent = sectionConfig.title;
       header.appendChild(title);
       
-      const expandIcon = document.createElement('span');
-      expandIcon.className = 'game-menu__section-icon';
-      expandIcon.textContent = '▼';
-      expandIcon.setAttribute('aria-hidden', 'true');
-      header.appendChild(expandIcon);
-      
-      // Add click handler for expand/collapse
-      header.addEventListener('click', () => {
-        const isExpanded = section.classList.contains('is-expanded');
-        section.classList.toggle('is-expanded', !isExpanded);
-        header.setAttribute('aria-expanded', !isExpanded);
-        expandIcon.textContent = !isExpanded ? '▼' : '▶';
-      });
-      
-      // Keyboard support
-      header.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          header.click();
-        }
-      });
-      
       section.appendChild(header);
-      
-      // Default to expanded
-      section.classList.add('is-expanded');
     }
     
-    // Create content container
-    const contentWrapper = document.createElement('div');
-    contentWrapper.className = 'game-menu__section-content-wrapper';
-    
-    // Always create content div (even if empty) for proper structure
+    // Create content container (always visible)
     const content = document.createElement('div');
     content.className = 'game-menu__section-content';
     
@@ -526,8 +495,7 @@ export class GameMenu {
       }
     }
     
-    contentWrapper.appendChild(content);
-    section.appendChild(contentWrapper);
+    section.appendChild(content);
     
     this.panels[tabId].appendChild(section);
     return section;

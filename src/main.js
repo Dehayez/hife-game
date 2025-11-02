@@ -663,7 +663,7 @@ const charSection = gameMenu.addSection('settings', {
   className: 'game-menu__section--character'
 });
 if (charSection && switcherMount.firstChild) {
-  const charContent = charSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const charContent = charSection.querySelector('.game-menu__section-content');
   if (charContent) {
     // Move the character switcher element to menu
     while (switcherMount.firstChild) {
@@ -678,7 +678,7 @@ const arenaSection = gameMenu.addSection('settings', {
   className: 'game-menu__section--arena'
 });
 if (arenaSection && arenaMount.firstChild) {
-  const arenaContent = arenaSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const arenaContent = arenaSection.querySelector('.game-menu__section-content');
   if (arenaContent) {
     // Move all children from arenaMount to menu
     while (arenaMount.firstChild) {
@@ -693,7 +693,7 @@ const gameModeSection = gameMenu.addSection('settings', {
   className: 'game-menu__section--game-mode'
 });
 if (gameModeSection && gameModeMount.firstChild) {
-  const gameModeContent = gameModeSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const gameModeContent = gameModeSection.querySelector('.game-menu__section-content');
   if (gameModeContent) {
     while (gameModeMount.firstChild) {
       gameModeContent.appendChild(gameModeMount.firstChild);
@@ -707,7 +707,7 @@ const inputModeSection = gameMenu.addSection('settings', {
   className: 'game-menu__section--input-mode'
 });
 if (inputModeSection && inputModeMount.firstChild) {
-  const inputModeContent = inputModeSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const inputModeContent = inputModeSection.querySelector('.game-menu__section-content');
   if (inputModeContent) {
     while (inputModeMount.firstChild) {
       inputModeContent.appendChild(inputModeMount.firstChild);
@@ -721,7 +721,7 @@ const modeDisplaySection = gameMenu.addSection('settings', {
   className: 'game-menu__section--mode-display'
 });
 if (modeDisplaySection && modeDisplayMount.firstChild) {
-  const modeDisplayContent = modeDisplaySection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const modeDisplayContent = modeDisplaySection.querySelector('.game-menu__section-content');
   if (modeDisplayContent) {
     while (modeDisplayMount.firstChild) {
       modeDisplayContent.appendChild(modeDisplayMount.firstChild);
@@ -740,7 +740,7 @@ const legendSection = gameMenu.addSection('controls', {
   className: 'game-menu__section--controls-legend'
 });
 if (legendSection) {
-  const legendContent = legendSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const legendContent = legendSection.querySelector('.game-menu__section-content');
   if (legendContent) {
     // Move legend to menu (keep original, don't clone) if it exists
     if (legendMount && legendMount.firstChild) {
@@ -942,7 +942,7 @@ const roomSection = gameMenu.addSection('multiplayer', {
   className: 'game-menu__section--room-manager'
 });
 if (roomSection && roomMount.firstChild) {
-  const roomContent = roomSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const roomContent = roomSection.querySelector('.game-menu__section-content');
   if (roomContent) {
     while (roomMount.firstChild) {
       roomContent.appendChild(roomMount.firstChild);
@@ -956,7 +956,7 @@ const botSection = gameMenu.addSection('multiplayer', {
   className: 'game-menu__section--bot-control'
 });
 if (botSection && botControlMount.firstChild) {
-  const botContent = botSection.querySelector('.game-menu__section-content-wrapper .game-menu__section-content');
+  const botContent = botSection.querySelector('.game-menu__section-content');
   if (botContent) {
     while (botControlMount.firstChild) {
       botContent.appendChild(botControlMount.firstChild);

@@ -796,24 +796,13 @@ html, body { height: 100%; margin: 0; }
   background: rgba(255, 255, 255, 0.03);
 }
 
-/* Section header (collapsible) */
+/* Section header */
 .game-menu__section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.2s ease;
-}
-
-.game-menu__section-header:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.game-menu__section-header:focus {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .game-menu__section-title {
@@ -824,36 +813,7 @@ html, body { height: 100%; margin: 0; }
   flex: 1;
 }
 
-.game-menu__section-icon {
-  font-size: 12px;
-  color: var(--color-text-primary);
-  opacity: 0.7;
-  transition: transform 0.2s ease;
-  margin-left: 12px;
-}
-
-.game-menu__section.is-expanded .game-menu__section-icon {
-  transform: rotate(0deg);
-}
-
-.game-menu__section:not(.is-expanded) .game-menu__section-icon {
-  transform: rotate(-90deg);
-}
-
-/* Section content wrapper */
-.game-menu__section-content-wrapper {
-  max-height: 2000px;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-  opacity: 1;
-}
-
-.game-menu__section:not(.is-expanded) .game-menu__section-content-wrapper {
-  max-height: 0 !important;
-  opacity: 0;
-  padding: 0;
-}
-
+/* Section content - always visible */
 .game-menu__section-content {
   padding: 20px;
   /* Content styles handled by child components */
