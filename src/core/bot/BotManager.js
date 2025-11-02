@@ -49,6 +49,14 @@ export class BotManager {
   }
 
   /**
+   * Set callback for bot deaths
+   * @param {Function} callback - Callback function called with killerId when bot dies
+   */
+  setOnBotDeathCallback(callback) {
+    this.onBotDeathCallback = callback;
+  }
+
+  /**
    * Set the projectile manager (can be set after construction)
    * @param {Object} projectileManager - Projectile manager instance
    */
@@ -137,8 +145,17 @@ export class BotManager {
       if (userData.isDying) {
         const fadeComplete = this._updateBotDeathFade(bot, dt);
         if (fadeComplete) {
+          // Store killer ID before respawning (will be cleared in respawnBot)
+          const killerId = userData.killerId;
+          
           // Fade complete - respawn bot
           this.respawnBot(bot);
+          
+          // Return killer ID so caller can track kills
+          if (killerId && this.onBotDeathCallback) {
+            this.onBotDeathCallback(killerId);
+          }
+          
           continue;
         }
         // Skip other updates during death fade
@@ -282,12 +299,21 @@ export class BotManager {
    * Damage a bot
    * @param {THREE.Mesh} bot - Bot mesh
    * @param {number} damage - Damage amount
+   * @param {string} killerId - Optional player ID who caused the damage
    * @returns {boolean} True if bot is dead
    */
-  damageBot(bot, damage) {
+  damageBot(bot, damage, killerId = null) {
     if (!bot || !bot.userData) return false;
+    const wasAlive = bot.userData.health > 0;
     bot.userData.health = Math.max(0, bot.userData.health - damage);
-    return bot.userData.health <= 0;
+    const isDead = bot.userData.health <= 0;
+    
+    // Store killer ID when bot dies
+    if (isDead && wasAlive && killerId) {
+      bot.userData.killerId = killerId;
+    }
+    
+    return isDead;
   }
 
   /**
@@ -302,6 +328,7 @@ export class BotManager {
     // Reset death state
     bot.userData.isDying = false;
     bot.userData.deathFadeTimer = 0;
+    bot.userData.killerId = null; // Clear killer ID
     
     // Reset health
     bot.userData.health = healthStats.maxHealth;

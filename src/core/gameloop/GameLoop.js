@@ -38,6 +38,16 @@ export class GameLoop {
     this.multiplayerManager = multiplayerManager;
     this.remotePlayerManager = remotePlayerManager;
     
+    // Set up bot death callback to track kills
+    if (this.botManager) {
+      this.botManager.setOnBotDeathCallback((killerId) => {
+        // Only increment kills if local player is the killer
+        if (killerId === 'local' && this.gameModeManager && this.gameModeManager.modeState) {
+          this.gameModeManager.modeState.kills++;
+        }
+      });
+    }
+    
     this.lastTime = performance.now();
     this.isRunning = false;
     this.lastShootInput = false;
@@ -388,7 +398,7 @@ export class GameLoop {
                 this.meleeAffectedEntities.add(bot);
                 
                 // Apply damage per tick
-                const botDied = this.botManager.damageBot(bot, damagePerTick);
+                const botDied = this.botManager.damageBot(bot, damagePerTick, 'local');
                 if (botDied) {
                   this.meleeAffectedEntities.delete(bot);
                   // Don't respawn immediately - death fade will handle it
@@ -530,7 +540,7 @@ export class GameLoop {
           poisonData.tickTimer = 0;
           
           if (poisonData.type === 'bot' && this.botManager) {
-            const botDied = this.botManager.damageBot(entity, poisonData.damage);
+            const botDied = this.botManager.damageBot(entity, poisonData.damage, 'local');
             if (botDied) {
               entitiesToRemove.push(entity);
               // Don't respawn immediately - death fade will handle it
@@ -1486,7 +1496,9 @@ export class GameLoop {
         );
         
         if (botCollision.hit) {
-          const botDied = this.botManager.damageBot(bot, botCollision.damage);
+          // Get killer playerId from projectile
+          const killerId = botCollision.projectile?.userData?.playerId || 'local';
+          const botDied = this.botManager.damageBot(bot, botCollision.damage, killerId);
           // Don't respawn immediately - death fade will handle it
         }
         
@@ -1498,7 +1510,9 @@ export class GameLoop {
         );
         
         if (botMortarCollision.hit) {
-          const botDied = this.botManager.damageBot(bot, botMortarCollision.damage);
+          // Get killer playerId from mortar
+          const killerId = botMortarCollision.projectile?.userData?.playerId || 'local';
+          const botDied = this.botManager.damageBot(bot, botMortarCollision.damage, killerId);
           
           // If direct hit at ground level, create splash immediately
           if (botMortarCollision.needsSplash && botMortarCollision.projectile) {
