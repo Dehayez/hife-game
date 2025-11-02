@@ -118,11 +118,33 @@ export class GameMenu {
         this.toggle();
       }
     });
+    
+    // Open menu when clicking on select dropdowns (even if menu is closed)
+    // Use document-level event delegation to catch all select elements
+    const handleSelectInteraction = (e) => {
+      const target = e.target;
+      if (target.tagName === 'SELECT' && this.overlay.contains(target) && !this.isVisible) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.show();
+        // Focus the select element after menu opens
+        setTimeout(() => {
+          target.focus();
+          this.highlightElement(target);
+        }, 100);
+      }
+    };
+    
+    // Use capture phase to catch events before they bubble
+    document.addEventListener('mousedown', handleSelectInteraction, true);
+    document.addEventListener('focus', handleSelectInteraction, true);
   }
 
   setupControllerNavigation() {
     // Poll for gamepad inputs (gamepad API doesn't fire events, need to poll)
+    // Start polling immediately to handle A button when menu is closed
     this.controllerPollInterval = null;
+    this.startControllerPolling();
   }
 
   startControllerPolling() {
@@ -156,7 +178,26 @@ export class GameMenu {
     // Button 0 = A
 
     // Note: Start button (9) is handled in main.js to avoid double-toggling
-    // This menu handler only processes navigation when menu is open
+    
+    // A button (0) - Open menu if closed, or activate focused element if open
+    // Handle this even when menu is closed
+    if (gamepad.buttons[0]?.pressed) {
+      if (!this.controllerNavigation.buttonPressed.has(0)) {
+        this.controllerNavigation.buttonPressed.add(0);
+        if (!this.isVisible) {
+          // Open menu if closed
+          this.show();
+        } else {
+          // Activate focused element if menu is open
+          this.activateFocusedElement();
+        }
+      }
+    } else {
+      this.controllerNavigation.buttonPressed.delete(0);
+    }
+
+    // Only process navigation when menu is open
+    if (!this.isVisible) return;
 
     // Back button (8) - Close menu if open
     if (gamepad.buttons[8]?.pressed) {
@@ -215,30 +256,47 @@ export class GameMenu {
       }
     }
 
-    // A button (0) - Activate focused element
-    if (gamepad.buttons[0]?.pressed) {
-      if (!this.controllerNavigation.buttonPressed.has(0)) {
-        this.controllerNavigation.buttonPressed.add(0);
-        this.activateFocusedElement();
-      }
-    } else {
-      this.controllerNavigation.buttonPressed.delete(0);
+    // D-pad navigation (for menu items)
+    // D-pad can be buttons 12-15 or axes 6-7
+    // Try buttons first (more reliable)
+    let dpadX = 0;
+    let dpadY = 0;
+    
+    // Check D-pad buttons (12-15: up, down, left, right)
+    if (gamepad.buttons[12]?.pressed) dpadY = -1; // Up
+    if (gamepad.buttons[13]?.pressed) dpadY = 1;  // Down
+    if (gamepad.buttons[14]?.pressed) dpadX = -1; // Left
+    if (gamepad.buttons[15]?.pressed) dpadX = 1;  // Right
+    
+    // Fallback to axes if buttons don't work (some controllers use axes 6-7)
+    if (gamepad.axes && gamepad.axes.length >= 8) {
+      const dpadAxisH = gamepad.axes[6] || 0;
+      const dpadAxisV = gamepad.axes[7] || 0;
+      if (Math.abs(dpadAxisH) > 0.5) dpadX = dpadAxisH > 0 ? 1 : -1;
+      if (Math.abs(dpadAxisV) > 0.5) dpadY = dpadAxisV > 0 ? 1 : -1;
     }
-
-    // D-pad up/down for section navigation
-    const dpadY = gamepad.axes[7] || 0; // D-pad Y axis
-    if (Math.abs(dpadY) > 0.5) {
-      const direction = dpadY > 0 ? 'down' : 'up';
-      const directionKey = `dpad-${direction}`;
-      if (!this.controllerNavigation.buttonPressed.has(directionKey)) {
-        this.controllerNavigation.buttonPressed.add(directionKey);
+    
+    if (dpadX !== 0 || dpadY !== 0) {
+      const direction = dpadY !== 0 
+        ? (dpadY > 0 ? 'down' : 'up')
+        : (dpadX > 0 ? 'right' : 'left');
+      
+      const dpadKey = `dpad-${direction}`;
+      if (!this.controllerNavigation.buttonPressed.has(dpadKey)) {
+        this.controllerNavigation.buttonPressed.add(dpadKey);
         this.handleJoystickNavigation(direction);
         // Prevent rapid navigation
         setTimeout(() => {
-          this.controllerNavigation.buttonPressed.delete(directionKey);
+          this.controllerNavigation.buttonPressed.delete(dpadKey);
         }, 200);
       }
+    } else {
+      // Clear all D-pad keys when not pressed
+      ['dpad-up', 'dpad-down', 'dpad-left', 'dpad-right'].forEach(key => {
+        this.controllerNavigation.buttonPressed.delete(key);
+      });
     }
+
   }
 
   navigateTab(direction) {
@@ -436,13 +494,19 @@ export class GameMenu {
   }
 
   toggle() {
+    const wasVisible = this.isVisible;
     this.isVisible = !this.isVisible;
     this.overlay.setAttribute('aria-hidden', !this.isVisible);
     this.overlay.classList.toggle('is-visible', this.isVisible);
     
-    // Start/stop controller polling based on visibility
+    // Controller polling runs continuously (started in setupControllerNavigation)
+    // Only manage focus when opening menu
     if (this.isVisible) {
-      this.startControllerPolling();
+      // Switch to first tab when opening menu
+      if (!wasVisible && this.tabs.length > 0) {
+        this.switchTab(this.tabs[0].id);
+      }
+      
       // Focus management - focus first focusable element
       setTimeout(() => {
         const focusable = this.getFocusableElements();
@@ -459,7 +523,6 @@ export class GameMenu {
         this.config.onMenuOpen();
       }
     } else {
-      this.stopControllerPolling();
       // Remove any highlights
       const highlighted = document.querySelector('.game-menu__focused');
       if (highlighted) {
