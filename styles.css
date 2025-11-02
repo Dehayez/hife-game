@@ -737,7 +737,7 @@ html, body { height: 100%; margin: 0; }
 
 .game-menu__tab.is-active {
   background: var(--color-accent) !important;
-  color: var(--color-text-white) !important;
+  color: var(--color-bg-primary) !important;
   border-color: var(--color-accent) !important;
 }
 
@@ -748,6 +748,34 @@ html, body { height: 100%; margin: 0; }
 
 .game-menu__tab-label {
   font-size: 14px;
+}
+
+/* Bumper icons (LB/RB) */
+.game-menu__bumper-icon {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 36px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-medium);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  user-select: none;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.game-menu__bumper-icon--lb {
+  border-radius: 24px 12px 8px 8px; /* Higher top-left, others smaller */
+}
+
+.game-menu__bumper-icon--rb {
+  border-radius: 12px 24px 8px 8px; /* Higher top-right, others smaller */
 }
 
 /* Menu content */

@@ -407,6 +407,7 @@ initConnectionStatus({
 const gameMenuRoot = document.getElementById('game-menu-root');
 let isMenuOpen = false;
 const gameMenu = new GameMenu({
+  inputManager: inputManager,
   onVisibilityChange: (isVisible) => {
     isMenuOpen = isVisible;
     // Block/unblock gamepad inputs

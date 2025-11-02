@@ -12,6 +12,7 @@ export class GameMenu {
     
     // Store config
     this.config = config || {};
+    this.inputManager = config.inputManager || null;
     
     // Controller navigation state
     this.controllerNavigation = {
@@ -21,6 +22,9 @@ export class GameMenu {
       buttonPressed: new Set() // Track button states to prevent rapid firing
     };
     
+    // Xbox controller connection state
+    this.isXboxControllerConnected = false;
+    
     // Create menu structure
     this.createMenu();
     
@@ -29,6 +33,12 @@ export class GameMenu {
     
     // Set up controller navigation
     this.setupControllerNavigation();
+    
+    // Set up Xbox controller detection
+    this.setupXboxControllerDetection();
+    
+    // Initial check for Xbox controller
+    this.checkXboxController();
   }
 
   createMenu() {
@@ -45,11 +55,6 @@ export class GameMenu {
     this.header = document.createElement('div');
     this.header.className = 'game-menu__header';
     
-    const title = document.createElement('h2');
-    title.className = 'game-menu__title';
-    title.textContent = 'Game Menu';
-    this.header.appendChild(title);
-    
     const closeButton = document.createElement('button');
     closeButton.className = 'game-menu__close';
     closeButton.innerHTML = '✕';
@@ -62,6 +67,13 @@ export class GameMenu {
     // Menu tabs
     this.tabsContainer = document.createElement('div');
     this.tabsContainer.className = 'game-menu__tabs';
+    
+    // LB icon (left of Settings)
+    this.lbIcon = document.createElement('div');
+    this.lbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--lb';
+    this.lbIcon.textContent = 'LB';
+    this.lbIcon.setAttribute('aria-label', 'Left Bumper');
+    this.tabsContainer.appendChild(this.lbIcon);
     
     this.tabs = [
       { id: 'settings', label: 'Settings' },
@@ -77,6 +89,13 @@ export class GameMenu {
       tabButton.addEventListener('click', () => this.switchTab(tab.id));
       this.tabsContainer.appendChild(tabButton);
     });
+    
+    // RB icon (right of Controls)
+    this.rbIcon = document.createElement('div');
+    this.rbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--rb';
+    this.rbIcon.textContent = 'RB';
+    this.rbIcon.setAttribute('aria-label', 'Right Bumper');
+    this.tabsContainer.appendChild(this.rbIcon);
     
     this.container.appendChild(this.tabsContainer);
     
@@ -145,6 +164,93 @@ export class GameMenu {
     // Start polling immediately to handle A button when menu is closed
     this.controllerPollInterval = null;
     this.startControllerPolling();
+  }
+
+  /**
+   * Check if a gamepad is an Xbox controller
+   * @param {Object} gamepad - Gamepad object
+   * @returns {boolean} True if Xbox controller
+   * @private
+   */
+  _isXboxController(gamepad) {
+    if (!gamepad) return false;
+    const id = gamepad.id.toLowerCase();
+    return id.includes('xbox') || 
+           id.includes('microsoft') ||
+           id.includes('045e'); // Microsoft vendor ID
+  }
+
+  /**
+   * Check for Xbox controller connection
+   */
+  checkXboxController() {
+    // Check via InputManager if available
+    if (this.inputManager && this.inputManager.isGamepadConnected()) {
+      const gamepads = navigator.getGamepads();
+      if (gamepads && gamepads.length > 0) {
+        const gamepad = gamepads[0];
+        if (gamepad && this._isXboxController(gamepad)) {
+          this.isXboxControllerConnected = true;
+          this.updateBumperIcons();
+          return;
+        }
+      }
+    }
+    
+    // Fallback: check gamepads directly
+    try {
+      if (navigator.getGamepads) {
+        const gamepads = navigator.getGamepads();
+        if (gamepads && gamepads.length > 0) {
+          for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i] && this._isXboxController(gamepads[i])) {
+              this.isXboxControllerConnected = true;
+              this.updateBumperIcons();
+              return;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Gamepad API may not be accessible
+    }
+    
+    this.isXboxControllerConnected = false;
+    this.updateBumperIcons();
+  }
+
+  /**
+   * Set up Xbox controller detection
+   */
+  setupXboxControllerDetection() {
+    // Listen for gamepad connection/disconnection
+    window.addEventListener('gamepadconnected', () => {
+      setTimeout(() => this.checkXboxController(), 100);
+    });
+    
+    window.addEventListener('gamepaddisconnected', () => {
+      setTimeout(() => this.checkXboxController(), 100);
+    });
+    
+    // Poll periodically to check for controller connection
+    this.controllerCheckInterval = setInterval(() => {
+      this.checkXboxController();
+    }, 1000); // Check every second
+  }
+
+  /**
+   * Update bumper icons visibility based on Xbox controller connection
+   */
+  updateBumperIcons() {
+    if (this.lbIcon && this.rbIcon) {
+      if (this.isXboxControllerConnected) {
+        this.lbIcon.style.display = 'flex';
+        this.rbIcon.style.display = 'flex';
+      } else {
+        this.lbIcon.style.display = 'none';
+        this.rbIcon.style.display = 'none';
+      }
+    }
   }
 
   startControllerPolling() {
@@ -628,6 +734,9 @@ export class GameMenu {
 
   // Destroy menu
   destroy() {
+    if (this.controllerCheckInterval) {
+      clearInterval(this.controllerCheckInterval);
+    }
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
     }
