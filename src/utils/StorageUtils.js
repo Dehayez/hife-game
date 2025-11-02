@@ -1,5 +1,7 @@
 // localStorage utility functions for high scores and best times
 
+import { handleStorageError } from './ErrorHandler.js';
+
 const STORAGE_KEY_PREFIX = 'hife_game_';
 
 export function getHighScore(mode, arena = 'standard') {
@@ -11,9 +13,8 @@ export function getHighScore(mode, arena = 'standard') {
       return parsed.highScore || 0;
     }
   } catch (e) {
-    // Error reading high score
+    return handleStorageError(e, 'read', `highScore_${mode}_${arena}`);
   }
-  return 0;
 }
 
 export function setHighScore(mode, score, arena = 'standard') {
@@ -25,9 +26,8 @@ export function setHighScore(mode, score, arena = 'standard') {
       return true;
     }
   } catch (e) {
-    // Error saving high score
+    return handleStorageError(e, 'write', `highScore_${mode}_${arena}`);
   }
-  return false;
 }
 
 export function getBestTime(mode, arena = 'standard') {
@@ -39,9 +39,8 @@ export function getBestTime(mode, arena = 'standard') {
       return parsed.bestTime || null;
     }
   } catch (e) {
-    // Error reading best time
+    return handleStorageError(e, 'read', `bestTime_${mode}_${arena}`);
   }
-  return null;
 }
 
 export function setBestTime(mode, time, arena = 'standard') {
@@ -63,9 +62,8 @@ export function setBestTime(mode, time, arena = 'standard') {
       return true;
     }
   } catch (e) {
-    // Error saving best time
+    return handleStorageError(e, 'write', `bestTime_${mode}_${arena}`);
   }
-  return false;
 }
 
 export function getAllHighScores() {
@@ -85,9 +83,8 @@ export function getLastCharacter() {
     const stored = localStorage.getItem(key);
     return stored || null;
   } catch (e) {
-    // Error reading last character
+    return handleStorageError(e, 'read', 'lastCharacter');
   }
-  return null;
 }
 
 export function setLastCharacter(characterName) {
@@ -96,9 +93,8 @@ export function setLastCharacter(characterName) {
     localStorage.setItem(key, characterName);
     return true;
   } catch (e) {
-    // Error saving last character
+    return handleStorageError(e, 'write', 'lastCharacter');
   }
-  return false;
 }
 
 export function getLastGameMode() {
@@ -107,9 +103,8 @@ export function getLastGameMode() {
     const stored = localStorage.getItem(key);
     return stored || null;
   } catch (e) {
-    // Error reading last game mode
+    return handleStorageError(e, 'read', 'lastGameMode');
   }
-  return null;
 }
 
 export function setLastGameMode(gameMode) {
@@ -118,9 +113,8 @@ export function setLastGameMode(gameMode) {
     localStorage.setItem(key, gameMode);
     return true;
   } catch (e) {
-    // Error saving last game mode
+    return handleStorageError(e, 'write', 'lastGameMode');
   }
-  return false;
 }
 
 /**
@@ -137,9 +131,9 @@ export function getBotCount(arena = 'standard') {
       return Math.max(0, Math.floor(parsed.botCount || 0));
     }
   } catch (e) {
-    // Error reading bot count
+    handleStorageError(e, 'read', `botCount_${arena}`);
+    return 0;
   }
-  return 0;
 }
 
 /**
@@ -155,9 +149,8 @@ export function setBotCount(botCount, arena = 'standard') {
     localStorage.setItem(key, JSON.stringify({ botCount: count }));
     return true;
   } catch (e) {
-    // Error saving bot count
+    return handleStorageError(e, 'write', `botCount_${arena}`);
   }
-  return false;
 }
 
 /**
@@ -181,9 +174,9 @@ export function getLastInputMode() {
     const stored = localStorage.getItem(key);
     return stored === 'controller' ? 'controller' : 'keyboard';
   } catch (e) {
-    // Error reading input mode
+    handleStorageError(e, 'read', 'lastInputMode');
+    return 'keyboard';
   }
-  return 'keyboard';
 }
 
 /**
@@ -199,9 +192,8 @@ export function setLastInputMode(inputMode) {
       return true;
     }
   } catch (e) {
-    // Error saving input mode
+    return handleStorageError(e, 'write', 'lastInputMode');
   }
-  return false;
 }
 
 

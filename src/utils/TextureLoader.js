@@ -50,8 +50,9 @@ export function loadSpriteSheet(basePathPng) {
       anim.fps = 6;
       tex.repeat.set(1, 1);
     }
-  }).catch(() => {
-    // No metadata; single frame
+  }).catch((error) => {
+    // No metadata; single frame (expected in some cases)
+    console.debug('No metadata found for sprite sheet, using defaults:', basePathPng);
     anim.frameCount = 1;
     anim.fps = 6;
     tex.repeat.set(1, 1);
@@ -65,7 +66,8 @@ export async function tryLoadJson(path) {
     const res = await fetch(path, { cache: 'no-store' });
     if (!res.ok) return null;
     return await res.json();
-  } catch (_) {
+  } catch (error) {
+    console.debug('Failed to load JSON:', path);
     return null;
   }
 }
@@ -88,12 +90,13 @@ export async function loadAnimationSmart(basePathNoExt, fallbackFps = 8, default
       // eslint-disable-next-line no-await-in-loop
       const t = await loadTexture(`${basePathNoExt}_${i}.png`);
       textures.push(t);
-    } catch (_) {
+    } catch (error) {
       // If first frame fails, we'll fallback to spritesheet
       if (i === 0) {
         textures.length = 0;
       } else {
         // Some frames missing; invalidate sequence
+        console.debug(`Frame ${i} missing for ${basePathNoExt}, falling back to spritesheet`);
         textures.length = 0;
       }
       break;

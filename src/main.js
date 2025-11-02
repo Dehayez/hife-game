@@ -141,7 +141,7 @@ const multiplayerManager = new MultiplayerManager(
           }, 50);
         }
       } catch (error) {
-        // Error spawning remote player
+        console.error('Error spawning remote player:', error);
       }
     }
   },
@@ -196,7 +196,7 @@ const multiplayerManager = new MultiplayerManager(
               isGrounded: data.isGrounded
             });
           }).catch(error => {
-            // Error spawning remote player
+            console.error('Error spawning remote player:', error);
           });
         } else {
           // Update existing remote player
@@ -262,7 +262,7 @@ const multiplayerManager = new MultiplayerManager(
         if (remotePlayer) {
           // Update character for remote player (async)
           remotePlayerManager.updateRemotePlayerCharacter(playerId, data.characterName).catch(error => {
-            // Error updating remote player character
+            console.error('Error updating remote player character:', error);
           });
           
           // Update player info
@@ -797,7 +797,7 @@ const roomManager = initRoomManager({
       }
       gameModeManager.startMode();
     } catch (error) {
-      // Failed to create room
+      console.error('Failed to create room:', error);
     }
   },
   onRoomJoined: async (roomCode) => {
@@ -859,7 +859,7 @@ const roomManager = initRoomManager({
       }
       gameModeManager.startMode();
     } catch (error) {
-      // Failed to join room
+      console.error('Failed to join room:', error);
     }
   }
 });
@@ -879,7 +879,7 @@ if (urlRoom) {
       await multiplayerManager.joinRoom(urlRoom.toUpperCase(), gameState);
       roomManager.update();
     } catch (error) {
-      // Failed to auto-join room
+      console.error('Failed to auto-join room:', error);
       // Retry after a delay
       setTimeout(() => {
         attemptAutoJoin();
