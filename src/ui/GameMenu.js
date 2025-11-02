@@ -64,16 +64,16 @@ export class GameMenu {
     this.tabsContainer.className = 'game-menu__tabs';
     
     this.tabs = [
-      { id: 'settings', label: 'Settings', icon: '⚙️' },
-      { id: 'multiplayer', label: 'Multiplayer', icon: '🌐' },
-      { id: 'controls', label: 'Controls', icon: '🎮' }
+      { id: 'settings', label: 'Settings' },
+      { id: 'multiplayer', label: 'Multiplayer' },
+      { id: 'controls', label: 'Controls' }
     ];
     
     this.tabs.forEach(tab => {
       const tabButton = document.createElement('button');
       tabButton.className = 'game-menu__tab';
       tabButton.dataset.tab = tab.id;
-      tabButton.innerHTML = `<span class="game-menu__tab-icon">${tab.icon}</span><span class="game-menu__tab-label">${tab.label}</span>`;
+      tabButton.innerHTML = `<span class="game-menu__tab-label">${tab.label}</span>`;
       tabButton.addEventListener('click', () => this.switchTab(tab.id));
       this.tabsContainer.appendChild(tabButton);
     });

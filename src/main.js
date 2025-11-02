@@ -438,12 +438,9 @@ if (menuToggleButton) {
   });
 }
 
-// Initialize controls legend wrapper (toggleable)
+// Initialize controls legend wrapper (toggleable) - not shown by default
 const controlsLegendWrapper = document.getElementById('controls-legend-wrapper');
-let isControlsLegendVisible = true; // Default to visible
-if (controlsLegendWrapper) {
-  controlsLegendWrapper.classList.add('is-visible');
-}
+let isControlsLegendVisible = false; // Default to hidden
 
 // Initialize game mode switcher UI
 const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
@@ -749,39 +746,7 @@ if (legendSection) {
       }
     }
     
-    // Add toggle button to show/hide controls legend in-game
-    const toggleButton = document.createElement('button');
-    toggleButton.className = 'ui__button ui__button--secondary';
-    toggleButton.textContent = isControlsLegendVisible ? 'Hide Controls (In-Game)' : 'Show Controls (In-Game)';
-    toggleButton.style.marginTop = '12px';
-    toggleButton.addEventListener('click', () => {
-      isControlsLegendVisible = !isControlsLegendVisible;
-      if (controlsLegendWrapper) {
-        controlsLegendWrapper.classList.toggle('is-visible', isControlsLegendVisible);
-      }
-      toggleButton.textContent = isControlsLegendVisible ? 'Hide Controls (In-Game)' : 'Show Controls (In-Game)';
-    });
-    legendContent.appendChild(toggleButton);
-    
-    // Move controls legend to wrapper for in-game display (keep original in menu)
-    if (controlsLegendWrapper) {
-      // Create a separate instance for in-game display
-      const inGameLegend = initControlsLegend({
-        mount: controlsLegendWrapper,
-        inputManager: inputManager,
-        gameModeManager: gameModeManager
-      });
-      // Update in-game legend when main legend updates
-      if (controlsLegend && inGameLegend) {
-        const originalUpdate = controlsLegend.update;
-        controlsLegend.update = function() {
-          originalUpdate.call(this);
-          if (inGameLegend.update) {
-            inGameLegend.update();
-          }
-        };
-      }
-    }
+    // Controls legend is only in the menu, not shown in-game
   }
 }
 
