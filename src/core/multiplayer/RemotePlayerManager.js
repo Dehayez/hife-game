@@ -8,6 +8,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/CharacterAnimation.js';
 import { getCharacterMovementStats } from '../character/CharacterStats.js';
+import { createSpriteAtPosition } from '../utils/SpriteUtils.js';
 
 export class RemotePlayerManager {
   /**
@@ -33,18 +34,19 @@ export class RemotePlayerManager {
 
     // Create player sprite
     const playerHeight = this.movementStats.playerHeight;
-    const spriteGeo = new THREE.PlaneGeometry(playerHeight * 0.7, playerHeight);
-    const spriteMat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.1 });
-    const playerMesh = new THREE.Mesh(spriteGeo, spriteMat);
-    
-    playerMesh.position.set(
+    const playerMesh = createSpriteAtPosition(
+      playerHeight,
       initialPosition.x || 0,
-      initialPosition.y || playerHeight * 0.5,
-      initialPosition.z || 0
+      initialPosition.z || 0,
+      { alphaTest: 0.1 }
     );
     
-    playerMesh.castShadow = true;
-    playerMesh.receiveShadow = false;
+    // Adjust Y position if provided
+    if (initialPosition.y !== undefined) {
+      playerMesh.position.y = initialPosition.y;
+    } else {
+      playerMesh.position.y = playerHeight * 0.5;
+    }
     playerMesh.userData = {
       type: 'remote-player',
       playerId: playerId,

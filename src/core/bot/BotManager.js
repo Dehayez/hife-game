@@ -17,6 +17,8 @@ import { initializeBotAI, updateDirectionChangeTimer, calculateBotMovement, upda
 import { loadBotAnimations, setBotAnimation, updateBotAnimation, updateBotAnimationFromMovement, billboardBotToCamera } from './BotAnimation.js';
 import { initializeBotPhysics, updateBotPhysics } from './BotPhysics.js';
 import { getCharacterColorHex } from '../abilities/stats/CharacterColors.js';
+import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../utils/DeathFadeUtils.js';
+import { createSpriteAtPosition } from '../utils/SpriteUtils.js';
 
 export class BotManager {
   /**
@@ -83,12 +85,7 @@ export class BotManager {
    */
   async createBot(botId, characterName = 'herald', startX = 0, startZ = 0) {
     // Create bot sprite
-    const spriteGeo = new THREE.PlaneGeometry(this.playerHeight * 0.7, this.playerHeight);
-    const spriteMat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.1 });
-    const bot = new THREE.Mesh(spriteGeo, spriteMat);
-    bot.position.set(startX, this.playerHeight * 0.5, startZ);
-    bot.castShadow = true;
-    bot.receiveShadow = false;
+    const bot = createSpriteAtPosition(this.playerHeight, startX, startZ);
     this.scene.add(bot);
 
     // Load character animations
@@ -116,7 +113,7 @@ export class BotManager {
       // Death fade tracking
       isDying: false,
       deathFadeTimer: 0,
-      deathFadeDuration: 0.6 // Duration in seconds for death fade
+      deathFadeDuration: DEATH_FADE_CONFIG.duration
     };
 
     // Initialize physics
@@ -203,16 +200,7 @@ export class BotManager {
    * @private
    */
   _startBotDeathFade(bot) {
-    if (!bot || !bot.userData) return;
-    
-    bot.userData.isDying = true;
-    bot.userData.deathFadeTimer = 0;
-    
-    // Spawn death particles
-    if (this.particleManager) {
-      const characterColor = getCharacterColorHex(bot.userData.characterName);
-      this.particleManager.spawnDeathParticles(bot.position.clone(), characterColor, 25);
-    }
+    startDeathFade(bot, bot.userData, bot.userData.characterName, this.particleManager);
   }
 
   /**
@@ -223,27 +211,7 @@ export class BotManager {
    * @private
    */
   _updateBotDeathFade(bot, dt) {
-    if (!bot || !bot.userData || !bot.userData.isDying) return false;
-    
-    bot.userData.deathFadeTimer += dt;
-    const progress = Math.min(bot.userData.deathFadeTimer / bot.userData.deathFadeDuration, 1.0);
-    
-    // Fade out bot opacity
-    if (bot.material) {
-      bot.material.opacity = 1.0 - progress;
-      bot.material.transparent = true;
-    }
-    
-    // Also scale down slightly
-    const scale = 1.0 - progress * 0.3; // Shrink to 70% size
-    bot.scale.set(scale, scale, scale);
-    
-    if (progress >= 1.0) {
-      // Fade complete - reset state (will be reset in respawn)
-      return true;
-    }
-    
-    return false;
+    return updateDeathFade(bot, bot.userData, dt, bot.userData.deathFadeDuration);
   }
 
   /**

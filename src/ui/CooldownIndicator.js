@@ -100,21 +100,21 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
       meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
       
       // Update shot cooldown
-      const shotCooldown = projectileManager.characterCooldowns.get(playerId) || 0;
-      const shotMaxCooldown = stats.cooldown || 0.3;
+      const shotCooldown = projectileManager.characterCooldowns.getCooldown(playerId);
+      const shotMaxCooldown = stats.bolt.cooldown || 0.3;
       const shotPercent = shotMaxCooldown > 0 ? Math.min(shotCooldown / shotMaxCooldown, 1.0) : 0;
       shotFill.style.width = `${(1 - shotPercent) * 100}%`;
       shotFill.style.opacity = shotPercent > 0 ? '0.6' : '1.0';
       
       // Update mortar cooldown
-      const mortarCooldown = projectileManager.mortarCharacterCooldowns.get(playerId) || 0;
-      const mortarMaxCooldown = stats.mortarCooldown || 1.5;
+      const mortarCooldown = projectileManager.mortarCharacterCooldowns.getCooldown(playerId);
+      const mortarMaxCooldown = stats.mortar.cooldown || 1.5;
       const mortarPercent = mortarMaxCooldown > 0 ? Math.min(mortarCooldown / mortarMaxCooldown, 1.0) : 0;
       mortarFill.style.width = `${(1 - mortarPercent) * 100}%`;
       mortarFill.style.opacity = mortarPercent > 0 ? '0.6' : '1.0';
       
       // Update melee cooldown
-      const meleeCooldown = projectileManager.meleeCharacterCooldowns.get(playerId) || 0;
+      const meleeCooldown = projectileManager.meleeCharacterCooldowns.getCooldown(playerId);
       const meleeMaxCooldown = meleeStats.cooldown || 1.5;
       const meleePercent = meleeMaxCooldown > 0 ? Math.min(meleeCooldown / meleeMaxCooldown, 1.0) : 0;
       meleeFill.style.width = `${(1 - meleePercent) * 100}%`;

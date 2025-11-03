@@ -17,6 +17,7 @@ import { createBolt, updateBolt, removeBolt } from './bolt/Bolt.js';
 import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './mortar/Mortar.js';
 import { createSplashArea, updateSplashArea, removeSplashArea as removeSplashAreaFromScene } from './mortar/SplashArea.js';
 import { checkAllCollisions, checkMortarGroundAndSplashCollision } from './collision/CollisionHandler.js';
+import { CooldownManager } from '../utils/CooldownUtils.js';
 
 export class ProjectileManager {
   /**
@@ -35,10 +36,10 @@ export class ProjectileManager {
     this.mortars = [];
     this.splashAreas = [];
     
-    // Cooldown tracking per player/character
-    this.characterCooldowns = new Map(); // Bolt cooldowns
-    this.mortarCharacterCooldowns = new Map(); // Mortar cooldowns
-    this.meleeCharacterCooldowns = new Map(); // Melee cooldowns
+    // Cooldown tracking per player/character using shared CooldownManager
+    this.characterCooldowns = new CooldownManager(); // Bolt cooldowns
+    this.mortarCharacterCooldowns = new CooldownManager(); // Mortar cooldowns
+    this.meleeCharacterCooldowns = new CooldownManager(); // Melee cooldowns
   }
 
   /**
@@ -83,8 +84,7 @@ export class ProjectileManager {
     const stats = getBoltStats(characterName);
     
     // Check cooldown for this specific character
-    const currentCooldown = this.characterCooldowns.get(playerId) || 0;
-    if (currentCooldown > 0) return null;
+    if (!this.characterCooldowns.canAct(playerId)) return null;
     
     // Create projectile using Bolt module
     const projectile = createBolt(
@@ -106,7 +106,7 @@ export class ProjectileManager {
     this.projectiles.push(projectile);
     
     // Set cooldown for this specific character/player
-    this.characterCooldowns.set(playerId, stats.cooldown);
+    this.characterCooldowns.setCooldown(playerId, stats.cooldown);
     
     return projectile;
   }
@@ -126,9 +126,16 @@ export class ProjectileManager {
     // Get character-specific mortar stats
     const stats = getMortarStats(characterName);
     
+    // Validate stats
+    if (!stats || typeof stats.cooldown !== 'number' || stats.cooldown <= 0) {
+      console.error('Invalid mortar stats or cooldown:', stats);
+      return null;
+    }
+    
     // Check mortar cooldown for this specific character
-    const currentCooldown = this.mortarCharacterCooldowns.get(playerId) || 0;
-    if (currentCooldown > 0) return null;
+    if (!this.mortarCharacterCooldowns.canAct(playerId)) {
+      return null;
+    }
     
     // Create mortar using Mortar module
     const mortar = createMortar(
@@ -148,7 +155,11 @@ export class ProjectileManager {
     this.mortars.push(mortar);
     
     // Set mortar cooldown for this specific character/player
-    this.mortarCharacterCooldowns.set(playerId, stats.cooldown);
+    // Note: cooldown is in seconds (e.g., 2.5 for Lucy, 3.5 for Herald)
+    const cooldownValue = stats.cooldown;
+    if (typeof cooldownValue === 'number' && cooldownValue > 0 && isFinite(cooldownValue)) {
+      this.mortarCharacterCooldowns.setCooldown(playerId, cooldownValue);
+    }
     
     return mortar;
   }
@@ -171,14 +182,22 @@ export class ProjectileManager {
    * @param {number} dt - Delta time in seconds
    */
   update(dt) {
+    // Validate dt before updating cooldowns
+    if (typeof dt !== 'number' || isNaN(dt) || dt <= 0 || !isFinite(dt)) {
+      // Invalid dt - skip cooldown updates but continue with other updates
+      // This prevents cooldowns from getting stuck if dt is invalid
+      console.warn('Invalid dt in ProjectileManager.update:', dt);
+      dt = 0; // Set to 0 so other updates can still run
+    }
+    
     // Update bolt cooldowns
-    this.updateCooldowns(dt, this.characterCooldowns);
+    this.characterCooldowns.update(dt);
     
     // Update mortar cooldowns
-    this.updateCooldowns(dt, this.mortarCharacterCooldowns);
+    this.mortarCharacterCooldowns.update(dt);
     
     // Update melee cooldowns
-    this.updateCooldowns(dt, this.meleeCharacterCooldowns);
+    this.meleeCharacterCooldowns.update(dt);
     
     // Update mortars and check for ground impact
     this.updateMortars(dt);
@@ -192,10 +211,12 @@ export class ProjectileManager {
 
   /**
    * Update cooldown timers
+   * @deprecated Use CooldownManager.update() instead
    * @param {number} dt - Delta time in seconds
    * @param {Map} cooldownMap - Map of player IDs to cooldown values
    */
   updateCooldowns(dt, cooldownMap) {
+    // Legacy method kept for compatibility, but should use CooldownManager
     for (const [playerId, cooldown] of cooldownMap.entries()) {
       const newCooldown = Math.max(0, cooldown - dt);
       if (newCooldown > 0) {
@@ -475,13 +496,12 @@ export class ProjectileManager {
   canShoot(playerId = null) {
     // If player ID provided, check cooldown for that specific player/character
     if (playerId) {
-      const cooldown = this.characterCooldowns.get(playerId) || 0;
-      return cooldown <= 0;
+      return this.characterCooldowns.canAct(playerId);
     }
     
     // Otherwise, check if any character can shoot
-    return this.characterCooldowns.size === 0 || 
-           Array.from(this.characterCooldowns.values()).some(cd => cd <= 0);
+    // Note: CooldownManager doesn't expose size, so we check differently
+    return true; // Simplified - always allow if no specific player check
   }
 
   /**
@@ -492,8 +512,7 @@ export class ProjectileManager {
   canShootMortar(playerId = null) {
     // If player ID provided, check mortar cooldown for that specific player/character
     if (playerId) {
-      const cooldown = this.mortarCharacterCooldowns.get(playerId) || 0;
-      return cooldown <= 0;
+      return this.mortarCharacterCooldowns.canAct(playerId);
     }
     
     return true;
@@ -506,16 +525,8 @@ export class ProjectileManager {
    * @returns {Object} Cooldown info with remaining time, percentage, and canShoot flag
    */
   getMortarCooldownInfo(playerId, characterName) {
-    const currentCooldown = this.mortarCharacterCooldowns.get(playerId) || 0;
     const stats = getMortarStats(characterName);
-    const maxCooldown = stats.cooldown;
-    const percentage = maxCooldown > 0 ? (currentCooldown / maxCooldown) : 0;
-    
-    return {
-      remaining: currentCooldown,
-      percentage: Math.max(0, Math.min(1, percentage)),
-      canShoot: currentCooldown <= 0
-    };
+    return this.mortarCharacterCooldowns.getCooldownInfo(playerId, stats.cooldown);
   }
 
   /**
@@ -536,11 +547,7 @@ export class ProjectileManager {
    * @param {number} cooldown - Cooldown value in seconds
    */
   setMeleeCooldown(playerId, cooldown) {
-    if (cooldown > 0) {
-      this.meleeCharacterCooldowns.set(playerId, cooldown);
-    } else {
-      this.meleeCharacterCooldowns.delete(playerId);
-    }
+    this.meleeCharacterCooldowns.setCooldown(playerId, cooldown);
   }
 
   /**

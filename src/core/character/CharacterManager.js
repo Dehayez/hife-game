@@ -34,6 +34,8 @@ import {
 } from './CharacterPhysics.js';
 import { loadAllCharacterSounds } from './CharacterSound.js';
 import { getCharacterColorHex } from '../abilities/stats/CharacterColors.js';
+import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../utils/DeathFadeUtils.js';
+import { createSpriteMesh } from '../utils/SpriteUtils.js';
 
 export class CharacterManager {
   /**
@@ -77,7 +79,7 @@ export class CharacterManager {
     // Death fade tracking
     this._isDying = false;
     this.deathFadeTimer = 0;
-    this.deathFadeDuration = 0.6; // Duration in seconds for death fade
+    this.deathFadeDuration = DEATH_FADE_CONFIG.duration;
     
     // Smoke particle spawn timer
     const particleStats = getCharacterParticleStats();
@@ -136,12 +138,8 @@ export class CharacterManager {
    * @private
    */
   _setupPlayer() {
-    const spriteGeo = new THREE.PlaneGeometry(this.playerHeight * 0.7, this.playerHeight);
-    const spriteMat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.1 });
-    this.player = new THREE.Mesh(spriteGeo, spriteMat);
+    this.player = createSpriteMesh(this.playerHeight);
     this.player.position.set(0, this.playerHeight * 0.5, 0);
-    this.player.castShadow = true;
-    this.player.receiveShadow = false;
     
     // Add health tracking to player mesh
     const healthStats = getCharacterHealthStats();
@@ -521,14 +519,16 @@ export class CharacterManager {
   startDeathFade() {
     if (!this.player) return;
     
-    this._isDying = true;
-    this.deathFadeTimer = 0;
+    const characterData = {
+      isDying: this._isDying,
+      deathFadeTimer: this.deathFadeTimer
+    };
     
-    // Spawn death particles
-    if (this.particleManager) {
-      const characterColor = getCharacterColorHex(this.getCharacterName());
-      this.particleManager.spawnDeathParticles(this.player.position.clone(), characterColor, 25);
-    }
+    startDeathFade(this.player, characterData, this.getCharacterName(), this.particleManager);
+    
+    // Sync back to instance properties
+    this._isDying = characterData.isDying;
+    this.deathFadeTimer = characterData.deathFadeTimer;
   }
 
   /**
@@ -539,34 +539,18 @@ export class CharacterManager {
   updateDeathFade(dt) {
     if (!this._isDying || !this.player) return false;
     
-    this.deathFadeTimer += dt;
-    const progress = Math.min(this.deathFadeTimer / this.deathFadeDuration, 1.0);
+    const characterData = {
+      isDying: this._isDying,
+      deathFadeTimer: this.deathFadeTimer
+    };
     
-    // Fade out character opacity
-    if (this.player.material) {
-      this.player.material.opacity = 1.0 - progress;
-      this.player.material.transparent = true;
-    }
+    const complete = updateDeathFade(this.player, characterData, dt, this.deathFadeDuration);
     
-    // Also scale down slightly
-    const scale = 1.0 - progress * 0.3; // Shrink to 70% size
-    this.player.scale.set(scale, scale, scale);
+    // Sync back to instance properties
+    this._isDying = characterData.isDying;
+    this.deathFadeTimer = characterData.deathFadeTimer;
     
-    if (progress >= 1.0) {
-      // Fade complete - reset state
-      this._isDying = false;
-      this.deathFadeTimer = 0;
-      
-      // Reset opacity and scale
-      if (this.player.material) {
-        this.player.material.opacity = 1.0;
-      }
-      this.player.scale.set(1, 1, 1);
-      
-      return true;
-    }
-    
-    return false;
+    return complete;
   }
 
   /**
