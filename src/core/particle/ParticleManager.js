@@ -76,10 +76,11 @@ export class ParticleManager {
       particle.position.y += offsetY;
       particle.position.z += offsetZ;
     } else {
-      // For running smoke: spawn at ground level, not at character height
+      // For running smoke: spawn at character's feet level (works on platforms/objects)
+      // Use character's Y position but offset to feet level
       particle.position.set(
         position.x + offsetX,
-        stats.positionY + offsetY, // Use ground level + offset
+        position.y + stats.positionY + offsetY, // Character's Y + ground offset + random offset
         position.z + offsetZ
       );
     }
