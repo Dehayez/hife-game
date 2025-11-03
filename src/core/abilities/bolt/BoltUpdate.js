@@ -13,6 +13,7 @@ import { applyCursorFollowing } from './BoltCursorFollowing.js';
 import { updateSpeed } from './BoltSpeedCalculation.js';
 import { updatePosition } from './BoltPositionUpdate.js';
 import { updateVisualEffects } from './BoltVisualEffects.js';
+import { getProjectileParticleConfig } from '../particles/ProjectileParticleConfig.js';
 
 /**
  * Update bolt position and check lifetime
@@ -55,9 +56,15 @@ export function updateBolt(projectile, dt, collisionManager, camera = null, inpu
       projectile.userData.trailSpawnTimer = 0;
     }
     
-    // Spawn trail particles periodically (every ~0.03 seconds)
+    // Spawn trail particles periodically (check config for interval)
+    const trailConfig = getProjectileParticleConfig(
+      projectile.userData.characterName || 'lucy',
+      'bolt',
+      'trail'
+    );
+    const trailSpawnInterval = trailConfig.spawnInterval !== undefined ? trailConfig.spawnInterval : 0.03;
+    
     projectile.userData.trailSpawnTimer += dt;
-    const trailSpawnInterval = 0.03;
     
     if (projectile.userData.trailSpawnTimer >= trailSpawnInterval) {
       projectile.userData.trailSpawnTimer = 0;
@@ -69,13 +76,22 @@ export function updateBolt(projectile, dt, collisionManager, camera = null, inpu
         projectile.userData.velocityZ
       );
       
-      // Only spawn if moving fast enough
-      if (velocity.length() > 0.1) {
+      // Only spawn if moving fast enough (check config for min velocity)
+      const trailConfig = getProjectileParticleConfig(
+        projectile.userData.characterName || 'lucy',
+        'bolt',
+        'trail'
+      );
+      const minVelocity = trailConfig.minVelocity !== undefined ? trailConfig.minVelocity : 0.1;
+      
+      if (velocity.length() > minVelocity) {
         projectile.userData.particleManager.spawnProjectileTrailParticle(
           projectile.position.clone(),
           velocity,
           projectile.userData.characterColor,
-          projectile.userData.size
+          projectile.userData.size,
+          projectile.userData.characterName || 'lucy', // Pass character name for config
+          'bolt' // Pass ability name for config
         );
       }
     }

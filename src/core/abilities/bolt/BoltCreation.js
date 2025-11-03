@@ -83,7 +83,9 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
       startPos,
       characterColor,
       stats.size,
-      6 // Number of ambient particles
+      6, // Default number (will be overridden by config)
+      characterName, // Pass character name for config
+      'bolt' // Pass ability name for config
     );
   }
   

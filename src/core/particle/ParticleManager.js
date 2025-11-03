@@ -10,6 +10,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getSmokeStats, getRunningSmokeStats, getCharacterChangeSmokeStats } from './ParticleStats.js';
+import { getProjectileParticleConfig } from '../abilities/particles/ProjectileParticleConfig.js';
 
 export class ParticleManager {
   /**
@@ -582,10 +583,15 @@ export class ParticleManager {
    * @param {THREE.Vector3} velocity - Projectile velocity (for direction)
    * @param {number} characterColor - Character color (hex number)
    * @param {number} projectileSize - Size of the projectile (affects particle size)
+   * @param {string} characterName - Character name ('lucy' or 'herald') for config
+   * @param {string} abilityName - Ability name ('bolt' or 'mortar') for config
    */
-  spawnProjectileTrailParticle(position, velocity, characterColor, projectileSize = 0.1) {
-    // Create trail particle - smaller than ambient particles
-    const size = 0.04 + Math.random() * 0.04;
+  spawnProjectileTrailParticle(position, velocity, characterColor, projectileSize = 0.1, characterName = 'lucy', abilityName = 'bolt') {
+    // Get config for this character and ability
+    const config = getProjectileParticleConfig(characterName, abilityName, 'trail');
+    
+    // Create trail particle with configurable size
+    const size = config.sizeMin + Math.random() * (config.sizeMax - config.sizeMin);
     const geometry = new THREE.PlaneGeometry(size, size);
     
     // Convert hex to Color
@@ -601,7 +607,7 @@ export class ParticleManager {
     const material = new THREE.MeshBasicMaterial({
       color: particleColor,
       transparent: true,
-      opacity: 0.6 + Math.random() * 0.3,
+      opacity: config.opacityMin + Math.random() * (config.opacityMax - config.opacityMin),
       side: THREE.DoubleSide,
       alphaTest: 0.05,
       depthWrite: false,
@@ -612,29 +618,29 @@ export class ParticleManager {
     
     // Position particle behind projectile (opposite direction of velocity)
     const velocityNormalized = velocity.clone().normalize();
-    const trailDistance = projectileSize * 0.8; // Position slightly behind projectile
+    const trailDistance = projectileSize * config.behindDistance;
     
     particle.position.copy(position);
     particle.position.sub(velocityNormalized.clone().multiplyScalar(trailDistance));
-    // Add slight random offset for variation
-    particle.position.x += (Math.random() - 0.5) * projectileSize * 0.3;
-    particle.position.y += (Math.random() - 0.5) * projectileSize * 0.3;
-    particle.position.z += (Math.random() - 0.5) * projectileSize * 0.3;
+    // Add random offset for variation
+    particle.position.x += (Math.random() - 0.5) * projectileSize * config.randomOffset;
+    particle.position.y += (Math.random() - 0.5) * projectileSize * config.randomOffset;
+    particle.position.z += (Math.random() - 0.5) * projectileSize * config.randomOffset;
     
     // Velocity: slight outward from trail direction, with some randomness
-    const speed = 0.5 + Math.random() * 0.5;
-    const velocityOpposite = velocityNormalized.clone().multiplyScalar(-0.3); // Slight backward drift
+    const speed = config.speedMin + Math.random() * (config.speedMax - config.speedMin);
+    const velocityOpposite = velocityNormalized.clone().multiplyScalar(-config.backwardDrift);
     const randomDirection = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.5,
-      (Math.random() - 0.5) * 0.5,
-      (Math.random() - 0.5) * 0.5
+      (Math.random() - 0.5) * config.randomDirection,
+      (Math.random() - 0.5) * config.randomDirection,
+      (Math.random() - 0.5) * config.randomDirection
     );
     const finalVelocity = velocityOpposite.clone().add(randomDirection).normalize().multiplyScalar(speed);
     
     particle.userData = {
       velocity: finalVelocity,
       lifetime: 0,
-      maxLifetime: 0.2 + Math.random() * 0.2, // Short lifetime for trail
+      maxLifetime: config.lifetimeMin + Math.random() * (config.lifetimeMax - config.lifetimeMin),
       initialSize: size,
       initialOpacity: material.opacity
     };
@@ -656,17 +662,25 @@ export class ParticleManager {
    * @param {THREE.Vector3} position - Projectile position
    * @param {number} characterColor - Character color (hex number)
    * @param {number} projectileSize - Size of the projectile (affects particle distribution)
-   * @param {number} particleCount - Number of ambient particles (default: 6)
+   * @param {number} particleCount - Number of ambient particles (default: 6, overridden by config)
+   * @param {string} characterName - Character name ('lucy' or 'herald') for config
+   * @param {string} abilityName - Ability name ('bolt' or 'mortar') for config
    * @returns {Array<THREE.Mesh>} Array of created ambient particles
    */
-  spawnProjectileAmbientParticles(position, characterColor, projectileSize = 0.1, particleCount = 6) {
+  spawnProjectileAmbientParticles(position, characterColor, projectileSize = 0.1, particleCount = 6, characterName = 'lucy', abilityName = 'bolt') {
+    // Get config for this character and ability
+    const config = getProjectileParticleConfig(characterName, abilityName, 'ambient');
+    
+    // Use config particle count if provided, otherwise use passed parameter
+    const finalParticleCount = config.particleCount !== undefined ? config.particleCount : particleCount;
+    
     // Convert hex to Color
     const baseColor = new THREE.Color(characterColor);
     const particles = [];
     
-    for (let i = 0; i < particleCount; i++) {
-      // Create ambient particle - small glowing particles around projectile
-      const size = 0.03 + Math.random() * 0.03;
+    for (let i = 0; i < finalParticleCount; i++) {
+      // Create ambient particle with configurable size
+      const size = config.sizeMin + Math.random() * (config.sizeMax - config.sizeMin);
       const geometry = new THREE.PlaneGeometry(size, size);
       
       // Character color with variation, bright for ambient glow
@@ -679,7 +693,7 @@ export class ParticleManager {
       const material = new THREE.MeshBasicMaterial({
         color: particleColor,
         transparent: true,
-        opacity: 0.5 + Math.random() * 0.4,
+        opacity: config.opacityMin + Math.random() * (config.opacityMax - config.opacityMin),
         side: THREE.DoubleSide,
         alphaTest: 0.05,
         depthWrite: false,
@@ -691,7 +705,7 @@ export class ParticleManager {
       // Position particle around projectile sphere (at surface or slightly outside)
       const angle = Math.random() * Math.PI * 2;
       const elevation = (Math.random() - 0.5) * Math.PI;
-      const distance = projectileSize * (0.8 + Math.random() * 0.4); // Around the sphere
+      const distance = projectileSize * (config.distanceMin + Math.random() * (config.distanceMax - config.distanceMin));
       
       particle.position.copy(position);
       particle.position.x += Math.cos(angle) * Math.cos(elevation) * distance;
@@ -699,28 +713,29 @@ export class ParticleManager {
       particle.position.z += Math.sin(angle) * Math.cos(elevation) * distance;
       
       // Velocity: slow outward expansion and rotation around projectile
-      const speed = 0.3 + Math.random() * 0.3;
+      const outwardSpeed = config.outwardSpeedMin + Math.random() * (config.outwardSpeedMax - config.outwardSpeedMin);
       const outwardDir = new THREE.Vector3(
         Math.cos(angle) * Math.cos(elevation),
         Math.sin(elevation),
         Math.sin(angle) * Math.cos(elevation)
       );
       
-      // Add slight rotation velocity
-      const rotationSpeed = 0.5 + Math.random() * 0.5;
+      // Add rotation velocity
+      const rotationSpeed = config.rotationSpeedMin + Math.random() * (config.rotationSpeedMax - config.rotationSpeedMin);
       const tangent = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-      const finalVelocity = outwardDir.clone().multiplyScalar(speed * 0.3).add(tangent.clone().multiplyScalar(rotationSpeed));
+      const finalVelocity = outwardDir.clone().multiplyScalar(outwardSpeed * 0.3).add(tangent.clone().multiplyScalar(rotationSpeed));
       
       particle.userData = {
         velocity: finalVelocity,
         lifetime: 0,
-        maxLifetime: 0.4 + Math.random() * 0.3, // Medium lifetime for ambient
+        maxLifetime: config.lifetimeMin + Math.random() * (config.lifetimeMax - config.lifetimeMin),
         initialSize: size,
         initialOpacity: material.opacity,
         projectilePosition: position.clone(), // Store projectile position for orbit effect
         orbitRadius: distance,
         orbitAngle: angle,
-        orbitElevation: elevation
+        orbitElevation: elevation,
+        orbitSpeed: config.orbitSpeed // Store orbit speed for updates
       };
       
       this.scene.add(particle);
@@ -756,8 +771,9 @@ export class ParticleManager {
       const data = particle.userData;
       if (!data.projectilePosition || !data.orbitRadius) continue;
       
-      // Calculate new orbit position
-      const angle = data.orbitAngle + 0.02; // Slow rotation
+      // Calculate new orbit position using configurable orbit speed
+      const orbitSpeed = data.orbitSpeed !== undefined ? data.orbitSpeed : 0.02;
+      const angle = data.orbitAngle + orbitSpeed; // Configurable rotation speed
       const elevation = data.orbitElevation;
       
       // Update orbit angle

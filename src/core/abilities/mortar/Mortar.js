@@ -9,6 +9,7 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getMortarStats, getCharacterColor } from '../stats/CharacterAbilityStats.js';
 import { calculateMortarParticles } from '../particles/ParticleCalculation.js';
 import { MORTAR_CONFIG } from '../AbilityConfig.js';
+import { getProjectileParticleConfig } from '../particles/ProjectileParticleConfig.js';
 import {
   MORTAR_GRAVITY,
   MORTAR_LIFETIME,
@@ -75,7 +76,9 @@ export function createMortar(scene, startX, startY, startZ, targetX, targetZ, pl
       startPos,
       characterColor,
       stats.size,
-      8 // Number of ambient particles (more for mortar since it's bigger)
+      8, // Default number (will be overridden by config)
+      characterName, // Pass character name for config
+      'mortar' // Pass ability name for config
     );
   }
   mortar.userData.particleManager = particleManager;
@@ -173,9 +176,16 @@ export function updateMortar(mortar, dt, collisionManager) {
       mortar.userData.trailSpawnTimer = 0;
     }
     
-    // Spawn trail particles periodically (every ~0.03 seconds)
+    // Spawn trail particles periodically (check config for interval)
+    const trailConfig = getProjectileParticleConfig(
+      mortar.userData.characterName || 'lucy',
+      'mortar',
+      'trail'
+    );
+    const trailSpawnInterval = trailConfig.spawnInterval !== undefined ? trailConfig.spawnInterval : 0.03;
+    const minVelocity = trailConfig.minVelocity !== undefined ? trailConfig.minVelocity : 0.1;
+    
     mortar.userData.trailSpawnTimer += dt;
-    const trailSpawnInterval = 0.03;
     
     if (mortar.userData.trailSpawnTimer >= trailSpawnInterval) {
       mortar.userData.trailSpawnTimer = 0;
@@ -188,12 +198,14 @@ export function updateMortar(mortar, dt, collisionManager) {
       );
       
       // Only spawn if moving fast enough
-      if (velocity.length() > 0.1) {
+      if (velocity.length() > minVelocity) {
         mortar.userData.particleManager.spawnProjectileTrailParticle(
           mortar.position.clone(),
           velocity,
           mortar.userData.characterColor,
-          mortar.userData.size
+          mortar.userData.size,
+          mortar.userData.characterName || 'lucy', // Pass character name for config
+          'mortar' // Pass ability name for config
         );
       }
     }
