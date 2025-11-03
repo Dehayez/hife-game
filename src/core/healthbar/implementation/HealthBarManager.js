@@ -16,7 +16,7 @@ import {
   getHealthBarPositionStats,
   getHealthBarRenderingStats,
   getHealthColor 
-} from './HealthBarStats.js';
+} from '../config/HealthBarStats.js';
 
 export class HealthBarManager {
   /**

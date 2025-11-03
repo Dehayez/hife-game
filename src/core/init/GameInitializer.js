@@ -7,7 +7,7 @@
 
 import { getParam } from '../../utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode, getLastInputMode, setLastInputMode } from '../../utils/StorageUtils.js';
-import { GAME_CONSTANTS } from '../constants/GameConstants.js';
+import { GAME_CONSTANTS } from '../constants/config/GameConstants.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 
 /**

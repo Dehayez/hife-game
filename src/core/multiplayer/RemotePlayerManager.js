@@ -6,9 +6,9 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/CharacterAnimation.js';
-import { getCharacterMovementStats } from '../character/CharacterStats.js';
-import { getSmokeSpawnInterval } from '../particle/ParticleStats.js';
+import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/implementation/CharacterAnimation.js';
+import { getCharacterMovementStats } from '../character/config/CharacterStats.js';
+import { getSmokeSpawnInterval } from '../particle/config/ParticleStats.js';
 import { createSpriteAtPosition } from '../utils/SpriteUtils.js';
 
 export class RemotePlayerManager {

@@ -16,7 +16,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getSpawnStats } from './EntityStats.js';
+import { getSpawnStats } from '../config/EntityStats.js';
 import { createCollectible, collectItem, updateCollectible } from './Collectible.js';
 import { createHazard, updateHazard } from './Hazard.js';
 import { createCheckpoint, activateCheckpoint, updateCheckpoint } from './Checkpoint.js';

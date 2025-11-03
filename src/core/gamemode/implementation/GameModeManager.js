@@ -9,9 +9,9 @@
  * - GameModeStats.js: Game mode stats and scoring
  */
 
-import { getHighScore, setHighScore, getBestTime, setBestTime } from '../../utils/StorageUtils.js';
-import { getModeConfig, isModeEnabled, getAllEnabledModes } from './GameModeConfig.js';
-import { getDefaultModeState, getScoringConfig, getSpawnCounts, formatTime } from './GameModeStats.js';
+import { getHighScore, setHighScore, getBestTime, setBestTime } from '../../../utils/StorageUtils.js';
+import { getModeConfig, isModeEnabled, getAllEnabledModes } from '../config/GameModeConfig.js';
+import { getDefaultModeState, getScoringConfig, getSpawnCounts, formatTime } from '../config/GameModeStats.js';
 
 export class GameModeManager {
   /**

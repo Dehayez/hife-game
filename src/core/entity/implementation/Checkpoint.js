@@ -5,7 +5,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCheckpointStats } from './EntityStats.js';
+import { getCheckpointStats } from '../config/EntityStats.js';
 
 /**
  * Create a checkpoint (shrine)

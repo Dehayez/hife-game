@@ -7,8 +7,8 @@
  * Uses BaseEntityStats for shared health, movement, and physics stats.
  */
 
-import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../constants/BaseEntityStats.js';
-import { getSmokeSpawnInterval } from '../particle/ParticleStats.js';
+import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../../constants/config/BaseEntityStats.js';
+import { getSmokeSpawnInterval } from '../../particle/config/ParticleStats.js';
 
 /**
  * Player Character Configuration Stats

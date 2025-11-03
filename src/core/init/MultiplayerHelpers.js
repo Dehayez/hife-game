@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { GAME_CONSTANTS } from '../constants/GameConstants.js';
+import { GAME_CONSTANTS } from '../constants/config/GameConstants.js';
 
 /**
  * Get current player state for synchronization
@@ -81,7 +81,7 @@ export function createRemotePlayerHealthBar(healthBarManager, remotePlayer, mult
   const characterName = playerInfo?.characterName || 'lucy';
   
   // Import here to avoid circular dependencies
-  import('../character/CharacterStats.js').then(({ getCharacterHealthStats }) => {
+  import('../character/config/CharacterStats.js').then(({ getCharacterHealthStats }) => {
     const healthStats = getCharacterHealthStats();
     mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
     mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
@@ -172,7 +172,7 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
         const mesh = spawnedPlayer.mesh;
         const playerInfo = multiplayerManager.getPlayerInfo(playerId);
         const characterName = playerInfo?.characterName || 'lucy';
-        import('../character/CharacterStats.js').then(({ getCharacterHealthStats }) => {
+        import('../character/config/CharacterStats.js').then(({ getCharacterHealthStats }) => {
           const healthStats = getCharacterHealthStats();
           mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
           mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;

@@ -12,13 +12,13 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getBotHealthStats, getBotMovementStats, BOT_STATS } from './BotStats.js';
+import { getBotHealthStats, getBotMovementStats, BOT_STATS } from '../config/BotStats.js';
 import { initializeBotAI, updateDirectionChangeTimer, calculateBotMovement, updateBotShooting } from './BotAI.js';
 import { loadBotAnimations, setBotAnimation, updateBotAnimation, updateBotAnimationFromMovement, billboardBotToCamera } from './BotAnimation.js';
 import { initializeBotPhysics, updateBotPhysics } from './BotPhysics.js';
-import { getCharacterColorHex } from '../abilities/config/CharacterColors.js';
-import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../utils/DeathFadeUtils.js';
-import { createSpriteAtPosition } from '../utils/SpriteUtils.js';
+import { getCharacterColorHex } from '../../abilities/config/CharacterColors.js';
+import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../../utils/DeathFadeUtils.js';
+import { createSpriteAtPosition } from '../../utils/SpriteUtils.js';
 
 export class BotManager {
   /**

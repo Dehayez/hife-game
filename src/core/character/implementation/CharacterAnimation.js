@@ -4,8 +4,8 @@
  * Handles character animation loading, updating, and frame management.
  */
 
-import { loadAnimationSmart } from '../../utils/TextureLoader.js';
-import { getSmokeSpawnInterval } from '../particle/ParticleStats.js';
+import { loadAnimationSmart } from '../../../utils/TextureLoader.js';
+import { getSmokeSpawnInterval } from '../../particle/config/ParticleStats.js';
 
 /**
  * Load character animations
