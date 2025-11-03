@@ -18,7 +18,7 @@ import {
   getCharacterMovementStats, 
   getCharacterPhysicsStats
 } from '../config/CharacterStats.js';
-import { getSmokeSpawnInterval } from '../../particle/config/ParticleStats.js';
+import { getRunningSmokeConfig } from '../../abilities/config/base/SmokeParticleConfig.js';
 import { 
   loadCharacterAnimations, 
   setCharacterAnimation, 
@@ -83,7 +83,8 @@ export class CharacterManager {
     
     // Smoke particle spawn timer
     this.smokeSpawnTimer = 0;
-    this.smokeSpawnInterval = getSmokeSpawnInterval();
+    const smokeConfig = getRunningSmokeConfig();
+    this.smokeSpawnInterval = smokeConfig.spawnInterval;
     
     // Only setup player if scene is available
     if (this.scene) {

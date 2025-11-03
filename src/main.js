@@ -30,7 +30,7 @@ import { RemotePlayerManager } from './core/multiplayer/RemotePlayerManager.js';
 import { BotManager } from './core/bot/implementation/BotManager.js';
 import { HealthBarManager } from './core/healthbar/implementation/HealthBarManager.js';
 import { GameLoop } from './core/gameloop/GameLoop.js';
-import { ParticleManager } from './core/particle/implementation/ParticleManager.js';
+import { ParticleManager } from './utils/ParticleManager.js';
 import { ArenaManager } from './core/arena/implementation/ArenaManager.js';
 import { getCharacterHealthStats } from './core/character/config/CharacterStats.js';
 

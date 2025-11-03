@@ -2,15 +2,16 @@
  * ParticleManager.js
  * 
  * Main manager for all particle-related functionality.
- * Handles smoke particle creation, updates, and cleanup.
+ * Handles particle creation, updates, and cleanup for all visual effects.
  * 
  * This file acts as a facade, delegating to specialized modules:
- * - ParticleStats.js: Particle stats configuration
+ * - SmokeParticleConfig.js: Smoke particle configuration for running and character switching
+ * - ParticleConfigHelper.js: Projectile particle configurations
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getSmokeStats, getRunningSmokeStats, getCharacterChangeSmokeStats } from '../config/ParticleStats.js';
-import { getProjectileParticleConfig } from '../../abilities/implementation/particles/ParticleConfigHelper.js';
+import { getRunningSmokeConfig, getCharacterChangeSmokeConfig } from '../core/abilities/config/base/SmokeParticleConfig.js';
+import { getProjectileParticleConfig } from '../core/abilities/implementation/particles/ParticleConfigHelper.js';
 
 export class ParticleManager {
   /**
@@ -23,7 +24,7 @@ export class ParticleManager {
     this.collisionManager = collisionManager;
     this.smokeParticles = [];
     
-    const stats = getRunningSmokeStats();
+    const stats = getRunningSmokeConfig();
     this.maxParticles = stats.maxParticles;
   }
 
@@ -42,7 +43,7 @@ export class ParticleManager {
    */
   spawnSmokeParticle(position, followCharacter = false) {
     // Use different stats for character change vs running smoke
-    const stats = followCharacter ? getCharacterChangeSmokeStats() : getRunningSmokeStats();
+    const stats = followCharacter ? getCharacterChangeSmokeConfig() : getRunningSmokeConfig();
     
     // Create smoke particle geometry and material
     const size = stats.minSize + Math.random() * (stats.maxSize - stats.minSize);
@@ -126,7 +127,7 @@ export class ParticleManager {
    */
   update(dt) {
     // Use running smoke stats for update (drag factor, fade speed, etc. are the same)
-    const stats = getRunningSmokeStats();
+    const stats = getRunningSmokeConfig();
     
     for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
       const particle = this.smokeParticles[i];
@@ -289,7 +290,7 @@ export class ParticleManager {
     particle.position.y += Math.random() * 0.3;
     
     // Initialize particle properties (rise faster and fade quicker)
-    const stats = getSmokeStats();
+    const stats = getRunningSmokeConfig();
     particle.userData = {
       velocity: new THREE.Vector3(
         (Math.random() - 0.5) * 0.5,

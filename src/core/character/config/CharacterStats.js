@@ -8,7 +8,6 @@
  */
 
 import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../../constants/config/BaseEntityStats.js';
-import { getSmokeSpawnInterval } from '../../particle/config/ParticleStats.js';
 
 /**
  * Player Character Configuration Stats
@@ -40,9 +39,7 @@ export const CHARACTER_STATS = {
     ...BASE_ENTITY_STATS.physics,
     jumpCooldownTime: 0.6,     // Seconds between jumps (prevents rapid jumping)
     levitationForce: 20        // Upward force when levitating (reduces gravity effect)
-  },
-  
-  // Particle configuration moved to ParticleStats.js
+  }
 };
 
 /**
@@ -69,15 +66,4 @@ export function getCharacterPhysicsStats() {
   return CHARACTER_STATS.physics;
 }
 
-/**
- * Get character particle stats (deprecated - use ParticleStats.js instead)
- * @returns {Object} Particle configuration
- * @deprecated Use getSmokeSpawnInterval from ParticleStats.js instead
- */
-export function getCharacterParticleStats() {
-  return {
-    smokeSpawnInterval: getSmokeSpawnInterval(),
-    smokeSpawnTimer: 0
-  };
-}
 

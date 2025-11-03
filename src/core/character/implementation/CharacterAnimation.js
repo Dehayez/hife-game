@@ -5,7 +5,7 @@
  */
 
 import { loadAnimationSmart } from '../../../utils/TextureLoader.js';
-import { getSmokeSpawnInterval } from '../../particle/config/ParticleStats.js';
+import { getRunningSmokeConfig } from '../../abilities/config/base/SmokeParticleConfig.js';
 
 /**
  * Load character animations
@@ -277,7 +277,8 @@ export function updateCharacterMovement(
       }
       
       // Spawn smoke particles when running and grounded
-      const smokeSpawnInterval = getSmokeSpawnInterval();
+      const smokeConfig = getRunningSmokeConfig();
+      const smokeSpawnInterval = smokeConfig.spawnInterval;
       if (isRunning && isGrounded && particleManager) {
         if (smokeSpawnTimer <= 0) {
           particleManager.spawnSmokeParticle(player.position);
