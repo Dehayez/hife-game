@@ -1039,35 +1039,35 @@ export class GameLoop {
     const glowLight = pulseData.glowLight;
     
     if (isOnCooldown) {
-      // On cooldown: fireball orange color, slower pulse, growing opacity
-      const fireballOrange = 0xffaa00; // Same as fireball color
-      const darkOrange = 0xcc8800; // Darker shade for pulsing
-      
+      // On cooldown: character color (darker/brighter), slower pulse, growing opacity
+      const characterColorBase = new THREE.Color(pulseData.characterColor);
+      const darkerCharacterColor = characterColorBase.clone().multiplyScalar(0.6); // Darker shade for pulsing
+
       // Calculate cooldown progress (0 = just started, 1 = almost ready)
       const progress = 1 - cooldownPercentage;
-      
+
       // Sphere grows from small to full size as cooldown progresses
       // Start at 0.3x scale, grow to full baseScale (1.0x) when ready
       const minScale = 0.3;
       const maxScale = pulseData.baseScale;
       const growthScale = minScale + (maxScale - minScale) * progress;
-      
+
       // Opacity grows from low to high as cooldown progresses
       const minOpacity = 0.2;
       const maxOpacity = 0.7;
       const growthOpacity = minOpacity + (maxOpacity - minOpacity) * progress;
-      
-      // Pulse between orange and dark orange (smaller pulse during cooldown)
+
+      // Pulse between darker and brighter character color (smaller pulse during cooldown)
       pulseData.pulsePhase += dt * pulseData.pulseSpeedCooldown * Math.PI * 2;
       const pulseVariation = Math.sin(pulseData.pulsePhase) * 0.1; // Smaller pulse variation
       const pulseScale = growthScale + pulseVariation;
       visual.scale.set(pulseScale, pulseScale, pulseScale);
-      
-      // Color transition between orange shades
+
+      // Color transition between character color shades
       const colorMix = (Math.sin(pulseData.pulsePhase) + 1) * 0.5;
       const currentColor = new THREE.Color().lerpColors(
-        new THREE.Color(darkOrange),
-        new THREE.Color(fireballOrange),
+        darkerCharacterColor,
+        characterColorBase,
         colorMix
       );
       visual.material.color.copy(currentColor);
