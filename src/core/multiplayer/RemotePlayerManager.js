@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/implementation/CharacterAnimation.js';
+import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/functions/CharacterAnimation.js';
 import { getCharacterMovementStats } from '../character/config/CharacterStats.js';
 import { getRunningSmokeConfig } from '../abilities/config/base/SmokeParticleConfig.js';
 import { createSpriteAtPosition } from '../utils/SpriteUtils.js';

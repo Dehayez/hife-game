@@ -11,7 +11,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getRunningSmokeConfig, getCharacterChangeSmokeConfig } from '../core/abilities/config/base/SmokeParticleConfig.js';
-import { getProjectileParticleConfig } from '../core/abilities/implementation/particles/ParticleConfigHelper.js';
+import { getProjectileParticleConfig } from '../core/abilities/functions/particles/ParticleConfigHelper.js';
 
 export class ParticleManager {
   /**

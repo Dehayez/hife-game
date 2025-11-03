@@ -1,4 +1,4 @@
-import { getMeleeStats } from '../core/abilities/implementation/CharacterAbilityStats.js';
+import { getMeleeStats } from '../core/abilities/functions/CharacterAbilityStats.js';
 import { getCharacterColorCss } from '../core/abilities/config/CharacterColors.js';
 
 export function initCooldownIndicator({ mount, projectileManager, characterManager }) {

@@ -6,9 +6,9 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/implementation/CharacterAbilityStats.js';
+import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/functions/CharacterAbilityStats.js';
 import { setLastCharacter } from '../../utils/StorageUtils.js';
-import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/implementation/mortar/MortarArcPreview.js';
+import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/functions/mortar/MortarArcPreview.js';
 
 export class GameLoop {
   /**
