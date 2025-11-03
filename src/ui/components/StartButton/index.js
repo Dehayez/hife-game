@@ -1,3 +1,5 @@
+import { createButton } from './functions.js';
+
 export class StartButton {
   constructor(onStart) {
     this.onStart = onStart;
@@ -5,25 +7,9 @@ export class StartButton {
     this.isCounting = false;
     this.isCountdownComplete = false;
     this.countdown = 3;
-    this._createButton();
-  }
-
-  _createButton() {
-    // Create start button
-    this.button = document.createElement('button');
-    this.button.className = 'ui__start-button';
-    this.button.textContent = 'Start';
-    this.button.type = 'button';
-
+    this.button = createButton();
     this.button.addEventListener('click', () => {
       this.startCountdown();
-    });
-    
-    // Prevent spacebar from activating focused button
-    this.button.addEventListener('keydown', (e) => {
-      if (e.key === ' ') {
-        e.preventDefault();
-      }
     });
   }
 

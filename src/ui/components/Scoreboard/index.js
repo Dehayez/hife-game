@@ -6,6 +6,8 @@
  * Can be toggled with Tab key (PC) or Back/Select button (Xbox controller).
  */
 
+import { calculateKDRatio, getAllPlayers, sortPlayers, createPlayerRow } from './functions.js';
+
 export class Scoreboard {
   /**
    * Create a new Scoreboard
@@ -164,19 +166,6 @@ export class Scoreboard {
   }
 
   /**
-   * Calculate K/D ratio
-   * @param {number} kills - Number of kills
-   * @param {number} deaths - Number of deaths
-   * @returns {string} Formatted K/D ratio
-   */
-  calculateKDRatio(kills, deaths) {
-    if (deaths === 0) {
-      return kills > 0 ? kills.toFixed(2) : '0.00';
-    }
-    return (kills / deaths).toFixed(2);
-  }
-
-  /**
    * Update scoreboard display
    */
   updateDisplay() {
@@ -186,121 +175,19 @@ export class Scoreboard {
     this.tbody.innerHTML = '';
 
     // Get all players
-    const allPlayers = [];
-
-    // Add local player
-    if (this.multiplayerManager) {
-      const localPlayerId = this.multiplayerManager.getLocalPlayerId();
-      if (localPlayerId && this.playerStats.has(localPlayerId)) {
-        const stats = this.playerStats.get(localPlayerId);
-        stats.isLocal = true;
-        allPlayers.push({ playerId: localPlayerId, stats, isBot: false });
-      }
-
-      // Add remote players
-      const connectedPlayers = this.multiplayerManager.getConnectedPlayers();
-      connectedPlayers.forEach(player => {
-        if (player.id !== localPlayerId) {
-          if (this.playerStats.has(player.id)) {
-            const stats = this.playerStats.get(player.id);
-            stats.isLocal = false;
-            allPlayers.push({ playerId: player.id, stats, isBot: false });
-          } else {
-            // Initialize remote player if not tracked yet
-            this.initializePlayer(player.id);
-            const stats = this.playerStats.get(player.id);
-            stats.isLocal = false;
-            allPlayers.push({ playerId: player.id, stats, isBot: false });
-          }
-        }
-      });
-    } else {
-      // Fallback: just local player
-      const localStats = this.playerStats.values().next().value;
-      if (localStats) {
-        allPlayers.push({ playerId: 'local', stats: localStats, isBot: false });
-      }
-    }
-
-    // Add bots if botManager is available
-    if (this.botManager) {
-      const bots = this.botManager.getAllBots();
-      bots.forEach((bot, index) => {
-        if (bot && bot.userData) {
-          const botId = bot.userData.id || `bot-${index}`;
-          const botName = bot.userData.characterName || 'Bot';
-          const botKills = bot.userData.kills || 0;
-          const botDeaths = bot.userData.deaths || 0;
-
-          allPlayers.push({
-            playerId: botId,
-            stats: {
-              id: `${botName} ${index + 1}`,
-              kills: botKills,
-              deaths: botDeaths,
-              isLocal: false
-            },
-            isBot: true
-          });
-        }
-      });
-    }
+    const allPlayers = getAllPlayers(this.multiplayerManager, this.botManager, this.playerStats);
     
     // Sort players by kills (descending), then by K/D ratio
-    allPlayers.sort((a, b) => {
-      const aKD = this.calculateKDRatio(a.stats.kills, a.stats.deaths);
-      const bKD = this.calculateKDRatio(b.stats.kills, b.stats.deaths);
-      
-      if (a.stats.kills !== b.stats.kills) {
-        return b.stats.kills - a.stats.kills;
-      }
-      return parseFloat(bKD) - parseFloat(aKD);
-    });
+    const sortedPlayers = sortPlayers(allPlayers, calculateKDRatio);
     
     // Create rows for each player
-    allPlayers.forEach(({ playerId, stats }, index) => {
-      const row = document.createElement('tr');
-      row.className = 'scoreboard__row';
-      if (stats.isLocal) {
-        row.classList.add('scoreboard__row--local');
-      }
-      
-      // Player ID
-      const playerCell = document.createElement('td');
-      playerCell.className = 'scoreboard__cell scoreboard__cell--player';
-      const playerIdSpan = document.createElement('span');
-      playerIdSpan.className = 'scoreboard__player-id';
-      playerIdSpan.textContent = stats.id || playerId.substring(0, 8);
-      if (stats.isLocal) {
-        playerIdSpan.classList.add('scoreboard__player-id--local');
-        playerIdSpan.textContent += ' (You)';
-      }
-      playerCell.appendChild(playerIdSpan);
-      row.appendChild(playerCell);
-      
-      // Kills
-      const killsCell = document.createElement('td');
-      killsCell.className = 'scoreboard__cell scoreboard__cell--kills';
-      killsCell.textContent = stats.kills || 0;
-      row.appendChild(killsCell);
-      
-      // Deaths
-      const deathsCell = document.createElement('td');
-      deathsCell.className = 'scoreboard__cell scoreboard__cell--deaths';
-      deathsCell.textContent = stats.deaths || 0;
-      row.appendChild(deathsCell);
-
-      // K/D Ratio
-      const kdCell = document.createElement('td');
-      kdCell.className = 'scoreboard__cell scoreboard__cell--kd';
-      kdCell.textContent = this.calculateKDRatio(stats.kills || 0, stats.deaths || 0);
-      row.appendChild(kdCell);
-      
+    sortedPlayers.forEach(({ playerId, stats }) => {
+      const row = createPlayerRow(playerId, stats, calculateKDRatio);
       this.tbody.appendChild(row);
     });
     
     // If no players, show empty state
-    if (allPlayers.length === 0) {
+    if (sortedPlayers.length === 0) {
       const emptyRow = document.createElement('tr');
       emptyRow.className = 'scoreboard__row scoreboard__row--empty';
       const emptyCell = document.createElement('td');
@@ -401,3 +288,4 @@ export class Scoreboard {
     }
   }
 }
+

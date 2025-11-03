@@ -1,3 +1,5 @@
+import { updateDisplay } from './functions.js';
+
 export function initGameModeDisplay({ mount, gameModeManager, characterManager = null }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'ui__mode-display';
@@ -27,30 +29,14 @@ export function initGameModeDisplay({ mount, gameModeManager, characterManager =
   wrapper.appendChild(secondaryInfo);
   wrapper.appendChild(restartButton);
 
-  function update() {
-    const info = gameModeManager.getDisplayInfo();
-    
-    // Hide entire panel if no mode info (free-play mode)
-    if (!info.mode) {
-      wrapper.style.display = 'none';
-      return;
-    }
-    
-    wrapper.style.display = 'block';
-    modeLabel.textContent = info.mode;
-    primaryInfo.textContent = info.primary || '';
-    secondaryInfo.textContent = info.secondary || '';
-    
-    primaryInfo.style.display = info.primary ? 'block' : 'none';
-    secondaryInfo.style.display = info.secondary ? 'block' : 'none';
-  }
-
   mount.appendChild(wrapper);
 
-  setInterval(update, 100);
+  setInterval(() => updateDisplay(wrapper, modeLabel, primaryInfo, secondaryInfo, gameModeManager), 100);
 
   return {
-    update
+    update() {
+      updateDisplay(wrapper, modeLabel, primaryInfo, secondaryInfo, gameModeManager);
+    }
   };
 }
 

@@ -5,6 +5,9 @@
  * Consolidates all UI components into a single, toggleable menu
  */
 
+import { isXboxController, checkXboxController, updateFooterContent, updateHeaderVisibility, updateBumperIcons } from './functions.js';
+import { handleControllerInput, handleJoystickNavigation } from './navigation.js';
+
 export class GameMenu {
   constructor(config) {
     this.isVisible = false;
@@ -19,12 +22,12 @@ export class GameMenu {
       enabled: false,
       currentTabIndex: 0,
       currentSectionIndex: 0,
-      buttonPressed: new Set() // Track button states to prevent rapid firing
+      buttonPressed: new Set()
     };
     
     // Sections tracking per tab
-    this.tabSections = {}; // { tabId: [{ id, title, element }] }
-    this.activeSection = {}; // { tabId: sectionId }
+    this.tabSections = {};
+    this.activeSection = {};
     
     // Xbox controller connection state
     this.isXboxControllerConnected = false;
@@ -170,44 +173,8 @@ export class GameMenu {
     root.appendChild(this.overlay);
   }
   
-  /**
-   * Update footer content based on current input mode
-   */
   updateFooterContent() {
-    if (!this.footer) return;
-    
-    // Clear existing content
-    this.footer.innerHTML = '';
-    
-    // Check if input mode is controller
-    const inputMode = this.inputManager?.getInputMode() || 'keyboard';
-    const isController = inputMode === 'controller';
-    
-    if (isController) {
-      // Xbox controller commands
-      const bButton = document.createElement('span');
-      bButton.className = 'game-menu__footer-button game-menu__footer-button--xbox-b';
-      bButton.innerHTML = '<span class="xbox-button">B</span>';
-      
-      const backLabel = document.createElement('span');
-      backLabel.className = 'game-menu__footer-label';
-      backLabel.textContent = 'Back';
-      
-      this.footer.appendChild(bButton);
-      this.footer.appendChild(backLabel);
-    } else {
-      // Keyboard command
-      const escKey = document.createElement('span');
-      escKey.className = 'game-menu__footer-button game-menu__footer-button--esc';
-      escKey.textContent = 'Esc';
-      
-      const backLabel = document.createElement('span');
-      backLabel.className = 'game-menu__footer-label';
-      backLabel.textContent = 'Back';
-      
-      this.footer.appendChild(escKey);
-      this.footer.appendChild(backLabel);
-    }
+    updateFooterContent(this.footer, this.inputManager);
   }
 
   setupEventListeners() {
@@ -226,14 +193,12 @@ export class GameMenu {
     });
     
     // Open menu when clicking on select dropdowns (even if menu is closed)
-    // Use document-level event delegation to catch all select elements
     const handleSelectInteraction = (e) => {
       const target = e.target;
       if (target.tagName === 'SELECT' && this.overlay.contains(target) && !this.isVisible) {
         e.preventDefault();
         e.stopPropagation();
         this.show();
-        // Focus the select element after menu opens
         setTimeout(() => {
           target.focus();
           this.highlightElement(target);
@@ -241,76 +206,24 @@ export class GameMenu {
       }
     };
     
-    // Use capture phase to catch events before they bubble
     document.addEventListener('mousedown', handleSelectInteraction, true);
     document.addEventListener('focus', handleSelectInteraction, true);
   }
 
   setupControllerNavigation() {
-    // Poll for gamepad inputs (gamepad API doesn't fire events, need to poll)
-    // Start polling to handle controller navigation when menu is open
     this.controllerPollInterval = null;
     this.startControllerPolling();
   }
 
-  /**
-   * Check if a gamepad is an Xbox controller
-   * @param {Object} gamepad - Gamepad object
-   * @returns {boolean} True if Xbox controller
-   * @private
-   */
   _isXboxController(gamepad) {
-    if (!gamepad) return false;
-    const id = gamepad.id.toLowerCase();
-    return id.includes('xbox') || 
-           id.includes('microsoft') ||
-           id.includes('045e'); // Microsoft vendor ID
+    return isXboxController(gamepad);
   }
 
-  /**
-   * Check for Xbox controller connection
-   */
   checkXboxController() {
-    // Check via InputManager if available
-    if (this.inputManager && this.inputManager.isGamepadConnected()) {
-      const gamepads = navigator.getGamepads();
-      if (gamepads && gamepads.length > 0) {
-        const gamepad = gamepads[0];
-        if (gamepad && this._isXboxController(gamepad)) {
-          this.isXboxControllerConnected = true;
-          this.updateBumperIcons();
-          return;
-        }
-      }
-    }
-    
-    // Fallback: check gamepads directly
-    try {
-      if (navigator.getGamepads) {
-        const gamepads = navigator.getGamepads();
-        if (gamepads && gamepads.length > 0) {
-          for (let i = 0; i < gamepads.length; i++) {
-            if (gamepads[i] && this._isXboxController(gamepads[i])) {
-              this.isXboxControllerConnected = true;
-              this.updateBumperIcons();
-              return;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Gamepad API may not be accessible
-    }
-    
-    this.isXboxControllerConnected = false;
-    this.updateBumperIcons();
+    checkXboxController(this.inputManager, this);
   }
 
-  /**
-   * Set up Xbox controller detection
-   */
   setupXboxControllerDetection() {
-    // Listen for gamepad connection/disconnection
     window.addEventListener('gamepadconnected', () => {
       setTimeout(() => this.checkXboxController(), 100);
     });
@@ -319,59 +232,18 @@ export class GameMenu {
       setTimeout(() => this.checkXboxController(), 100);
     });
     
-    // Poll periodically to check for controller connection
     this.controllerCheckInterval = setInterval(() => {
       this.checkXboxController();
-      // Also check input mode for header visibility
       this.updateHeaderVisibility();
-    }, 1000); // Check every second
+    }, 1000);
   }
 
-  /**
-   * Update header visibility based on input mode
-   */
   updateHeaderVisibility() {
-    if (this.header) {
-      const inputMode = this.inputManager?.getInputMode() || 'keyboard';
-      if (inputMode === 'controller') {
-        this.header.style.display = 'none';
-      } else {
-        this.header.style.display = 'flex';
-      }
-    }
+    updateHeaderVisibility(this.header, this.inputManager);
   }
 
-  /**
-   * Update bumper icons visibility based on input mode
-   */
   updateBumperIcons() {
-    if (this.lbIcon && this.rbIcon) {
-      const inputMode = this.inputManager?.getInputMode() || 'keyboard';
-      if (inputMode === 'controller') {
-        this.lbIcon.style.display = 'flex';
-        this.rbIcon.style.display = 'flex';
-      } else {
-        this.lbIcon.style.display = 'none';
-        this.rbIcon.style.display = 'none';
-      }
-    }
-    
-    // Update trigger icons visibility
-    if (this.ltIcon && this.rtIcon) {
-      const inputMode = this.inputManager?.getInputMode() || 'keyboard';
-      if (inputMode === 'controller') {
-        this.ltIcon.style.display = 'flex';
-        this.rtIcon.style.display = 'flex';
-      } else {
-        this.ltIcon.style.display = 'none';
-        this.rtIcon.style.display = 'none';
-      }
-    }
-    
-    // Also update footer content when controller state changes
-    this.updateFooterContent();
-    // Also update header visibility when controller state changes
-    this.updateHeaderVisibility();
+    updateBumperIcons(this);
   }
 
   startControllerPolling() {
@@ -379,7 +251,7 @@ export class GameMenu {
     
     this.controllerPollInterval = setInterval(() => {
       this.handleControllerInput();
-    }, 50); // Poll every 50ms
+    }, 50);
   }
 
   stopControllerPolling() {
@@ -391,180 +263,7 @@ export class GameMenu {
   }
 
   handleControllerInput() {
-    // Only process controller input when input mode is controller
-    const inputMode = this.inputManager?.getInputMode() || 'keyboard';
-    if (inputMode !== 'controller') return;
-    
-    const gamepads = navigator.getGamepads();
-    if (!gamepads || gamepads.length === 0) return;
-    
-    const gamepad = gamepads[0]; // Use first connected gamepad
-    if (!gamepad) return;
-
-    // Xbox button mappings:
-    // Button 0 = A
-    // Button 1 = B
-    // Button 8 = Back
-    // Button 9 = Start (Menu/Options) - Handled in main.js gameLoop.tick to avoid conflicts
-    // Button 4 = Left Bumper (LB)
-    // Button 5 = Right Bumper (RB)
-
-    // Note: Start button (9) is handled in main.js to avoid double-toggling
-    
-    // Only process navigation and button presses when menu is open
-    if (!this.isVisible) return;
-
-    // A button (0) - Activate focused element when menu is open
-    if (gamepad.buttons[0]?.pressed) {
-      if (!this.controllerNavigation.buttonPressed.has(0)) {
-        this.controllerNavigation.buttonPressed.add(0);
-        // Activate focused element if menu is open
-        this.activateFocusedElement();
-      }
-    } else {
-      this.controllerNavigation.buttonPressed.delete(0);
-    }
-
-    // B button (1) - Close menu if open
-    if (gamepad.buttons[1]?.pressed) {
-      if (!this.controllerNavigation.buttonPressed.has(1)) {
-        this.controllerNavigation.buttonPressed.add(1);
-        if (this.isVisible) {
-          this.toggle(); // Close menu
-        }
-      }
-    } else {
-      this.controllerNavigation.buttonPressed.delete(1);
-    }
-
-    // Back button (8) - Close menu if open
-    if (gamepad.buttons[8]?.pressed) {
-      if (!this.controllerNavigation.buttonPressed.has(8)) {
-        this.controllerNavigation.buttonPressed.add(8);
-        if (this.isVisible) {
-          this.toggle(); // Close menu
-        }
-      }
-    } else {
-      this.controllerNavigation.buttonPressed.delete(8);
-    }
-
-    // Left Bumper (4) - Navigate tabs left
-    if (gamepad.buttons[4]?.pressed) {
-      if (!this.controllerNavigation.buttonPressed.has(4)) {
-        this.controllerNavigation.buttonPressed.add(4);
-        this.navigateTab('left');
-        // Prevent rapid navigation
-        setTimeout(() => {
-          this.controllerNavigation.buttonPressed.delete(4);
-        }, 300);
-      }
-    }
-
-    // Right Bumper (5) - Navigate tabs right
-    if (gamepad.buttons[5]?.pressed) {
-      if (!this.controllerNavigation.buttonPressed.has(5)) {
-        this.controllerNavigation.buttonPressed.add(5);
-        this.navigateTab('right');
-        // Prevent rapid navigation
-        setTimeout(() => {
-          this.controllerNavigation.buttonPressed.delete(5);
-        }, 300);
-      }
-    }
-
-    // Left Trigger (6) - Navigate sections left
-    const leftTrigger = gamepad.buttons[6]?.pressed || (gamepad.axes && gamepad.axes[2] && gamepad.axes[2] > 0.5);
-    if (leftTrigger) {
-      if (!this.controllerNavigation.buttonPressed.has('lt')) {
-        this.controllerNavigation.buttonPressed.add('lt');
-        this.navigateSection('left');
-        // Prevent rapid navigation
-        setTimeout(() => {
-          this.controllerNavigation.buttonPressed.delete('lt');
-        }, 300);
-      }
-    } else {
-      this.controllerNavigation.buttonPressed.delete('lt');
-    }
-
-    // Right Trigger (7) - Navigate sections right
-    const rightTrigger = gamepad.buttons[7]?.pressed || (gamepad.axes && gamepad.axes[5] && gamepad.axes[5] > 0.5);
-    if (rightTrigger) {
-      if (!this.controllerNavigation.buttonPressed.has('rt')) {
-        this.controllerNavigation.buttonPressed.add('rt');
-        this.navigateSection('right');
-        // Prevent rapid navigation
-        setTimeout(() => {
-          this.controllerNavigation.buttonPressed.delete('rt');
-        }, 300);
-      }
-    } else {
-      this.controllerNavigation.buttonPressed.delete('rt');
-    }
-
-    // Left joystick navigation (for menu items)
-    const leftStickX = gamepad.axes[0] || 0;
-    const leftStickY = gamepad.axes[1] || 0;
-    const stickThreshold = 0.5;
-    
-    if (Math.abs(leftStickX) > stickThreshold || Math.abs(leftStickY) > stickThreshold) {
-      const direction = Math.abs(leftStickX) > Math.abs(leftStickY) 
-        ? (leftStickX > 0 ? 'right' : 'left')
-        : (leftStickY > 0 ? 'down' : 'up');
-      
-      const stickKey = `stick-${direction}`;
-      if (!this.controllerNavigation.buttonPressed.has(stickKey)) {
-        this.controllerNavigation.buttonPressed.add(stickKey);
-        this.handleJoystickNavigation(direction);
-        // Prevent rapid navigation
-        setTimeout(() => {
-          this.controllerNavigation.buttonPressed.delete(stickKey);
-        }, 200);
-      }
-    }
-
-    // D-pad navigation (for menu items)
-    // D-pad can be buttons 12-15 or axes 6-7
-    // Try buttons first (more reliable)
-    let dpadX = 0;
-    let dpadY = 0;
-    
-    // Check D-pad buttons (12-15: up, down, left, right)
-    if (gamepad.buttons[12]?.pressed) dpadY = -1; // Up
-    if (gamepad.buttons[13]?.pressed) dpadY = 1;  // Down
-    if (gamepad.buttons[14]?.pressed) dpadX = -1; // Left
-    if (gamepad.buttons[15]?.pressed) dpadX = 1;  // Right
-    
-    // Fallback to axes if buttons don't work (some controllers use axes 6-7)
-    if (gamepad.axes && gamepad.axes.length >= 8) {
-      const dpadAxisH = gamepad.axes[6] || 0;
-      const dpadAxisV = gamepad.axes[7] || 0;
-      if (Math.abs(dpadAxisH) > 0.5) dpadX = dpadAxisH > 0 ? 1 : -1;
-      if (Math.abs(dpadAxisV) > 0.5) dpadY = dpadAxisV > 0 ? 1 : -1;
-    }
-    
-    if (dpadX !== 0 || dpadY !== 0) {
-      const direction = dpadY !== 0 
-        ? (dpadY > 0 ? 'down' : 'up')
-        : (dpadX > 0 ? 'right' : 'left');
-      
-      const dpadKey = `dpad-${direction}`;
-      if (!this.controllerNavigation.buttonPressed.has(dpadKey)) {
-        this.controllerNavigation.buttonPressed.add(dpadKey);
-        this.handleJoystickNavigation(direction);
-        // Prevent rapid navigation
-        setTimeout(() => {
-          this.controllerNavigation.buttonPressed.delete(dpadKey);
-        }, 200);
-      }
-    } else {
-      // Clear all D-pad keys when not pressed
-      ['dpad-up', 'dpad-down', 'dpad-left', 'dpad-right'].forEach(key => {
-        this.controllerNavigation.buttonPressed.delete(key);
-      });
-    }
-
+    handleControllerInput(this);
   }
 
   navigateTab(direction) {
@@ -573,10 +272,10 @@ export class GameMenu {
     
     if (direction === 'left') {
       newIndex = tabIndex - 1;
-      if (newIndex < 0) return; // Stop at first tab, don't wrap
+      if (newIndex < 0) return;
     } else {
       newIndex = tabIndex + 1;
-      if (newIndex >= this.tabs.length) return; // Stop at last tab, don't wrap
+      if (newIndex >= this.tabs.length) return;
     }
     
     this.switchTab(this.tabs[newIndex].id);
@@ -594,7 +293,6 @@ export class GameMenu {
     const currentIndex = sections.findIndex(s => s.id === currentSectionId);
     
     if (currentIndex === -1) {
-      // No active section, select first
       this.switchSection(sections[0].id);
       return;
     }
@@ -602,106 +300,23 @@ export class GameMenu {
     let newIndex;
     if (direction === 'left') {
       newIndex = currentIndex - 1;
-      if (newIndex < 0) return; // Stop at first section, don't wrap
+      if (newIndex < 0) return;
     } else {
       newIndex = currentIndex + 1;
-      if (newIndex >= sections.length) return; // Stop at last section, don't wrap
+      if (newIndex >= sections.length) return;
     }
     
     this.switchSection(sections[newIndex].id);
   }
 
   handleJoystickNavigation(direction) {
-    // Get all focusable elements in current panel
-    const focusableElements = this.getFocusableElements();
-    if (focusableElements.length === 0) return;
-
-    // Find current focused element
-    const currentFocused = document.activeElement;
-    let currentIndex = Array.from(focusableElements).indexOf(currentFocused);
-    
-    // If nothing focused, start at first element
-    if (currentIndex === -1) {
-      currentIndex = 0;
-      focusableElements[0]?.focus();
-      this.highlightElement(focusableElements[0]);
-      return;
-    }
-
-    // Get bounding rectangle of current element
-    const currentRect = focusableElements[currentIndex].getBoundingClientRect();
-    const currentCenterX = currentRect.left + currentRect.width / 2;
-    const currentCenterY = currentRect.top + currentRect.height / 2;
-
-    let bestElement = null;
-    let bestDistance = Infinity;
-
-    // Find the closest element in the specified direction
-    for (let i = 0; i < focusableElements.length; i++) {
-      if (i === currentIndex) continue;
-
-      const rect = focusableElements[i].getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-
-      let isInDirection = false;
-      let distance = 0;
-
-      switch (direction) {
-        case 'down':
-          // Element must be below (higher Y) and horizontally aligned
-          isInDirection = centerY > currentCenterY && 
-                         Math.abs(centerX - currentCenterX) < Math.max(rect.width, currentRect.width);
-          if (isInDirection) {
-            // Prefer closest vertically, then closest horizontally
-            distance = (centerY - currentCenterY) + Math.abs(centerX - currentCenterX) * 0.1;
-          }
-          break;
-        case 'up':
-          // Element must be above (lower Y) and horizontally aligned
-          isInDirection = centerY < currentCenterY && 
-                         Math.abs(centerX - currentCenterX) < Math.max(rect.width, currentRect.width);
-          if (isInDirection) {
-            distance = (currentCenterY - centerY) + Math.abs(centerX - currentCenterX) * 0.1;
-          }
-          break;
-        case 'right':
-          // Element must be to the right (higher X) and vertically aligned
-          isInDirection = centerX > currentCenterX && 
-                         Math.abs(centerY - currentCenterY) < Math.max(rect.height, currentRect.height);
-          if (isInDirection) {
-            distance = (centerX - currentCenterX) + Math.abs(centerY - currentCenterY) * 0.1;
-          }
-          break;
-        case 'left':
-          // Element must be to the left (lower X) and vertically aligned
-          isInDirection = centerX < currentCenterX && 
-                         Math.abs(centerY - currentCenterY) < Math.max(rect.height, currentRect.height);
-          if (isInDirection) {
-            distance = (currentCenterX - centerX) + Math.abs(centerY - currentCenterY) * 0.1;
-          }
-          break;
-      }
-
-      if (isInDirection && distance < bestDistance) {
-        bestDistance = distance;
-        bestElement = focusableElements[i];
-      }
-    }
-
-    // If no element found in that direction, stop (don't wrap)
-    if (!bestElement) return;
-
-    // Focus the best element
-    bestElement.focus();
-    this.highlightElement(bestElement);
+    handleJoystickNavigation(direction, this);
   }
 
   getFocusableElements() {
     const panel = this.getCurrentPanel();
     if (!panel) return [];
 
-    // Get active section if available
     const sections = this.tabSections[this.activeTab];
     let searchContainer = panel;
     
@@ -715,7 +330,6 @@ export class GameMenu {
       }
     }
 
-    // Get all focusable elements: buttons, inputs, selects
     const selectors = [
       'button',
       'input',
@@ -726,7 +340,6 @@ export class GameMenu {
     ].join(', ');
 
     return Array.from(searchContainer.querySelectorAll(selectors)).filter(el => {
-      // Filter out hidden or disabled elements
       return !el.disabled && 
              el.offsetWidth > 0 && 
              el.offsetHeight > 0 &&
@@ -735,7 +348,6 @@ export class GameMenu {
   }
 
   highlightElement(element) {
-    // Remove previous highlight (search in active section or entire panel)
     const sections = this.tabSections[this.activeTab];
     let searchContainer = this.getCurrentPanel();
     
@@ -754,10 +366,8 @@ export class GameMenu {
       prevHighlighted.classList.remove('game-menu__focused');
     }
 
-    // Add highlight to current element
     if (element) {
       element.classList.add('game-menu__focused');
-      // Scroll element into view if needed
       element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }
@@ -765,7 +375,6 @@ export class GameMenu {
   activateFocusedElement() {
     const focused = document.activeElement;
     if (!focused) {
-      // If nothing focused, focus first element
       const focusable = this.getFocusableElements();
       if (focusable.length > 0) {
         focusable[0].focus();
@@ -774,20 +383,15 @@ export class GameMenu {
       return;
     }
 
-    // Activate based on element type
     if (focused.tagName === 'BUTTON') {
-      // Click button
       focused.click();
     } else if (focused.tagName === 'SELECT' || focused.tagName === 'INPUT') {
-      // Focus input/select (already focused, so no action needed)
-      // For selects, open dropdown on A button
       if (focused.tagName === 'SELECT') {
         focused.focus();
         focused.click();
       }
     }
   }
-
 
   getCurrentPanel() {
     return this.panels[this.activeTab];
@@ -798,30 +402,25 @@ export class GameMenu {
     
     this.activeTab = tabId;
     this.controllerNavigation.currentTabIndex = this.tabs.findIndex(t => t.id === tabId);
-    this.controllerNavigation.currentSectionIndex = 0; // Reset section index when switching tabs
+    this.controllerNavigation.currentSectionIndex = 0;
     
-    // Update tab buttons
     this.tabsContainer.querySelectorAll('.game-menu__tab').forEach(btn => {
       btn.classList.toggle('is-active', btn.dataset.tab === tabId);
     });
     
-    // Update panels
     Object.entries(this.panels).forEach(([id, panel]) => {
       const isActive = id === tabId;
       panel.setAttribute('aria-hidden', !isActive);
       panel.classList.toggle('is-active', isActive);
     });
     
-    // Update sections navigation visibility and active section
     this.updateSectionsNavigation();
     
-    // Activate first section if available
     const sections = this.tabSections[tabId];
     if (sections && sections.length > 0) {
       const firstSectionId = sections[0].id;
       this.switchSection(firstSectionId);
     } else {
-      // No sections, show all content (fallback behavior)
       this.activeSection[tabId] = null;
     }
   }
@@ -835,17 +434,14 @@ export class GameMenu {
     
     this.activeSection[this.activeTab] = sectionId;
     
-    // Hide all sections, show only active
     sections.forEach(s => {
       s.element.style.display = s.id === sectionId ? 'block' : 'none';
     });
     
-    // Update section buttons
     this.sectionsList.querySelectorAll('.game-menu__section-button').forEach(btn => {
       btn.classList.toggle('is-active', btn.dataset.section === sectionId);
     });
     
-    // Update section index for controller navigation
     const index = sections.findIndex(s => s.id === sectionId);
     if (index !== -1) {
       this.controllerNavigation.currentSectionIndex = index;
@@ -855,19 +451,15 @@ export class GameMenu {
   updateSectionsNavigation() {
     const sections = this.tabSections[this.activeTab];
     
-    // Clear existing section buttons
     this.sectionsList.innerHTML = '';
     
     if (!sections || sections.length === 0) {
-      // Hide sections navigation if no sections
       this.sectionsContainer.style.display = 'none';
       return;
     }
     
-    // Show sections navigation
     this.sectionsContainer.style.display = 'flex';
     
-    // Create section buttons
     sections.forEach(section => {
       const button = document.createElement('button');
       button.className = 'game-menu__section-button';
@@ -875,7 +467,6 @@ export class GameMenu {
       button.textContent = section.title;
       button.addEventListener('click', () => this.switchSection(section.id));
       
-      // Set active state
       const isActive = this.activeSection[this.activeTab] === section.id;
       button.classList.toggle('is-active', isActive);
       
@@ -889,24 +480,18 @@ export class GameMenu {
     this.overlay.setAttribute('aria-hidden', !this.isVisible);
     this.overlay.classList.toggle('is-visible', this.isVisible);
     
-    // Update header visibility when menu opens
     this.updateHeaderVisibility();
     
-    // Controller polling runs continuously (started in setupControllerNavigation)
-    // Only manage focus when opening menu
     if (this.isVisible) {
-      // Switch to first tab when opening menu
       if (!wasVisible && this.tabs.length > 0) {
         this.switchTab(this.tabs[0].id);
       }
       
-      // Activate first section if available
       const sections = this.tabSections[this.activeTab];
       if (sections && sections.length > 0 && !this.activeSection[this.activeTab]) {
         this.switchSection(sections[0].id);
       }
       
-      // Focus management - focus first focusable element
       setTimeout(() => {
         const focusable = this.getFocusableElements();
         if (focusable.length > 0) {
@@ -914,27 +499,22 @@ export class GameMenu {
           this.highlightElement(focusable[0]);
         }
       }, 100);
-      // Reset navigation state when opening
       this.controllerNavigation.currentSectionIndex = 0;
       
-      // Notify that menu is open (to block game inputs)
       if (this.config.onMenuOpen) {
         this.config.onMenuOpen();
       }
     } else {
-      // Remove any highlights
       const highlighted = document.querySelector('.game-menu__focused');
       if (highlighted) {
         highlighted.classList.remove('game-menu__focused');
       }
       
-      // Notify that menu is closed (to allow game inputs)
       if (this.config.onMenuClose) {
         this.config.onMenuClose();
       }
     }
     
-    // Callback for visibility change
     if (this.config.onVisibilityChange) {
       this.config.onVisibilityChange(this.isVisible);
     }
@@ -956,19 +536,16 @@ export class GameMenu {
     return this.isVisible;
   }
 
-  // Section management
   addSection(tabId, sectionConfig) {
     if (!this.panels[tabId]) {
       console.warn(`Tab ${tabId} does not exist`);
       return null;
     }
     
-    // Initialize sections array for tab if not exists
     if (!this.tabSections[tabId]) {
       this.tabSections[tabId] = [];
     }
     
-    // Generate section ID from className or title
     const sectionId = sectionConfig.className 
       ? sectionConfig.className.replace('game-menu__section--', '')
       : (sectionConfig.title || `section-${this.tabSections[tabId].length}`).toLowerCase().replace(/\s+/g, '-');
@@ -980,7 +557,6 @@ export class GameMenu {
       section.classList.add(sectionConfig.className);
     }
     
-    // Create section header (non-collapsible)
     if (sectionConfig.title) {
       const header = document.createElement('div');
       header.className = 'game-menu__section-header';
@@ -993,7 +569,6 @@ export class GameMenu {
       section.appendChild(header);
     }
     
-    // Create content container
     const content = document.createElement('div');
     content.className = 'game-menu__section-content';
     
@@ -1007,25 +582,21 @@ export class GameMenu {
     
     section.appendChild(content);
     
-    // Initially hide section (will be shown when active)
     section.style.display = 'none';
     
     this.panels[tabId].appendChild(section);
     
-    // Register section
     this.tabSections[tabId].push({
       id: sectionId,
       title: sectionConfig.title || sectionId,
       element: section
     });
     
-    // If this is the first section for this tab and it's active, show it
     if (this.tabSections[tabId].length === 1 && this.activeTab === tabId) {
       this.activeSection[tabId] = sectionId;
       section.style.display = 'block';
     }
     
-    // Update sections navigation if this tab is active
     if (this.activeTab === tabId) {
       this.updateSectionsNavigation();
     }
@@ -1033,32 +604,27 @@ export class GameMenu {
     return section;
   }
 
-  // Remove section
   removeSection(tabId, sectionElement) {
     if (sectionElement && sectionElement.parentNode) {
       sectionElement.parentNode.removeChild(sectionElement);
     }
   }
 
-  // Clear section
   clearSection(tabId) {
     if (this.panels[tabId]) {
       this.panels[tabId].innerHTML = '';
     }
   }
 
-  // Get panel element
   getPanel(tabId) {
     return this.panels[tabId];
   }
 
-  // Get section element
   getSection(tabId, className) {
     if (!this.panels[tabId]) return null;
     return this.panels[tabId].querySelector(`.game-menu__section.${className}`);
   }
 
-  // Destroy menu
   destroy() {
     if (this.controllerCheckInterval) {
       clearInterval(this.controllerCheckInterval);

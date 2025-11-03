@@ -1,18 +1,18 @@
 // Minimal dependencies via CDN ESM
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { GameMenu } from './ui/GameMenu.js';
+import { GameMenu } from './ui/components/GameMenu/index.js';
 import { initCharacterSwitcher } from './ui/adapters/reactAdapters.jsx';
 import { initControlsLegend } from './ui/adapters/reactAdapters.jsx';
 import { initGameModeSwitcher } from './ui/adapters/reactAdapters.jsx';
-import { initGameModeDisplay } from './ui/GameModeDisplay.js';
-import { initArenaSwitcher } from './ui/ArenaSwitcher.js';
-import { initRoomManager } from './ui/RoomManager.js';
-import { initBotControl } from './ui/BotControl.js';
-import { initCooldownIndicator } from './ui/CooldownIndicator.js';
-import { initConnectionStatus } from './ui/ConnectionStatus.js';
+import { initGameModeDisplay } from './ui/components/GameModeDisplay/index.js';
+import { initArenaSwitcher } from './ui/components/ArenaSwitcher/index.js';
+import { initRoomManager } from './ui/components/RoomManager/index.js';
+import { initBotControl } from './ui/components/BotControl/index.js';
+import { initCooldownIndicator } from './ui/components/CooldownIndicator/index.js';
+import { initConnectionStatus } from './ui/components/ConnectionStatus/index.js';
 import { initInputModeSwitcher } from './ui/adapters/reactAdapters.jsx';
-import { RespawnOverlay } from './ui/RespawnOverlay.js';
-import { Scoreboard } from './ui/Scoreboard.js';
+import { RespawnOverlay } from './ui/components/RespawnOverlay/index.js';
+import { Scoreboard } from './ui/components/Scoreboard/index.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode, getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
 import { spawnRemotePlayerWithHealthBar, removeRemotePlayer, sendPlayerState, handleRemotePlayerStateUpdate } from './core/init/MultiplayerHelpers.js';
