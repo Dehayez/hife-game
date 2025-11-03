@@ -741,18 +741,12 @@ html, body { height: 100%; margin: 0; }
   min-width: 120px;
   padding: 12px 16px;
   background: transparent;
-  border: 1px solid var(--color-border-light);
-  border-radius: 8px;
+  border: none;
   color: var(--color-text-primary);
-  font-size: 14px;
+  opacity: 0.6;
   font-weight: 500;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-  white-space: nowrap;
 }
 
 .game-menu__tab:hover {
@@ -761,10 +755,8 @@ html, body { height: 100%; margin: 0; }
 }
 
 .game-menu__tab.is-active {
-  background: var(--color-bg-secondary) !important;
-  color: var(--color-text-primary) !important;
-  border-color: var(--color-border-medium-3) !important;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6) inset;
+  opacity: 1;
+  font-weight: 600;
 }
 
 .game-menu__tab-icon {
@@ -773,7 +765,7 @@ html, body { height: 100%; margin: 0; }
 }
 
 .game-menu__tab-label {
-  font-size: 14px;
+  font-size: 18px;
 }
 
 /* Bumper icons (LB/RB) */
