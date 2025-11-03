@@ -14,6 +14,7 @@ import { initInputModeSwitcher } from './ui/InputModeSwitcher.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode, getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
+import { spawnRemotePlayerWithHealthBar, removeRemotePlayer, sendPlayerState, handleRemotePlayerStateUpdate } from './core/init/MultiplayerHelpers.js';
 import { SceneManager } from './core/scene/SceneManager.js';
 import { LargeArenaSceneManager } from './core/scene/LargeArenaSceneManager.js';
 import { CharacterManager } from './core/character/CharacterManager.js';
@@ -104,41 +105,19 @@ const multiplayerManager = new MultiplayerManager(
       const initialPosition = { x: 0, y: 0, z: 0 };
       
       try {
-        const remotePlayer = await remotePlayerManager.spawnRemotePlayer(
+        await spawnRemotePlayerWithHealthBar(
+          remotePlayerManager,
+          healthBarManager,
+          multiplayerManager,
           playerId,
-          playerInfo?.characterName || 'lucy',
+          playerInfo,
           initialPosition
         );
-        
-        // Create health bar for remote player
-        if (healthBarManager && remotePlayer && remotePlayer.mesh) {
-          const mesh = remotePlayer.mesh;
-          const characterName = playerInfo?.characterName || 'lucy';
-          const healthStats = getCharacterHealthStats();
-          mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
-          mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
-          healthBarManager.createHealthBar(mesh, false);
-        }
         
         // When someone joins, send our current state so they can see us
         if (characterManager.getPlayer()) {
           setTimeout(() => {
-            const player = characterManager.getPlayer();
-            const camera = sceneManager.getCamera();
-            const cameraDir = new THREE.Vector3();
-            camera.getWorldDirection(cameraDir);
-            const rotation = Math.atan2(cameraDir.x, cameraDir.z);
-            
-            multiplayerManager.sendPlayerState({
-              x: player.position.x,
-              y: player.position.y,
-              z: player.position.z,
-              rotation: rotation,
-              currentAnimKey: characterManager.currentAnimKey || 'idle_front',
-              lastFacing: characterManager.lastFacing || 'front',
-              isGrounded: characterManager.characterData.isGrounded || true,
-              isRunning: inputManager ? inputManager.isRunning() : false
-            });
+            sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
           }, 50);
         }
       } catch (error) {
@@ -149,71 +128,14 @@ const multiplayerManager = new MultiplayerManager(
   (playerId) => {
     // Remove remote player when someone leaves
     if (playerId !== multiplayerManager.getLocalPlayerId()) {
-      // Remove health bar first
-      const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
-      if (remotePlayer && remotePlayer.mesh && healthBarManager) {
-        healthBarManager.removeHealthBar(remotePlayer.mesh);
-      }
-      
-      // Then remove remote player
-      remotePlayerManager.removeRemotePlayer(playerId);
+      removeRemotePlayer(remotePlayerManager, healthBarManager, playerId);
     }
   },
   (playerId, data) => {
     // Handle multiplayer game data sync
     if (data.type === 'player-state') {
-      // Update remote player position/state
-      if (playerId !== multiplayerManager.getLocalPlayerId()) {
-        const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
-        
-        // If remote player doesn't exist yet, spawn them
-        if (!remotePlayer) {
-          const playerInfo = multiplayerManager.getPlayerInfo(playerId);
-          remotePlayerManager.spawnRemotePlayer(
-            playerId,
-            playerInfo?.characterName || 'lucy',
-            { x: data.x || 0, y: data.y || 0, z: data.z || 0 }
-          ).then(() => {
-            // Create health bar for remote player
-            const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
-            if (healthBarManager && remotePlayer && remotePlayer.mesh) {
-              const mesh = remotePlayer.mesh;
-              const playerInfo = multiplayerManager.getPlayerInfo(playerId);
-              const characterName = playerInfo?.characterName || 'lucy';
-              const healthStats = getCharacterHealthStats();
-              mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
-              mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
-              healthBarManager.createHealthBar(mesh, false);
-            }
-            
-            // Update position after spawning
-            remotePlayerManager.updateRemotePlayer(playerId, {
-              x: data.x,
-              y: data.y,
-              z: data.z,
-              rotation: data.rotation,
-              currentAnimKey: data.currentAnimKey,
-              lastFacing: data.lastFacing,
-              isGrounded: data.isGrounded,
-              isRunning: data.isRunning
-            });
-          }).catch(error => {
-            console.error('Error spawning remote player:', error);
-          });
-        } else {
-          // Update existing remote player
-          remotePlayerManager.updateRemotePlayer(playerId, {
-            x: data.x,
-            y: data.y,
-            z: data.z,
-            rotation: data.rotation,
-            currentAnimKey: data.currentAnimKey,
-            lastFacing: data.lastFacing,
-            isGrounded: data.isGrounded,
-            isRunning: data.isRunning
-          });
-        }
-      }
+      // Use helper function to handle remote player state update
+      handleRemotePlayerStateUpdate(remotePlayerManager, healthBarManager, multiplayerManager, playerId, data);
     } else if (data.type === 'projectile-create') {
       // Create projectile from remote player
       if (playerId !== multiplayerManager.getLocalPlayerId() && projectileManager) {
@@ -775,21 +697,7 @@ const roomManager = initRoomManager({
       // Send our initial position when creating room
       if (characterManager.getPlayer()) {
         setTimeout(() => {
-          const player = characterManager.getPlayer();
-          const camera = sceneManager.getCamera();
-          const cameraDir = new THREE.Vector3();
-          camera.getWorldDirection(cameraDir);
-          const rotation = Math.atan2(cameraDir.x, cameraDir.z);
-          
-          multiplayerManager.sendPlayerState({
-            x: player.position.x,
-            y: player.position.y,
-            z: player.position.z,
-            rotation: rotation,
-            currentAnimKey: characterManager.currentAnimKey || 'idle_front',
-            lastFacing: characterManager.lastFacing || 'front',
-            isGrounded: characterManager.characterData.isGrounded || true
-          });
+          sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
         }, 100);
       }
       
@@ -813,21 +721,7 @@ const roomManager = initRoomManager({
       // Immediately send our current state so others can see us
       if (characterManager.getPlayer()) {
         setTimeout(() => {
-          const player = characterManager.getPlayer();
-          const camera = sceneManager.getCamera();
-          const cameraDir = new THREE.Vector3();
-          camera.getWorldDirection(cameraDir);
-          const rotation = Math.atan2(cameraDir.x, cameraDir.z);
-          
-          multiplayerManager.sendPlayerState({
-            x: player.position.x,
-            y: player.position.y,
-            z: player.position.z,
-            rotation: rotation,
-            currentAnimKey: characterManager.currentAnimKey || 'idle_front',
-            lastFacing: characterManager.lastFacing || 'front',
-            isGrounded: characterManager.characterData.isGrounded || true
-          });
+          sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
         }, 100);
       }
       
@@ -836,22 +730,7 @@ const roomManager = initRoomManager({
         multiplayerManager.requestExistingPlayers(() => {
           // Send current player state when requested
           if (characterManager.getPlayer()) {
-            const player = characterManager.getPlayer();
-            const camera = sceneManager.getCamera();
-            const cameraDir = new THREE.Vector3();
-            camera.getWorldDirection(cameraDir);
-            const rotation = Math.atan2(cameraDir.x, cameraDir.z);
-            
-            multiplayerManager.sendPlayerState({
-              x: player.position.x,
-              y: player.position.y,
-              z: player.position.z,
-              rotation: rotation,
-              currentAnimKey: characterManager.currentAnimKey || 'idle_front',
-              lastFacing: characterManager.lastFacing || 'front',
-              isGrounded: characterManager.characterData.isGrounded || true,
-              isRunning: inputManager ? inputManager.isRunning() : false
-            });
+            sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
           }
         });
       }, 200);
@@ -1097,29 +976,7 @@ if (typeof inputManager !== 'undefined') {
     if (multiplayerManager && multiplayerManager.isInRoom() && characterManager.getPlayer()) {
       const syncNow = Date.now();
       if (syncNow - lastPositionSyncTime >= syncInterval) {
-        const player = characterManager.getPlayer();
-        const camera = sceneManager.getCamera();
-        
-        // Calculate rotation from camera and player facing
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
-        const rotation = Math.atan2(cameraDir.x, cameraDir.z);
-        
-        // Get current animation state from character manager
-        const currentAnimKey = characterManager.currentAnimKey || 'idle_front';
-        const lastFacing = characterManager.lastFacing || 'front';
-        
-        multiplayerManager.sendPlayerState({
-          x: player.position.x,
-          y: player.position.y,
-          z: player.position.z,
-          rotation: rotation,
-          currentAnimKey: currentAnimKey,
-          lastFacing: lastFacing,
-          isGrounded: characterManager.characterData.isGrounded || true,
-          isRunning: inputManager ? inputManager.isRunning() : false
-        });
-        
+        sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
         lastPositionSyncTime = syncNow;
       }
     }

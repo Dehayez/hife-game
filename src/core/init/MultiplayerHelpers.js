@@ -12,10 +12,10 @@ import { GAME_CONSTANTS } from '../constants/GameConstants.js';
  * Get current player state for synchronization
  * @param {Object} characterManager - Character manager instance
  * @param {Object} sceneManager - Scene manager instance
- * @param {boolean} isRunning - Whether player is running (optional)
+ * @param {Object} inputManager - Input manager instance (optional, for isRunning)
  * @returns {Object} Player state object
  */
-export function getPlayerState(characterManager, sceneManager, isRunning = false) {
+export function getPlayerState(characterManager, sceneManager, inputManager = null) {
   const player = characterManager.getPlayer();
   if (!player) return null;
   
@@ -24,6 +24,9 @@ export function getPlayerState(characterManager, sceneManager, isRunning = false
   camera.getWorldDirection(cameraDir);
   const rotation = Math.atan2(cameraDir.x, cameraDir.z);
   
+  // Get isRunning from inputManager if available
+  const isRunning = inputManager ? inputManager.isRunning() : false;
+  
   return {
     x: player.position.x,
     y: player.position.y,
@@ -31,7 +34,7 @@ export function getPlayerState(characterManager, sceneManager, isRunning = false
     rotation: rotation,
     currentAnimKey: characterManager.currentAnimKey || 'idle_front',
     lastFacing: characterManager.lastFacing || 'front',
-    isGrounded: characterManager.characterData.isGrounded || true,
+    isGrounded: characterManager.characterData?.isGrounded ?? true,
     isRunning: isRunning
   };
 }
@@ -41,14 +44,16 @@ export function getPlayerState(characterManager, sceneManager, isRunning = false
  * @param {Object} multiplayerManager - Multiplayer manager instance
  * @param {Object} characterManager - Character manager instance
  * @param {Object} sceneManager - Scene manager instance
+ * @param {Object} inputManager - Input manager instance (optional)
  * @param {number} delay - Optional delay in milliseconds
- * @param {boolean} isRunning - Whether player is running (optional)
  */
-export function sendPlayerState(multiplayerManager, characterManager, sceneManager, delay = 0, isRunning = false) {
-  if (!multiplayerManager || !multiplayerManager.isInRoom()) return;
+export function sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager = null, delay = 0) {
+  if (!multiplayerManager || !multiplayerManager.isInRoom() || !multiplayerManager.isConnected()) {
+    return;
+  }
   
   const sendState = () => {
-    const state = getPlayerState(characterManager, sceneManager, isRunning);
+    const state = getPlayerState(characterManager, sceneManager, inputManager);
     if (state) {
       multiplayerManager.sendPlayerState(state);
     }
@@ -136,5 +141,75 @@ export function removeRemotePlayer(remotePlayerManager, healthBarManager, player
     healthBarManager.removeHealthBar(remotePlayer.mesh);
   }
   remotePlayerManager.removeRemotePlayer(playerId);
+}
+
+/**
+ * Handle remote player state update
+ * @param {Object} remotePlayerManager - Remote player manager instance
+ * @param {Object} healthBarManager - Health bar manager instance
+ * @param {Object} multiplayerManager - Multiplayer manager instance
+ * @param {string} playerId - Player ID
+ * @param {Object} data - State data
+ */
+export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarManager, multiplayerManager, playerId, data) {
+  if (playerId === multiplayerManager.getLocalPlayerId()) {
+    return; // Don't update local player
+  }
+  
+  const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
+  
+  // If remote player doesn't exist yet, spawn them
+  if (!remotePlayer) {
+    const playerInfo = multiplayerManager.getPlayerInfo(playerId);
+    remotePlayerManager.spawnRemotePlayer(
+      playerId,
+      playerInfo?.characterName || 'lucy',
+      { x: data.x || 0, y: data.y || 0, z: data.z || 0 }
+    ).then(() => {
+      // Create health bar for remote player
+      const spawnedPlayer = remotePlayerManager.getRemotePlayer(playerId);
+      if (healthBarManager && spawnedPlayer && spawnedPlayer.mesh) {
+        const mesh = spawnedPlayer.mesh;
+        const playerInfo = multiplayerManager.getPlayerInfo(playerId);
+        const characterName = playerInfo?.characterName || 'lucy';
+        import('../character/CharacterStats.js').then(({ getCharacterHealthStats }) => {
+          const healthStats = getCharacterHealthStats();
+          mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
+          mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
+          healthBarManager.createHealthBar(mesh, false);
+        }).catch(() => {
+          mesh.userData.health = mesh.userData.health || 100;
+          mesh.userData.maxHealth = mesh.userData.maxHealth || 100;
+          healthBarManager.createHealthBar(mesh, false);
+        });
+      }
+      
+      // Update position after spawning
+      remotePlayerManager.updateRemotePlayer(playerId, {
+        x: data.x,
+        y: data.y,
+        z: data.z,
+        rotation: data.rotation,
+        currentAnimKey: data.currentAnimKey,
+        lastFacing: data.lastFacing,
+        isGrounded: data.isGrounded,
+        isRunning: data.isRunning
+      });
+    }).catch(error => {
+      console.error('Error spawning remote player:', error);
+    });
+  } else {
+    // Update existing remote player
+    remotePlayerManager.updateRemotePlayer(playerId, {
+      x: data.x,
+      y: data.y,
+      z: data.z,
+      rotation: data.rotation,
+      currentAnimKey: data.currentAnimKey,
+      lastFacing: data.lastFacing,
+      isGrounded: data.isGrounded,
+      isRunning: data.isRunning
+    });
+  }
 }
 

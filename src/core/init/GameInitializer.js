@@ -81,8 +81,7 @@ export function setupPositionSync(gameLoop, multiplayerManager, characterManager
     if (multiplayerManager && multiplayerManager.isInRoom() && characterManager.getPlayer()) {
       const syncNow = Date.now();
       if (syncNow - lastPositionSyncTime >= syncInterval) {
-        const isRunning = inputManager ? inputManager.isRunning() : false;
-        sendPlayerState(multiplayerManager, characterManager, sceneManager, 0, isRunning);
+        sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager);
         lastPositionSyncTime = syncNow;
       }
     }
