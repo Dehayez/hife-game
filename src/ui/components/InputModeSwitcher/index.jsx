@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-function getModeDisplayName(mode) {
-  const names = {
-    keyboard: 'Keyboard & Mouse',
-    controller: 'Controller',
-  };
-  return names[mode] || mode;
-}
+import { getModeDisplayName } from './functions.js';
 
 export function InputModeSwitcher({ options, value, onChange, controllerAvailable = false }) {
   const [selectedValue, setSelectedValue] = useState(value);

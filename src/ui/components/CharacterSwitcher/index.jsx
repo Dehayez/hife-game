@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getCharacterColorValues } from '../../core/systems/abilities/config/CharacterColors.js';
-
-function toTitleCase(str) {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
+import { getCharacterColorValues } from '../../../core/systems/abilities/config/CharacterColors.js';
+import { toTitleCase } from './functions.js';
 
 export function CharacterSwitcher({ options, value, onChange }) {
   const [selectedValue, setSelectedValue] = useState(value);

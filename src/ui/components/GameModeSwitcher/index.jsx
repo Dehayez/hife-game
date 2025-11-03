@@ -1,15 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-function getModeName(mode, gameModeManager) {
-  if (gameModeManager) {
-    const config = gameModeManager.getModeConfigByKey(mode);
-    if (config && config.name) {
-      return config.name;
-    }
-  }
-  if (!mode) return mode;
-  return mode.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-}
+import { getModeName } from './functions.js';
 
 export function GameModeSwitcher({ options, value, onChange, gameModeManager = null }) {
   const [selectedValue, setSelectedValue] = useState(value);

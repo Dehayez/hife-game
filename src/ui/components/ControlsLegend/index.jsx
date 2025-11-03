@@ -1,0 +1,43 @@
+import React, { useState, useEffect } from 'react';
+import { KeyboardControls } from './KeyboardControls.jsx';
+import { ControllerControls } from './ControllerControls.jsx';
+
+export function ControlsLegend({ inputManager, gameModeManager }) {
+  const [inputMode, setInputMode] = useState(() => inputManager?.getInputMode() || 'keyboard');
+  const [gameMode, setGameMode] = useState(() => gameModeManager?.getMode() || 'free-play');
+
+  useEffect(() => {
+    const updateFromManagers = () => {
+      if (inputManager) {
+        setInputMode(inputManager.getInputMode());
+      }
+      if (gameModeManager) {
+        setGameMode(gameModeManager.getMode());
+      }
+    };
+
+    // Initial update
+    updateFromManagers();
+
+    // Set up interval to check for changes (since managers don't emit events)
+    const interval = setInterval(updateFromManagers, 100);
+
+    return () => clearInterval(interval);
+  }, [inputManager, gameModeManager]);
+
+  const isShootingMode = gameMode === 'shooting';
+
+  return (
+    <div className="ui__legend-panel">
+      <h3 className="ui__legend-title">Controls</h3>
+      <div className="ui__legend-content">
+        {inputMode === 'controller' ? (
+          <ControllerControls isShootingMode={isShootingMode} />
+        ) : (
+          <KeyboardControls isShootingMode={isShootingMode} />
+        )}
+      </div>
+    </div>
+  );
+}
+
