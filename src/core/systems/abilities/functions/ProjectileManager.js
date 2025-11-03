@@ -543,6 +543,16 @@ export class ProjectileManager {
   }
   
   /**
+   * Reset all cooldowns for all abilities (shot, mortar, melee)
+   * Called on death/respawn to ensure all abilities are ready
+   */
+  resetAllCooldowns() {
+    this.characterCooldowns.clear();
+    this.mortarCharacterCooldowns.clear();
+    this.meleeCharacterCooldowns.clear();
+  }
+  
+  /**
    * Set melee cooldown for a player
    * Called from GameLoop to sync melee cooldown timer
    * @param {string} playerId - Player ID ('local' or player identifier)

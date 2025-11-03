@@ -130,6 +130,21 @@ export class GameLoop {
   }
 
   /**
+   * Reset all cooldowns (melee and mortar release cooldown)
+   * Called on death/respawn to ensure all abilities are ready
+   */
+  resetCooldowns() {
+    this.meleeCooldownTimer = 0;
+    this.mortarReleaseCooldown = 0;
+    
+    // Sync melee cooldown reset to ProjectileManager
+    if (this.projectileManager) {
+      const playerId = 'local';
+      this.projectileManager.setMeleeCooldown(playerId, 0);
+    }
+  }
+
+  /**
    * Main game loop tick
    */
   tick() {
@@ -306,6 +321,13 @@ export class GameLoop {
       // Reset overlay immediately before respawning
       this.collisionManager.resetRespawn();
       const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
+      
+      // Reset all cooldowns on respawn
+      this.resetCooldowns();
+      if (this.projectileManager) {
+        this.projectileManager.resetAllCooldowns();
+      }
+      
       this.characterManager.respawn(currentMode, this.collisionManager);
     }
     
@@ -327,6 +349,13 @@ export class GameLoop {
         this.gameModeManager.modeState.deaths++;
       }
       const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
+      
+      // Reset all cooldowns on respawn
+      this.resetCooldowns();
+      if (this.projectileManager) {
+        this.projectileManager.resetAllCooldowns();
+      }
+      
       this.characterManager.respawn(currentMode, this.collisionManager);
       
       // Update userData after respawn
