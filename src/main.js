@@ -580,21 +580,6 @@ function updateMenuForMode(mode) {
 // Settings Tab
 const settingsPanel = gameMenu.getPanel('settings');
 
-// Character Selection Section
-const charSection = gameMenu.addSection('settings', {
-  title: 'Character',
-  className: 'game-menu__section--character'
-});
-if (charSection && switcherMount.firstChild) {
-  const charContent = charSection.querySelector('.game-menu__section-content');
-  if (charContent) {
-    // Move the character switcher element to menu
-    while (switcherMount.firstChild) {
-      charContent.appendChild(switcherMount.firstChild);
-    }
-  }
-}
-
 // Arena Selection Section
 const arenaSection = gameMenu.addSection('settings', {
   title: 'Arena',
