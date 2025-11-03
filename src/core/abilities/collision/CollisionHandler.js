@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { checkBoltPlayerCollision } from '../projectile/Bolt.js';
+import { checkBoltPlayerCollision } from '../bolt/Bolt.js';
 import { checkMortarCollision, checkMortarGroundCollision } from '../mortar/Mortar.js';
 import { checkSplashAreaCollision } from '../mortar/SplashArea.js';
 

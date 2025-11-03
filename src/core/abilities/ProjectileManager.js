@@ -6,14 +6,14 @@
  * 
  * This file acts as a facade, delegating to specialized modules:
  * - stats/CharacterStats.js: Character ability stats configuration
- * - projectile/Bolt.js: Regular projectile shots
+ * - bolt/Bolt.js: Regular projectile shots
  * - mortar/Mortar.js: Arc mortar projectiles
  * - mortar/SplashArea.js: Splash areas after mortar impact
  * - collision/CollisionHandler.js: Collision detection logic
  */
 
 import { getBoltStats, getMortarStats } from './stats/CharacterStats.js';
-import { createBolt, updateBolt, removeBolt } from './projectile/Bolt.js';
+import { createBolt, updateBolt, removeBolt } from './bolt/Bolt.js';
 import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './mortar/Mortar.js';
 import { createSplashArea, updateSplashArea, removeSplashArea as removeSplashAreaFromScene } from './mortar/SplashArea.js';
 import { checkAllCollisions, checkMortarGroundAndSplashCollision } from './collision/CollisionHandler.js';
