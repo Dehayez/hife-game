@@ -610,13 +610,12 @@ const arenaSection = gameMenu.addSection('settings', {
   title: 'Arena',
   className: 'game-menu__section--arena'
 });
-if (arenaSection && arenaMount.firstChild) {
+if (arenaSection) {
   const arenaContent = arenaSection.querySelector('.game-menu__section-content');
-  if (arenaContent) {
-    // Move all children from arenaMount to menu
-    while (arenaMount.firstChild) {
-      arenaContent.appendChild(arenaMount.firstChild);
-    }
+  if (arenaContent && arenaMount) {
+    // Use the section content as the mount point instead of moving nodes
+    arenaContent.appendChild(arenaMount);
+    arenaMount.style.display = 'block';
   }
 }
 
@@ -625,12 +624,12 @@ const gameModeSection = gameMenu.addSection('settings', {
   title: 'Game Mode',
   className: 'game-menu__section--game-mode'
 });
-if (gameModeSection && gameModeMount.firstChild) {
+if (gameModeSection) {
   const gameModeContent = gameModeSection.querySelector('.game-menu__section-content');
-  if (gameModeContent) {
-    while (gameModeMount.firstChild) {
-      gameModeContent.appendChild(gameModeMount.firstChild);
-    }
+  if (gameModeContent && gameModeMount) {
+    // Use the section content as the mount point instead of moving nodes
+    gameModeContent.appendChild(gameModeMount);
+    gameModeMount.style.display = 'block';
   }
 }
 
@@ -639,12 +638,12 @@ const inputModeSection = gameMenu.addSection('settings', {
   title: 'Input Mode',
   className: 'game-menu__section--input-mode'
 });
-if (inputModeSection && inputModeMount.firstChild) {
+if (inputModeSection) {
   const inputModeContent = inputModeSection.querySelector('.game-menu__section-content');
-  if (inputModeContent) {
-    while (inputModeMount.firstChild) {
-      inputModeContent.appendChild(inputModeMount.firstChild);
-    }
+  if (inputModeContent && inputModeMount) {
+    // Use the section content as the mount point instead of moving nodes
+    inputModeContent.appendChild(inputModeMount);
+    inputModeMount.style.display = 'block';
   }
 }
 
@@ -653,12 +652,12 @@ const modeDisplaySection = gameMenu.addSection('settings', {
   title: 'Current Game Mode',
   className: 'game-menu__section--mode-display'
 });
-if (modeDisplaySection && modeDisplayMount.firstChild) {
+if (modeDisplaySection) {
   const modeDisplayContent = modeDisplaySection.querySelector('.game-menu__section-content');
-  if (modeDisplayContent) {
-    while (modeDisplayMount.firstChild) {
-      modeDisplayContent.appendChild(modeDisplayMount.firstChild);
-    }
+  if (modeDisplayContent && modeDisplayMount) {
+    // Use the section content as the mount point instead of moving nodes
+    modeDisplayContent.appendChild(modeDisplayMount);
+    modeDisplayMount.style.display = 'block';
   }
 }
 
@@ -674,14 +673,11 @@ const legendSection = gameMenu.addSection('controls', {
 });
 if (legendSection) {
   const legendContent = legendSection.querySelector('.game-menu__section-content');
-  if (legendContent) {
-    // Move legend to menu (keep original, don't clone) if it exists
-    if (legendMount && legendMount.firstChild) {
-      while (legendMount.firstChild) {
-        legendContent.appendChild(legendMount.firstChild);
-      }
-    }
-    
+  if (legendContent && legendMount) {
+    // Use the section content as the mount point instead of moving nodes
+    legendContent.appendChild(legendMount);
+    legendMount.style.display = 'block';
+
     // Controls legend is only in the menu, not shown in-game
   }
 }

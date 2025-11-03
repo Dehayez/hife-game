@@ -146,8 +146,9 @@ export class LargeArenaSceneManager {
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
     
+    // Ensure canvas is fully drawn before creating texture
+    // CanvasTexture automatically handles updates, no need to set needsUpdate manually
     const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
     return texture;
   }
 
