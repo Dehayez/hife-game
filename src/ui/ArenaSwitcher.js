@@ -3,7 +3,7 @@
  * Allows users to switch between different arena configurations
  */
 export function initArenaSwitcher(config) {
-  const { mount, options, value, onChange } = config;
+  const { mount, options, value: initialValue, onChange } = config;
   
   if (!mount) {
     return;
@@ -13,12 +13,13 @@ export function initArenaSwitcher(config) {
   wrapper.className = 'ui__choices';
 
   const buttons = new Map();
+  let currentValue = initialValue;
 
   function createChoice(arena) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'ui__choice';
-    btn.setAttribute('aria-pressed', String(arena.value === value));
+    btn.setAttribute('aria-pressed', String(arena.value === initialValue));
     btn.dataset.value = arena.value;
 
     // Use caption for text-only choices (similar to character switcher)
@@ -28,9 +29,13 @@ export function initArenaSwitcher(config) {
 
     btn.appendChild(caption);
 
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       selectValue(arena.value);
-      onChange(arena.value);
+      if (onChange) {
+        onChange(arena.value);
+      }
     });
     
     // Prevent spacebar from activating focused button
@@ -44,7 +49,7 @@ export function initArenaSwitcher(config) {
   }
 
   function selectValue(arenaValue) {
-    value = arenaValue;
+    currentValue = arenaValue;
     for (const [, b] of buttons) {
       const isActive = b.dataset.value === arenaValue;
       b.classList.toggle('is-active', isActive);
@@ -54,7 +59,7 @@ export function initArenaSwitcher(config) {
 
   options.forEach((arena) => {
     const btn = createChoice(arena);
-    if (arena.value === value) {
+    if (arena.value === initialValue) {
       btn.classList.add('is-active');
     }
     buttons.set(arena.value, btn);
@@ -65,7 +70,9 @@ export function initArenaSwitcher(config) {
 
   return {
     setValue(next) {
-      if (buttons.has(next)) selectValue(next);
+      if (buttons.has(next)) {
+        selectValue(next);
+      }
     }
   };
 }
