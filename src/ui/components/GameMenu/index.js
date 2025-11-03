@@ -54,21 +54,21 @@ export class GameMenu {
   createMenu() {
     // Main menu overlay
     this.overlay = document.createElement('div');
-    this.overlay.className = 'game-menu';
+    this.overlay.className = 'game-menu ui__game-menu';
     this.overlay.setAttribute('aria-hidden', 'true');
     // Use inert attribute to prevent focus on hidden overlay
     this.overlay.setAttribute('inert', '');
     
     // Menu container
     this.container = document.createElement('div');
-    this.container.className = 'game-menu__container';
+    this.container.className = 'game-menu__container ui__game-menu-container';
     
     // Menu header
     this.header = document.createElement('div');
-    this.header.className = 'game-menu__header';
+    this.header.className = 'game-menu__header ui__game-menu-header';
     
     const closeButton = document.createElement('button');
-    closeButton.className = 'game-menu__close';
+    closeButton.className = 'game-menu__close ui__game-menu-close';
     closeButton.innerHTML = '✕';
     closeButton.setAttribute('aria-label', 'Close menu');
     closeButton.addEventListener('click', () => this.toggle());
@@ -78,11 +78,11 @@ export class GameMenu {
     
     // Menu tabs
     this.tabsContainer = document.createElement('div');
-    this.tabsContainer.className = 'game-menu__tabs';
+    this.tabsContainer.className = 'game-menu__tabs ui__game-menu-tabs';
     
     // LB icon (left of Settings)
     this.lbIcon = document.createElement('div');
-    this.lbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--lb';
+    this.lbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--lb ui__game-menu-icon';
     this.lbIcon.textContent = 'LB';
     this.lbIcon.setAttribute('aria-label', 'Left Bumper');
     this.tabsContainer.appendChild(this.lbIcon);
@@ -95,7 +95,7 @@ export class GameMenu {
     
     this.tabs.forEach(tab => {
       const tabButton = document.createElement('button');
-      tabButton.className = 'game-menu__tab';
+      tabButton.className = 'game-menu__tab ui__game-menu-tab';
       tabButton.dataset.tab = tab.id;
       tabButton.innerHTML = `<span class="game-menu__tab-label">${tab.label}</span>`;
       tabButton.addEventListener('click', () => this.switchTab(tab.id));
@@ -104,7 +104,7 @@ export class GameMenu {
     
     // RB icon (right of Controls)
     this.rbIcon = document.createElement('div');
-    this.rbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--rb';
+    this.rbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--rb ui__game-menu-icon';
     this.rbIcon.textContent = 'RB';
     this.rbIcon.setAttribute('aria-label', 'Right Bumper');
     this.tabsContainer.appendChild(this.rbIcon);
@@ -113,24 +113,37 @@ export class GameMenu {
     
     // Sections navigation row (below tabs)
     this.sectionsContainer = document.createElement('div');
-    this.sectionsContainer.className = 'game-menu__sections';
+    this.sectionsContainer.className = 'game-menu__sections ui__game-menu-sections';
     
     // LT icon (left of sections)
     this.ltIcon = document.createElement('div');
-    this.ltIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--lt';
+    this.ltIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--lt ui__game-menu-icon';
     this.ltIcon.textContent = 'LT';
     this.ltIcon.setAttribute('aria-label', 'Left Trigger');
     this.sectionsContainer.appendChild(this.ltIcon);
     
     this.sectionsList = document.createElement('div');
-    this.sectionsList.className = 'game-menu__sections-list';
+    this.sectionsList.className = 'game-menu__sections-list ui__game-menu-sections-list';
     this.sectionsContainer.appendChild(this.sectionsList);
     
     // RT icon (right of sections)
     this.rtIcon = document.createElement('div');
-    this.rtIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--rt';
+    this.rtIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--rt ui__game-menu-icon';
     this.rtIcon.textContent = 'RT';
     this.rtIcon.setAttribute('aria-label', 'Right Trigger');
+    // Prevent clicks from triggering shooting
+    this.rtIcon.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    this.rtIcon.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    this.rtIcon.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
     this.sectionsContainer.appendChild(this.rtIcon);
     
     // Initially hidden, shown when tab has sections
@@ -139,13 +152,13 @@ export class GameMenu {
     
     // Menu content area
     this.content = document.createElement('div');
-    this.content.className = 'game-menu__content';
+    this.content.className = 'game-menu__content ui__game-menu-content';
     
     // Create tab panels
     this.panels = {};
     this.tabs.forEach(tab => {
       const panel = document.createElement('div');
-      panel.className = 'game-menu__panel';
+      panel.className = 'game-menu__panel ui__game-menu-panel';
       panel.dataset.panel = tab.id;
       const isActive = tab.id === 'settings';
       panel.setAttribute('aria-hidden', !isActive);
@@ -166,7 +179,7 @@ export class GameMenu {
     
     // Menu footer for commands
     this.footer = document.createElement('div');
-    this.footer.className = 'game-menu__footer';
+    this.footer.className = 'game-menu__footer ui__game-menu-footer';
     
     // Create footer content based on input mode
     this.updateFooterContent();
@@ -499,7 +512,7 @@ export class GameMenu {
     
     sections.forEach(section => {
       const button = document.createElement('button');
-      button.className = 'game-menu__section-button';
+      button.className = 'game-menu__section-button ui__game-menu-section-button';
       button.dataset.section = section.id;
       button.textContent = section.title;
       button.addEventListener('click', () => this.switchSection(section.id));
@@ -606,7 +619,7 @@ export class GameMenu {
       : (sectionConfig.title || `section-${this.tabSections[tabId].length}`).toLowerCase().replace(/\s+/g, '-');
     
     const section = document.createElement('div');
-    section.className = 'game-menu__section';
+    section.className = 'game-menu__section ui__game-menu-section';
     section.dataset.section = sectionId;
     if (sectionConfig.className) {
       section.classList.add(sectionConfig.className);
@@ -614,10 +627,10 @@ export class GameMenu {
     
     if (sectionConfig.title) {
       const header = document.createElement('div');
-      header.className = 'game-menu__section-header';
+      header.className = 'game-menu__section-header ui__game-menu-section-header';
       
       const title = document.createElement('h3');
-      title.className = 'game-menu__section-title';
+      title.className = 'game-menu__section-title ui__game-menu-section-title';
       title.textContent = sectionConfig.title;
       header.appendChild(title);
       
@@ -625,7 +638,7 @@ export class GameMenu {
     }
     
     const content = document.createElement('div');
-    content.className = 'game-menu__section-content';
+    content.className = 'game-menu__section-content ui__game-menu-section-content';
     
     if (sectionConfig.content) {
       if (typeof sectionConfig.content === 'string') {
