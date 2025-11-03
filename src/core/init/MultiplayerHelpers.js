@@ -81,7 +81,7 @@ export function createRemotePlayerHealthBar(healthBarManager, remotePlayer, mult
   const characterName = playerInfo?.characterName || 'lucy';
   
   // Import here to avoid circular dependencies
-  import('../character/config/CharacterStats.js').then(({ getCharacterHealthStats }) => {
+  import('../systems/character/config/CharacterStats.js').then(({ getCharacterHealthStats }) => {
     const healthStats = getCharacterHealthStats();
     mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
     mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
@@ -172,7 +172,7 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
         const mesh = spawnedPlayer.mesh;
         const playerInfo = multiplayerManager.getPlayerInfo(playerId);
         const characterName = playerInfo?.characterName || 'lucy';
-        import('../character/config/CharacterStats.js').then(({ getCharacterHealthStats }) => {
+        import('../systems/character/config/CharacterStats.js').then(({ getCharacterHealthStats }) => {
           const healthStats = getCharacterHealthStats();
           mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
           mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;

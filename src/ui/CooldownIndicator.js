@@ -1,5 +1,5 @@
-import { getMeleeStats } from '../core/abilities/functions/CharacterAbilityStats.js';
-import { getCharacterColorCss } from '../core/abilities/config/CharacterColors.js';
+import { getMeleeStats } from '../core/systems/abilities/functions/CharacterAbilityStats.js';
+import { getCharacterColorCss } from '../core/systems/abilities/config/CharacterColors.js';
 
 export function initCooldownIndicator({ mount, projectileManager, characterManager }) {
   // Create a default return object even if mount doesn't exist

@@ -12,7 +12,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { SoundManager } from '../../../utils/SoundManager.js';
+import { SoundManager } from '../../../../utils/SoundManager.js';
 import { 
   getCharacterHealthStats, 
   getCharacterMovementStats, 
@@ -34,8 +34,8 @@ import {
 } from './CharacterPhysics.js';
 import { loadAllCharacterSounds } from './CharacterSound.js';
 import { getCharacterColorHex } from '../../abilities/config/CharacterColors.js';
-import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../../utils/DeathFadeUtils.js';
-import { createSpriteMesh } from '../../utils/SpriteUtils.js';
+import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../../../utils/DeathFadeUtils.js';
+import { createSpriteMesh } from '../../../utils/SpriteUtils.js';
 
 export class CharacterManager {
   /**

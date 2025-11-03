@@ -1,4 +1,4 @@
-import { getCharacterColorValues } from '../core/abilities/config/CharacterColors.js';
+import { getCharacterColorValues } from '../core/systems/abilities/config/CharacterColors.js';
 
 export function initCharacterSwitcher({ mount, options, value, onChange }) {
   const wrapper = document.createElement('div');

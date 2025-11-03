@@ -5,7 +5,7 @@
  * Handles room creation, player connections, and data synchronization via WebSocket.
  */
 
-import { WEBSOCKET_SERVER_URL, PRODUCTION_DOMAINS } from '../../config/multiplayer.js';
+import { WEBSOCKET_SERVER_URL, PRODUCTION_DOMAINS } from '../../../config/multiplayer.js';
 
 export class MultiplayerManager {
   /**
