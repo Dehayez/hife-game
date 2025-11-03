@@ -66,8 +66,9 @@ export function validateInputMode(inputManager) {
  * @param {Object} multiplayerManager - Multiplayer manager instance
  * @param {Object} characterManager - Character manager instance
  * @param {Object} sceneManager - Scene manager instance
+ * @param {Object} inputManager - Input manager instance (optional)
  */
-export function setupPositionSync(gameLoop, multiplayerManager, characterManager, sceneManager) {
+export function setupPositionSync(gameLoop, multiplayerManager, characterManager, sceneManager, inputManager = null) {
   let lastPositionSyncTime = 0;
   const syncInterval = GAME_CONSTANTS.SYNC_INTERVAL;
   
@@ -80,7 +81,8 @@ export function setupPositionSync(gameLoop, multiplayerManager, characterManager
     if (multiplayerManager && multiplayerManager.isInRoom() && characterManager.getPlayer()) {
       const syncNow = Date.now();
       if (syncNow - lastPositionSyncTime >= syncInterval) {
-        sendPlayerState(multiplayerManager, characterManager, sceneManager);
+        const isRunning = inputManager ? inputManager.isRunning() : false;
+        sendPlayerState(multiplayerManager, characterManager, sceneManager, 0, isRunning);
         lastPositionSyncTime = syncNow;
       }
     }

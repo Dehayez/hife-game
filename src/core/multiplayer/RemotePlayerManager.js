@@ -7,16 +7,18 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/CharacterAnimation.js';
-import { getCharacterMovementStats } from '../character/CharacterStats.js';
+import { getCharacterMovementStats, getCharacterParticleStats } from '../character/CharacterStats.js';
 import { createSpriteAtPosition } from '../utils/SpriteUtils.js';
 
 export class RemotePlayerManager {
   /**
    * Create a new RemotePlayerManager
    * @param {Object} scene - THREE.js scene
+   * @param {Object} particleManager - Particle manager for smoke effects (optional)
    */
-  constructor(scene) {
+  constructor(scene, particleManager = null) {
     this.scene = scene;
+    this.particleManager = particleManager;
     this.remotePlayers = new Map(); // Map<playerId, remotePlayerData>
     this.movementStats = getCharacterMovementStats();
   }
@@ -60,21 +62,42 @@ export class RemotePlayerManager {
     setCharacterAnimation(playerMesh, 'idle_front', animations, null, true);
 
     // Store remote player data
+    const initialX = playerMesh.position.x;
+    const initialY = playerMesh.position.y;
+    const initialZ = playerMesh.position.z;
+    
     this.remotePlayers.set(playerId, {
       mesh: playerMesh,
       animations: animations,
       currentAnimKey: 'idle_front',
       lastFacing: 'front',
       position: {
-        x: playerMesh.position.x,
-        y: playerMesh.position.y,
-        z: playerMesh.position.z
+        x: initialX,
+        y: initialY,
+        z: initialZ
       },
+      // Interpolation state
+      targetPosition: {
+        x: initialX,
+        y: initialY,
+        z: initialZ
+      },
+      previousPosition: {
+        x: initialX,
+        y: initialY,
+        z: initialZ
+      },
+      interpolationTime: 0,
+      interpolationDuration: 0.15, // 150ms - slightly longer than update interval for smoother overlap
+      smoothedVelocityX: 0,
+      smoothedVelocityZ: 0,
       rotation: 0,
       networkRotation: 0, // Store network rotation for reference
       velocityX: 0,
       velocityZ: 0,
       isGrounded: true,
+      isRunning: false,
+      smokeSpawnTimer: 0,
       lastUpdateTime: Date.now()
     });
 
@@ -266,17 +289,55 @@ export class RemotePlayerManager {
     }
 
     const mesh = remotePlayer.mesh;
+    const now = Date.now();
     
-    // Update position with interpolation for smoother movement
-    if (state.x !== undefined) remotePlayer.position.x = state.x;
-    if (state.y !== undefined) remotePlayer.position.y = state.y;
-    if (state.z !== undefined) remotePlayer.position.z = state.z;
+    // Store current position as previous position for interpolation
+    remotePlayer.previousPosition.x = remotePlayer.position.x;
+    remotePlayer.previousPosition.y = remotePlayer.position.y;
+    remotePlayer.previousPosition.z = remotePlayer.position.z;
     
-    mesh.position.set(
-      remotePlayer.position.x,
-      remotePlayer.position.y,
-      remotePlayer.position.z
+    // Calculate velocity before updating target position
+    const timeSinceLastUpdate = (now - remotePlayer.lastUpdateTime) / 1000; // Convert to seconds
+    if (timeSinceLastUpdate > 0 && timeSinceLastUpdate < 1) {
+      // Calculate velocity from current position to new target position
+      const oldTargetX = remotePlayer.targetPosition.x;
+      const oldTargetZ = remotePlayer.targetPosition.z;
+      
+      // Update target position (where we want to interpolate to)
+      if (state.x !== undefined) remotePlayer.targetPosition.x = state.x;
+      if (state.y !== undefined) remotePlayer.targetPosition.y = state.y;
+      if (state.z !== undefined) remotePlayer.targetPosition.z = state.z;
+      
+      // Calculate velocity based on movement from old target to new target
+      const dx = remotePlayer.targetPosition.x - oldTargetX;
+      const dz = remotePlayer.targetPosition.z - oldTargetZ;
+      const newVelocityX = dx / timeSinceLastUpdate;
+      const newVelocityZ = dz / timeSinceLastUpdate;
+      
+      // Smooth velocity changes using exponential smoothing (0.7 = 70% old, 30% new)
+      remotePlayer.velocityX = newVelocityX;
+      remotePlayer.velocityZ = newVelocityZ;
+      remotePlayer.smoothedVelocityX = remotePlayer.smoothedVelocityX * 0.7 + newVelocityX * 0.3;
+      remotePlayer.smoothedVelocityZ = remotePlayer.smoothedVelocityZ * 0.7 + newVelocityZ * 0.3;
+    } else {
+      // Update target position
+      if (state.x !== undefined) remotePlayer.targetPosition.x = state.x;
+      if (state.y !== undefined) remotePlayer.targetPosition.y = state.y;
+      if (state.z !== undefined) remotePlayer.targetPosition.z = state.z;
+    }
+    
+    // Reset interpolation timer - start interpolating from current position to target
+    // Don't reset if we're very close to target (smooth transition)
+    const distanceToTarget = Math.sqrt(
+      Math.pow(remotePlayer.position.x - remotePlayer.targetPosition.x, 2) +
+      Math.pow(remotePlayer.position.z - remotePlayer.targetPosition.z, 2)
     );
+    
+    // If we're far from target, reset interpolation
+    // If we're close, continue smoothly
+    if (distanceToTarget > 0.1) {
+      remotePlayer.interpolationTime = 0;
+    }
 
     // Update rotation (billboard to camera while respecting network rotation)
     // Note: We'll billboard in updateAnimations, but we can still store network rotation
@@ -305,7 +366,11 @@ export class RemotePlayerManager {
       remotePlayer.isGrounded = state.isGrounded;
     }
 
-    remotePlayer.lastUpdateTime = Date.now();
+    if (state.isRunning !== undefined) {
+      remotePlayer.isRunning = state.isRunning;
+    }
+
+    remotePlayer.lastUpdateTime = now;
   }
 
   /**
@@ -325,28 +390,108 @@ export class RemotePlayerManager {
   }
 
   /**
-   * Update remote player animations
+   * Update remote player animations and interpolate positions
    * @param {number} dt - Delta time in seconds
    * @param {THREE.Camera} camera - Camera for billboarding (optional)
    */
   updateAnimations(dt, camera = null) {
     for (const [playerId, remotePlayer] of this.remotePlayers) {
+      const mesh = remotePlayer.mesh;
+      const now = Date.now();
+      const timeSinceUpdate = (now - remotePlayer.lastUpdateTime) / 1000; // Convert to seconds
+      
+      // Calculate distance to target
+      const dx = remotePlayer.targetPosition.x - remotePlayer.position.x;
+      const dy = remotePlayer.targetPosition.y - remotePlayer.position.y;
+      const dz = remotePlayer.targetPosition.z - remotePlayer.position.z;
+      const distanceToTarget = Math.sqrt(dx * dx + dz * dz);
+      
+      // Snap threshold - if very close, snap directly to avoid jitter
+      const snapThreshold = 0.01;
+      
+      if (distanceToTarget < snapThreshold && Math.abs(dy) < snapThreshold) {
+        // Very close to target - snap directly
+        mesh.position.set(
+          remotePlayer.targetPosition.x,
+          remotePlayer.targetPosition.y,
+          remotePlayer.targetPosition.z
+        );
+        remotePlayer.position.x = remotePlayer.targetPosition.x;
+        remotePlayer.position.y = remotePlayer.targetPosition.y;
+        remotePlayer.position.z = remotePlayer.targetPosition.z;
+      } else if (timeSinceUpdate < 0.3) {
+        // Use frame-based lerp for ultra-smooth movement
+        // Lerp factor adapts based on distance - closer targets move faster
+        const maxDistance = 5.0; // Maximum expected distance
+        const normalizedDistance = Math.min(distanceToTarget / maxDistance, 1.0);
+        
+        // Adaptive lerp factor: 0.2 to 0.4 based on distance
+        // Closer = faster movement, further = smoother but slower
+        const baseLerpFactor = 0.25;
+        const adaptiveLerpFactor = baseLerpFactor + (normalizedDistance * 0.15);
+        
+        // Apply lerp directly - this gives smooth, frame-by-frame movement
+        const currentX = remotePlayer.position.x + 
+          (remotePlayer.targetPosition.x - remotePlayer.position.x) * adaptiveLerpFactor;
+        const currentY = remotePlayer.position.y + 
+          (remotePlayer.targetPosition.y - remotePlayer.position.y) * adaptiveLerpFactor;
+        const currentZ = remotePlayer.position.z + 
+          (remotePlayer.targetPosition.z - remotePlayer.position.z) * adaptiveLerpFactor;
+        
+        mesh.position.set(currentX, currentY, currentZ);
+        remotePlayer.position.x = currentX;
+        remotePlayer.position.y = currentY;
+        remotePlayer.position.z = currentZ;
+        
+        // Update interpolation time for tracking
+        remotePlayer.interpolationTime += dt;
+      } else {
+        // Extrapolation: predict position based on smoothed velocity when updates are delayed
+        // Only extrapolate horizontal movement (X and Z), keep Y as-is
+        const extrapolationTime = Math.min(timeSinceUpdate - 0.15, 0.2); // Cap extrapolation
+        
+        // Use smoothed velocity for more stable extrapolation
+        const extrapolatedX = remotePlayer.targetPosition.x + remotePlayer.smoothedVelocityX * extrapolationTime;
+        const extrapolatedZ = remotePlayer.targetPosition.z + remotePlayer.smoothedVelocityZ * extrapolationTime;
+        
+        mesh.position.set(
+          extrapolatedX,
+          remotePlayer.targetPosition.y, // Don't extrapolate Y
+          extrapolatedZ
+        );
+        remotePlayer.position.x = extrapolatedX;
+        remotePlayer.position.z = extrapolatedZ;
+      }
+      
       // Billboard remote players to camera (like local players)
       if (camera) {
         const camYaw = camera.rotation.y;
-        remotePlayer.mesh.rotation.y = camYaw;
+        mesh.rotation.y = camYaw;
       }
       
       updateCharacterAnimation(
-        remotePlayer.mesh,
+        mesh,
         remotePlayer.animations,
         remotePlayer.currentAnimKey,
         remotePlayer.isGrounded,
         () => true, // Assume on base ground for remote players
         null, // No sound manager for remote players
         dt,
-        false // Assume not running (could be synced from state)
+        remotePlayer.isRunning || false // Use synced running state
       );
+      
+      // Spawn smoke particles when running and grounded
+      if (remotePlayer.isRunning && remotePlayer.isGrounded && this.particleManager) {
+        remotePlayer.smokeSpawnTimer -= dt;
+        if (remotePlayer.smokeSpawnTimer <= 0) {
+          const particleStats = getCharacterParticleStats();
+          this.particleManager.spawnSmokeParticle(mesh.position);
+          remotePlayer.smokeSpawnTimer = particleStats.smokeSpawnInterval;
+        }
+      } else {
+        // Reset timer when not running
+        remotePlayer.smokeSpawnTimer = 0;
+      }
     }
   }
 

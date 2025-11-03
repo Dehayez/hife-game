@@ -12,9 +12,10 @@ import { GAME_CONSTANTS } from '../constants/GameConstants.js';
  * Get current player state for synchronization
  * @param {Object} characterManager - Character manager instance
  * @param {Object} sceneManager - Scene manager instance
+ * @param {boolean} isRunning - Whether player is running (optional)
  * @returns {Object} Player state object
  */
-export function getPlayerState(characterManager, sceneManager) {
+export function getPlayerState(characterManager, sceneManager, isRunning = false) {
   const player = characterManager.getPlayer();
   if (!player) return null;
   
@@ -30,7 +31,8 @@ export function getPlayerState(characterManager, sceneManager) {
     rotation: rotation,
     currentAnimKey: characterManager.currentAnimKey || 'idle_front',
     lastFacing: characterManager.lastFacing || 'front',
-    isGrounded: characterManager.characterData.isGrounded || true
+    isGrounded: characterManager.characterData.isGrounded || true,
+    isRunning: isRunning
   };
 }
 
@@ -40,12 +42,13 @@ export function getPlayerState(characterManager, sceneManager) {
  * @param {Object} characterManager - Character manager instance
  * @param {Object} sceneManager - Scene manager instance
  * @param {number} delay - Optional delay in milliseconds
+ * @param {boolean} isRunning - Whether player is running (optional)
  */
-export function sendPlayerState(multiplayerManager, characterManager, sceneManager, delay = 0) {
+export function sendPlayerState(multiplayerManager, characterManager, sceneManager, delay = 0, isRunning = false) {
   if (!multiplayerManager || !multiplayerManager.isInRoom()) return;
   
   const sendState = () => {
-    const state = getPlayerState(characterManager, sceneManager);
+    const state = getPlayerState(characterManager, sceneManager, isRunning);
     if (state) {
       multiplayerManager.sendPlayerState(state);
     }

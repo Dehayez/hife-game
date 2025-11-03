@@ -81,7 +81,7 @@ const particleManager = new ParticleManager(sceneManager.getScene(), collisionMa
 characterManager.setParticleManager(particleManager);
 
 // Initialize remote player manager for multiplayer
-const remotePlayerManager = new RemotePlayerManager(sceneManager.getScene());
+const remotePlayerManager = new RemotePlayerManager(sceneManager.getScene(), particleManager);
 
 // Initialize projectile manager for shooting mode
 const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager, particleManager);
@@ -136,7 +136,8 @@ const multiplayerManager = new MultiplayerManager(
               rotation: rotation,
               currentAnimKey: characterManager.currentAnimKey || 'idle_front',
               lastFacing: characterManager.lastFacing || 'front',
-              isGrounded: characterManager.characterData.isGrounded || true
+              isGrounded: characterManager.characterData.isGrounded || true,
+              isRunning: inputManager ? inputManager.isRunning() : false
             });
           }, 50);
         }
@@ -193,7 +194,8 @@ const multiplayerManager = new MultiplayerManager(
               rotation: data.rotation,
               currentAnimKey: data.currentAnimKey,
               lastFacing: data.lastFacing,
-              isGrounded: data.isGrounded
+              isGrounded: data.isGrounded,
+              isRunning: data.isRunning
             });
           }).catch(error => {
             console.error('Error spawning remote player:', error);
@@ -207,7 +209,8 @@ const multiplayerManager = new MultiplayerManager(
             rotation: data.rotation,
             currentAnimKey: data.currentAnimKey,
             lastFacing: data.lastFacing,
-            isGrounded: data.isGrounded
+            isGrounded: data.isGrounded,
+            isRunning: data.isRunning
           });
         }
       }
@@ -846,7 +849,8 @@ const roomManager = initRoomManager({
               rotation: rotation,
               currentAnimKey: characterManager.currentAnimKey || 'idle_front',
               lastFacing: characterManager.lastFacing || 'front',
-              isGrounded: characterManager.characterData.isGrounded || true
+              isGrounded: characterManager.characterData.isGrounded || true,
+              isRunning: inputManager ? inputManager.isRunning() : false
             });
           }
         });
@@ -1112,7 +1116,8 @@ if (typeof inputManager !== 'undefined') {
           rotation: rotation,
           currentAnimKey: currentAnimKey,
           lastFacing: lastFacing,
-          isGrounded: characterManager.characterData.isGrounded || true
+          isGrounded: characterManager.characterData.isGrounded || true,
+          isRunning: inputManager ? inputManager.isRunning() : false
         });
         
         lastPositionSyncTime = syncNow;
