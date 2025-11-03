@@ -5,12 +5,13 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { getBaseEntityMovementStats } from '../../../../constants/config/BaseEntityStats.js';
 
 /**
  * Check if bolt collides with a player
  * @param {THREE.Mesh} projectile - Projectile mesh
- * @param {THREE.Vector3} playerPos - Player position
- * @param {number} playerSize - Player size
+ * @param {THREE.Vector3} playerPos - Player position (sprite center)
+ * @param {number} playerSize - Player size (horizontal collision size)
  * @param {string} playerId - Player ID to check against
  * @returns {Object} Collision result with hit, damage, and projectile info
  */
@@ -20,10 +21,16 @@ export function checkBoltPlayerCollision(projectile, playerPos, playerSize, play
     return { hit: false };
   }
   
+  // Get character height from base stats (sprite is 1.2 units tall)
+  const playerHeight = getBaseEntityMovementStats().playerHeight;
+  const halfHeight = playerHeight / 2; // 0.6 units (sprite center to top/bottom)
   const halfSize = playerSize / 2;
+  
+  // Create hitbox matching actual sprite dimensions
+  // Sprite center is at playerPos.y, sprite extends from playerPos.y - halfHeight to playerPos.y + halfHeight
   const playerBox = new THREE.Box3(
-    new THREE.Vector3(playerPos.x - halfSize, playerPos.y - 0.5, playerPos.z - halfSize),
-    new THREE.Vector3(playerPos.x + halfSize, playerPos.y + 1.5, playerPos.z + halfSize)
+    new THREE.Vector3(playerPos.x - halfSize, playerPos.y - halfHeight, playerPos.z - halfSize),
+    new THREE.Vector3(playerPos.x + halfSize, playerPos.y + halfHeight, playerPos.z + halfSize)
   );
   
   const projectileBox = new THREE.Box3().setFromObject(projectile);
