@@ -973,7 +973,7 @@ export class GameLoop {
     // Create cooldown ring indicator (torus ring around the sphere)
     const ringGeometry = new THREE.TorusGeometry(0.4, 0.03, 8, 32);
     const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffaa00, // Fireball orange color
+      color: characterColor, // Use character color
       transparent: true,
       opacity: 0.8,
       side: THREE.DoubleSide
@@ -1122,15 +1122,16 @@ export class GameLoop {
       visual.userData.rotationPhase += dt * 2.0; // Rotations per second
       cooldownRing.rotation.z = visual.userData.rotationPhase;
       
-      // Update ring color based on cooldown progress (orange -> brighter orange as it charges)
+      // Update ring color based on cooldown progress (darker -> brighter character color as it charges)
       const progress = 1 - cooldownPercentage; // Invert so 0 = just started, 1 = almost ready
-      const fireballOrange = 0xffaa00; // Fireball orange color
-      const brightOrange = 0xffcc44; // Brighter orange/yellow
-      
-      // Lerp from fireball orange to bright orange as cooldown progresses
+      const characterColor = visual.userData.characterColor;
+      const darkerCharacterColor = new THREE.Color(characterColor).multiplyScalar(0.6); // Darker version
+      const brighterCharacterColor = new THREE.Color(characterColor).multiplyScalar(1.2); // Brighter version
+
+      // Lerp from darker to brighter character color as cooldown progresses
       const ringColor = new THREE.Color().lerpColors(
-        new THREE.Color(fireballOrange),
-        new THREE.Color(brightOrange),
+        darkerCharacterColor,
+        brighterCharacterColor,
         progress
       );
       cooldownRing.material.color.copy(ringColor);
