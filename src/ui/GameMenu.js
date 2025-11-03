@@ -22,6 +22,10 @@ export class GameMenu {
       buttonPressed: new Set() // Track button states to prevent rapid firing
     };
     
+    // Sections tracking per tab
+    this.tabSections = {}; // { tabId: [{ id, title, element }] }
+    this.activeSection = {}; // { tabId: sectionId }
+    
     // Xbox controller connection state
     this.isXboxControllerConnected = false;
     
@@ -102,6 +106,32 @@ export class GameMenu {
     
     this.container.appendChild(this.tabsContainer);
     
+    // Sections navigation row (below tabs)
+    this.sectionsContainer = document.createElement('div');
+    this.sectionsContainer.className = 'game-menu__sections';
+    
+    // LT icon (left of sections)
+    this.ltIcon = document.createElement('div');
+    this.ltIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--lt';
+    this.ltIcon.textContent = 'LT';
+    this.ltIcon.setAttribute('aria-label', 'Left Trigger');
+    this.sectionsContainer.appendChild(this.ltIcon);
+    
+    this.sectionsList = document.createElement('div');
+    this.sectionsList.className = 'game-menu__sections-list';
+    this.sectionsContainer.appendChild(this.sectionsList);
+    
+    // RT icon (right of sections)
+    this.rtIcon = document.createElement('div');
+    this.rtIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--rt';
+    this.rtIcon.textContent = 'RT';
+    this.rtIcon.setAttribute('aria-label', 'Right Trigger');
+    this.sectionsContainer.appendChild(this.rtIcon);
+    
+    // Initially hidden, shown when tab has sections
+    this.sectionsContainer.style.display = 'none';
+    this.container.appendChild(this.sectionsContainer);
+    
     // Menu content area
     this.content = document.createElement('div');
     this.content.className = 'game-menu__content';
@@ -115,6 +145,11 @@ export class GameMenu {
       panel.setAttribute('aria-hidden', tab.id !== 'settings');
       this.content.appendChild(panel);
       this.panels[tab.id] = panel;
+      
+      // Initialize sections array for each tab
+      if (!this.tabSections[tab.id]) {
+        this.tabSections[tab.id] = [];
+      }
     });
     
     this.container.appendChild(this.content);
@@ -320,6 +355,19 @@ export class GameMenu {
         this.rbIcon.style.display = 'none';
       }
     }
+    
+    // Update trigger icons visibility
+    if (this.ltIcon && this.rtIcon) {
+      const inputMode = this.inputManager?.getInputMode() || 'keyboard';
+      if (inputMode === 'controller') {
+        this.ltIcon.style.display = 'flex';
+        this.rtIcon.style.display = 'flex';
+      } else {
+        this.ltIcon.style.display = 'none';
+        this.rtIcon.style.display = 'none';
+      }
+    }
+    
     // Also update footer content when controller state changes
     this.updateFooterContent();
     // Also update header visibility when controller state changes
@@ -425,6 +473,36 @@ export class GameMenu {
       }
     }
 
+    // Left Trigger (6) - Navigate sections left
+    const leftTrigger = gamepad.buttons[6]?.pressed || (gamepad.axes && gamepad.axes[2] && gamepad.axes[2] > 0.5);
+    if (leftTrigger) {
+      if (!this.controllerNavigation.buttonPressed.has('lt')) {
+        this.controllerNavigation.buttonPressed.add('lt');
+        this.navigateSection('left');
+        // Prevent rapid navigation
+        setTimeout(() => {
+          this.controllerNavigation.buttonPressed.delete('lt');
+        }, 300);
+      }
+    } else {
+      this.controllerNavigation.buttonPressed.delete('lt');
+    }
+
+    // Right Trigger (7) - Navigate sections right
+    const rightTrigger = gamepad.buttons[7]?.pressed || (gamepad.axes && gamepad.axes[5] && gamepad.axes[5] > 0.5);
+    if (rightTrigger) {
+      if (!this.controllerNavigation.buttonPressed.has('rt')) {
+        this.controllerNavigation.buttonPressed.add('rt');
+        this.navigateSection('right');
+        // Prevent rapid navigation
+        setTimeout(() => {
+          this.controllerNavigation.buttonPressed.delete('rt');
+        }, 300);
+      }
+    } else {
+      this.controllerNavigation.buttonPressed.delete('rt');
+    }
+
     // Left joystick navigation (for menu items)
     const leftStickX = gamepad.axes[0] || 0;
     const leftStickY = gamepad.axes[1] || 0;
@@ -506,6 +584,31 @@ export class GameMenu {
 
   navigateNextTab() {
     this.navigateTab('right');
+  }
+
+  navigateSection(direction) {
+    const sections = this.tabSections[this.activeTab];
+    if (!sections || sections.length === 0) return;
+    
+    const currentSectionId = this.activeSection[this.activeTab] || sections[0].id;
+    const currentIndex = sections.findIndex(s => s.id === currentSectionId);
+    
+    if (currentIndex === -1) {
+      // No active section, select first
+      this.switchSection(sections[0].id);
+      return;
+    }
+    
+    let newIndex;
+    if (direction === 'left') {
+      newIndex = currentIndex - 1;
+      if (newIndex < 0) return; // Stop at first section, don't wrap
+    } else {
+      newIndex = currentIndex + 1;
+      if (newIndex >= sections.length) return; // Stop at last section, don't wrap
+    }
+    
+    this.switchSection(sections[newIndex].id);
   }
 
   handleJoystickNavigation(direction) {
@@ -598,6 +701,20 @@ export class GameMenu {
     const panel = this.getCurrentPanel();
     if (!panel) return [];
 
+    // Get active section if available
+    const sections = this.tabSections[this.activeTab];
+    let searchContainer = panel;
+    
+    if (sections && sections.length > 0) {
+      const activeSectionId = this.activeSection[this.activeTab];
+      if (activeSectionId) {
+        const activeSection = sections.find(s => s.id === activeSectionId);
+        if (activeSection && activeSection.element) {
+          searchContainer = activeSection.element;
+        }
+      }
+    }
+
     // Get all focusable elements: buttons, inputs, selects
     const selectors = [
       'button',
@@ -608,7 +725,7 @@ export class GameMenu {
       '[tabindex]:not([tabindex="-1"])'
     ].join(', ');
 
-    return Array.from(panel.querySelectorAll(selectors)).filter(el => {
+    return Array.from(searchContainer.querySelectorAll(selectors)).filter(el => {
       // Filter out hidden or disabled elements
       return !el.disabled && 
              el.offsetWidth > 0 && 
@@ -618,8 +735,21 @@ export class GameMenu {
   }
 
   highlightElement(element) {
-    // Remove previous highlight
-    const prevHighlighted = this.getCurrentPanel()?.querySelector('.game-menu__focused');
+    // Remove previous highlight (search in active section or entire panel)
+    const sections = this.tabSections[this.activeTab];
+    let searchContainer = this.getCurrentPanel();
+    
+    if (sections && sections.length > 0) {
+      const activeSectionId = this.activeSection[this.activeTab];
+      if (activeSectionId) {
+        const activeSection = sections.find(s => s.id === activeSectionId);
+        if (activeSection && activeSection.element) {
+          searchContainer = activeSection.element;
+        }
+      }
+    }
+    
+    const prevHighlighted = searchContainer?.querySelector('.game-menu__focused');
     if (prevHighlighted) {
       prevHighlighted.classList.remove('game-menu__focused');
     }
@@ -681,6 +811,76 @@ export class GameMenu {
       panel.setAttribute('aria-hidden', !isActive);
       panel.classList.toggle('is-active', isActive);
     });
+    
+    // Update sections navigation visibility and active section
+    this.updateSectionsNavigation();
+    
+    // Activate first section if available
+    const sections = this.tabSections[tabId];
+    if (sections && sections.length > 0) {
+      const firstSectionId = sections[0].id;
+      this.switchSection(firstSectionId);
+    } else {
+      // No sections, show all content (fallback behavior)
+      this.activeSection[tabId] = null;
+    }
+  }
+
+  switchSection(sectionId) {
+    const sections = this.tabSections[this.activeTab];
+    if (!sections) return;
+    
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
+    
+    this.activeSection[this.activeTab] = sectionId;
+    
+    // Hide all sections, show only active
+    sections.forEach(s => {
+      s.element.style.display = s.id === sectionId ? 'block' : 'none';
+    });
+    
+    // Update section buttons
+    this.sectionsList.querySelectorAll('.game-menu__section-button').forEach(btn => {
+      btn.classList.toggle('is-active', btn.dataset.section === sectionId);
+    });
+    
+    // Update section index for controller navigation
+    const index = sections.findIndex(s => s.id === sectionId);
+    if (index !== -1) {
+      this.controllerNavigation.currentSectionIndex = index;
+    }
+  }
+
+  updateSectionsNavigation() {
+    const sections = this.tabSections[this.activeTab];
+    
+    // Clear existing section buttons
+    this.sectionsList.innerHTML = '';
+    
+    if (!sections || sections.length === 0) {
+      // Hide sections navigation if no sections
+      this.sectionsContainer.style.display = 'none';
+      return;
+    }
+    
+    // Show sections navigation
+    this.sectionsContainer.style.display = 'flex';
+    
+    // Create section buttons
+    sections.forEach(section => {
+      const button = document.createElement('button');
+      button.className = 'game-menu__section-button';
+      button.dataset.section = section.id;
+      button.textContent = section.title;
+      button.addEventListener('click', () => this.switchSection(section.id));
+      
+      // Set active state
+      const isActive = this.activeSection[this.activeTab] === section.id;
+      button.classList.toggle('is-active', isActive);
+      
+      this.sectionsList.appendChild(button);
+    });
   }
 
   toggle() {
@@ -698,6 +898,12 @@ export class GameMenu {
       // Switch to first tab when opening menu
       if (!wasVisible && this.tabs.length > 0) {
         this.switchTab(this.tabs[0].id);
+      }
+      
+      // Activate first section if available
+      const sections = this.tabSections[this.activeTab];
+      if (sections && sections.length > 0 && !this.activeSection[this.activeTab]) {
+        this.switchSection(sections[0].id);
       }
       
       // Focus management - focus first focusable element
@@ -757,8 +963,19 @@ export class GameMenu {
       return null;
     }
     
+    // Initialize sections array for tab if not exists
+    if (!this.tabSections[tabId]) {
+      this.tabSections[tabId] = [];
+    }
+    
+    // Generate section ID from className or title
+    const sectionId = sectionConfig.className 
+      ? sectionConfig.className.replace('game-menu__section--', '')
+      : (sectionConfig.title || `section-${this.tabSections[tabId].length}`).toLowerCase().replace(/\s+/g, '-');
+    
     const section = document.createElement('div');
     section.className = 'game-menu__section';
+    section.dataset.section = sectionId;
     if (sectionConfig.className) {
       section.classList.add(sectionConfig.className);
     }
@@ -776,7 +993,7 @@ export class GameMenu {
       section.appendChild(header);
     }
     
-    // Create content container (always visible)
+    // Create content container
     const content = document.createElement('div');
     content.className = 'game-menu__section-content';
     
@@ -790,7 +1007,29 @@ export class GameMenu {
     
     section.appendChild(content);
     
+    // Initially hide section (will be shown when active)
+    section.style.display = 'none';
+    
     this.panels[tabId].appendChild(section);
+    
+    // Register section
+    this.tabSections[tabId].push({
+      id: sectionId,
+      title: sectionConfig.title || sectionId,
+      element: section
+    });
+    
+    // If this is the first section for this tab and it's active, show it
+    if (this.tabSections[tabId].length === 1 && this.activeTab === tabId) {
+      this.activeSection[tabId] = sectionId;
+      section.style.display = 'block';
+    }
+    
+    // Update sections navigation if this tab is active
+    if (this.activeTab === tabId) {
+      this.updateSectionsNavigation();
+    }
+    
     return section;
   }
 
