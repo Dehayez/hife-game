@@ -116,11 +116,59 @@ export class GameMenu {
     
     this.container.appendChild(this.content);
     
+    // Menu footer for commands
+    this.footer = document.createElement('div');
+    this.footer.className = 'game-menu__footer';
+    
+    // Create footer content based on input mode
+    this.updateFooterContent();
+    
+    this.container.appendChild(this.footer);
+    
     this.overlay.appendChild(this.container);
     
     // Append to root element if provided, otherwise to body
     const root = document.getElementById('game-menu-root') || document.body;
     root.appendChild(this.overlay);
+  }
+  
+  /**
+   * Update footer content based on current input mode
+   */
+  updateFooterContent() {
+    if (!this.footer) return;
+    
+    // Clear existing content
+    this.footer.innerHTML = '';
+    
+    // Check if Xbox controller is connected
+    const isController = this.isXboxControllerConnected;
+    
+    if (isController) {
+      // Xbox controller commands
+      const bButton = document.createElement('span');
+      bButton.className = 'game-menu__footer-button game-menu__footer-button--xbox-b';
+      bButton.innerHTML = '<span class="xbox-button">B</span>';
+      
+      const backLabel = document.createElement('span');
+      backLabel.className = 'game-menu__footer-label';
+      backLabel.textContent = 'Back';
+      
+      this.footer.appendChild(bButton);
+      this.footer.appendChild(backLabel);
+    } else {
+      // Keyboard command
+      const escKey = document.createElement('span');
+      escKey.className = 'game-menu__footer-button game-menu__footer-button--esc';
+      escKey.textContent = 'Esc';
+      
+      const backLabel = document.createElement('span');
+      backLabel.className = 'game-menu__footer-label';
+      backLabel.textContent = 'Back';
+      
+      this.footer.appendChild(escKey);
+      this.footer.appendChild(backLabel);
+    }
   }
 
   setupEventListeners() {
@@ -251,6 +299,8 @@ export class GameMenu {
         this.rbIcon.style.display = 'none';
       }
     }
+    // Also update footer content when controller state changes
+    this.updateFooterContent();
   }
 
   startControllerPolling() {

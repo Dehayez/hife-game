@@ -786,7 +786,7 @@ html, body { height: 100%; margin: 0; }
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: var(--color-bg-primary);
+  background: transparent;
 }
 
 .game-menu__panel {
@@ -866,6 +866,53 @@ html, body { height: 100%; margin: 0; }
   background: rgba(var(--color-accent-rgb), 0.2) !important;
 }
 
+/* Menu footer */
+.game-menu__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-panel);
+  min-height: 60px;
+}
+
+.game-menu__footer-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 28px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-medium-2);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  user-select: none;
+  pointer-events: none;
+}
+
+.game-menu__footer-button--esc {
+  font-family: 'Courier New', monospace;
+  padding: 0 12px;
+}
+
+.game-menu__footer-button--xbox-b .xbox-button {
+  color: #F44336 !important; /* Red for B button */
+}
+
+.game-menu__footer-label {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  opacity: 0.8;
+  font-weight: 500;
+  user-select: none;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .game-menu__container {
@@ -896,6 +943,21 @@ html, body { height: 100%; margin: 0; }
 
   .game-menu__tab-label {
     font-size: 12px;
+  }
+
+  .game-menu__footer {
+    padding: 12px 16px;
+    min-height: 56px;
+  }
+
+  .game-menu__footer-button {
+    min-width: 36px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .game-menu__footer-label {
+    font-size: 13px;
   }
 }
 
