@@ -12,6 +12,7 @@ import { initCooldownIndicator } from './ui/CooldownIndicator.js';
 import { initConnectionStatus } from './ui/ConnectionStatus.js';
 import { initInputModeSwitcher } from './ui/InputModeSwitcher.js';
 import { RespawnOverlay } from './ui/RespawnOverlay.js';
+import { Scoreboard } from './ui/Scoreboard.js';
 import { getParam } from './utils/UrlUtils.js';
 import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode, getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
 import { spawnRemotePlayerWithHealthBar, removeRemotePlayer, sendPlayerState, handleRemotePlayerStateUpdate } from './core/init/MultiplayerHelpers.js';
@@ -37,6 +38,9 @@ import { getCharacterHealthStats } from './core/character/CharacterStats.js';
 const canvas = document.getElementById('app-canvas');
 const respawnOverlay = new RespawnOverlay();
 const arenaManager = new ArenaManager();
+
+// Initialize scoreboard (will be configured with managers later)
+let scoreboard = null;
 
 // Get arena from URL param or default to standard
 const urlArena = getParam('arena', 'standard');
@@ -223,6 +227,27 @@ gameModeManager.setOnModeChangeCallback(() => {
 });
 
 const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager, botManager, healthBarManager, multiplayerManager, remotePlayerManager);
+
+// Initialize scoreboard with managers
+scoreboard = new Scoreboard({
+  multiplayerManager: multiplayerManager,
+  gameModeManager: gameModeManager,
+  botManager: botManager,
+  characterManager: characterManager,
+  inputManager: inputManager,
+  onScoreboardOpen: () => {
+    // Block game inputs when scoreboard is open
+    if (inputManager) {
+      inputManager.setInputBlocked(true);
+    }
+  },
+  onScoreboardClose: () => {
+    // Re-enable game inputs when scoreboard is closed
+    if (inputManager) {
+      inputManager.setInputBlocked(false);
+    }
+  }
+});
 
 // Character selection: URL param > localStorage > default
 // Priority: 1) URL param ?char=lucy, 2) Last played character (localStorage), 3) Default 'lucy'
@@ -918,11 +943,12 @@ if (typeof inputManager !== 'undefined') {
   // Wrap gameLoop.tick to update cooldown indicator and sync positions
   const originalTick = gameLoop.tick.bind(gameLoop);
   let lastStartButtonState = false;
-  
+  let lastScoreboardButtonState = false;
+
   gameLoop.tick = function() {
     const now = performance.now();
     originalTick();
-    
+
     // Handle Xbox Start button (button 9) to toggle menu
     // Works regardless of menu state (can open or close)
     const gamepads = navigator.getGamepads();
@@ -936,6 +962,25 @@ if (typeof inputManager !== 'undefined') {
         }
         lastStartButtonState = startButtonPressed;
       }
+    }
+
+    // Handle scoreboard toggle (Tab key or Back/Select button)
+    // Don't toggle scoreboard if menu is open or if scoreboard is already open
+    if (!isMenuOpen && scoreboard && !scoreboard.isOpen()) {
+      const isScoreboardButtonPressed = inputManager.isScoreboardPressed();
+      if (isScoreboardButtonPressed && !lastScoreboardButtonState) {
+        // Scoreboard button just pressed - toggle scoreboard
+        scoreboard.toggle();
+      }
+      lastScoreboardButtonState = isScoreboardButtonPressed;
+    } else if (scoreboard && scoreboard.isOpen()) {
+      // If scoreboard is open, check for button release to close it
+      const isScoreboardButtonPressed = inputManager.isScoreboardPressed();
+      if (!isScoreboardButtonPressed && lastScoreboardButtonState) {
+        // Button was just released - close scoreboard
+        scoreboard.toggle();
+      }
+      lastScoreboardButtonState = isScoreboardButtonPressed;
     }
     
     // Update cooldown indicator each frame (only if in shooting mode)

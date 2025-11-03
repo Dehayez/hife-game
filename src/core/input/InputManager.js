@@ -42,7 +42,8 @@ export class InputManager {
     this.characterSwapPressed = false;
     this.healPressed = false;
     this.swordSwingPressed = false;
-    
+    this.scoreboardPressed = false;
+
     // Gamepad state
     this.gamepad = null;
     this.gamepadConnected = false;
@@ -180,23 +181,41 @@ export class InputManager {
    * @private
    */
   _setupEventListeners() {
-    window.addEventListener('keydown', (e) => { 
+    window.addEventListener('keydown', (e) => {
+      // Tab key for scoreboard (works in both keyboard and controller mode)
+      if (e.key === 'Tab') {
+        if (!this.scoreboardPressed) {
+          this.scoreboardPressed = true;
+          this.inputState.scoreboard = true;
+        }
+        e.preventDefault();
+        return;
+      }
+
       // Only process keyboard input when in keyboard mode
       if (this.inputMode === 'keyboard') {
         this.setKeyState(e, true);
         // Prevent default browser behavior for game keys
-        if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+        if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
             e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
           e.preventDefault();
         }
       }
     });
-    window.addEventListener('keyup', (e) => { 
+    window.addEventListener('keyup', (e) => {
+      // Tab key for scoreboard (works in both keyboard and controller mode)
+      if (e.key === 'Tab') {
+        this.scoreboardPressed = false;
+        this.inputState.scoreboard = false;
+        e.preventDefault();
+        return;
+      }
+
       // Only process keyboard input when in keyboard mode
       if (this.inputMode === 'keyboard') {
         this.setKeyState(e, false);
         // Prevent default browser behavior for game keys
-        if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+        if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
             e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
           e.preventDefault();
         }
@@ -913,7 +932,7 @@ export class InputManager {
 
     // Sword Swing (B button 1) - 360 degree attack
     const swordSwingPressed = gamepad.buttons[1] && gamepad.buttons[1].pressed; // B button only
-    
+
     if (swordSwingPressed && !this.swordSwingPressed) {
       this.swordSwingPressed = true;
       this.inputState.swordSwing = true;
@@ -923,6 +942,20 @@ export class InputManager {
     } else if (!swordSwingPressed && this.swordSwingPressed) {
       this.swordSwingPressed = false;
       this.inputState.swordSwing = false;
+    }
+
+    // Scoreboard (Back/Select button 8) - toggle scoreboard
+    const scoreboardPressed = gamepad.buttons[8] && gamepad.buttons[8].pressed; // Back/Select button
+
+    if (scoreboardPressed && !this.scoreboardPressed) {
+      this.scoreboardPressed = true;
+      this.inputState.scoreboard = true;
+      if (this._loggingEnabled) {
+        this._logInput('📊 SCOREBOARD', 'pressed', gamepad);
+      }
+    } else if (!scoreboardPressed && this.scoreboardPressed) {
+      this.scoreboardPressed = false;
+      this.inputState.scoreboard = false;
     }
 
     // Right analog stick (axes 2 and 3) for aiming/shooting direction
@@ -1347,6 +1380,14 @@ export class InputManager {
    */
   isLevitatePressed() {
     return this.inputState.levitate;
+  }
+
+  /**
+   * Check if scoreboard button is pressed
+   * @returns {boolean} True if scoreboard button is pressed
+   */
+  isScoreboardPressed() {
+    return this.inputState.scoreboard;
   }
 }
 

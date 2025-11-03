@@ -1099,4 +1099,193 @@ html, body { height: 100%; margin: 0; }
   opacity: 1;
 }
 
+/* Scoreboard overlay */
+.scoreboard {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.scoreboard.is-visible {
+  display: flex;
+  opacity: 1;
+}
+
+.scoreboard__container {
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border-medium-2);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 600px;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scoreboard__header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-medium);
+}
+
+.scoreboard__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.scoreboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.scoreboard__thead {
+  border-bottom: 2px solid var(--color-border-medium-2);
+}
+
+.scoreboard__header-row {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.scoreboard__header-row th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.scoreboard__col-player {
+  width: 40%;
+}
+
+.scoreboard__col-kills {
+  width: 15%;
+  text-align: center !important;
+}
+
+.scoreboard__col-deaths {
+  width: 15%;
+  text-align: center !important;
+}
+
+.scoreboard__col-bots {
+  width: 15%;
+  text-align: center !important;
+}
+
+.scoreboard__col-kd {
+  width: 15%;
+  text-align: center !important;
+}
+
+.scoreboard__tbody {
+  background: transparent;
+}
+
+.scoreboard__row {
+  border-bottom: 1px solid var(--color-border-light);
+  transition: background 0.15s ease;
+}
+
+.scoreboard__row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.scoreboard__row--local {
+  background: rgba(255, 204, 68, 0.1);
+}
+
+.scoreboard__row--local:hover {
+  background: rgba(255, 204, 68, 0.15);
+}
+
+.scoreboard__row--empty td {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-primary);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.scoreboard__cell {
+  padding: 14px 16px;
+  font-size: 15px;
+  color: var(--color-text-primary);
+}
+
+.scoreboard__cell--player {
+  font-weight: 600;
+}
+
+.scoreboard__cell--kills,
+.scoreboard__cell--deaths,
+.scoreboard__cell--bots,
+.scoreboard__cell--kd {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreboard__player-id {
+  color: var(--color-text-primary);
+}
+
+.scoreboard__player-id--local {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .scoreboard__container {
+    min-width: 90%;
+    max-width: 95%;
+    padding: 20px;
+  }
+
+  .scoreboard__title {
+    font-size: 24px;
+  }
+
+  .scoreboard__header-row th {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .scoreboard__cell {
+    padding: 12px;
+    font-size: 14px;
+  }
+}
+
 
