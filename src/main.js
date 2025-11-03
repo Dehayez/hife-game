@@ -965,21 +965,24 @@ if (typeof inputManager !== 'undefined') {
     }
 
     // Handle scoreboard toggle (Tab key or Back/Select button)
-    // Don't toggle scoreboard if menu is open or if scoreboard is already open
-    if (!isMenuOpen && scoreboard && !scoreboard.isOpen()) {
+    // Hold to show, release to hide (like CS:GO)
+    if (!isMenuOpen && scoreboard) {
       const isScoreboardButtonPressed = inputManager.isScoreboardPressed();
-      if (isScoreboardButtonPressed && !lastScoreboardButtonState) {
-        // Scoreboard button just pressed - toggle scoreboard
-        scoreboard.toggle();
+
+      // Open scoreboard when button is pressed
+      if (isScoreboardButtonPressed && !scoreboard.isOpen()) {
+        scoreboard.show();
       }
-      lastScoreboardButtonState = isScoreboardButtonPressed;
-    } else if (scoreboard && scoreboard.isOpen()) {
-      // If scoreboard is open, check for button release to close it
-      const isScoreboardButtonPressed = inputManager.isScoreboardPressed();
-      if (!isScoreboardButtonPressed && lastScoreboardButtonState) {
-        // Button was just released - close scoreboard
-        scoreboard.toggle();
+      // Close scoreboard when button is released
+      else if (!isScoreboardButtonPressed && scoreboard.isOpen()) {
+        scoreboard.hide();
       }
+
+      // Update scoreboard data every frame if it's open
+      if (scoreboard.isOpen()) {
+        scoreboard.refreshData();
+      }
+
       lastScoreboardButtonState = isScoreboardButtonPressed;
     }
     
