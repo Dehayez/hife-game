@@ -181,22 +181,22 @@ export class Scoreboard {
    */
   updateDisplay() {
     if (!this.tbody) return;
-    
+
     // Clear existing rows
     this.tbody.innerHTML = '';
-    
+
     // Get all players
     const allPlayers = [];
-    
+
     // Add local player
     if (this.multiplayerManager) {
       const localPlayerId = this.multiplayerManager.getLocalPlayerId();
       if (localPlayerId && this.playerStats.has(localPlayerId)) {
         const stats = this.playerStats.get(localPlayerId);
         stats.isLocal = true;
-        allPlayers.push({ playerId: localPlayerId, stats });
+        allPlayers.push({ playerId: localPlayerId, stats, isBot: false });
       }
-      
+
       // Add remote players
       const connectedPlayers = this.multiplayerManager.getConnectedPlayers();
       connectedPlayers.forEach(player => {
@@ -204,13 +204,13 @@ export class Scoreboard {
           if (this.playerStats.has(player.id)) {
             const stats = this.playerStats.get(player.id);
             stats.isLocal = false;
-            allPlayers.push({ playerId: player.id, stats });
+            allPlayers.push({ playerId: player.id, stats, isBot: false });
           } else {
             // Initialize remote player if not tracked yet
             this.initializePlayer(player.id);
             const stats = this.playerStats.get(player.id);
             stats.isLocal = false;
-            allPlayers.push({ playerId: player.id, stats });
+            allPlayers.push({ playerId: player.id, stats, isBot: false });
           }
         }
       });
@@ -218,8 +218,32 @@ export class Scoreboard {
       // Fallback: just local player
       const localStats = this.playerStats.values().next().value;
       if (localStats) {
-        allPlayers.push({ playerId: 'local', stats: localStats });
+        allPlayers.push({ playerId: 'local', stats: localStats, isBot: false });
       }
+    }
+
+    // Add bots if botManager is available
+    if (this.botManager) {
+      const bots = this.botManager.getAllBots();
+      bots.forEach((bot, index) => {
+        if (bot && bot.userData) {
+          const botId = bot.userData.id || `bot-${index}`;
+          const botName = bot.userData.characterName || 'Bot';
+          const botKills = bot.userData.kills || 0;
+          const botDeaths = bot.userData.deaths || 0;
+
+          allPlayers.push({
+            playerId: botId,
+            stats: {
+              id: `${botName} ${index + 1}`,
+              kills: botKills,
+              deaths: botDeaths,
+              isLocal: false
+            },
+            isBot: true
+          });
+        }
+      });
     }
     
     // Sort players by kills (descending), then by K/D ratio
