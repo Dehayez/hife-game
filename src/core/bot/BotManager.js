@@ -102,18 +102,22 @@ export class BotManager {
       animations: loaded,
       currentAnimKey: 'idle_front',
       lastFacing: 'front',
-      
+
       // Health
       health: healthStats.defaultHealth,
       maxHealth: healthStats.maxHealth,
-      
+
       // Health bar (will be created separately)
       healthBar: null,
-      
+
       // Death fade tracking
       isDying: false,
       deathFadeTimer: 0,
-      deathFadeDuration: DEATH_FADE_CONFIG.duration
+      deathFadeDuration: DEATH_FADE_CONFIG.duration,
+
+      // Stats for scoreboard
+      kills: 0,
+      deaths: 0
     };
 
     // Initialize physics
@@ -162,6 +166,7 @@ export class BotManager {
       
       if (userData.health <= 0) {
         // Bot just died - start death fade
+        userData.deaths = (userData.deaths || 0) + 1;
         this._startBotDeathFade(bot);
         continue;
       }

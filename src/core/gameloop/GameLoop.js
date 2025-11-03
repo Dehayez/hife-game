@@ -41,9 +41,17 @@ export class GameLoop {
     // Set up bot death callback to track kills
     if (this.botManager) {
       this.botManager.setOnBotDeathCallback((killerId) => {
-        // Only increment kills if local player is the killer
+        // Increment kills for local player
         if (killerId === 'local' && this.gameModeManager && this.gameModeManager.modeState) {
           this.gameModeManager.modeState.kills++;
+        }
+        // Increment kills for bots
+        else if (killerId !== 'local') {
+          const bots = this.botManager.getAllBots();
+          const killerBot = bots.find(bot => bot.userData.id === killerId);
+          if (killerBot) {
+            killerBot.userData.kills = (killerBot.userData.kills || 0) + 1;
+          }
         }
       });
     }
@@ -1432,24 +1440,26 @@ export class GameLoop {
       this.characterManager.getPlayerSize(),
       'local'
     );
-    
+
     if (projectileCollision.hit) {
-      this._applyDamageToPlayer(projectileCollision.damage, player);
-      
+      const shooterId = projectileCollision.projectile?.userData?.playerId;
+      this._applyDamageToPlayer(projectileCollision.damage, player, shooterId);
+
       // Note: For mortars, splash will be created at target location when mortar hits ground
       // No need to create splash here - mortar continues to target
     }
-    
+
     // Check mortar ground explosions for player
     const mortarCollision = this.projectileManager.checkMortarGroundCollision(
       player.position,
       this.characterManager.getPlayerSize(),
       'local'
     );
-    
+
     if (mortarCollision.hit) {
-      this._applyDamageToPlayer(mortarCollision.damage, player);
-      
+      const shooterId = mortarCollision.projectile?.userData?.playerId;
+      this._applyDamageToPlayer(mortarCollision.damage, player, shooterId);
+
       // Note: Splash will be created at target location when mortar hits ground
       // No need to create splash here - mortar continues to target
     }
@@ -1536,20 +1546,21 @@ export class GameLoop {
    * Apply damage to player
    * @param {number} damage - Damage amount
    * @param {THREE.Mesh} player - Player mesh
+   * @param {string} shooterId - Optional ID of the shooter
    * @private
    */
-  _applyDamageToPlayer(damage, player) {
+  _applyDamageToPlayer(damage, player, shooterId = null) {
     if (this.characterManager) {
       const isDead = this.characterManager.takeDamage(damage);
       const currentHealth = this.characterManager.getHealth();
       const maxHealth = this.characterManager.getMaxHealth();
-      
+
       // Update player userData for health bar
       if (player && player.userData) {
         player.userData.health = currentHealth;
         player.userData.maxHealth = maxHealth;
       }
-      
+
       // Send damage event to other players via multiplayer
       if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {
         this.multiplayerManager.sendPlayerDamage({
@@ -1558,14 +1569,23 @@ export class GameLoop {
           maxHealth: maxHealth
         });
       }
-      
+
       if (isDead) {
         // Player died - play death animation and start fade out
         // Only trigger once (check if already dying)
         if (!this.characterManager.isDying()) {
           this.characterManager.playDeathAnimation();
         }
-        
+
+        // Track kills for bots (local player deaths are tracked in GameModeManager)
+        if (shooterId && shooterId !== 'local' && this.botManager) {
+          const bots = this.botManager.getAllBots();
+          const killerBot = bots.find(bot => bot.userData.id === shooterId);
+          if (killerBot) {
+            killerBot.userData.kills = (killerBot.userData.kills || 0) + 1;
+          }
+        }
+
         // Don't respawn immediately - wait for fade to complete
         // Respawn will happen in update() when fade completes
       }
