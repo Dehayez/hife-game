@@ -39,7 +39,9 @@ export function updateDirectionChangeTimer(userData, dt) {
 export function calculateBotMovement(bot, userData, playerPosition, dt, collisionManager) {
   const movementStats = getBotMovementStats();
   const aiStats = getBotAIStats();
-  const speed = movementStats.moveSpeed;
+  // Apply poison slow effect if bot is poisoned
+  const poisonSpeedMultiplier = userData.poisonSpeedMultiplier !== undefined ? userData.poisonSpeedMultiplier : 1.0;
+  const speed = movementStats.moveSpeed * poisonSpeedMultiplier;
   
   let moveX = 0;
   let moveZ = 0;

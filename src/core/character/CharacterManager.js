@@ -33,7 +33,7 @@ import {
   respawnCharacterPhysics 
 } from './CharacterPhysics.js';
 import { loadAllCharacterSounds } from './CharacterSound.js';
-import { getCharacterColorHex } from '../abilities/stats/CharacterColors.js';
+import { getCharacterColorHex } from '../abilities/config/CharacterColors.js';
 import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../utils/DeathFadeUtils.js';
 import { createSpriteMesh } from '../utils/SpriteUtils.js';
 

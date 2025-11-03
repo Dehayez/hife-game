@@ -16,7 +16,7 @@ import { getBotHealthStats, getBotMovementStats, BOT_STATS } from './BotStats.js
 import { initializeBotAI, updateDirectionChangeTimer, calculateBotMovement, updateBotShooting } from './BotAI.js';
 import { loadBotAnimations, setBotAnimation, updateBotAnimation, updateBotAnimationFromMovement, billboardBotToCamera } from './BotAnimation.js';
 import { initializeBotPhysics, updateBotPhysics } from './BotPhysics.js';
-import { getCharacterColorHex } from '../abilities/stats/CharacterColors.js';
+import { getCharacterColorHex } from '../abilities/config/CharacterColors.js';
 import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../utils/DeathFadeUtils.js';
 import { createSpriteAtPosition } from '../utils/SpriteUtils.js';
 

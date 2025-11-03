@@ -10,7 +10,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getSmokeStats, getRunningSmokeStats, getCharacterChangeSmokeStats } from './ParticleStats.js';
-import { getProjectileParticleConfig } from '../abilities/particles/ProjectileParticleConfig.js';
+import { getProjectileParticleConfig } from '../abilities/implementation/particles/ParticleConfigHelper.js';
 
 export class ParticleManager {
   /**

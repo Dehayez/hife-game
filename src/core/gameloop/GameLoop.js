@@ -6,9 +6,9 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/stats/CharacterAbilityStats.js';
+import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/implementation/CharacterAbilityStats.js';
 import { setLastCharacter } from '../../utils/StorageUtils.js';
-import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/mortar/MortarArcPreview.js';
+import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/implementation/mortar/MortarArcPreview.js';
 
 export class GameLoop {
   /**
@@ -81,7 +81,9 @@ export class GameLoop {
     this.meleePoisonDamage = null; // Poison damage per tick (set during attack)
     this.meleePoisonTickInterval = null; // Poison tick interval (set during attack)
     this.meleePoisonDuration = null; // Poison duration (set during attack)
-    this.poisonedEntities = new Map(); // Track poisoned entities: Map<entity, {timeLeft, tickTimer, damage, tickInterval}>
+    this.meleeInitialDamage = null; // Initial damage on first hit (set during attack)
+    this.meleeSlowSpeedMultiplier = null; // Speed multiplier when poisoned (set during attack)
+    this.poisonedEntities = new Map(); // Track poisoned entities: Map<entity, {timeLeft, tickTimer, damage, tickInterval, speedMultiplier}>
     
     // Callback to update character UI when character changes via controller
     this.characterUIUpdateCallback = null;
@@ -478,6 +480,7 @@ export class GameLoop {
           const poisonDamage = this.meleePoisonDamage;
           const poisonDuration = this.meleePoisonDuration;
           const poisonTickInterval = this.meleePoisonTickInterval;
+          const slowSpeedMultiplier = this.meleeSlowSpeedMultiplier !== null ? this.meleeSlowSpeedMultiplier : 0.6;
           
           // Apply poison to bots that were affected
           if (this.botManager) {
@@ -489,8 +492,13 @@ export class GameLoop {
                   tickTimer: 0,
                   damage: poisonDamage,
                   tickInterval: poisonTickInterval,
+                  speedMultiplier: slowSpeedMultiplier,
                   type: 'bot'
                 });
+                // Store speed multiplier in bot's userData for BotAI to use
+                if (entity.userData) {
+                  entity.userData.poisonSpeedMultiplier = slowSpeedMultiplier;
+                }
               }
             });
           }
@@ -508,9 +516,14 @@ export class GameLoop {
                     tickTimer: 0,
                     damage: poisonDamage,
                     tickInterval: poisonTickInterval,
+                    speedMultiplier: slowSpeedMultiplier,
                     type: 'remote',
                     playerId: playerId
                   });
+                  // Store speed multiplier in remote player's userData (for tracking/visual effects)
+                  if (mesh.userData) {
+                    mesh.userData.poisonSpeedMultiplier = slowSpeedMultiplier;
+                  }
                 }
               }
             }
@@ -524,6 +537,8 @@ export class GameLoop {
         this.meleePoisonDamage = null;
         this.meleePoisonTickInterval = null;
         this.meleePoisonDuration = null;
+        this.meleeInitialDamage = null;
+        this.meleeSlowSpeedMultiplier = null;
         
         // Remove and dispose of circle
         if (this.swordSwingCircle) {
@@ -549,6 +564,10 @@ export class GameLoop {
           poisonData.tickTimer = 0;
           
           if (poisonData.type === 'bot' && this.botManager) {
+            // Update speed multiplier in bot's userData (in case it changed)
+            if (entity.userData && poisonData.speedMultiplier !== undefined) {
+              entity.userData.poisonSpeedMultiplier = poisonData.speedMultiplier;
+            }
             const botDied = this.botManager.damageBot(entity, poisonData.damage, 'local');
             if (botDied) {
               entitiesToRemove.push(entity);
@@ -556,6 +575,10 @@ export class GameLoop {
             }
           } else if (poisonData.type === 'remote' && this.remotePlayerManager && this.multiplayerManager) {
             const mesh = entity;
+            // Update speed multiplier in remote player's userData (in case it changed)
+            if (mesh.userData && poisonData.speedMultiplier !== undefined) {
+              mesh.userData.poisonSpeedMultiplier = poisonData.speedMultiplier;
+            }
             if (mesh.userData && mesh.userData.health !== undefined) {
               mesh.userData.health = Math.max(0, mesh.userData.health - poisonData.damage);
               
@@ -583,6 +606,10 @@ export class GameLoop {
       // Remove expired or dead entities
       entitiesToRemove.forEach(entity => {
         this.poisonedEntities.delete(entity);
+        // Clear speed multiplier from bot/remote player userData when poison expires
+        if (entity && typeof entity === 'object' && entity.userData && entity.userData.poisonSpeedMultiplier !== undefined) {
+          entity.userData.poisonSpeedMultiplier = undefined;
+        }
       });
     }
 
@@ -1822,6 +1849,7 @@ export class GameLoop {
     const characterName = this.characterManager.getCharacterName();
     const meleeStats = getMeleeStats(characterName);
     const radius = meleeStats.range;
+    const initialDamage = meleeStats.initialDamage;
     const damagePerTick = meleeStats.damage;
     const tickInterval = meleeStats.tickInterval;
     const animationDuration = meleeStats.animationDuration;
@@ -1829,6 +1857,7 @@ export class GameLoop {
     const poisonDamage = meleeStats.poisonDamage;
     const poisonTickInterval = meleeStats.poisonTickInterval;
     const poisonDuration = meleeStats.poisonDuration;
+    const slowSpeedMultiplier = meleeStats.slowSpeedMultiplier;
     
     // Set cooldown timer
     this.meleeCooldownTimer = cooldown;
@@ -1843,12 +1872,14 @@ export class GameLoop {
     this.swordSwingAnimationDuration = animationDuration;
     
     // Store melee stats for damage over time
+    this.meleeInitialDamage = initialDamage;
     this.meleeDamagePerTick = damagePerTick;
     this.meleeTickInterval = tickInterval;
     this.meleeRange = radius;
     this.meleePoisonDamage = poisonDamage;
     this.meleePoisonTickInterval = poisonTickInterval;
     this.meleePoisonDuration = poisonDuration;
+    this.meleeSlowSpeedMultiplier = slowSpeedMultiplier;
     
     // Create 360 degree damage circle visual effect
     // Inner radius scales with range (87.5% of range for visual effect)
@@ -1888,6 +1919,73 @@ export class GameLoop {
     
     // Clear previous affected entities - will be populated as damage is applied over time
     this.meleeAffectedEntities.clear();
+    
+    // Apply immediate damage on first hit
+    const playerPos = player.position;
+    
+    // Damage bots in range immediately
+    if (this.botManager && initialDamage > 0) {
+      this.botManager.getAllBots().forEach(bot => {
+        const distance = Math.sqrt(
+          Math.pow(bot.position.x - playerPos.x, 2) + 
+          Math.pow(bot.position.z - playerPos.z, 2)
+        );
+        if (distance <= radius) {
+          // Check line of sight - don't damage through walls
+          const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
+          const targetPos = new THREE.Vector3(bot.position.x, bot.position.y, bot.position.z);
+          const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
+          
+          if (sightCheck.clear) {
+            // Apply immediate damage
+            const botDied = this.botManager.damageBot(bot, initialDamage, 'local');
+            if (!botDied) {
+              // Track this bot as affected for poison effect
+              this.meleeAffectedEntities.add(bot);
+            }
+          }
+        }
+      });
+    }
+    
+    // Damage remote players in multiplayer mode immediately
+    if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom() && initialDamage > 0) {
+      const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+      for (const [playerId, remotePlayer] of remotePlayers) {
+        const mesh = remotePlayer.mesh;
+        if (!mesh) continue;
+        
+        const distance = Math.sqrt(
+          Math.pow(mesh.position.x - playerPos.x, 2) + 
+          Math.pow(mesh.position.z - playerPos.z, 2)
+        );
+        if (distance <= radius) {
+          // Check line of sight - don't damage through walls
+          const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
+          const targetPos = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
+          const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
+          
+          if (sightCheck.clear) {
+            // Apply immediate damage to remote player (server will sync)
+            if (mesh.userData && mesh.userData.health !== undefined) {
+              mesh.userData.health = Math.max(0, mesh.userData.health - initialDamage);
+              
+              // Send updated health to server for sync
+              this.multiplayerManager.sendPlayerDamage({
+                damage: initialDamage,
+                health: mesh.userData.health,
+                maxHealth: mesh.userData.maxHealth || 100
+              });
+              
+              // Track this remote player as affected for poison effect (if not dead)
+              if (mesh.userData.health > 0) {
+                this.meleeAffectedEntities.add(`remote_${playerId}`);
+              }
+            }
+          }
+        }
+      }
+    }
     
     // Damage will be applied over time during the animation duration
   }

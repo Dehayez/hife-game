@@ -1,0 +1,22 @@
+/**
+ * Herald Mortar Attack Config
+ * Herald-specific mortar ability stats and multipliers.
+ */
+export const HERALD_MORTAR_ATTACK_CONFIG = {
+  areaDamage: 0.625,        // 62.5% of base (5 area damage) - Lower area damage
+  cooldown: 1.167,          // 116.7% of base (3.5s) - Slower cooldown
+  arcHeight: 1.143,         // 114.3% of base (4.0 height) - Higher arc
+  splashRadius: 1.111,     // 111.1% of base (1.0 radius) - Larger splash
+  fireDuration: 1.143,      // 114.3% of base (2.0s) - Longer fire duration
+  shrinkDelay: 1.111,       // 111.1% of base (1.0s) - Slower shrink
+  size: 1.389,              // 138.9% of base (0.25 radius) - Larger mortar
+  // Visual overrides (for mortar projectile appearance)
+  visual: {
+    emissiveIntensity: 1.2   // More intense fireball
+  },
+  trailLight: {
+    intensity: 5,            // Much brighter trail
+    range: 10                // Longer trail range
+  }
+};
+
