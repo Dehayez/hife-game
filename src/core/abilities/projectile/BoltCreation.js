@@ -6,6 +6,10 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getBoltStats, getCharacterColor } from '../stats/CharacterStats.js';
+import { BOLT_CONFIG, GENERAL_ABILITY_CONFIG } from '../AbilityConfig.js';
+import { createSphereGeometry, createEmissiveMaterial, createProjectileMesh } from '../utils/GeometryUtils.js';
+import { createTrailLight } from '../utils/LightUtils.js';
+import { normalize2D } from '../utils/VectorUtils.js';
 
 /**
  * Create a bolt projectile
@@ -27,29 +31,34 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
   const characterColor = getCharacterColor(characterName);
   
   // Normalize direction vector
-  const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
-  if (dirLength < 0.001) return null;
+  const normalized = normalize2D(directionX, directionZ, GENERAL_ABILITY_CONFIG.minDistance.directionLength);
+  if (!normalized) return null;
   
-  const normX = directionX / dirLength;
-  const normZ = directionZ / dirLength;
+  const { x: normX, z: normZ } = normalized;
 
   // Create projectile geometry and material
-  const geo = new THREE.SphereGeometry(stats.size, 8, 8);
-  const mat = new THREE.MeshStandardMaterial({
+  const geometry = createSphereGeometry(stats.size, BOLT_CONFIG.visual.geometrySegments);
+  const material = createEmissiveMaterial({
     color: characterColor,
-    emissive: characterColor,
-    emissiveIntensity: 0.9,
-    metalness: 0.7,
-    roughness: 0.2
+    emissiveIntensity: BOLT_CONFIG.visual.emissiveIntensity,
+    metalness: BOLT_CONFIG.visual.metalness,
+    roughness: BOLT_CONFIG.visual.roughness
   });
   
-  const projectile = new THREE.Mesh(geo, mat);
-  projectile.position.set(startX, startY, startZ);
-  projectile.castShadow = true;
+  const projectile = createProjectileMesh({
+    geometry,
+    material,
+    position: new THREE.Vector3(startX, startY, startZ),
+    castShadow: true
+  });
   
   // Add trail effect - point light with character color
-  const trailLight = new THREE.PointLight(characterColor, 1.0, 3);
-  trailLight.position.set(startX, startY, startZ);
+  const trailLight = createTrailLight({
+    color: characterColor,
+    intensity: BOLT_CONFIG.trailLight.intensity,
+    range: BOLT_CONFIG.trailLight.range,
+    position: new THREE.Vector3(startX, startY, startZ)
+  });
   scene.add(trailLight);
   
   // Calculate initial speed based on acceleration/deceleration pattern
@@ -61,7 +70,9 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
   // Lucy: start fast (maxSpeed) and decelerate to slow (minSpeed)
   const startSpeed = characterName === 'herald' ? minSpeed : maxSpeed;
   // For Herald, endSpeed can exceed maxSpeed to keep accelerating
-  const endSpeed = characterName === 'herald' ? maxSpeed * 1.5 : minSpeed; // Herald accelerates 50% beyond maxSpeed
+  const endSpeed = characterName === 'herald' 
+    ? maxSpeed * BOLT_CONFIG.physics.heraldAccelerationMultiplier 
+    : minSpeed;
   
   // Store projectile data with character-specific stats
   projectile.userData = {

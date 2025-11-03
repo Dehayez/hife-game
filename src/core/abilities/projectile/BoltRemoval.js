@@ -4,6 +4,8 @@
  * Handles removal of bolt projectiles from the scene.
  */
 
+import { removeFromScene, disposeMesh } from '../utils/CleanupUtils.js';
+
 /**
  * Remove bolt from scene and clean up resources
  * @param {THREE.Mesh} projectile - Projectile mesh
@@ -27,11 +29,7 @@ export function removeBolt(projectile, scene, particleManager = null) {
     scene.remove(projectile.userData.trailLight);
   }
   
-  // Remove from scene
-  scene.remove(projectile);
-  
-  // Clean up geometry and material
-  projectile.geometry.dispose();
-  projectile.material.dispose();
+  // Remove from scene and dispose resources
+  removeFromScene(projectile, scene);
 }
 

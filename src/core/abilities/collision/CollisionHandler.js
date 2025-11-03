@@ -1,14 +1,14 @@
 /**
  * CollisionHandler.js
  * 
- * Handles all collision detection between projectiles, mortars, fire areas, and players.
+ * Handles all collision detection between projectiles, mortars, splash areas, and players.
  * Consolidates all collision checking logic in one place.
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { checkBoltPlayerCollision } from '../projectile/Bolt.js';
 import { checkMortarCollision, checkMortarGroundCollision } from '../mortar/Mortar.js';
-import { checkFireAreaCollision } from '../mortar/FireArea.js';
+import { checkSplashAreaCollision } from '../mortar/SplashArea.js';
 
 /**
  * Check all projectiles for collision with player
@@ -51,16 +51,16 @@ export function checkMortarPlayerCollision(mortars, playerPos, playerId, collisi
 }
 
 /**
- * Check mortar ground impact and fire areas for collision with player
+ * Check mortar ground impact and splash areas for collision with player
  * @param {Array<THREE.Mesh>} mortars - Array of mortar meshes
- * @param {Array<THREE.Object3D>} fireAreas - Array of fire area containers
+ * @param {Array<THREE.Object3D>} splashAreas - Array of splash area containers
  * @param {THREE.Vector3} playerPos - Player position
  * @param {number} playerSize - Player size
  * @param {string} playerId - Player ID
  * @param {Object} collisionManager - Collision manager for ground height checks
  * @returns {Object} Collision result with hit, damage, and source info
  */
-export function checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId, collisionManager = null) {
+export function checkMortarGroundAndSplashCollision(mortars, splashAreas, playerPos, playerSize, playerId, collisionManager = null) {
   // Check mortars that hit ground - direct hit damage
   for (const mortar of mortars) {
     const result = checkMortarGroundCollision(mortar, playerPos, playerId, collisionManager);
@@ -69,9 +69,9 @@ export function checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos,
     }
   }
   
-  // Check fire areas for area damage
-  for (const fireArea of fireAreas) {
-    const result = checkFireAreaCollision(fireArea, playerPos, playerId);
+  // Check splash areas for area damage
+  for (const splashArea of splashAreas) {
+    const result = checkSplashAreaCollision(splashArea, playerPos, playerId);
     if (result.hit) {
       return result;
     }
@@ -82,17 +82,17 @@ export function checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos,
 
 /**
  * Check all projectile types for collision with player
- * Combines regular projectiles, mortars, and fire areas
+ * Combines regular projectiles, mortars, and splash areas
  * @param {Array<THREE.Mesh>} projectiles - Array of projectile meshes
  * @param {Array<THREE.Mesh>} mortars - Array of mortar meshes
- * @param {Array<THREE.Object3D>} fireAreas - Array of fire area containers
+ * @param {Array<THREE.Object3D>} splashAreas - Array of splash area containers
  * @param {THREE.Vector3} playerPos - Player position
  * @param {number} playerSize - Player size
  * @param {string} playerId - Player ID
  * @param {Object} collisionManager - Collision manager for ground height checks
  * @returns {Object} Collision result with hit, damage, and source info
  */
-export function checkAllCollisions(projectiles, mortars, fireAreas, playerPos, playerSize, playerId, collisionManager = null) {
+export function checkAllCollisions(projectiles, mortars, splashAreas, playerPos, playerSize, playerId, collisionManager = null) {
   // Check regular projectiles first (fastest response)
   const projectileResult = checkPlayerCollision(projectiles, playerPos, playerSize, playerId);
   if (projectileResult.hit) {
@@ -105,8 +105,8 @@ export function checkAllCollisions(projectiles, mortars, fireAreas, playerPos, p
     return mortarResult;
   }
   
-  // Check mortar ground impact and fire areas
-  const groundResult = checkMortarGroundAndFireCollision(mortars, fireAreas, playerPos, playerSize, playerId, collisionManager);
+  // Check mortar ground impact and splash areas
+  const groundResult = checkMortarGroundAndSplashCollision(mortars, splashAreas, playerPos, playerSize, playerId, collisionManager);
   if (groundResult.hit) {
     return groundResult;
   }

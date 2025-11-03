@@ -7,28 +7,32 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { MORTAR_CONFIG } from '../AbilityConfig.js';
+import { createSphereGeometry, createEmissiveMaterial, createProjectileMesh } from '../utils/GeometryUtils.js';
+import { createTrailLight } from '../utils/LightUtils.js';
+import { normalize2D } from '../utils/VectorUtils.js';
 
-// Global mortar physics constants
-export const MORTAR_GRAVITY = -20; // Gravity for arc trajectory
-export const MORTAR_LIFETIME = 5; // Maximum lifetime in seconds
-export const EXPLOSION_RADIUS = 2.0; // Explosion radius for mid-air detection
-export const DIRECT_HIT_RADIUS = 0.8; // Small radius for direct hit damage
+// Global mortar physics constants (imported from config)
+export const MORTAR_GRAVITY = MORTAR_CONFIG.physics.gravity;
+export const MORTAR_LIFETIME = MORTAR_CONFIG.physics.lifetime;
+export const EXPLOSION_RADIUS = MORTAR_CONFIG.physics.explosionRadius;
+export const DIRECT_HIT_RADIUS = MORTAR_CONFIG.physics.directHitRadius;
 
 /**
  * Default mortar creation configuration
  * These are the default behaviors - can be overridden per character
  */
 export const DEFAULT_MORTAR_CONFIG = {
-  // Visual settings
-  geometrySegments: 12,              // Geometry detail level
-  emissiveIntensity: 0.8,            // Base emissive intensity (can be boosted per character)
-  metalness: 0.3,                    // Material metalness
-  roughness: 0.2,                    // Material roughness
-  trailLightIntensity: 1.2,          // Base trail light intensity
-  trailLightRange: 4,                // Base trail light range
+  // Visual settings (from config)
+  geometrySegments: MORTAR_CONFIG.visual.geometrySegments,
+  emissiveIntensity: MORTAR_CONFIG.visual.emissiveIntensity,
+  metalness: MORTAR_CONFIG.visual.metalness,
+  roughness: MORTAR_CONFIG.visual.roughness,
+  trailLightIntensity: MORTAR_CONFIG.trailLight.intensity,
+  trailLightRange: MORTAR_CONFIG.trailLight.range,
   
   // Movement
-  rotationSpeed: 3,                   // Rotation speed per second
+  rotationSpeed: MORTAR_CONFIG.visual.rotationSpeed,
 };
 
 /**
@@ -41,9 +45,11 @@ export const DEFAULT_MORTAR_CONFIG = {
 export function calculateMortarTrajectory(startPos, targetPos, arcHeight) {
   const dx = targetPos.x - startPos.x;
   const dz = targetPos.z - startPos.z;
-  const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+  const normalized = normalize2D(dx, dz, 0.1);
   
-  if (horizontalDistance < 0.1) return null;
+  if (!normalized) return null;
+  
+  const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
   
   // Calculate trajectory physics to hit exact target with specified arc height
   const gravity = Math.abs(MORTAR_GRAVITY);
@@ -53,9 +59,9 @@ export function calculateMortarTrajectory(startPos, targetPos, arcHeight) {
   const verticalSpeed = gravity * timeToPeak; // Initial vertical velocity
   
   const launchVelocity = new THREE.Vector3(
-    (dx / horizontalDistance) * horizontalSpeed,
+    normalized.x * horizontalSpeed,
     verticalSpeed,
-    (dz / horizontalDistance) * horizontalSpeed
+    normalized.z * horizontalSpeed
   );
   
   return {
@@ -75,19 +81,19 @@ export function calculateMortarTrajectory(startPos, targetPos, arcHeight) {
 export function createMortarMesh(stats, characterColor, config = {}) {
   const cfg = { ...DEFAULT_MORTAR_CONFIG, ...config };
   
-  const geo = new THREE.SphereGeometry(stats.size, cfg.geometrySegments, cfg.geometrySegments);
-  const mat = new THREE.MeshStandardMaterial({
+  const geometry = createSphereGeometry(stats.size, cfg.geometrySegments);
+  const material = createEmissiveMaterial({
     color: characterColor,
-    emissive: characterColor,
     emissiveIntensity: cfg.emissiveIntensity,
     metalness: cfg.metalness,
     roughness: cfg.roughness
   });
   
-  const mortar = new THREE.Mesh(geo, mat);
-  mortar.castShadow = true;
-  
-  return mortar;
+  return createProjectileMesh({
+    geometry,
+    material,
+    castShadow: true
+  });
 }
 
 /**
@@ -100,14 +106,12 @@ export function createMortarMesh(stats, characterColor, config = {}) {
 export function createMortarTrailLight(characterColor, position, config = {}) {
   const cfg = { ...DEFAULT_MORTAR_CONFIG, ...config };
   
-  const trailLight = new THREE.PointLight(
-    characterColor,
-    cfg.trailLightIntensity,
-    cfg.trailLightRange
-  );
-  trailLight.position.copy(position);
-  
-  return trailLight;
+  return createTrailLight({
+    color: characterColor,
+    intensity: cfg.trailLightIntensity,
+    range: cfg.trailLightRange,
+    position: position
+  });
 }
 
 /**

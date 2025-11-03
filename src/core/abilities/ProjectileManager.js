@@ -2,21 +2,21 @@
  * ProjectileManager.js
  * 
  * Main manager for all projectile-related functionality.
- * Coordinates projectiles, mortars, fire areas, and collision detection.
+ * Coordinates projectiles, mortars, splash areas, and collision detection.
  * 
  * This file acts as a facade, delegating to specialized modules:
  * - stats/CharacterStats.js: Character ability stats configuration
  * - projectile/Bolt.js: Regular projectile shots
  * - mortar/Mortar.js: Arc mortar projectiles
- * - mortar/FireArea.js: Fire splash areas after mortar impact
+ * - mortar/SplashArea.js: Splash areas after mortar impact
  * - collision/CollisionHandler.js: Collision detection logic
  */
 
 import { getBoltStats, getMortarStats } from './stats/CharacterStats.js';
 import { createBolt, updateBolt, removeBolt } from './projectile/Bolt.js';
 import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './mortar/Mortar.js';
-import { createFireSplash as createFireSplashArea, updateFireArea, removeFireArea as removeFireAreaFromScene } from './mortar/FireArea.js';
-import { checkAllCollisions, checkMortarGroundAndFireCollision } from './collision/CollisionHandler.js';
+import { createSplashArea, updateSplashArea, removeSplashArea as removeSplashAreaFromScene } from './mortar/SplashArea.js';
+import { checkAllCollisions, checkMortarGroundAndSplashCollision } from './collision/CollisionHandler.js';
 
 export class ProjectileManager {
   /**
@@ -33,7 +33,7 @@ export class ProjectileManager {
     // Active projectile arrays
     this.projectiles = [];
     this.mortars = [];
-    this.fireAreas = [];
+    this.splashAreas = [];
     
     // Cooldown tracking per player/character
     this.characterCooldowns = new Map(); // Bolt cooldowns
@@ -183,8 +183,8 @@ export class ProjectileManager {
     // Update mortars and check for ground impact
     this.updateMortars(dt);
     
-    // Update fire splash areas
-    this.updateFireAreas(dt);
+    // Update splash areas
+    this.updateSplashAreas(dt);
     
     // Update regular projectiles
     this.updateProjectiles(dt);
@@ -217,7 +217,7 @@ export class ProjectileManager {
       // Check if mortar needs splash creation from direct hit at ground level
       if (mortar.userData.needsSplash) {
         // Create splash immediately when direct hit was detected at ground level
-        this.createFireSplash(
+        this.createSplash(
           mortar.userData.splashX,
           mortar.userData.splashY,
           mortar.userData.splashZ,
@@ -231,12 +231,12 @@ export class ProjectileManager {
       // Update mortar using Mortar module
       const result = updateMortar(mortar, dt, this.collisionManager);
       
-      // Check if mortar hit ground and should create fire splash
+      // Check if mortar hit ground and should create splash
       // This check comes first to ensure splash is created even if hasExploded is true
       // A mortar can hit a player directly but still needs to create splash when hitting ground
       if (result && result.impact) {
         // Always create splash when mortar hits ground, regardless of whether it hit a player
-        this.createFireSplash(
+        this.createSplash(
           result.impact.x,
           result.impact.y,
           result.impact.z,
@@ -266,24 +266,24 @@ export class ProjectileManager {
   }
 
   /**
-   * Update all fire splash areas
+   * Update all splash areas
    * @param {number} dt - Delta time in seconds
    */
-  updateFireAreas(dt) {
-    const fireAreasToRemove = [];
+  updateSplashAreas(dt) {
+    const splashAreasToRemove = [];
     
-    for (const fireArea of this.fireAreas) {
-      // Update fire area using FireArea module
-      const result = updateFireArea(fireArea, dt);
+    for (const splashArea of this.splashAreas) {
+      // Update splash area using SplashArea module
+      const result = updateSplashArea(splashArea, dt);
       
       if (result.shouldRemove) {
-        fireAreasToRemove.push(fireArea);
+        splashAreasToRemove.push(splashArea);
       }
     }
     
-    // Remove expired fire areas
-    for (const fireArea of fireAreasToRemove) {
-      this.removeFireArea(fireArea);
+    // Remove expired splash areas
+    for (const splashArea of splashAreasToRemove) {
+      this.removeSplashArea(splashArea);
     }
   }
 
@@ -340,19 +340,19 @@ export class ProjectileManager {
   }
 
   /**
-   * Create a fire splash area at impact point
+   * Create a splash area at impact point
    * @param {number} x - Impact X position
    * @param {number} y - Impact Y position (ground height)
    * @param {number} z - Impact Z position
    * @param {Object} mortarData - Mortar userData containing stats
    */
-  createFireSplash(x, y, z, mortarData) {
-    const fireArea = createFireSplashArea(this.scene, x, y, z, mortarData);
-    this.fireAreas.push(fireArea);
+  createSplash(x, y, z, mortarData) {
+    const splashArea = createSplashArea(this.scene, x, y, z, mortarData);
+    this.splashAreas.push(splashArea);
   }
 
   /**
-   * Check all projectiles, mortars, and fire areas for collision with player
+   * Check all projectiles, mortars, and splash areas for collision with player
    * @param {THREE.Vector3} playerPos - Player position
    * @param {number} playerSize - Player size
    * @param {string} playerId - Player ID
@@ -362,7 +362,7 @@ export class ProjectileManager {
     return checkAllCollisions(
       this.projectiles,
       this.mortars,
-      this.fireAreas,
+      this.splashAreas,
       playerPos,
       playerSize,
       playerId,
@@ -371,7 +371,7 @@ export class ProjectileManager {
   }
 
   /**
-   * Check mortar ground impact and fire areas for collision with player
+   * Check mortar ground impact and splash areas for collision with player
    * Used separately for ground collision checks
    * @param {THREE.Vector3} playerPos - Player position
    * @param {number} playerSize - Player size
@@ -379,9 +379,9 @@ export class ProjectileManager {
    * @returns {Object} Collision result with hit, damage, and source info
    */
   checkMortarGroundCollision(playerPos, playerSize, playerId = 'local') {
-    const result = checkMortarGroundAndFireCollision(
+    const result = checkMortarGroundAndSplashCollision(
       this.mortars,
-      this.fireAreas,
+      this.splashAreas,
       playerPos,
       playerSize,
       playerId,
@@ -420,21 +420,21 @@ export class ProjectileManager {
   }
 
   /**
-   * Remove a fire area from the scene
-   * @param {THREE.Object3D} fireArea - Fire area container
+   * Remove a splash area from the scene
+   * @param {THREE.Object3D} splashArea - Splash area container
    */
-  removeFireArea(fireArea) {
-    removeFireAreaFromScene(fireArea, this.scene);
+  removeSplashArea(splashArea) {
+    removeSplashAreaFromScene(splashArea, this.scene);
     
     // Remove from array
-    const index = this.fireAreas.indexOf(fireArea);
+    const index = this.splashAreas.indexOf(splashArea);
     if (index > -1) {
-      this.fireAreas.splice(index, 1);
+      this.splashAreas.splice(index, 1);
     }
   }
 
   /**
-   * Clear all projectiles, mortars, and fire areas
+   * Clear all projectiles, mortars, and splash areas
    * Used when mode changes or game resets
    */
   clearAll() {
@@ -448,15 +448,15 @@ export class ProjectileManager {
       this.removeMortar(mortar);
     }
     
-    // Remove all fire areas
-    for (const fireArea of [...this.fireAreas]) {
-      this.removeFireArea(fireArea);
+    // Remove all splash areas
+    for (const splashArea of [...this.splashAreas]) {
+      this.removeSplashArea(splashArea);
     }
     
     // Clear arrays
     this.projectiles = [];
     this.mortars = [];
-    this.fireAreas = [];
+    this.splashAreas = [];
   }
 
   /**

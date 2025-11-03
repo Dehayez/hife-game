@@ -102,7 +102,7 @@ function createCharacterStats(characterStats) {
  * 
  * Each character has stats for three abilities:
  * 1. Bolt (regular projectile)
- * 2. Mortar (arc projectile with fire splash)
+ * 2. Mortar (arc projectile with splash area)
  * 3. Melee (sword swing attack)
  */
 export const CHARACTER_STATS = {

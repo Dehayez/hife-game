@@ -1516,7 +1516,7 @@ export class GameLoop {
           
           // If direct hit at ground level, create splash immediately
           if (botMortarCollision.needsSplash && botMortarCollision.projectile) {
-            this.projectileManager.createFireSplash(
+            this.projectileManager.createSplash(
               botMortarCollision.splashX,
               botMortarCollision.splashY,
               botMortarCollision.splashZ,

@@ -11,12 +11,12 @@ src/core/abilities/
 │   ├── BoltRemoval.js          # Removal logic
 │   └── BoltCollision.js        # Collision detection
 │
-├── mortar/                      # Mortar projectile system (arc shots + fire areas)
+├── mortar/                      # Mortar projectile system (arc shots + splash areas)
 │   ├── BaseMortar.js           # ⭐ Base implementation (general logic)
 │   ├── MortarCharacterConfig.js # ⭐ Character-specific configs (EDIT HERE)
 │   ├── Mortar.js                # Main mortar module
 │   ├── MortarArcPreview.js     # Visual arc preview
-│   └── FireArea.js             # Fire splash areas after mortar impact
+│   └── SplashArea.js           # Splash areas after mortar impact
 │
 ├── particles/                    # Particle calculations
 │   ├── ParticleCalculationConfig.js  # ⭐ ALL PARTICLE NUMBERS HERE

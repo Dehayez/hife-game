@@ -2,12 +2,13 @@
  * Mortar.js
  * 
  * Handles creation, update, and removal of mortar projectiles.
- * Mortars are arc-projectiles that explode on impact creating fire splash areas.
+ * Mortars are arc-projectiles that explode on impact creating splash areas.
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getMortarStats, getCharacterColor } from '../stats/CharacterStats.js';
 import { calculateMortarParticles } from '../particles/ParticleCalculation.js';
+import { MORTAR_CONFIG } from '../AbilityConfig.js';
 import {
   MORTAR_GRAVITY,
   MORTAR_LIFETIME,
@@ -19,6 +20,8 @@ import {
   createMortarUserData
 } from './BaseMortar.js';
 import { getMortarCharacterConfig } from './MortarCharacterConfig.js';
+import { updateTrailLightPosition } from '../utils/LightUtils.js';
+import { removeFromScene } from '../utils/CleanupUtils.js';
 
 /**
  * Create a mortar projectile
@@ -115,7 +118,7 @@ export function updateMortar(mortar, dt, collisionManager) {
     (newZ - targetZ) ** 2
   );
   const isMovingDownward = mortar.userData.velocityY < 0;
-  const isNearTarget = distanceToTarget < 1.0;
+  const isNearTarget = distanceToTarget < MORTAR_CONFIG.physics.nearTargetDistance;
   
   // Only explode if:
   // 1. The bottom of the mortar has reached or passed the ground surface AT TARGET
@@ -123,7 +126,7 @@ export function updateMortar(mortar, dt, collisionManager) {
   // 3. AND we're close to the target position
   // This ensures splash always happens at target location, even if mortar hit player mid-air
   if (mortarBottom <= targetGroundHeight && isMovingDownward && isNearTarget) {
-    // Hit ground at target - return impact data for fire splash creation
+    // Hit ground at target - return impact data for splash creation
     return {
       shouldRemove: true,
       impact: {
@@ -140,11 +143,12 @@ export function updateMortar(mortar, dt, collisionManager) {
   
   // Update trail light position
   if (mortar.userData.trailLight) {
-    mortar.userData.trailLight.position.set(newX, newY, newZ);
+    updateTrailLightPosition(mortar.userData.trailLight, mortar.position);
   }
   
   // Rotate mortar for visual effect (can be customized per character)
-  const rotationSpeed = 3; // Could come from config
+  const config = getMortarCharacterConfig(mortar.userData.characterName);
+  const rotationSpeed = config.rotationSpeed || MORTAR_CONFIG.visual.rotationSpeed;
   mortar.rotation.x += dt * rotationSpeed;
   mortar.rotation.y += dt * rotationSpeed;
   
@@ -176,12 +180,8 @@ export function removeMortar(mortar, scene, particleManager = null) {
     scene.remove(mortar.userData.trailLight);
   }
   
-  // Remove from scene
-  scene.remove(mortar);
-  
-  // Clean up geometry and material
-  mortar.geometry.dispose();
-  mortar.material.dispose();
+  // Remove from scene and dispose resources
+  removeFromScene(mortar, scene);
 }
 
 /**
@@ -244,9 +244,9 @@ export function checkMortarGroundCollision(mortar, playerPos, playerId, collisio
   const mortarBottom = mortar.position.y - mortar.userData.size;
   
   // Only check for direct hit when mortar is:
-  // 1. Close to ground (within 0.5 units) AND moving downward
+  // 1. Close to ground AND moving downward
   // 2. This ensures we only check when the ball is actually about to hit
-  const isCloseToGround = mortarBottom <= currentGroundHeight + 0.5;
+  const isCloseToGround = mortarBottom <= currentGroundHeight + MORTAR_CONFIG.physics.closeToGroundDistance;
   const isMovingDownward = mortar.userData.velocityY < 0;
   
   if (!isCloseToGround || !isMovingDownward) {
