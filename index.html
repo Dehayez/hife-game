@@ -21,7 +21,7 @@
     <meta name="msapplication-TileColor" content="#000000">
     <meta name="msapplication-config" content="/browserconfig.xml">
     
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.scss">
     <!-- Socket.io client for multiplayer -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   </head>
@@ -42,6 +42,9 @@
 
     <!-- Game menu overlay (hidden by default) -->
     <div id="game-menu-root"></div>
+    
+    <!-- React UI root -->
+    <div id="ui-root"></div>
 
     <!-- Hidden mount points for UI components (will be integrated into menu) -->
     <div id="char-switcher" style="display: none;"></div>
