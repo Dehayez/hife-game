@@ -66,7 +66,18 @@ export function updateCharacterPhysics(
   // Track previous grounded state before updating
   const wasGrounded = characterData.isGrounded;
   
-  if (characterBottom <= groundHeight) {
+  // Check if player is outside arena bounds (allows falling when outside)
+  // For LargeArenaCollisionManager, groundHeight is -Infinity when outside
+  // For standard CollisionManager, check arena bounds explicitly
+  let isOutsideArena = groundHeight === -Infinity;
+  if (!isOutsideArena && collisionManager.arenaSize) {
+    const halfArena = collisionManager.arenaSize / 2;
+    isOutsideArena = Math.abs(player.position.x) >= halfArena || Math.abs(player.position.z) >= halfArena;
+  }
+  
+  // Only enforce ground height if we're inside the arena
+  // This allows falling when outside the arena bounds
+  if (!isOutsideArena && characterBottom <= groundHeight) {
     player.position.y = groundHeight + movementStats.playerHeight * 0.5;
     characterData.velocityY = 0;
     characterData.isGrounded = true;

@@ -56,6 +56,8 @@ export class GameMenu {
     this.overlay = document.createElement('div');
     this.overlay.className = 'game-menu';
     this.overlay.setAttribute('aria-hidden', 'true');
+    // Use inert attribute to prevent focus on hidden overlay
+    this.overlay.setAttribute('inert', '');
     
     // Menu container
     this.container = document.createElement('div');
@@ -145,7 +147,12 @@ export class GameMenu {
       const panel = document.createElement('div');
       panel.className = 'game-menu__panel';
       panel.dataset.panel = tab.id;
-      panel.setAttribute('aria-hidden', tab.id !== 'settings');
+      const isActive = tab.id === 'settings';
+      panel.setAttribute('aria-hidden', !isActive);
+      // Use inert attribute to prevent focus on hidden panels
+      if (!isActive) {
+        panel.setAttribute('inert', '');
+      }
       this.content.appendChild(panel);
       this.panels[tab.id] = panel;
       
@@ -400,6 +407,21 @@ export class GameMenu {
   switchTab(tabId) {
     if (!this.tabs.find(t => t.id === tabId)) return;
     
+    // Remove focus from any element in panels that will be hidden
+    Object.entries(this.panels).forEach(([id, panel]) => {
+      if (id !== tabId) {
+        const focusedElement = panel.querySelector(':focus');
+        if (focusedElement) {
+          focusedElement.blur();
+        }
+        // Also remove the focused class
+        const focused = panel.querySelector('.game-menu__focused');
+        if (focused) {
+          focused.classList.remove('game-menu__focused');
+        }
+      }
+    });
+    
     this.activeTab = tabId;
     this.controllerNavigation.currentTabIndex = this.tabs.findIndex(t => t.id === tabId);
     this.controllerNavigation.currentSectionIndex = 0;
@@ -411,6 +433,12 @@ export class GameMenu {
     Object.entries(this.panels).forEach(([id, panel]) => {
       const isActive = id === tabId;
       panel.setAttribute('aria-hidden', !isActive);
+      // Use inert attribute to prevent focus on hidden panels
+      if (isActive) {
+        panel.removeAttribute('inert');
+      } else {
+        panel.setAttribute('inert', '');
+      }
       panel.classList.toggle('is-active', isActive);
     });
     
@@ -423,6 +451,15 @@ export class GameMenu {
     } else {
       this.activeSection[tabId] = null;
     }
+    
+    // Move focus to first focusable element in the newly active panel
+    setTimeout(() => {
+      const focusable = this.getFocusableElements();
+      if (focusable.length > 0) {
+        focusable[0].focus();
+        this.highlightElement(focusable[0]);
+      }
+    }, 0);
   }
 
   switchSection(sectionId) {
@@ -478,6 +515,12 @@ export class GameMenu {
     const wasVisible = this.isVisible;
     this.isVisible = !this.isVisible;
     this.overlay.setAttribute('aria-hidden', !this.isVisible);
+    // Use inert attribute to prevent focus on hidden overlay
+    if (this.isVisible) {
+      this.overlay.removeAttribute('inert');
+    } else {
+      this.overlay.setAttribute('inert', '');
+    }
     this.overlay.classList.toggle('is-visible', this.isVisible);
     
     this.updateHeaderVisibility();
@@ -505,6 +548,18 @@ export class GameMenu {
         this.config.onMenuOpen();
       }
     } else {
+      // Remove focus from all panels when hiding menu
+      Object.values(this.panels).forEach(panel => {
+        const focusedElement = panel.querySelector(':focus');
+        if (focusedElement) {
+          focusedElement.blur();
+        }
+        const focused = panel.querySelector('.game-menu__focused');
+        if (focused) {
+          focused.classList.remove('game-menu__focused');
+        }
+      });
+      
       const highlighted = document.querySelector('.game-menu__focused');
       if (highlighted) {
         highlighted.classList.remove('game-menu__focused');
