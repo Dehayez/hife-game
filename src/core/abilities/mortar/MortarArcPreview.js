@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getMortarStats } from '../stats/CharacterStats.js';
+import { getMortarStats } from '../stats/CharacterAbilityStats.js';
 
 // Use same physics constants as Mortar.js
 const MORTAR_GRAVITY = -20; // Gravity for arc trajectory

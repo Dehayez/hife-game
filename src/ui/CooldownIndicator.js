@@ -1,4 +1,4 @@
-import { getMeleeStats } from '../core/abilities/stats/CharacterStats.js';
+import { getMeleeStats } from '../core/abilities/stats/CharacterAbilityStats.js';
 
 export function initCooldownIndicator({ mount, projectileManager, characterManager }) {
   // Create a default return object even if mount doesn't exist

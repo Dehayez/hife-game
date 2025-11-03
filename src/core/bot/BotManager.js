@@ -16,6 +16,7 @@ import { getBotHealthStats, getBotMovementStats, BOT_STATS } from './BotStats.js
 import { initializeBotAI, updateDirectionChangeTimer, calculateBotMovement, updateBotShooting } from './BotAI.js';
 import { loadBotAnimations, setBotAnimation, updateBotAnimation, updateBotAnimationFromMovement, billboardBotToCamera } from './BotAnimation.js';
 import { initializeBotPhysics, updateBotPhysics } from './BotPhysics.js';
+import { getCharacterColorHex } from '../abilities/stats/CharacterColors.js';
 
 export class BotManager {
   /**
@@ -209,7 +210,7 @@ export class BotManager {
     
     // Spawn death particles
     if (this.particleManager) {
-      const characterColor = bot.userData.characterName === 'herald' ? 0xf5ba0b : 0x9c57b6;
+      const characterColor = getCharacterColorHex(bot.userData.characterName);
       this.particleManager.spawnDeathParticles(bot.position.clone(), characterColor, 25);
     }
   }

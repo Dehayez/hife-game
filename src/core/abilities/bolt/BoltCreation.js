@@ -5,7 +5,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getBoltStats, getCharacterColor } from '../stats/CharacterStats.js';
+import { getBoltStats, getCharacterColor } from '../stats/CharacterAbilityStats.js';
 import { BOLT_CONFIG, GENERAL_ABILITY_CONFIG } from '../AbilityConfig.js';
 import { createSphereGeometry, createEmissiveMaterial, createProjectileMesh } from '../utils/GeometryUtils.js';
 import { createTrailLight } from '../utils/LightUtils.js';

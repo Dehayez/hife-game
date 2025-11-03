@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/stats/CharacterStats.js';
+import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/stats/CharacterAbilityStats.js';
 import { setLastCharacter } from '../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/mortar/MortarArcPreview.js';
 

@@ -12,7 +12,7 @@
  * - collision/CollisionHandler.js: Collision detection logic
  */
 
-import { getBoltStats, getMortarStats } from './stats/CharacterStats.js';
+import { getBoltStats, getMortarStats } from './stats/CharacterAbilityStats.js';
 import { createBolt, updateBolt, removeBolt } from './bolt/Bolt.js';
 import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './mortar/Mortar.js';
 import { createSplashArea, updateSplashArea, removeSplashArea as removeSplashAreaFromScene } from './mortar/SplashArea.js';

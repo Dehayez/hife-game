@@ -32,9 +32,11 @@
  *   damage: 15 / 11  (where 11 is the current global base)
  */
 
+import { getCharacterColorHex } from '../CharacterColors.js';
+
 export const HERALD_STATS = {
   name: 'Herald',
-  color: 0xf5ba0b, // Gold color (#f5ba0b)
+  color: getCharacterColorHex('herald'),
   
   /**
    * Herald - Powerful warrior

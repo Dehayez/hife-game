@@ -32,9 +32,11 @@
  *   damage: 12 / 11  (where 11 is the current global base)
  */
 
+import { getCharacterColorHex } from '../CharacterColors.js';
+
 export const LUCY_STATS = {
   name: 'Lucy',
-  color: 0x9c57b6, // Purple color (#9c57b6)
+  color: getCharacterColorHex('lucy'),
   
   /**
    * Lucy - Agile spellcaster

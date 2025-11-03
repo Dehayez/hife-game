@@ -1,3 +1,5 @@
+import { getCharacterColorValues } from '../core/abilities/stats/CharacterColors.js';
+
 export function initCharacterSwitcher({ mount, options, value, onChange }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'ui__choices';
@@ -7,21 +9,6 @@ export function initCharacterSwitcher({ mount, options, value, onChange }) {
   function toTitleCase(str) {
     if (!str) return str;
     return str.charAt(0).toUpperCase() + str.slice(1);
-  }
-
-  /**
-   * Get character color values for UI styling
-   * @param {string} characterName - Character name ('lucy' or 'herald')
-   * @returns {{color: string, rgb: string}} Color hex and RGB values
-   */
-  function getCharacterColorValues(characterName) {
-    if (characterName === 'lucy') {
-      return { color: '#9c57b6', rgb: '156, 87, 182' };
-    } else if (characterName === 'herald') {
-      return { color: '#f5ba0b', rgb: '245, 186, 11' };
-    }
-    // Default fallback
-    return { color: '#9c57b6', rgb: '156, 87, 182' };
   }
 
   function createChoice(name) {
@@ -99,5 +86,3 @@ export function initCharacterSwitcher({ mount, options, value, onChange }) {
     }
   };
 }
-
-

@@ -1,5 +1,5 @@
 /**
- * CharacterStats.js
+ * CharacterAbilityStats.js
  * 
  * Centralized configuration for all character ability stats.
  * 

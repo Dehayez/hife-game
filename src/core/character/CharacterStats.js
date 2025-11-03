@@ -3,39 +3,40 @@
  * 
  * Centralized configuration for all player character stats.
  * This file provides a clear view of every character stat that can be edited.
+ * 
+ * Uses BaseEntityStats for shared health, movement, and physics stats.
  */
+
+import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../constants/BaseEntityStats.js';
 
 /**
  * Player Character Configuration Stats
  * 
  * All stats related to player character behavior, health, movement, and physics.
+ * Extends base entity stats with character-specific overrides.
  */
 export const CHARACTER_STATS = {
   /**
-   * Health Configuration
+   * Health Configuration (inherits from base entity stats)
    */
   health: {
-    maxHealth: 100,           // Maximum health for player
-    defaultHealth: 100         // Starting health when character is created
+    ...BASE_ENTITY_STATS.health
+    // Character-specific health overrides can be added here
   },
   
   /**
-   * Movement Configuration
+   * Movement Configuration (inherits from base entity stats)
    */
   movement: {
-    playerSize: 0.5,           // Player collision size
-    playerHeight: 1.2,         // Player height for positioning
-    moveSpeed: 4,              // Base movement speed (units per second)
-    runSpeedMultiplier: 1.7    // Speed multiplier when running (shift key)
+    ...BASE_ENTITY_STATS.movement
+    // Character-specific movement overrides can be added here
   },
   
   /**
-   * Physics Configuration
+   * Physics Configuration (extends base entity stats)
    */
   physics: {
-    gravity: -30,              // Gravity force (negative pulls down)
-    jumpForce: 8,              // Upward velocity when jumping
-    groundY: 0,                // Default ground level
+    ...BASE_ENTITY_STATS.physics,
     jumpCooldownTime: 0.6,     // Seconds between jumps (prevents rapid jumping)
     levitationForce: 20        // Upward force when levitating (reduces gravity effect)
   },

@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getBoltStats } from '../stats/CharacterStats.js';
+import { getBoltStats } from '../stats/CharacterAbilityStats.js';
 import { BOLT_CONFIG, GENERAL_ABILITY_CONFIG } from '../AbilityConfig.js';
 import { normalize2D, calculateSpeed2D } from '../utils/VectorUtils.js';
 

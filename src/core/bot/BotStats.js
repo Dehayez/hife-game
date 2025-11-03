@@ -3,39 +3,41 @@
  * 
  * Centralized configuration for all bot stats.
  * This file provides a clear view of every bot stat that can be edited.
+ * 
+ * Uses BaseEntityStats for shared health, movement, and physics stats.
  */
+
+import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../constants/BaseEntityStats.js';
 
 /**
  * Bot Configuration Stats
  * 
  * All stats related to bot behavior, health, movement, and AI.
+ * Extends base entity stats with bot-specific additions.
  */
 export const BOT_STATS = {
   /**
-   * Health Configuration
+   * Health Configuration (inherits from base entity stats)
    */
   health: {
-    maxHealth: 100,           // Maximum health for bots
-    defaultHealth: 100         // Starting health when bot is created
+    ...BASE_ENTITY_STATS.health
+    // Bot-specific health overrides can be added here
   },
   
   /**
-   * Movement Configuration
+   * Movement Configuration (inherits from base entity stats)
    */
   movement: {
-    moveSpeed: 4,             // Base movement speed (units per second)
-    runSpeedMultiplier: 1.7,   // Speed multiplier when running (not currently used for bots)
-    playerSize: 0.5,           // Bot collision size
-    playerHeight: 1.2          // Bot height for positioning
+    ...BASE_ENTITY_STATS.movement
+    // Bot-specific movement overrides can be added here
   },
   
   /**
-   * Physics Configuration
+   * Physics Configuration (inherits from base entity stats)
    */
   physics: {
-    gravity: -30,              // Gravity force (negative pulls down)
-    jumpForce: 8,              // Upward velocity when jumping
-    groundY: 0                 // Default ground level
+    ...BASE_ENTITY_STATS.physics
+    // Bot-specific physics overrides can be added here
   },
   
   /**

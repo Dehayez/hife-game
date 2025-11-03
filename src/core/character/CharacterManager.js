@@ -33,6 +33,7 @@ import {
   respawnCharacterPhysics 
 } from './CharacterPhysics.js';
 import { loadAllCharacterSounds } from './CharacterSound.js';
+import { getCharacterColorHex } from '../abilities/stats/CharacterColors.js';
 
 export class CharacterManager {
   /**
@@ -525,7 +526,7 @@ export class CharacterManager {
     
     // Spawn death particles
     if (this.particleManager) {
-      const characterColor = this.getCharacterName() === 'herald' ? 0xf5ba0b : 0x9c57b6;
+      const characterColor = getCharacterColorHex(this.getCharacterName());
       this.particleManager.spawnDeathParticles(this.player.position.clone(), characterColor, 25);
     }
   }

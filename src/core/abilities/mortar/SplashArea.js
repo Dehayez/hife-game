@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor } from '../stats/CharacterStats.js';
+import { getCharacterColor } from '../stats/CharacterAbilityStats.js';
 import { SPLASH_AREA_CONFIG } from '../AbilityConfig.js';
 import { createCircleGeometry, createEmissiveMaterial } from '../utils/GeometryUtils.js';
 import { createTrailLight } from '../utils/LightUtils.js';
