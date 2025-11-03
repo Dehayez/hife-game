@@ -39,6 +39,9 @@ export class GameMenu {
     
     // Initial check for Xbox controller
     this.checkXboxController();
+    
+    // Initial check for header visibility based on input mode
+    this.updateHeaderVisibility();
   }
 
   createMenu() {
@@ -141,8 +144,9 @@ export class GameMenu {
     // Clear existing content
     this.footer.innerHTML = '';
     
-    // Check if Xbox controller is connected
-    const isController = this.isXboxControllerConnected;
+    // Check if input mode is controller
+    const inputMode = this.inputManager?.getInputMode() || 'keyboard';
+    const isController = inputMode === 'controller';
     
     if (isController) {
       // Xbox controller commands
@@ -283,15 +287,32 @@ export class GameMenu {
     // Poll periodically to check for controller connection
     this.controllerCheckInterval = setInterval(() => {
       this.checkXboxController();
+      // Also check input mode for header visibility
+      this.updateHeaderVisibility();
     }, 1000); // Check every second
   }
 
   /**
-   * Update bumper icons visibility based on Xbox controller connection
+   * Update header visibility based on input mode
+   */
+  updateHeaderVisibility() {
+    if (this.header) {
+      const inputMode = this.inputManager?.getInputMode() || 'keyboard';
+      if (inputMode === 'controller') {
+        this.header.style.display = 'none';
+      } else {
+        this.header.style.display = 'flex';
+      }
+    }
+  }
+
+  /**
+   * Update bumper icons visibility based on input mode
    */
   updateBumperIcons() {
     if (this.lbIcon && this.rbIcon) {
-      if (this.isXboxControllerConnected) {
+      const inputMode = this.inputManager?.getInputMode() || 'keyboard';
+      if (inputMode === 'controller') {
         this.lbIcon.style.display = 'flex';
         this.rbIcon.style.display = 'flex';
       } else {
@@ -301,6 +322,8 @@ export class GameMenu {
     }
     // Also update footer content when controller state changes
     this.updateFooterContent();
+    // Also update header visibility when controller state changes
+    this.updateHeaderVisibility();
   }
 
   startControllerPolling() {
@@ -320,6 +343,10 @@ export class GameMenu {
   }
 
   handleControllerInput() {
+    // Only process controller input when input mode is controller
+    const inputMode = this.inputManager?.getInputMode() || 'keyboard';
+    if (inputMode !== 'controller') return;
+    
     const gamepads = navigator.getGamepads();
     if (!gamepads || gamepads.length === 0) return;
     
@@ -661,6 +688,9 @@ export class GameMenu {
     this.isVisible = !this.isVisible;
     this.overlay.setAttribute('aria-hidden', !this.isVisible);
     this.overlay.classList.toggle('is-visible', this.isVisible);
+    
+    // Update header visibility when menu opens
+    this.updateHeaderVisibility();
     
     // Controller polling runs continuously (started in setupControllerNavigation)
     // Only manage focus when opening menu
