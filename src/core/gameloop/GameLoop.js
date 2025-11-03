@@ -62,7 +62,7 @@ export class GameLoop {
     // Sword swing animation tracking
     this.swordSwingAnimationTime = 0;
     this.swordSwingAnimationDuration = 0.5; // Default duration (will be updated per character)
-    this.lastCharacterPositionForSwing = null; // Track character position for swing follow
+    this.lastCharacterPositionForParticles = null; // Track character position for particles that follow
     this.swordSwingCircle = null; // Reference to the sword swing circle visual effect
     this.meleeDamageTickTimer = 0; // Timer for damage over time ticks
     this.meleeAffectedEntities = new Set(); // Track entities in range for damage over time
@@ -334,18 +334,18 @@ export class GameLoop {
         this.sceneManager.getCamera()
       );
       
-      // Update sword swing particles to follow character during animation
-      if (this.swordSwingAnimationTime > 0 && player) {
+      // Update particles that follow character (sword swing and smoke particles)
+      if (player) {
         const currentPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
-        if (this.lastCharacterPositionForSwing) {
-          this.characterManager.particleManager.updateSwordSwingParticles(
+        if (this.lastCharacterPositionForParticles) {
+          this.characterManager.particleManager.updateFollowingParticles(
             currentPos,
-            this.lastCharacterPositionForSwing
+            this.lastCharacterPositionForParticles
           );
         }
-        this.lastCharacterPositionForSwing = currentPos.clone();
-      } else if (this.swordSwingAnimationTime <= 0) {
-        this.lastCharacterPositionForSwing = null;
+        this.lastCharacterPositionForParticles = currentPos.clone();
+      } else {
+        this.lastCharacterPositionForParticles = null;
       }
     }
 
@@ -1620,7 +1620,7 @@ export class GameLoop {
     // Trigger fast smoke particle burst
     const player = this.characterManager.getPlayer();
     if (player && this.characterManager.particleManager) {
-      // Spawn lots of smoke particles quickly
+      // Spawn lots of smoke particles quickly that follow the character
       for (let i = 0; i < 20; i++) {
         setTimeout(() => {
           const pos = new THREE.Vector3(
@@ -1628,7 +1628,7 @@ export class GameLoop {
             player.position.y,
             player.position.z + (Math.random() - 0.5) * 0.5
           );
-          this.characterManager.particleManager.spawnSmokeParticle(pos);
+          this.characterManager.particleManager.spawnSmokeParticle(pos, true); // true = follow character
         }, i * 10); // Spread over 200ms
       }
     }

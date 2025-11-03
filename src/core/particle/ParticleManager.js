@@ -9,7 +9,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getSmokeStats } from './ParticleStats.js';
+import { getSmokeStats, getRunningSmokeStats, getCharacterChangeSmokeStats } from './ParticleStats.js';
 
 export class ParticleManager {
   /**
@@ -22,7 +22,7 @@ export class ParticleManager {
     this.collisionManager = collisionManager;
     this.smokeParticles = [];
     
-    const stats = getSmokeStats();
+    const stats = getRunningSmokeStats();
     this.maxParticles = stats.maxParticles;
   }
 
@@ -37,9 +37,11 @@ export class ParticleManager {
   /**
    * Spawn a smoke particle at position
    * @param {THREE.Vector3} position - Spawn position
+   * @param {boolean} followCharacter - Whether particle should follow character position (for character changes)
    */
-  spawnSmokeParticle(position) {
-    const stats = getSmokeStats();
+  spawnSmokeParticle(position, followCharacter = false) {
+    // Use different stats for character change vs running smoke
+    const stats = followCharacter ? getCharacterChangeSmokeStats() : getRunningSmokeStats();
     
     // Create smoke particle geometry and material
     const size = stats.minSize + Math.random() * (stats.maxSize - stats.minSize);
@@ -60,13 +62,31 @@ export class ParticleManager {
 
     const particle = new THREE.Mesh(geometry, material);
     
-    // Position particle at character's feet
-    particle.position.copy(position);
-    particle.position.y = stats.positionY; // Slightly above ground
+    // Calculate offset from character position
+    const offsetX = (Math.random() - 0.5) * stats.horizontalOffset;
+    // Use configured vertical offset range (different for running vs character change)
+    const offsetY = (Math.random() - 0.5) * stats.verticalOffsetRange;
+    const offsetZ = (Math.random() - 0.5) * stats.horizontalOffset;
     
-    // Random horizontal offset for variety
-    particle.position.x += (Math.random() - 0.5) * stats.horizontalOffset;
-    particle.position.z += (Math.random() - 0.5) * stats.horizontalOffset;
+    // Position particle
+    if (followCharacter) {
+      // For character changes: use character's position (follows character)
+      particle.position.copy(position);
+      particle.position.x += offsetX;
+      particle.position.y += offsetY;
+      particle.position.z += offsetZ;
+    } else {
+      // For running smoke: spawn at ground level, not at character height
+      particle.position.set(
+        position.x + offsetX,
+        stats.positionY + offsetY, // Use ground level + offset
+        position.z + offsetZ
+      );
+    }
+    
+    // Store base position and offset for following particles
+    const basePosition = followCharacter ? position.clone() : null;
+    const positionOffset = followCharacter ? new THREE.Vector3(offsetX, offsetY, offsetZ) : null;
     
     // Initialize particle properties
     const velocityX = stats.minVelocityX + Math.random() * (stats.maxVelocityX - stats.minVelocityX);
@@ -79,14 +99,18 @@ export class ParticleManager {
       lifetime: 0,
       maxLifetime: lifetime,
       initialSize: size,
-      initialOpacity: material.opacity
+      initialOpacity: material.opacity,
+      followCharacter: followCharacter,
+      basePosition: basePosition,
+      positionOffset: positionOffset
     };
 
     this.scene.add(particle);
     this.smokeParticles.push(particle);
 
-    // Remove oldest particles if we exceed max
-    if (this.smokeParticles.length > this.maxParticles) {
+    // Remove oldest particles if we exceed max for the current particle type
+    const maxParticlesForType = followCharacter ? stats.maxParticles : this.maxParticles;
+    if (this.smokeParticles.length > maxParticlesForType) {
       const oldest = this.smokeParticles.shift();
       this.scene.remove(oldest);
       oldest.geometry.dispose();
@@ -99,7 +123,8 @@ export class ParticleManager {
    * @param {number} dt - Delta time in seconds
    */
   update(dt) {
-    const stats = getSmokeStats();
+    // Use running smoke stats for update (drag factor, fade speed, etc. are the same)
+    const stats = getRunningSmokeStats();
     
     for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
       const particle = this.smokeParticles[i];
@@ -363,11 +388,11 @@ export class ParticleManager {
   }
 
   /**
-   * Update sword swing particles to follow character
+   * Update particles to follow character position
    * @param {THREE.Vector3} characterPosition - Current character position
    * @param {THREE.Vector3} lastCharacterPosition - Previous character position (for delta movement)
    */
-  updateSwordSwingParticles(characterPosition, lastCharacterPosition) {
+  updateFollowingParticles(characterPosition, lastCharacterPosition) {
     if (!lastCharacterPosition) return;
     
     // Calculate character movement delta
@@ -375,15 +400,29 @@ export class ParticleManager {
     const deltaY = characterPosition.y - lastCharacterPosition.y;
     const deltaZ = characterPosition.z - lastCharacterPosition.z;
     
-    // Update all sword swing particles to follow character movement
+    // Update all particles that follow character (smoke and sword swing particles)
     for (const particle of this.smokeParticles) {
       if (particle.userData.followCharacter) {
         // Move particle by the same delta as the character
         particle.position.x += deltaX;
         particle.position.y += deltaY;
         particle.position.z += deltaZ;
+        
+        // Update stored base position if available
+        if (particle.userData.basePosition) {
+          particle.userData.basePosition.add(new THREE.Vector3(deltaX, deltaY, deltaZ));
+        }
       }
     }
+  }
+
+  /**
+   * Update sword swing particles to follow character (legacy method, calls updateFollowingParticles)
+   * @param {THREE.Vector3} characterPosition - Current character position
+   * @param {THREE.Vector3} lastCharacterPosition - Previous character position (for delta movement)
+   */
+  updateSwordSwingParticles(characterPosition, lastCharacterPosition) {
+    this.updateFollowingParticles(characterPosition, lastCharacterPosition);
   }
 
   /**

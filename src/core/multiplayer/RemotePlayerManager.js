@@ -7,7 +7,8 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/CharacterAnimation.js';
-import { getCharacterMovementStats, getCharacterParticleStats } from '../character/CharacterStats.js';
+import { getCharacterMovementStats } from '../character/CharacterStats.js';
+import { getSmokeSpawnInterval } from '../particle/ParticleStats.js';
 import { createSpriteAtPosition } from '../utils/SpriteUtils.js';
 
 export class RemotePlayerManager {
@@ -484,9 +485,9 @@ export class RemotePlayerManager {
       if (remotePlayer.isRunning && remotePlayer.isGrounded && this.particleManager) {
         remotePlayer.smokeSpawnTimer -= dt;
         if (remotePlayer.smokeSpawnTimer <= 0) {
-          const particleStats = getCharacterParticleStats();
+          const smokeSpawnInterval = getSmokeSpawnInterval();
           this.particleManager.spawnSmokeParticle(mesh.position);
-          remotePlayer.smokeSpawnTimer = particleStats.smokeSpawnInterval;
+          remotePlayer.smokeSpawnTimer = smokeSpawnInterval;
         }
       } else {
         // Reset timer when not running

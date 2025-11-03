@@ -277,11 +277,12 @@ export class GameMenu {
     if (!gamepad) return;
 
     // Xbox button mappings:
+    // Button 0 = A
+    // Button 1 = B
     // Button 8 = Back
     // Button 9 = Start (Menu/Options) - Handled in main.js gameLoop.tick to avoid conflicts
     // Button 4 = Left Bumper (LB)
     // Button 5 = Right Bumper (RB)
-    // Button 0 = A
 
     // Note: Start button (9) is handled in main.js to avoid double-toggling
     
@@ -297,6 +298,18 @@ export class GameMenu {
       }
     } else {
       this.controllerNavigation.buttonPressed.delete(0);
+    }
+
+    // B button (1) - Close menu if open
+    if (gamepad.buttons[1]?.pressed) {
+      if (!this.controllerNavigation.buttonPressed.has(1)) {
+        this.controllerNavigation.buttonPressed.add(1);
+        if (this.isVisible) {
+          this.toggle(); // Close menu
+        }
+      }
+    } else {
+      this.controllerNavigation.buttonPressed.delete(1);
     }
 
     // Back button (8) - Close menu if open

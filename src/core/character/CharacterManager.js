@@ -16,9 +16,9 @@ import { SoundManager } from '../../utils/SoundManager.js';
 import { 
   getCharacterHealthStats, 
   getCharacterMovementStats, 
-  getCharacterPhysicsStats,
-  getCharacterParticleStats 
+  getCharacterPhysicsStats
 } from './CharacterStats.js';
+import { getSmokeSpawnInterval } from '../particle/ParticleStats.js';
 import { 
   loadCharacterAnimations, 
   setCharacterAnimation, 
@@ -82,9 +82,8 @@ export class CharacterManager {
     this.deathFadeDuration = DEATH_FADE_CONFIG.duration;
     
     // Smoke particle spawn timer
-    const particleStats = getCharacterParticleStats();
     this.smokeSpawnTimer = 0;
-    this.smokeSpawnInterval = particleStats.smokeSpawnInterval;
+    this.smokeSpawnInterval = getSmokeSpawnInterval();
     
     // Only setup player if scene is available
     if (this.scene) {
@@ -180,6 +179,14 @@ export class CharacterManager {
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
     this.setCurrentAnim(this.currentAnimKey, true);
+    
+    // Force immediate texture update to ensure character image changes right away
+    if (this.player && this.player.material) {
+      this.player.material.needsUpdate = true;
+      if (this.player.material.map) {
+        this.player.material.map.needsUpdate = true;
+      }
+    }
   }
 
   /**

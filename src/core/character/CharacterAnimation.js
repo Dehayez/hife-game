@@ -5,7 +5,7 @@
  */
 
 import { loadAnimationSmart } from '../../utils/TextureLoader.js';
-import { getCharacterParticleStats } from './CharacterStats.js';
+import { getSmokeSpawnInterval } from '../particle/ParticleStats.js';
 
 /**
  * Load character animations
@@ -61,12 +61,18 @@ export function setCharacterAnimation(player, key, animations, currentAnimKey, f
   anim.onComplete = onComplete; // Store callback for one-shot animations
   
   const spriteMat = player.material;
-  spriteMat.map = anim.mode === 'frames' ? anim.textures[0] : anim.texture;
+  const texture = anim.mode === 'frames' ? anim.textures[0] : anim.texture;
+  spriteMat.map = texture;
   
   if (anim.mode === 'sheet') {
     anim.texture.offset.x = 0;
   }
   spriteMat.needsUpdate = true;
+  
+  // Force immediate texture update
+  if (texture) {
+    texture.needsUpdate = true;
+  }
   
   return key;
 }
@@ -271,11 +277,11 @@ export function updateCharacterMovement(
       }
       
       // Spawn smoke particles when running and grounded
-      const particleStats = getCharacterParticleStats();
+      const smokeSpawnInterval = getSmokeSpawnInterval();
       if (isRunning && isGrounded && particleManager) {
         if (smokeSpawnTimer <= 0) {
           particleManager.spawnSmokeParticle(player.position);
-          newSmokeSpawnTimer = particleStats.smokeSpawnInterval;
+          newSmokeSpawnTimer = smokeSpawnInterval;
         }
       }
     }

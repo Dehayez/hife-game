@@ -544,6 +544,32 @@ export class InputManager {
       this.gamepadMovementVector.x = 0;
       this.gamepadMovementVector.y = 0;
       this._gamepadMovementActive = false;
+      
+      // Clear pressed state tracking
+      this.swordSwingPressed = false;
+      this.shootPressed = false;
+      this.mortarPressed = false;
+      this.mortarHoldPressed = false;
+      this.leftTriggerPressed = false;
+      this.rightTriggerPressed = false;
+      this.characterSwapPressed = false;
+      this.healPressed = false;
+      this._previousJumpButtonState = false;
+      this._previousKeyboardJumpState = false;
+      this._gamepadJumpState = false;
+    } else {
+      // Clear pressed state tracking when unblocking to prevent button presses from leaking through
+      this.swordSwingPressed = false;
+      this.shootPressed = false;
+      this.mortarPressed = false;
+      this.mortarHoldPressed = false;
+      this.leftTriggerPressed = false;
+      this.rightTriggerPressed = false;
+      this.characterSwapPressed = false;
+      this.healPressed = false;
+      this._previousJumpButtonState = false;
+      this._previousKeyboardJumpState = false;
+      this._gamepadJumpState = false;
     }
   }
 
