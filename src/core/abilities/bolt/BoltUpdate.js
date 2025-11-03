@@ -7,6 +7,7 @@
  * This file orchestrates the update process by delegating to specialized modules.
  */
 
+import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { updateCursorTracking } from './BoltCursorTracking.js';
 import { applyCursorFollowing } from './BoltCursorFollowing.js';
 import { updateSpeed } from './BoltSpeedCalculation.js';
@@ -46,6 +47,47 @@ export function updateBolt(projectile, dt, collisionManager, camera = null, inpu
   
   // Update visual effects
   updateVisualEffects(projectile, dt);
+  
+  // Spawn trail particles while moving
+  if (projectile.userData.particleManager && !shouldRemove) {
+    // Initialize trail spawn timer if not exists
+    if (projectile.userData.trailSpawnTimer === undefined) {
+      projectile.userData.trailSpawnTimer = 0;
+    }
+    
+    // Spawn trail particles periodically (every ~0.03 seconds)
+    projectile.userData.trailSpawnTimer += dt;
+    const trailSpawnInterval = 0.03;
+    
+    if (projectile.userData.trailSpawnTimer >= trailSpawnInterval) {
+      projectile.userData.trailSpawnTimer = 0;
+      
+      // Calculate velocity vector
+      const velocity = new THREE.Vector3(
+        projectile.userData.velocityX,
+        0,
+        projectile.userData.velocityZ
+      );
+      
+      // Only spawn if moving fast enough
+      if (velocity.length() > 0.1) {
+        projectile.userData.particleManager.spawnProjectileTrailParticle(
+          projectile.position.clone(),
+          velocity,
+          projectile.userData.characterColor,
+          projectile.userData.size
+        );
+      }
+    }
+    
+    // Update ambient particles to follow projectile
+    if (projectile.userData.ambientParticles && projectile.userData.ambientParticles.length > 0) {
+      projectile.userData.particleManager.updateProjectileAmbientParticles(
+        projectile.position.clone(),
+        projectile.userData.ambientParticles
+      );
+    }
+  }
   
   return shouldRemove;
 }

@@ -22,6 +22,11 @@ export function removeBolt(projectile, scene, particleManager = null) {
       12,
       0.5
     );
+    
+    // Clean up ambient particles if they exist
+    if (projectile.userData.ambientParticles && projectile.userData.ambientParticles.length > 0) {
+      particleManager.removeProjectileParticles(projectile.userData.ambientParticles);
+    }
   }
   
   // Remove trail light

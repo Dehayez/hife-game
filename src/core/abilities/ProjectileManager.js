@@ -97,7 +97,8 @@ export class ProjectileManager {
       playerId,
       characterName,
       targetX,
-      targetZ
+      targetZ,
+      this.particleManager
     );
     
     if (!projectile) return null;
@@ -146,7 +147,8 @@ export class ProjectileManager {
       targetX,
       targetZ,
       playerId,
-      characterName
+      characterName,
+      this.particleManager
     );
     
     if (!mortar) return null;

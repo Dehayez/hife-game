@@ -33,9 +33,10 @@ import { removeFromScene } from '../utils/CleanupUtils.js';
  * @param {number} targetZ - Target Z position
  * @param {string} playerId - Player ID ('local' or player identifier)
  * @param {string} characterName - Character name ('lucy' or 'herald')
+ * @param {Object} particleManager - Optional particle manager for projectile effects
  * @returns {THREE.Mesh|null} Created mortar mesh or null if on cooldown
  */
-export function createMortar(scene, startX, startY, startZ, targetX, targetZ, playerId, characterName) {
+export function createMortar(scene, startX, startY, startZ, targetX, targetZ, playerId, characterName, particleManager = null) {
   // Get character-specific mortar stats
   const stats = getMortarStats(characterName);
   const characterColor = getCharacterColor(characterName);
@@ -66,6 +67,19 @@ export function createMortar(scene, startX, startY, startZ, targetX, targetZ, pl
     targetPos,
     trailLight
   );
+  
+  // Create ambient particles around mortar if particle manager available
+  let ambientParticles = [];
+  if (particleManager) {
+    ambientParticles = particleManager.spawnProjectileAmbientParticles(
+      startPos,
+      characterColor,
+      stats.size,
+      8 // Number of ambient particles (more for mortar since it's bigger)
+    );
+  }
+  mortar.userData.particleManager = particleManager;
+  mortar.userData.ambientParticles = ambientParticles;
   
   scene.add(mortar);
   return mortar;
@@ -152,6 +166,47 @@ export function updateMortar(mortar, dt, collisionManager) {
   mortar.rotation.x += dt * rotationSpeed;
   mortar.rotation.y += dt * rotationSpeed;
   
+  // Spawn trail particles while moving
+  if (mortar.userData.particleManager) {
+    // Initialize trail spawn timer if not exists
+    if (mortar.userData.trailSpawnTimer === undefined) {
+      mortar.userData.trailSpawnTimer = 0;
+    }
+    
+    // Spawn trail particles periodically (every ~0.03 seconds)
+    mortar.userData.trailSpawnTimer += dt;
+    const trailSpawnInterval = 0.03;
+    
+    if (mortar.userData.trailSpawnTimer >= trailSpawnInterval) {
+      mortar.userData.trailSpawnTimer = 0;
+      
+      // Calculate velocity vector
+      const velocity = new THREE.Vector3(
+        mortar.userData.velocityX,
+        mortar.userData.velocityY,
+        mortar.userData.velocityZ
+      );
+      
+      // Only spawn if moving fast enough
+      if (velocity.length() > 0.1) {
+        mortar.userData.particleManager.spawnProjectileTrailParticle(
+          mortar.position.clone(),
+          velocity,
+          mortar.userData.characterColor,
+          mortar.userData.size
+        );
+      }
+    }
+    
+    // Update ambient particles to follow mortar
+    if (mortar.userData.ambientParticles && mortar.userData.ambientParticles.length > 0) {
+      mortar.userData.particleManager.updateProjectileAmbientParticles(
+        mortar.position.clone(),
+        mortar.userData.ambientParticles
+      );
+    }
+  }
+  
   return null;
 }
 
@@ -173,6 +228,11 @@ export function removeMortar(mortar, scene, particleManager = null) {
       particleCount,
       spreadRadius
     );
+    
+    // Clean up ambient particles if they exist
+    if (mortar.userData.ambientParticles && mortar.userData.ambientParticles.length > 0) {
+      particleManager.removeProjectileParticles(mortar.userData.ambientParticles);
+    }
   }
   
   // Remove trail light

@@ -23,9 +23,10 @@ import { normalize2D } from '../utils/VectorUtils.js';
  * @param {string} characterName - Character name ('lucy' or 'herald')
  * @param {number} targetX - Optional target X position for cursor following
  * @param {number} targetZ - Optional target Z position for cursor following
+ * @param {Object} particleManager - Optional particle manager for projectile effects
  * @returns {THREE.Mesh|null} Created projectile mesh or null if invalid direction
  */
-export function createBolt(scene, startX, startY, startZ, directionX, directionZ, playerId, characterName, targetX = null, targetZ = null) {
+export function createBolt(scene, startX, startY, startZ, directionX, directionZ, playerId, characterName, targetX = null, targetZ = null, particleManager = null) {
   // Get character-specific bolt stats
   const stats = getBoltStats(characterName);
   const characterColor = getCharacterColor(characterName);
@@ -74,6 +75,18 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
     ? maxSpeed * BOLT_CONFIG.physics.heraldAccelerationMultiplier 
     : minSpeed;
   
+  // Create ambient particles around projectile if particle manager available
+  let ambientParticles = [];
+  if (particleManager) {
+    const startPos = new THREE.Vector3(startX, startY, startZ);
+    ambientParticles = particleManager.spawnProjectileAmbientParticles(
+      startPos,
+      characterColor,
+      stats.size,
+      6 // Number of ambient particles
+    );
+  }
+  
   // Store projectile data with character-specific stats
   projectile.userData = {
     type: 'projectile',
@@ -97,7 +110,9 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
     cursorFollowStrength: stats.cursorFollowStrength || 0, // How much to follow cursor
     initialDirX: normX, // Initial shooting direction X
     initialDirZ: normZ, // Initial shooting direction Z
-    shooterY: startY // Store shooter's Y position (bot or player) to follow their height
+    shooterY: startY, // Store shooter's Y position (bot or player) to follow their height
+    particleManager: particleManager, // Store particle manager for trail particles
+    ambientParticles: ambientParticles // Store ambient particle references (for cleanup)
   };
   
   scene.add(projectile);

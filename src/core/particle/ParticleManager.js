@@ -143,8 +143,14 @@ export class ParticleManager {
         continue;
       }
 
+      // Skip position update for ambient particles that orbit projectiles (they're updated separately)
+      if (data.projectilePosition && data.orbitRadius !== undefined) {
+        // Ambient particles orbiting projectiles - skip velocity-based movement
+        // They'll be updated by updateProjectileAmbientParticles() instead
+        // But still apply fade and scale
+      }
       // Update position (skip velocity for sword swing particles - they follow character instead)
-      if (!data.followCharacter) {
+      else if (!data.followCharacter) {
         // Calculate next position
         const nextPos = particle.position.clone().add(data.velocity.clone().multiplyScalar(dt));
         
@@ -566,6 +572,222 @@ export class ParticleManager {
         this.scene.remove(oldest);
         oldest.geometry.dispose();
         oldest.material.dispose();
+      }
+    }
+  }
+
+  /**
+   * Spawn projectile trail particle (behind while moving)
+   * @param {THREE.Vector3} position - Projectile position
+   * @param {THREE.Vector3} velocity - Projectile velocity (for direction)
+   * @param {number} characterColor - Character color (hex number)
+   * @param {number} projectileSize - Size of the projectile (affects particle size)
+   */
+  spawnProjectileTrailParticle(position, velocity, characterColor, projectileSize = 0.1) {
+    // Create trail particle - smaller than ambient particles
+    const size = 0.04 + Math.random() * 0.04;
+    const geometry = new THREE.PlaneGeometry(size, size);
+    
+    // Convert hex to Color
+    const baseColor = new THREE.Color(characterColor);
+    
+    // Character color with variation, slightly dimmed for trail
+    const particleColor = new THREE.Color(
+      Math.min(1, baseColor.r * 0.9 + (Math.random() - 0.5) * 0.2),
+      Math.min(1, baseColor.g * 0.9 + (Math.random() - 0.5) * 0.2),
+      Math.min(1, baseColor.b * 0.9 + (Math.random() - 0.5) * 0.2)
+    );
+    
+    const material = new THREE.MeshBasicMaterial({
+      color: particleColor,
+      transparent: true,
+      opacity: 0.6 + Math.random() * 0.3,
+      side: THREE.DoubleSide,
+      alphaTest: 0.05,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending // Glowing effect
+    });
+    
+    const particle = new THREE.Mesh(geometry, material);
+    
+    // Position particle behind projectile (opposite direction of velocity)
+    const velocityNormalized = velocity.clone().normalize();
+    const trailDistance = projectileSize * 0.8; // Position slightly behind projectile
+    
+    particle.position.copy(position);
+    particle.position.sub(velocityNormalized.clone().multiplyScalar(trailDistance));
+    // Add slight random offset for variation
+    particle.position.x += (Math.random() - 0.5) * projectileSize * 0.3;
+    particle.position.y += (Math.random() - 0.5) * projectileSize * 0.3;
+    particle.position.z += (Math.random() - 0.5) * projectileSize * 0.3;
+    
+    // Velocity: slight outward from trail direction, with some randomness
+    const speed = 0.5 + Math.random() * 0.5;
+    const velocityOpposite = velocityNormalized.clone().multiplyScalar(-0.3); // Slight backward drift
+    const randomDirection = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5
+    );
+    const finalVelocity = velocityOpposite.clone().add(randomDirection).normalize().multiplyScalar(speed);
+    
+    particle.userData = {
+      velocity: finalVelocity,
+      lifetime: 0,
+      maxLifetime: 0.2 + Math.random() * 0.2, // Short lifetime for trail
+      initialSize: size,
+      initialOpacity: material.opacity
+    };
+    
+    this.scene.add(particle);
+    this.smokeParticles.push(particle);
+    
+    // Remove oldest particles if we exceed max
+    if (this.smokeParticles.length > this.maxParticles) {
+      const oldest = this.smokeParticles.shift();
+      this.scene.remove(oldest);
+      oldest.geometry.dispose();
+      oldest.material.dispose();
+    }
+  }
+
+  /**
+   * Spawn projectile ambient particles (around the sphere)
+   * @param {THREE.Vector3} position - Projectile position
+   * @param {number} characterColor - Character color (hex number)
+   * @param {number} projectileSize - Size of the projectile (affects particle distribution)
+   * @param {number} particleCount - Number of ambient particles (default: 6)
+   * @returns {Array<THREE.Mesh>} Array of created ambient particles
+   */
+  spawnProjectileAmbientParticles(position, characterColor, projectileSize = 0.1, particleCount = 6) {
+    // Convert hex to Color
+    const baseColor = new THREE.Color(characterColor);
+    const particles = [];
+    
+    for (let i = 0; i < particleCount; i++) {
+      // Create ambient particle - small glowing particles around projectile
+      const size = 0.03 + Math.random() * 0.03;
+      const geometry = new THREE.PlaneGeometry(size, size);
+      
+      // Character color with variation, bright for ambient glow
+      const particleColor = new THREE.Color(
+        Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.3)
+      );
+      
+      const material = new THREE.MeshBasicMaterial({
+        color: particleColor,
+        transparent: true,
+        opacity: 0.5 + Math.random() * 0.4,
+        side: THREE.DoubleSide,
+        alphaTest: 0.05,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending // Glowing effect
+      });
+      
+      const particle = new THREE.Mesh(geometry, material);
+      
+      // Position particle around projectile sphere (at surface or slightly outside)
+      const angle = Math.random() * Math.PI * 2;
+      const elevation = (Math.random() - 0.5) * Math.PI;
+      const distance = projectileSize * (0.8 + Math.random() * 0.4); // Around the sphere
+      
+      particle.position.copy(position);
+      particle.position.x += Math.cos(angle) * Math.cos(elevation) * distance;
+      particle.position.y += Math.sin(elevation) * distance;
+      particle.position.z += Math.sin(angle) * Math.cos(elevation) * distance;
+      
+      // Velocity: slow outward expansion and rotation around projectile
+      const speed = 0.3 + Math.random() * 0.3;
+      const outwardDir = new THREE.Vector3(
+        Math.cos(angle) * Math.cos(elevation),
+        Math.sin(elevation),
+        Math.sin(angle) * Math.cos(elevation)
+      );
+      
+      // Add slight rotation velocity
+      const rotationSpeed = 0.5 + Math.random() * 0.5;
+      const tangent = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+      const finalVelocity = outwardDir.clone().multiplyScalar(speed * 0.3).add(tangent.clone().multiplyScalar(rotationSpeed));
+      
+      particle.userData = {
+        velocity: finalVelocity,
+        lifetime: 0,
+        maxLifetime: 0.4 + Math.random() * 0.3, // Medium lifetime for ambient
+        initialSize: size,
+        initialOpacity: material.opacity,
+        projectilePosition: position.clone(), // Store projectile position for orbit effect
+        orbitRadius: distance,
+        orbitAngle: angle,
+        orbitElevation: elevation
+      };
+      
+      this.scene.add(particle);
+      this.smokeParticles.push(particle);
+      particles.push(particle); // Track this particle for return
+      
+      // Remove oldest particles if we exceed max
+      if (this.smokeParticles.length > this.maxParticles) {
+        const oldest = this.smokeParticles.shift();
+        this.scene.remove(oldest);
+        oldest.geometry.dispose();
+        oldest.material.dispose();
+        // Remove from particles array if it's one of ours
+        const index = particles.indexOf(oldest);
+        if (index > -1) {
+          particles.splice(index, 1);
+        }
+      }
+    }
+    
+    return particles; // Return array of created particles
+  }
+
+  /**
+   * Update projectile ambient particles to orbit around projectile
+   * @param {THREE.Vector3} projectilePosition - Current projectile position
+   * @param {THREE.Mesh[]} ambientParticles - Array of ambient particles attached to this projectile
+   */
+  updateProjectileAmbientParticles(projectilePosition, ambientParticles) {
+    if (!ambientParticles || ambientParticles.length === 0) return;
+    
+    for (const particle of ambientParticles) {
+      const data = particle.userData;
+      if (!data.projectilePosition || !data.orbitRadius) continue;
+      
+      // Calculate new orbit position
+      const angle = data.orbitAngle + 0.02; // Slow rotation
+      const elevation = data.orbitElevation;
+      
+      // Update orbit angle
+      data.orbitAngle = angle;
+      
+      // Position relative to projectile
+      particle.position.copy(projectilePosition);
+      particle.position.x += Math.cos(angle) * Math.cos(elevation) * data.orbitRadius;
+      particle.position.y += Math.sin(elevation) * data.orbitRadius;
+      particle.position.z += Math.sin(angle) * Math.cos(elevation) * data.orbitRadius;
+      
+      // Update projectile position reference
+      data.projectilePosition.copy(projectilePosition);
+    }
+  }
+
+  /**
+   * Remove projectile particles (used when projectile is removed)
+   * @param {THREE.Mesh[]} particles - Array of particles to remove
+   */
+  removeProjectileParticles(particles) {
+    if (!particles || particles.length === 0) return;
+    
+    for (const particle of particles) {
+      const index = this.smokeParticles.indexOf(particle);
+      if (index > -1) {
+        this.scene.remove(particle);
+        particle.geometry.dispose();
+        particle.material.dispose();
+        this.smokeParticles.splice(index, 1);
       }
     }
   }
