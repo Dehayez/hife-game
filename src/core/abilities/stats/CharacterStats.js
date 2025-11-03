@@ -10,12 +10,12 @@
  * ═══════════════════════════════════════════════════════════════════
  * 
  * 1. GLOBAL BASE STATS (affects all characters):
- *    Edit: src/core/projectile/GlobalCharacterStats.js
+ *    Edit: src/core/abilities/stats/GlobalCharacterStats.js
  *    - Change base values here to affect all characters
  *    - Example: Increase base damage from 20 to 25 = all characters get +5 damage
  * 
  * 2. CHARACTER-SPECIFIC STATS (affects one character):
- *    Edit: src/core/projectile/characters/Lucy.js or Herald.js
+ *    Edit: src/core/abilities/stats/characters/Lucy.js or Herald.js
  *    - Use multipliers (e.g., 0.5 = 50% of base, 1.5 = 150% of base)
  *    - Use overrides (direct values that replace base)
  *    - Example: Lucy damage: 0.5 means Lucy gets 50% of global base damage
@@ -91,7 +91,7 @@ function createCharacterStats(characterStats) {
   return {
     name: characterStats.name,
     color: characterStats.color,
-    firebolt: mergeStats(GLOBAL_BASE_STATS.firebolt, characterStats.firebolt || {}),
+    bolt: mergeStats(GLOBAL_BASE_STATS.bolt, characterStats.bolt || {}),
     mortar: mergeStats(GLOBAL_BASE_STATS.mortar, characterStats.mortar || {}),
     melee: mergeStats(GLOBAL_BASE_STATS.melee, characterStats.melee || {})
   };
@@ -101,7 +101,7 @@ function createCharacterStats(characterStats) {
  * Character Ability Stats Configuration
  * 
  * Each character has stats for three abilities:
- * 1. Firebolt (regular projectile)
+ * 1. Bolt (regular projectile)
  * 2. Mortar (arc projectile with fire splash)
  * 3. Melee (sword swing attack)
  */
@@ -120,13 +120,13 @@ export function getCharacterStats(characterName) {
 }
 
 /**
- * Get firebolt stats for a character
+ * Get bolt stats for a character
  * @param {string} characterName - Character name
- * @returns {Object} Firebolt ability stats
+ * @returns {Object} Bolt ability stats
  */
-export function getFireboltStats(characterName) {
+export function getBoltStats(characterName) {
   const stats = getCharacterStats(characterName);
-  return stats.firebolt;
+  return stats.bolt;
 }
 
 /**

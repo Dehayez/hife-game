@@ -6,9 +6,9 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { checkProjectileCollision } from './Projectile.js';
-import { checkMortarCollision, checkMortarGroundCollision } from './Mortar.js';
-import { checkFireAreaCollision } from './FireArea.js';
+import { checkBoltPlayerCollision } from '../projectile/Bolt.js';
+import { checkMortarCollision, checkMortarGroundCollision } from '../mortar/Mortar.js';
+import { checkFireAreaCollision } from '../mortar/FireArea.js';
 
 /**
  * Check all projectiles for collision with player
@@ -19,9 +19,9 @@ import { checkFireAreaCollision } from './FireArea.js';
  * @returns {Object} Collision result with hit, damage, and projectile info
  */
 export function checkPlayerCollision(projectiles, playerPos, playerSize, playerId) {
-  // Check regular projectiles
+  // Check regular projectiles (bolts)
   for (const projectile of projectiles) {
-    const result = checkProjectileCollision(projectile, playerPos, playerSize, playerId);
+    const result = checkBoltPlayerCollision(projectile, playerPos, playerSize, playerId);
     if (result.hit) {
       return result;
     }

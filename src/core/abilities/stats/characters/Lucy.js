@@ -41,8 +41,8 @@ export const LUCY_STATS = {
    * Fast, lower damage attacks with smaller projectiles
    */
   
-  // Firebolt Ability Stats
-  firebolt: {
+  // Bolt Ability Stats
+  bolt: {
     damage: 0.5,              // 50% of base (10 damage) - Lower for Uzi-like rapid fire
     cooldown: 0.375,          // 37.5% of base (0.15s) - Much faster for rapid fire
     projectileSpeed: 1.2,     // 120% of base (12 units/s) - Faster (final speed)

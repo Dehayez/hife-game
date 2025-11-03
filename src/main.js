@@ -22,7 +22,7 @@ import { CollisionManager } from './core/collision/CollisionManager.js';
 import { LargeArenaCollisionManager } from './core/collision/LargeArenaCollisionManager.js';
 import { GameModeManager } from './core/gamemode/GameModeManager.js';
 import { EntityManager } from './core/entity/EntityManager.js';
-import { ProjectileManager } from './core/projectile/ProjectileManager.js';
+import { ProjectileManager } from './core/abilities/ProjectileManager.js';
 import { MultiplayerManager } from './core/multiplayer/MultiplayerManager.js';
 import { RemotePlayerManager } from './core/multiplayer/RemotePlayerManager.js';
 import { BotManager } from './core/bot/BotManager.js';
@@ -228,7 +228,7 @@ const multiplayerManager = new MultiplayerManager(
             characterName
           );
         } else {
-          // Create firebolt projectile
+          // Create bolt projectile
           projectileManager.createProjectile(
             data.startX,
             data.startY,

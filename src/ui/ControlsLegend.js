@@ -131,25 +131,25 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
       shootingTitle.appendChild(titleLabel);
       shootingSection.appendChild(shootingTitle);
 
-      // Firebolt
-      const fireboltGroup = document.createElement('div');
-      fireboltGroup.className = 'ui__legend-group';
+      // Bolt
+      const boltGroup = document.createElement('div');
+      boltGroup.className = 'ui__legend-group';
       
-      const fireboltLabel = document.createElement('span');
-      fireboltLabel.className = 'ui__legend-label';
-      fireboltLabel.textContent = 'Firebolt:';
-      fireboltGroup.appendChild(fireboltLabel);
+      const boltLabel = document.createElement('span');
+      boltLabel.className = 'ui__legend-label';
+      boltLabel.textContent = 'Bolt:';
+      boltGroup.appendChild(boltLabel);
       
-      const fireboltKeys = document.createElement('div');
-      fireboltKeys.className = 'ui__legend-keys ui__legend-keys--run';
+      const boltKeys = document.createElement('div');
+      boltKeys.className = 'ui__legend-keys ui__legend-keys--run';
       
       const leftClick = document.createElement('div');
       leftClick.className = 'ui__legend-key';
       leftClick.innerHTML = '🖱️ Left Click';
-      fireboltKeys.appendChild(leftClick);
+      boltKeys.appendChild(leftClick);
       
-      fireboltGroup.appendChild(fireboltKeys);
-      shootingSection.appendChild(fireboltGroup);
+      boltGroup.appendChild(boltKeys);
+      shootingSection.appendChild(boltGroup);
 
       // Mortar
       const mortarGroup = document.createElement('div');
@@ -330,26 +330,26 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
       aimGroup.appendChild(aimKeys);
       shootingSection.appendChild(aimGroup);
 
-      // Firebolt
-      const fireboltGroup = document.createElement('div');
-      fireboltGroup.className = 'ui__legend-group';
+      // Bolt
+      const boltGroup = document.createElement('div');
+      boltGroup.className = 'ui__legend-group';
       
-      const fireboltLabel = document.createElement('span');
-      fireboltLabel.className = 'ui__legend-label';
-      fireboltLabel.textContent = 'Firebolt:';
-      fireboltGroup.appendChild(fireboltLabel);
+      const boltLabel = document.createElement('span');
+      boltLabel.className = 'ui__legend-label';
+      boltLabel.textContent = 'Bolt:';
+      boltGroup.appendChild(boltLabel);
       
-      const fireboltKeys = document.createElement('div');
-      fireboltKeys.className = 'ui__legend-keys ui__legend-keys--run';
+      const boltKeys = document.createElement('div');
+      boltKeys.className = 'ui__legend-keys ui__legend-keys--run';
       
       const rtButton = document.createElement('div');
       rtButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-rt';
       rtButton.innerHTML = '<span class="xbox-button">RT</span>';
       rtButton.title = 'Xbox Right Trigger';
-      fireboltKeys.appendChild(rtButton);
+      boltKeys.appendChild(rtButton);
       
-      fireboltGroup.appendChild(fireboltKeys);
-      shootingSection.appendChild(fireboltGroup);
+      boltGroup.appendChild(boltKeys);
+      shootingSection.appendChild(boltGroup);
 
       // Mortar Hold
       const mortarHoldGroup = document.createElement('div');

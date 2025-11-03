@@ -5,18 +5,18 @@
  * Coordinates projectiles, mortars, fire areas, and collision detection.
  * 
  * This file acts as a facade, delegating to specialized modules:
- * - CharacterStats.js: Character ability stats configuration
- * - Projectile.js: Regular firebolt projectiles
- * - Mortar.js: Arc mortar projectiles
- * - FireArea.js: Fire splash areas after mortar impact
- * - CollisionHandler.js: Collision detection logic
+ * - stats/CharacterStats.js: Character ability stats configuration
+ * - projectile/Bolt.js: Regular projectile shots
+ * - mortar/Mortar.js: Arc mortar projectiles
+ * - mortar/FireArea.js: Fire splash areas after mortar impact
+ * - collision/CollisionHandler.js: Collision detection logic
  */
 
-import { getFireboltStats, getMortarStats } from './CharacterStats.js';
-import { createProjectile, updateProjectile, removeProjectile } from './Projectile.js';
-import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './Mortar.js';
-import { createFireSplash as createFireSplashArea, updateFireArea, removeFireArea as removeFireAreaFromScene } from './FireArea.js';
-import { checkAllCollisions, checkMortarGroundAndFireCollision } from './CollisionHandler.js';
+import { getBoltStats, getMortarStats } from './stats/CharacterStats.js';
+import { createBolt, updateBolt, removeBolt } from './projectile/Bolt.js';
+import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './mortar/Mortar.js';
+import { createFireSplash as createFireSplashArea, updateFireArea, removeFireArea as removeFireAreaFromScene } from './mortar/FireArea.js';
+import { checkAllCollisions, checkMortarGroundAndFireCollision } from './collision/CollisionHandler.js';
 
 export class ProjectileManager {
   /**
@@ -36,7 +36,7 @@ export class ProjectileManager {
     this.fireAreas = [];
     
     // Cooldown tracking per player/character
-    this.characterCooldowns = new Map(); // Firebolt cooldowns
+    this.characterCooldowns = new Map(); // Bolt cooldowns
     this.mortarCharacterCooldowns = new Map(); // Mortar cooldowns
     this.meleeCharacterCooldowns = new Map(); // Melee cooldowns
   }
@@ -66,7 +66,7 @@ export class ProjectileManager {
   }
 
   /**
-   * Create a firebolt projectile
+   * Create a bolt projectile
    * @param {number} startX - Starting X position
    * @param {number} startY - Starting Y position (character height)
    * @param {number} startZ - Starting Z position
@@ -79,15 +79,15 @@ export class ProjectileManager {
    * @returns {THREE.Mesh|null} Created projectile mesh or null if on cooldown
    */
   createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy', targetX = null, targetZ = null) {
-    // Get character-specific firebolt stats
-    const stats = getFireboltStats(characterName);
+    // Get character-specific bolt stats
+    const stats = getBoltStats(characterName);
     
     // Check cooldown for this specific character
     const currentCooldown = this.characterCooldowns.get(playerId) || 0;
     if (currentCooldown > 0) return null;
     
-    // Create projectile using Projectile module
-    const projectile = createProjectile(
+    // Create projectile using Bolt module
+    const projectile = createBolt(
       this.scene,
       startX,
       startY,
@@ -171,7 +171,7 @@ export class ProjectileManager {
    * @param {number} dt - Delta time in seconds
    */
   update(dt) {
-    // Update firebolt cooldowns
+    // Update bolt cooldowns
     this.updateCooldowns(dt, this.characterCooldowns);
     
     // Update mortar cooldowns
@@ -314,12 +314,12 @@ export class ProjectileManager {
           projectile.userData.shooterY = bot.position.y;
         }
       }
-      // Note: For local player projectiles, shooterY is set once at creation time (in Projectile.js)
+      // Note: For local player projectiles, shooterY is set once at creation time (in Bolt.js)
       // and is never updated here. This ensures projectiles fire from jump height but
       // don't change trajectory when player continues jumping.
       
-      // Update projectile using Projectile module
-      const shouldRemove = updateProjectile(
+      // Update projectile using Bolt module
+      const shouldRemove = updateBolt(
         projectile,
         dt,
         this.collisionManager,
@@ -396,7 +396,7 @@ export class ProjectileManager {
    * @param {THREE.Mesh} projectile - Projectile mesh
    */
   removeProjectile(projectile) {
-    removeProjectile(projectile, this.scene, this.particleManager);
+    removeBolt(projectile, this.scene, this.particleManager);
     
     // Remove from array
     const index = this.projectiles.indexOf(projectile);
@@ -468,7 +468,7 @@ export class ProjectileManager {
   }
 
   /**
-   * Check if player can shoot firebolt
+   * Check if player can shoot bolt
    * @param {string} playerId - Player ID to check
    * @returns {boolean} True if player can shoot
    */
@@ -550,7 +550,7 @@ export class ProjectileManager {
    */
   getCharacterStats(characterName) {
     return {
-      firebolt: getFireboltStats(characterName),
+      bolt: getBoltStats(characterName),
       mortar: getMortarStats(characterName)
     };
   }

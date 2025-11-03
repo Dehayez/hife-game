@@ -132,7 +132,7 @@ export function updateBotShooting(bot, userData, playerPosition, projectileManag
       
       // Set cooldown based on character stats
       const characterStats = projectileManager.getCharacterStats(characterName);
-      const baseCooldown = characterStats.firebolt.cooldown;
+      const baseCooldown = characterStats.bolt.cooldown;
       userData.shootCooldown = baseCooldown + Math.random() * aiStats.shootCooldownVariance;
       
       return true;

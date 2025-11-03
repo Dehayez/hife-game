@@ -192,7 +192,7 @@ io.on('connection', (socket) => {
   });
 
   /**
-   * Send projectile creation (firebolt or mortar)
+   * Send projectile creation (bolt or mortar)
    */
   socket.on('projectile-create', (projectileData) => {
     const player = players.get(socket.id);

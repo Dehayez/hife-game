@@ -797,11 +797,11 @@ export class InputManager {
       this._gamepadShiftState = false;
     }
 
-    // Shoot (typically right trigger RT) - firebolt
-    // Don't allow RT to fire firebolts when mortar hold is active (RT is used for mortar release)
+    // Shoot (typically right trigger RT) - bolt
+    // Don't allow RT to fire bolts when mortar hold is active (RT is used for mortar release)
     const shootPressed = (gamepad.buttons[7] && gamepad.buttons[7].value > 0.5); // Right trigger only
     
-    // If mortar hold is active, prevent RT from firing firebolts
+        // If mortar hold is active, prevent RT from firing bolts
     // Always clear shoot state when mortar hold is active, regardless of RT state
     if (this.mortarHoldActive) {
       // Force clear shoot state - RT is reserved for mortar release
@@ -813,7 +813,7 @@ export class InputManager {
         this.shootPressed = true;
         this.inputState.shoot = true;
         if (this._loggingEnabled) {
-          this._logInput('🔫 SHOOT (Firebolt)', 'pressed', gamepad);
+          this._logInput('🔫 SHOOT (Bolt)', 'pressed', gamepad);
         }
       } else if (!shootPressed && this.shootPressed) {
         this.shootPressed = false;

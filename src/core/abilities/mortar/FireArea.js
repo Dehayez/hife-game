@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor } from './CharacterStats.js';
+import { getCharacterColor } from '../stats/CharacterStats.js';
 
 /**
  * Create a fire splash area at impact point

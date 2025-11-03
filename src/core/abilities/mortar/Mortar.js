@@ -6,13 +6,19 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getMortarStats, getCharacterColor } from './CharacterStats.js';
-
-// Global mortar physics constants
-const MORTAR_GRAVITY = -20; // Gravity for arc trajectory
-const MORTAR_LIFETIME = 5; // Maximum lifetime in seconds
-const EXPLOSION_RADIUS = 2.0; // Explosion radius for mid-air detection
-const DIRECT_HIT_RADIUS = 0.8; // Small radius for direct hit damage
+import { getMortarStats, getCharacterColor } from '../stats/CharacterStats.js';
+import { calculateMortarParticles } from '../particles/ParticleCalculation.js';
+import {
+  MORTAR_GRAVITY,
+  MORTAR_LIFETIME,
+  EXPLOSION_RADIUS,
+  DIRECT_HIT_RADIUS,
+  calculateMortarTrajectory,
+  createMortarMesh,
+  createMortarTrailLight,
+  createMortarUserData
+} from './BaseMortar.js';
+import { getMortarCharacterConfig } from './MortarCharacterConfig.js';
 
 /**
  * Create a mortar projectile
@@ -30,73 +36,33 @@ export function createMortar(scene, startX, startY, startZ, targetX, targetZ, pl
   // Get character-specific mortar stats
   const stats = getMortarStats(characterName);
   const characterColor = getCharacterColor(characterName);
+  const config = getMortarCharacterConfig(characterName);
   
-  // Calculate arc trajectory to hit exact target
-  const dx = targetX - startX;
-  const dz = targetZ - startZ;
-  const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+  // Calculate trajectory using base implementation
+  const startPos = new THREE.Vector3(startX, startY, startZ);
+  const targetPos = new THREE.Vector3(targetX, 0, targetZ); // Y will be set by ground height
   
-  if (horizontalDistance < 0.1) return null;
+  const trajectory = calculateMortarTrajectory(startPos, targetPos, stats.arcHeight);
+  if (!trajectory) return null;
   
-  // Calculate trajectory physics to hit exact target with specified arc height
-  // Formula: v_y^2 = 2 * g * h_max, where h_max is arcHeight
-  const gravity = Math.abs(MORTAR_GRAVITY);
-  const timeToPeak = Math.sqrt(2 * stats.arcHeight / gravity);
-  const totalTime = timeToPeak * 2; // Time to go up and down
-  const horizontalSpeed = horizontalDistance / totalTime;
-  const verticalSpeed = gravity * timeToPeak; // Initial vertical velocity
+  // Create mortar mesh using base implementation
+  const mortar = createMortarMesh(stats, characterColor, config);
+  mortar.position.copy(startPos);
   
-  const launchVelocityX = (dx / horizontalDistance) * horizontalSpeed;
-  const launchVelocityZ = (dz / horizontalDistance) * horizontalSpeed;
-  const launchVelocityY = verticalSpeed;
-
-  // Create mortar mesh - larger fireball for Herald
-  const isHerald = characterName === 'herald';
-  const size = stats.size;
-  const geo = new THREE.SphereGeometry(size, 12, 12);
-  
-  // Fireball effect - more intense for Herald
-  const mat = new THREE.MeshStandardMaterial({
-    color: characterColor,
-    emissive: characterColor,
-    emissiveIntensity: isHerald ? 1.2 : 0.8,
-    metalness: 0.3,
-    roughness: 0.2
-  });
-  
-  const mortar = new THREE.Mesh(geo, mat);
-  mortar.position.set(startX, startY, startZ);
-  mortar.castShadow = true;
-  
-  // Enhanced trail effect - brighter for Herald fireball
-  const lightIntensity = isHerald ? 5 : 1.2;
-  const lightRange = isHerald ? 10 : 4;
-  const trailLight = new THREE.PointLight(characterColor, lightIntensity, lightRange);
-  trailLight.position.set(startX, startY, startZ);
+  // Create trail light using base implementation
+  const trailLight = createMortarTrailLight(characterColor, startPos, config);
   scene.add(trailLight);
   
-  // Store mortar data with target position for exact landing
-  mortar.userData = {
-    type: 'mortar',
-    playerId: playerId,
-    characterName: characterName,
-    characterColor: characterColor, // Store character color for impact effects
-    velocityX: launchVelocityX,
-    velocityY: launchVelocityY,
-    velocityZ: launchVelocityZ,
-    lifetime: 0,
-    maxLifetime: MORTAR_LIFETIME,
-    trailLight: trailLight,
-    damage: stats.damage, // Direct hit damage
-    areaDamage: stats.areaDamage, // Area damage per tick
-    size: size,
-    hasExploded: false,
-    hitPlayer: false, // Track if mortar directly hit a player
-    targetX: targetX, // Exact target position
-    targetZ: targetZ,
-    splashRadius: stats.splashRadius,
-    fireDuration: stats.fireDuration
-  };
+  // Create userData using base implementation
+  mortar.userData = createMortarUserData(
+    playerId,
+    characterName,
+    characterColor,
+    stats,
+    trajectory.launchVelocity,
+    targetPos,
+    trailLight
+  );
   
   scene.add(mortar);
   return mortar;
@@ -177,9 +143,10 @@ export function updateMortar(mortar, dt, collisionManager) {
     mortar.userData.trailLight.position.set(newX, newY, newZ);
   }
   
-  // Rotate mortar for visual effect
-  mortar.rotation.x += dt * 3;
-  mortar.rotation.y += dt * 3;
+  // Rotate mortar for visual effect (can be customized per character)
+  const rotationSpeed = 3; // Could come from config
+  mortar.rotation.x += dt * rotationSpeed;
+  mortar.rotation.y += dt * rotationSpeed;
   
   return null;
 }
@@ -194,11 +161,13 @@ export function removeMortar(mortar, scene, particleManager = null) {
   // Spawn impact particles if particle manager available
   if (particleManager && mortar.userData) {
     const characterColor = mortar.userData.characterColor || 0xffaa00;
+    const { particleCount, spreadRadius } = calculateMortarParticles(mortar.userData);
+    
     particleManager.spawnImpactParticles(
       mortar.position.clone(),
       characterColor,
-      20, // More particles for mortar impact
-      1.0 // Larger spread radius
+      particleCount,
+      spreadRadius
     );
   }
   

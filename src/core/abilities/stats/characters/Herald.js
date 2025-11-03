@@ -41,8 +41,8 @@ export const HERALD_STATS = {
    * Slower, higher damage attacks with larger projectiles
    */
   
-  // Firebolt Ability Stats
-  firebolt: {
+  // Bolt Ability Stats
+  bolt: {
     damage: 1.75,             // 175% of base (35 damage) - Much higher damage
     cooldown: 2.0,            // 200% of base (0.8s) - Slower than Lucy
     projectileSpeed: 0.9,     // 90% of base (9 units/s) - Slightly slower (final speed)

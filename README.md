@@ -46,7 +46,7 @@ For multiplayer gameplay (shooting mode), you need to run the WebSocket server:
 The server handles:
 - Room creation and joining
 - Player position synchronization
-- Projectile sync (firebolts and mortars)
+- Projectile sync (bolts and mortars)
 - Health/damage sync
 
 **For production deployment on hife.be, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
@@ -61,7 +61,7 @@ The server handles:
 
 ### Shooting Mode Controls
 
-- Left Click - Shoot firebolt projectile
+- Left Click - Shoot bolt projectile
 - Right Click - Shoot mortar projectile (arc trajectory)
 - Arrow keys / WASD / ZQSD - Move
 - Hold Shift - Sprint

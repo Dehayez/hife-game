@@ -1,4 +1,4 @@
-import { getMeleeStats } from '../core/projectile/CharacterStats.js';
+import { getMeleeStats } from '../core/abilities/stats/CharacterStats.js';
 
 export function initCooldownIndicator({ mount, projectileManager, characterManager }) {
   // Create a default return object even if mount doesn't exist
@@ -95,7 +95,7 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
       
       // Update labels based on character (fire spells for Herald/Pyre)
       const isHerald = characterName === 'herald';
-      shotLabel.innerHTML = isHerald ? 'Firebolt <span class="ui__cooldown-key">(LMB)</span>' : 'Shot <span class="ui__cooldown-key">(LMB)</span>';
+      shotLabel.innerHTML = isHerald ? 'Bolt <span class="ui__cooldown-key">(LMB)</span>' : 'Shot <span class="ui__cooldown-key">(LMB)</span>';
       mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RMB)</span>' : 'Mortar <span class="ui__cooldown-key">(RMB)</span>';
       meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
       

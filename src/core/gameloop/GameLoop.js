@@ -6,9 +6,9 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor, getMeleeStats, getMortarStats } from '../projectile/CharacterStats.js';
+import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/stats/CharacterStats.js';
 import { setLastCharacter } from '../../utils/StorageUtils.js';
-import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../projectile/MortarArcPreview.js';
+import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/mortar/MortarArcPreview.js';
 
 export class GameLoop {
   /**
@@ -89,7 +89,7 @@ export class GameLoop {
     this.lastMortarHoldInput = false; // Track RB press for toggle detection
     this.lastLeftTriggerInput = false; // Track LT press/release
     this.lastRightTriggerInput = false; // Track RT press/release
-    this.mortarReleaseCooldown = 0; // Cooldown timer after releasing mortar (prevents immediate firebolt)
+    this.mortarReleaseCooldown = 0; // Cooldown timer after releasing mortar (prevents immediate bolt)
   }
 
   /**
@@ -810,7 +810,7 @@ export class GameLoop {
     // Send projectile to other players via multiplayer
     if (projectile && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
       this.multiplayerManager.sendProjectileCreate({
-        projectileType: 'firebolt',
+        projectileType: 'bolt',
         startX: playerPos.x,
         startY: playerPos.y,
         startZ: playerPos.z,
@@ -917,7 +917,7 @@ export class GameLoop {
           removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
           this.mortarArcPreview = null;
         }
-        // Set cooldown to prevent immediate firebolt shooting (0.3 seconds)
+        // Set cooldown to prevent immediate bolt shooting (0.3 seconds)
         this.mortarReleaseCooldown = 0.3;
         // Reset lastRightTriggerInput to prevent immediate shooting after release
         this.lastRightTriggerInput = true; // Set to true so shooting won't trigger immediately
@@ -949,7 +949,7 @@ export class GameLoop {
     // Create container group for visual effects
     const visualGroup = new THREE.Group();
     
-    // Create main glowing orb/sphere effect with reflection and glow (like fireball/firebolt)
+    // Create main glowing orb/sphere effect with reflection and glow (like fireball/bolt)
     const geometry = new THREE.SphereGeometry(0.3, 16, 16);
     const material = new THREE.MeshStandardMaterial({
       color: characterColor,
@@ -964,7 +964,7 @@ export class GameLoop {
     const visual = new THREE.Mesh(geometry, material);
     visual.castShadow = true;
     
-    // Add glow effect with point light (like fireball/firebolt)
+    // Add glow effect with point light (like fireball/bolt)
     const lightIntensity = isHerald ? 2.0 : 1.2;
     const lightRange = isHerald ? 5 : 3;
     const glowLight = new THREE.PointLight(characterColor, lightIntensity, lightRange);

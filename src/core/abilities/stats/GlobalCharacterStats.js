@@ -30,9 +30,9 @@
  */
 export const GLOBAL_BASE_STATS = {
   /**
-   * Base Firebolt Ability Stats
+   * Base Bolt Ability Stats
    */
-  firebolt: {
+  bolt: {
     damage: 20,              // Base damage per hit
     cooldown: 0.4,           // Base seconds between shots
     projectileSpeed: 10,     // Base units per second
