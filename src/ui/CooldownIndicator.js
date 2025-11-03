@@ -1,4 +1,5 @@
 import { getMeleeStats } from '../core/abilities/stats/CharacterAbilityStats.js';
+import { getCharacterColorCss } from '../core/abilities/stats/CharacterColors.js';
 
 export function initCooldownIndicator({ mount, projectileManager, characterManager }) {
   // Create a default return object even if mount doesn't exist
@@ -99,12 +100,16 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
       mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RMB)</span>' : 'Mortar <span class="ui__cooldown-key">(RMB)</span>';
       meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
       
+      // Get character color for cooldown fills
+      const characterColor = getCharacterColorCss(characterName);
+      
       // Update shot cooldown
       const shotCooldown = projectileManager.characterCooldowns.getCooldown(playerId);
       const shotMaxCooldown = stats.bolt.cooldown || 0.3;
       const shotPercent = shotMaxCooldown > 0 ? Math.min(shotCooldown / shotMaxCooldown, 1.0) : 0;
       shotFill.style.width = `${(1 - shotPercent) * 100}%`;
       shotFill.style.opacity = shotPercent > 0 ? '0.6' : '1.0';
+      shotFill.style.background = characterColor;
       
       // Update mortar cooldown
       const mortarCooldown = projectileManager.mortarCharacterCooldowns.getCooldown(playerId);
@@ -112,6 +117,7 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
       const mortarPercent = mortarMaxCooldown > 0 ? Math.min(mortarCooldown / mortarMaxCooldown, 1.0) : 0;
       mortarFill.style.width = `${(1 - mortarPercent) * 100}%`;
       mortarFill.style.opacity = mortarPercent > 0 ? '0.6' : '1.0';
+      mortarFill.style.background = characterColor;
       
       // Update melee cooldown
       const meleeCooldown = projectileManager.meleeCharacterCooldowns.getCooldown(playerId);
@@ -119,6 +125,7 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
       const meleePercent = meleeMaxCooldown > 0 ? Math.min(meleeCooldown / meleeMaxCooldown, 1.0) : 0;
       meleeFill.style.width = `${(1 - meleePercent) * 100}%`;
       meleeFill.style.opacity = meleePercent > 0 ? '0.6' : '1.0';
+      meleeFill.style.background = characterColor;
     },
     show: function() {
       container.style.display = 'block';
