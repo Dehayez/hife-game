@@ -217,14 +217,15 @@ export class GameLoop {
       }
     }
     
-    // Handle jump input
+    // Handle jump input - check double jump first, then regular jump
     if (canMove && this.inputManager.isJumpPressed()) {
-      this.characterManager.jump();
-    }
-    
-    // Handle double jump input
-    if (canMove && this.inputManager.isDoubleJumpDetected()) {
-      this.characterManager.doubleJump();
+      // If double jump is detected, try double jump first
+      if (this.inputManager.isDoubleJumpDetected()) {
+        this.characterManager.doubleJump();
+      } else {
+        // Otherwise do regular jump
+        this.characterManager.jump();
+      }
     }
     
     // Update jump physics
