@@ -654,11 +654,6 @@ export class InputManager {
       return;
     }
     
-    // Block inputs if requested (e.g., menu is open)
-    if (this._inputBlocked) {
-      return;
-    }
-
     // Check if Gamepad API is available
     if (!navigator.getGamepads) {
       return;
@@ -710,6 +705,26 @@ export class InputManager {
 
     // Update gamepad reference
     this.gamepad = gamepad;
+
+    // Always process scoreboard button even when inputs are blocked (needed to close scoreboard)
+    // Scoreboard (Back/Select button 8) - toggle scoreboard
+    const scoreboardPressed = gamepad.buttons[8] && gamepad.buttons[8].pressed; // Back/Select button
+
+    if (scoreboardPressed && !this.scoreboardPressed) {
+      this.scoreboardPressed = true;
+      this.inputState.scoreboard = true;
+      if (this._loggingEnabled && !this._inputBlocked) {
+        this._logInput('📊 SCOREBOARD', 'pressed', gamepad);
+      }
+    } else if (!scoreboardPressed && this.scoreboardPressed) {
+      this.scoreboardPressed = false;
+      this.inputState.scoreboard = false;
+    }
+    
+    // Block other inputs if requested (e.g., menu is open, scoreboard is open)
+    if (this._inputBlocked) {
+      return;
+    }
 
     // Check for keyboard state (only relevant if somehow keyboard was used, but should be cleared in controller mode)
     const hadKeyboardMovement = this.inputState.up || this.inputState.down || 
@@ -942,20 +957,6 @@ export class InputManager {
     } else if (!swordSwingPressed && this.swordSwingPressed) {
       this.swordSwingPressed = false;
       this.inputState.swordSwing = false;
-    }
-
-    // Scoreboard (Back/Select button 8) - toggle scoreboard
-    const scoreboardPressed = gamepad.buttons[8] && gamepad.buttons[8].pressed; // Back/Select button
-
-    if (scoreboardPressed && !this.scoreboardPressed) {
-      this.scoreboardPressed = true;
-      this.inputState.scoreboard = true;
-      if (this._loggingEnabled) {
-        this._logInput('📊 SCOREBOARD', 'pressed', gamepad);
-      }
-    } else if (!scoreboardPressed && this.scoreboardPressed) {
-      this.scoreboardPressed = false;
-      this.inputState.scoreboard = false;
     }
 
     // Right analog stick (axes 2 and 3) for aiming/shooting direction
