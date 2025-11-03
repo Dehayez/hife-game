@@ -69,7 +69,6 @@ export class Scoreboard {
       { text: 'Player', className: 'scoreboard__col-player' },
       { text: 'Kills', className: 'scoreboard__col-kills' },
       { text: 'Deaths', className: 'scoreboard__col-deaths' },
-      { text: 'Bots', className: 'scoreboard__col-bots' },
       { text: 'K/D', className: 'scoreboard__col-kd' }
     ];
     
@@ -120,7 +119,6 @@ export class Scoreboard {
         id: displayId || playerId.substring(0, 8),
         kills: 0,
         deaths: 0,
-        bots: 0,
         isLocal: false
       });
     }
@@ -129,22 +127,19 @@ export class Scoreboard {
   /**
    * Update player stats
    * @param {string} playerId - Player ID
-   * @param {Object} stats - Stats object {kills?, deaths?, bots?}
+   * @param {Object} stats - Stats object {kills?, deaths?}
    */
   updatePlayerStats(playerId, stats) {
     if (!this.playerStats.has(playerId)) {
       this.initializePlayer(playerId);
     }
-    
+
     const playerData = this.playerStats.get(playerId);
     if (stats.kills !== undefined) {
       playerData.kills = stats.kills;
     }
     if (stats.deaths !== undefined) {
       playerData.deaths = stats.deaths;
-    }
-    if (stats.bots !== undefined) {
-      playerData.bots = stats.bots;
     }
     if (stats.isLocal !== undefined) {
       playerData.isLocal = stats.isLocal;
@@ -270,13 +265,7 @@ export class Scoreboard {
       deathsCell.className = 'scoreboard__cell scoreboard__cell--deaths';
       deathsCell.textContent = stats.deaths || 0;
       row.appendChild(deathsCell);
-      
-      // Bots
-      const botsCell = document.createElement('td');
-      botsCell.className = 'scoreboard__cell scoreboard__cell--bots';
-      botsCell.textContent = stats.bots || 0;
-      row.appendChild(botsCell);
-      
+
       // K/D Ratio
       const kdCell = document.createElement('td');
       kdCell.className = 'scoreboard__cell scoreboard__cell--kd';
@@ -292,7 +281,7 @@ export class Scoreboard {
       emptyRow.className = 'scoreboard__row scoreboard__row--empty';
       const emptyCell = document.createElement('td');
       emptyCell.className = 'scoreboard__cell';
-      emptyCell.colSpan = 5;
+      emptyCell.colSpan = 4;
       emptyCell.textContent = 'No players';
       emptyRow.appendChild(emptyCell);
       this.tbody.appendChild(emptyRow);
@@ -306,21 +295,25 @@ export class Scoreboard {
     // Get local player stats from game mode manager
     if (this.gameModeManager) {
       const modeState = this.gameModeManager.getModeState();
-      if (modeState && this.multiplayerManager) {
-        const localPlayerId = this.multiplayerManager.getLocalPlayerId();
-        if (localPlayerId) {
-          this.updatePlayerStats(localPlayerId, {
-            kills: modeState.kills || 0,
-            deaths: modeState.deaths || 0,
-            isLocal: true
-          });
+      if (modeState) {
+        // Get player ID (use multiplayer ID if available, otherwise 'local')
+        let localPlayerId = 'local';
+        if (this.multiplayerManager && this.multiplayerManager.getLocalPlayerId) {
+          const mpId = this.multiplayerManager.getLocalPlayerId();
+          if (mpId) {
+            localPlayerId = mpId;
+          }
         }
+
+        // Update local player stats
+        this.updatePlayerStats(localPlayerId, {
+          kills: modeState.kills || 0,
+          deaths: modeState.deaths || 0,
+          isLocal: true
+        });
       }
     }
-    
-    // Count bots killed (this would need to be tracked separately)
-    // For now, we'll just use the kills/deaths from game mode manager
-    
+
     // Update display
     this.updateDisplay();
   }

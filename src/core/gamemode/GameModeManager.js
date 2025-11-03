@@ -213,6 +213,14 @@ export class GameModeManager {
   }
 
   /**
+   * Get current mode state
+   * @returns {Object} Mode state object with kills, deaths, timer, etc.
+   */
+  getModeState() {
+    return this.modeState;
+  }
+
+  /**
    * Get current mode configuration
    * @returns {Object} Mode configuration object
    */

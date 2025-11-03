@@ -1190,22 +1190,17 @@ html, body { height: 100%; margin: 0; }
 }
 
 .scoreboard__col-kills {
-  width: 15%;
+  width: 20%;
   text-align: center !important;
 }
 
 .scoreboard__col-deaths {
-  width: 15%;
-  text-align: center !important;
-}
-
-.scoreboard__col-bots {
-  width: 15%;
+  width: 20%;
   text-align: center !important;
 }
 
 .scoreboard__col-kd {
-  width: 15%;
+  width: 20%;
   text-align: center !important;
 }
 
@@ -1250,7 +1245,6 @@ html, body { height: 100%; margin: 0; }
 
 .scoreboard__cell--kills,
 .scoreboard__cell--deaths,
-.scoreboard__cell--bots,
 .scoreboard__cell--kd {
   text-align: center;
   font-variant-numeric: tabular-nums;
