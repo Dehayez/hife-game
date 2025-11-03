@@ -129,7 +129,7 @@ html, body { height: 100%; margin: 0; }
   padding: 4px 6px; 
   font-size: 11px; 
   font-weight: 500; 
-  color: var(--color-accent) !important; 
+  color: var(--color-text-primary) !important; 
   text-align: center; 
   min-width: 24px; 
   height: 20px; 
@@ -175,6 +175,7 @@ html, body { height: 100%; margin: 0; }
 .ui__legend-key--xbox {
   position: relative;
   font-weight: 600;
+  color: var(--color-text-primary) !important;
 }
 
 .xbox-button {
@@ -184,25 +185,51 @@ html, body { height: 100%; margin: 0; }
 }
 
 /* Xbox button colors */
-.ui__legend-key--xbox-a .xbox-button {
-  color: #4CAF50 !important; /* Green */
-}
-
-.ui__legend-key--xbox-b .xbox-button {
-  color: #F44336 !important; /* Red */
-}
-
-.ui__legend-key--xbox-x .xbox-button {
-  color: #2196F3 !important; /* Blue */
-}
-
-.ui__legend-key--xbox-y .xbox-button {
-  color: #FFC107 !important; /* Yellow */
-}
-
+.ui__legend-key--xbox-a .xbox-button,
+.ui__legend-key--xbox-b .xbox-button,
+.ui__legend-key--xbox-x .xbox-button,
+.ui__legend-key--xbox-y .xbox-button,
 .ui__legend-key--xbox-rt .xbox-button {
-  color: var(--color-accent) !important;
-  font-weight: 700;
+  color: var(--color-text-primary) !important;
+}
+
+/* Circular buttons for A, B, X, Y */
+.ui__legend-key--xbox-a,
+.ui__legend-key--xbox-b,
+.ui__legend-key--xbox-x,
+.ui__legend-key--xbox-y {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Bumper style for LB, RB, LT, RT */
+.ui__legend-key--xbox-lb,
+.ui__legend-key--xbox-lt {
+  border-radius: 24px 8px 8px 8px; /* Higher left side, like LB icon */
+  min-width: 36px;
+  height: 24px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui__legend-key--xbox-rb,
+.ui__legend-key--xbox-rt {
+  border-radius: 8px 24px 8px 8px; /* Higher right side, like RB icon */
+  min-width: 36px;
+  height: 24px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Legend content container */
@@ -812,19 +839,14 @@ html, body { height: 100%; margin: 0; }
 /* Menu sections */
 .game-menu__section {
   margin-bottom: 16px;
-  border: 1px solid var(--color-border-light);
-  border-radius: 8px;
-  background: var(--color-bg-panel);
-  overflow: hidden;
-  transition: background 0.2s ease;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
 }
 
 .game-menu__section:last-child {
   margin-bottom: 0;
-}
-
-.game-menu__section:hover {
-  background: rgba(255, 255, 255, 0.03);
 }
 
 /* Section header */
@@ -901,8 +923,17 @@ html, body { height: 100%; margin: 0; }
   padding: 0 12px;
 }
 
+.game-menu__footer-button--xbox-b {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  line-height: 1;
+}
+
 .game-menu__footer-button--xbox-b .xbox-button {
-  color: #F44336 !important; /* Red for B button */
+  color: var(--color-text-primary) !important;
 }
 
 .game-menu__footer-label {

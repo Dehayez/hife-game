@@ -238,7 +238,7 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
     runKeys.className = 'ui__legend-keys ui__legend-keys--run';
     
     const ltKey = document.createElement('div');
-    ltKey.className = 'ui__legend-key ui__legend-key--xbox';
+    ltKey.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-lt';
     ltKey.innerHTML = '<span class="xbox-button">LT</span>';
     ltKey.title = 'Xbox Left Trigger';
     runKeys.appendChild(ltKey);
@@ -364,7 +364,7 @@ export function initControlsLegend({ mount, inputManager, gameModeManager }) {
       mortarHoldKeys.className = 'ui__legend-keys ui__legend-keys--run';
       
       const rbButton = document.createElement('div');
-      rbButton.className = 'ui__legend-key ui__legend-key--xbox';
+      rbButton.className = 'ui__legend-key ui__legend-key--xbox ui__legend-key--xbox-rb';
       rbButton.innerHTML = '<span class="xbox-button">RB</span>';
       rbButton.title = 'Xbox Right Bumper';
       mortarHoldKeys.appendChild(rbButton);
