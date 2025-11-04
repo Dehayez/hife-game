@@ -304,11 +304,9 @@ export class GameMenu {
     let newIndex;
     
     if (direction === 'left') {
-      newIndex = tabIndex - 1;
-      if (newIndex < 0) return;
+      newIndex = (tabIndex - 1 + this.tabs.length) % this.tabs.length;
     } else {
-      newIndex = tabIndex + 1;
-      if (newIndex >= this.tabs.length) return;
+      newIndex = (tabIndex + 1) % this.tabs.length;
     }
     
     this.switchTab(this.tabs[newIndex].id);
@@ -332,11 +330,9 @@ export class GameMenu {
     
     let newIndex;
     if (direction === 'left') {
-      newIndex = currentIndex - 1;
-      if (newIndex < 0) return;
+      newIndex = (currentIndex - 1 + sections.length) % sections.length;
     } else {
-      newIndex = currentIndex + 1;
-      if (newIndex >= sections.length) return;
+      newIndex = (currentIndex + 1) % sections.length;
     }
     
     this.switchSection(sections[newIndex].id);
