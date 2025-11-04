@@ -10,6 +10,7 @@ import { getCharacterColor, getMeleeStats, getMortarStats } from '../../systems/
 import { setLastCharacter } from '../../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../../systems/abilities/functions/mortar/MortarArcPreview.js';
 import { VibrationManager } from '../../../utils/VibrationManager.js';
+import { getHealingVibrationInterval } from '../../../config/VibrationConfig.js';
 
 export class GameLoop {
   /**
@@ -116,7 +117,7 @@ export class GameLoop {
     
     // Healing vibration throttle (to prevent too much vibration during continuous healing)
     this._lastHealVibrationTime = 0;
-    this._healVibrationInterval = 0.2; // Vibrate every 200ms during healing
+    this._healVibrationInterval = getHealingVibrationInterval(); // Vibrate interval from config
   }
   
   /**

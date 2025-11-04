@@ -5,6 +5,13 @@
  * Provides different vibration patterns for various game mechanics.
  */
 
+import {
+  getVibrationPattern,
+  getMechanicVibration,
+  getDamageVibration,
+  getHealingVibrationInterval
+} from '../config/VibrationConfig.js';
+
 export class VibrationManager {
   /**
    * Create a new VibrationManager
@@ -98,34 +105,54 @@ export class VibrationManager {
 
   /**
    * Light vibration - for minor actions
-   * @param {number} duration - Duration in milliseconds (default: 50)
+   * @param {number} duration - Duration in milliseconds (optional, uses config default if not provided)
    */
-  light(duration = 50) {
-    this.vibrate(0.2, 0.3, duration);
+  light(duration = null) {
+    const pattern = getVibrationPattern('light');
+    this.vibrate(
+      pattern.strongMagnitude,
+      pattern.weakMagnitude,
+      duration !== null ? duration : pattern.duration
+    );
   }
 
   /**
    * Medium vibration - for regular actions
-   * @param {number} duration - Duration in milliseconds (default: 100)
+   * @param {number} duration - Duration in milliseconds (optional, uses config default if not provided)
    */
-  medium(duration = 100) {
-    this.vibrate(0.4, 0.5, duration);
+  medium(duration = null) {
+    const pattern = getVibrationPattern('medium');
+    this.vibrate(
+      pattern.strongMagnitude,
+      pattern.weakMagnitude,
+      duration !== null ? duration : pattern.duration
+    );
   }
 
   /**
    * Heavy vibration - for impactful actions
-   * @param {number} duration - Duration in milliseconds (default: 150)
+   * @param {number} duration - Duration in milliseconds (optional, uses config default if not provided)
    */
-  heavy(duration = 150) {
-    this.vibrate(0.7, 0.8, duration);
+  heavy(duration = null) {
+    const pattern = getVibrationPattern('heavy');
+    this.vibrate(
+      pattern.strongMagnitude,
+      pattern.weakMagnitude,
+      duration !== null ? duration : pattern.duration
+    );
   }
 
   /**
    * Very heavy vibration - for critical events
-   * @param {number} duration - Duration in milliseconds (default: 200)
+   * @param {number} duration - Duration in milliseconds (optional, uses config default if not provided)
    */
-  veryHeavy(duration = 200) {
-    this.vibrate(1.0, 1.0, duration);
+  veryHeavy(duration = null) {
+    const pattern = getVibrationPattern('veryHeavy');
+    this.vibrate(
+      pattern.strongMagnitude,
+      pattern.weakMagnitude,
+      duration !== null ? duration : pattern.duration
+    );
   }
 
   /**
@@ -149,42 +176,48 @@ export class VibrationManager {
    * Jump vibration
    */
   jump() {
-    this.medium(80);
+    const config = getMechanicVibration('jump');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
    * Double jump vibration
    */
   doubleJump() {
-    this.pulse(2, 40, 30, 0.6);
+    const config = getMechanicVibration('doubleJump');
+    this.pulse(config.pulseCount, config.pulseDuration, config.pulseInterval, config.magnitude);
   }
 
   /**
    * Landing vibration
    */
   land() {
-    this.medium(100);
+    const config = getMechanicVibration('land');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
    * Shoot bolt vibration
    */
   shoot() {
-    this.light(60);
+    const config = getMechanicVibration('shoot');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
    * Shoot mortar vibration
    */
   mortar() {
-    this.heavy(120);
+    const config = getMechanicVibration('mortar');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
    * Mortar explosion vibration
    */
   mortarExplosion() {
-    this.veryHeavy(180);
+    const config = getMechanicVibration('mortarExplosion');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
@@ -192,56 +225,56 @@ export class VibrationManager {
    * @param {number} damage - Damage amount (for scaling intensity)
    */
   takeDamage(damage = 0) {
-    // Scale vibration intensity based on damage
-    if (damage >= 50) {
-      this.veryHeavy(200);
-    } else if (damage >= 25) {
-      this.heavy(150);
-    } else {
-      this.medium(120);
-    }
+    const config = getDamageVibration(damage);
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
    * Death vibration
    */
   death() {
-    this.pulse(4, 100, 80, 0.8);
+    const config = getMechanicVibration('death');
+    this.pulse(config.pulseCount, config.pulseDuration, config.pulseInterval, config.magnitude);
   }
 
   /**
    * Healing vibration
    */
   heal() {
-    this.light(40);
+    const config = getMechanicVibration('heal');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
    * Sword swing vibration
    */
   swordSwing() {
-    this.heavy(100);
+    const config = getMechanicVibration('swordSwing');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
    * Character swap vibration
    */
   characterSwap() {
-    this.pulse(2, 60, 40, 0.5);
+    const config = getMechanicVibration('characterSwap');
+    this.pulse(config.pulseCount, config.pulseDuration, config.pulseInterval, config.magnitude);
   }
 
   /**
    * Respawn vibration
    */
   respawn() {
-    this.pulse(3, 50, 50, 0.4);
+    const config = getMechanicVibration('respawn');
+    this.pulse(config.pulseCount, config.pulseDuration, config.pulseInterval, config.magnitude);
   }
 
   /**
    * Projectile hit vibration (when you hit something)
    */
   projectileHit() {
-    this.medium(80);
+    const config = getMechanicVibration('projectileHit');
+    this.vibrate(config.strongMagnitude, config.weakMagnitude, config.duration);
   }
 
   /**
