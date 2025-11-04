@@ -290,33 +290,47 @@ export class GameLoop {
     
     // Handle heal/reload (X button)
     const healInput = this.inputManager.isHealPressed();
-    
-    // In shooting mode, X button is for reload (tap, not hold)
+
+    // Track heal button press/release to reset hold duration
+    if (healInput && !this.lastHealInput) {
+      // Just pressed - reset hold duration
+      this.healHoldDuration = 0;
+    } else if (!healInput && this.lastHealInput) {
+      // Just released - reset hold duration
+      this.healHoldDuration = 0;
+    }
+
+    // In shooting mode, X button is for reload (tap) or heal (hold)
     if (mode === 'shooting' && this.projectileManager) {
-      // Check if X button was just pressed (tap for reload)
-      if (healInput && !this.lastHealInput) {
-        const characterName = this.characterManager.getCharacterName();
-        const playerId = 'local';
-        this.projectileManager.manualReload(playerId, characterName);
+      // Define threshold for tap vs hold (in seconds)
+      const tapThreshold = 0.3; // 300ms
+
+      if (healInput) {
+        // Increase hold duration while held
+        this.healHoldDuration += dt;
+
+        // If held longer than threshold, start healing
+        if (this.healHoldDuration >= tapThreshold) {
+          this._handleHeal(player, dt);
+        }
+      } else if (this.lastHealInput) {
+        // Button just released
+        // If it was held for less than threshold, trigger reload
+        if (this.healHoldDuration < tapThreshold) {
+          const characterName = this.characterManager.getCharacterName();
+          const playerId = 'local';
+          this.projectileManager.manualReload(playerId, characterName);
+        }
       }
     } else {
       // In other modes, X button is for heal (hold to heal)
-      // Track heal button press/release to reset hold duration
-      if (healInput && !this.lastHealInput) {
-        // Just pressed - reset hold duration
-        this.healHoldDuration = 0;
-      } else if (!healInput && this.lastHealInput) {
-        // Just released - reset hold duration
-        this.healHoldDuration = 0;
-      }
-      
       if (healInput) {
         // Increase hold duration while held
         this.healHoldDuration += dt;
         this._handleHeal(player, dt);
       }
     }
-    
+
     this.lastHealInput = healInput;
     
     // Check for respawn system
