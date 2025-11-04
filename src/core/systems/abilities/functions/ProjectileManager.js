@@ -97,18 +97,18 @@ export class ProjectileManager {
       this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
     }
     
+    // Check if reloading is in progress - cannot shoot while reloading
+    if (!this.playerRechargeCooldowns.canAct(playerId)) {
+      // Still recharging - cannot shoot
+      return null;
+    }
+    
     // Check if player has bullets available
     let currentBullets = this.playerBullets.get(playerId) || 0;
     if (currentBullets <= 0) {
-      // Out of bullets - check if recharge is complete
-      if (this.playerRechargeCooldowns.canAct(playerId)) {
-        // Recharge complete - refill bullets
-        currentBullets = Math.floor(stats.maxBullets);
-        this.playerBullets.set(playerId, currentBullets);
-      } else {
-        // Still recharging - cannot shoot
-        return null;
-      }
+      // Recharge should be complete at this point (checked above), refill bullets
+      currentBullets = Math.floor(stats.maxBullets);
+      this.playerBullets.set(playerId, currentBullets);
     }
     
     // Check cooldown for this specific character
@@ -139,8 +139,11 @@ export class ProjectileManager {
     this.playerBullets.set(playerId, newBulletCount);
     
     // If bullets depleted, start recharge cooldown
+    // (reload check already passed above, so this is safe)
     if (newBulletCount <= 0) {
       this.playerRechargeCooldowns.setCooldown(playerId, stats.rechargeCooldown);
+      // Clear manual reload info if it exists (automatic reload takes over)
+      this.playerReloadInfo.delete(playerId);
     }
     
     // Set cooldown for this specific character/player
@@ -562,6 +565,11 @@ export class ProjectileManager {
         return false;
       }
       
+      // Check if reloading is in progress - cannot shoot while reloading
+      if (!this.playerRechargeCooldowns.canAct(playerId)) {
+        return false;
+      }
+      
       // Check if player has bullets or can recharge
       const currentBullets = this.playerBullets.get(playerId);
       if (currentBullets === undefined) {
@@ -569,13 +577,13 @@ export class ProjectileManager {
         return true;
       }
       
-      // If has bullets, can shoot
+      // If has bullets, can shoot (reload check already passed above)
       if (currentBullets > 0) {
         return true;
       }
       
-      // Out of bullets - check if recharge is complete
-      return this.playerRechargeCooldowns.canAct(playerId);
+      // Out of bullets - recharge should be complete at this point (checked above)
+      return true;
     }
     
     // Otherwise, check if any character can shoot
