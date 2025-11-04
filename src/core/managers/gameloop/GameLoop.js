@@ -288,22 +288,33 @@ export class GameLoop {
       this.projectileManager.setMeleeCooldown(playerId, this.meleeCooldownTimer);
     }
     
-    // Handle heal (X button - hold to heal)
+    // Handle heal/reload (X button)
     const healInput = this.inputManager.isHealPressed();
     
-    // Track heal button press/release to reset hold duration
-    if (healInput && !this.lastHealInput) {
-      // Just pressed - reset hold duration
-      this.healHoldDuration = 0;
-    } else if (!healInput && this.lastHealInput) {
-      // Just released - reset hold duration
-      this.healHoldDuration = 0;
-    }
-    
-    if (healInput) {
-      // Increase hold duration while held
-      this.healHoldDuration += dt;
-      this._handleHeal(player, dt);
+    // In shooting mode, X button is for reload (tap, not hold)
+    if (mode === 'shooting' && this.projectileManager) {
+      // Check if X button was just pressed (tap for reload)
+      if (healInput && !this.lastHealInput) {
+        const characterName = this.characterManager.getCharacterName();
+        const playerId = 'local';
+        this.projectileManager.manualReload(playerId, characterName);
+      }
+    } else {
+      // In other modes, X button is for heal (hold to heal)
+      // Track heal button press/release to reset hold duration
+      if (healInput && !this.lastHealInput) {
+        // Just pressed - reset hold duration
+        this.healHoldDuration = 0;
+      } else if (!healInput && this.lastHealInput) {
+        // Just released - reset hold duration
+        this.healHoldDuration = 0;
+      }
+      
+      if (healInput) {
+        // Increase hold duration while held
+        this.healHoldDuration += dt;
+        this._handleHeal(player, dt);
+      }
     }
     
     this.lastHealInput = healInput;

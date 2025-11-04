@@ -660,6 +660,35 @@ export class ProjectileManager {
   }
 
   /**
+   * Manually reload bullets for a player (triggered by X button)
+   * @param {string} playerId - Player ID
+   * @param {string} characterName - Character name
+   * @returns {boolean} True if reload was started, false if already recharging
+   */
+  manualReload(playerId, characterName) {
+    const stats = getBoltStats(characterName);
+    const currentBullets = this.playerBullets.get(playerId);
+    
+    // If already full or currently recharging, don't reload
+    const maxBullets = Math.floor(stats.maxBullets);
+    if (currentBullets === maxBullets) {
+      return false; // Already full
+    }
+    
+    // If already recharging, don't start another reload
+    if (currentBullets <= 0 && !this.playerRechargeCooldowns.canAct(playerId)) {
+      return false; // Already recharging
+    }
+    
+    // Start reload: set bullets to 0 and start recharge cooldown
+    this.playerBullets.set(playerId, 0);
+    this.playerRechargeCooldowns.setCooldown(playerId, stats.rechargeCooldown);
+    this.playerCharacterNames.set(playerId, characterName);
+    
+    return true; // Reload started
+  }
+
+  /**
    * Get bullet info for a player (for UI display)
    * @param {string} playerId - Player ID
    * @param {string} characterName - Character name
