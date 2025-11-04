@@ -37,6 +37,7 @@ export class InputManager {
     this.mortarPressed = false;
     this.mortarHoldPressed = false; // Track RB press state for toggle detection
     this.mortarHoldActive = false; // Track mortar hold toggle state (set by GameLoop)
+    this.healingActive = false; // Track healing active state (set by GameLoop)
     this.leftTriggerPressed = false; // Track LT (left trigger) for preview
     this.rightTriggerPressed = false; // Track RT (right trigger) for release
     this.characterSwapPressed = false;
@@ -406,6 +407,7 @@ export class InputManager {
         // Reset mortar hold state
         this.mortarHoldPressed = false;
         this.mortarHoldActive = false;
+        this.healingActive = false;
         this.leftTriggerPressed = false;
         this.rightTriggerPressed = false;
         
@@ -840,13 +842,13 @@ export class InputManager {
     this._previousKeyboardJumpState = keyboardJumpButton;
     
     // Run/Sprint (left trigger only now) - combine with keyboard
-    // Don't allow sprinting while holding mortar spell
+    // Don't allow sprinting while holding mortar spell or healing
     const gamepadShift = (gamepad.buttons[6] && gamepad.buttons[6].value > 0.5); // Left trigger only
     if (gamepadShift && this._loggingEnabled) {
       this._logInput('🏃 SPRINT', gamepadShift ? 'pressed' : 'released', gamepad);
     }
-    // Prevent sprinting when mortar hold is active
-    if (this.mortarHoldActive) {
+    // Prevent sprinting when mortar hold is active or healing is active
+    if (this.mortarHoldActive || this.healingActive) {
       this.inputState.shift = false;
       this._gamepadShiftState = false;
     } else if (gamepadShift || hadKeyboardShift) {
@@ -1121,10 +1123,10 @@ export class InputManager {
     }
     
     // Shift key for running
-    // Don't allow sprinting when mortar hold is active
+    // Don't allow sprinting when mortar hold is active or healing is active
     if (keys.run.includes(e.key)) {
-      if (this.mortarHoldActive) {
-        this.inputState.shift = false; // Prevent sprinting while holding mortar
+      if (this.mortarHoldActive || this.healingActive) {
+        this.inputState.shift = false; // Prevent sprinting while holding mortar or healing
       } else {
         this.inputState.shift = pressed;
       }
@@ -1176,8 +1178,8 @@ export class InputManager {
    * @returns {number} Current speed (base speed or running speed)
    */
   getCurrentSpeed() {
-    // Don't allow sprinting when mortar hold is active
-    if (this.mortarHoldActive) {
+    // Don't allow sprinting when mortar hold is active or healing is active
+    if (this.mortarHoldActive || this.healingActive) {
       return this.moveSpeed;
     }
     return this.inputState.shift ? this.moveSpeed * this.runSpeedMultiplier : this.moveSpeed;
@@ -1188,8 +1190,8 @@ export class InputManager {
    * @returns {boolean} True if running (shift held)
    */
   isRunning() {
-    // Don't allow running when mortar hold is active
-    if (this.mortarHoldActive) {
+    // Don't allow running when mortar hold is active or healing is active
+    if (this.mortarHoldActive || this.healingActive) {
       return false;
     }
     return this.inputState.shift;
@@ -1246,6 +1248,14 @@ export class InputManager {
    */
   setMortarHoldActive(active) {
     this.mortarHoldActive = active;
+  }
+  
+  /**
+   * Set healing active state (called by GameLoop to sync healing state)
+   * @param {boolean} active - True if healing is currently active
+   */
+  setHealingActive(active) {
+    this.healingActive = active;
   }
   
   /**

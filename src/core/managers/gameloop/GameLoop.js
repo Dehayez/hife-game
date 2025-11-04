@@ -300,6 +300,9 @@ export class GameLoop {
       this.healHoldDuration = 0;
     }
 
+    // Track if healing is actually active (not just button pressed)
+    let isHealingActive = false;
+
     // In shooting mode, X button is for reload (tap) or heal (hold)
     if (mode === 'shooting' && this.projectileManager) {
       // Define threshold for tap vs hold (in seconds)
@@ -311,6 +314,7 @@ export class GameLoop {
 
         // If held longer than threshold, start healing
         if (this.healHoldDuration >= tapThreshold) {
+          isHealingActive = true;
           this._handleHeal(player, dt);
         }
       } else if (this.lastHealInput) {
@@ -327,9 +331,13 @@ export class GameLoop {
       if (healInput) {
         // Increase hold duration while held
         this.healHoldDuration += dt;
+        isHealingActive = true;
         this._handleHeal(player, dt);
       }
     }
+
+    // Update healing active state in InputManager to prevent sprinting while healing
+    this.inputManager.setHealingActive(isHealingActive);
 
     this.lastHealInput = healInput;
     
