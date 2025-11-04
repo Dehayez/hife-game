@@ -16,12 +16,8 @@ export function updateCooldowns(projectileManager, characterManager, shotLabel, 
   
   // Update labels based on character (fire spells for Herald/Pyre)
   const isHerald = characterName === 'herald';
-  // Update shot label to show bullet count
-  if (bulletInfo.isRecharging) {
-    shotLabel.innerHTML = isHerald ? `Recharging <span class="ui__cooldown-key">(${Math.ceil(bulletInfo.rechargeRemaining)}s)</span>` : `Reloading <span class="ui__cooldown-key">(${Math.ceil(bulletInfo.rechargeRemaining)}s)</span>`;
-  } else {
-    shotLabel.innerHTML = isHerald ? `Bolt <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>` : `Shot <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>`;
-  }
+  // Update shot label to show bullet count (same format whether reloading or not)
+  shotLabel.innerHTML = isHerald ? `Bolt <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>` : `Shot <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>`;
   mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RMB)</span>' : 'Mortar <span class="ui__cooldown-key">(RMB)</span>';
   meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
   

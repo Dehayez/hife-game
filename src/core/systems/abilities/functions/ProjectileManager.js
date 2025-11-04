@@ -45,6 +45,7 @@ export class ProjectileManager {
     this.playerBullets = new Map(); // Map<playerId, currentBullets>
     this.playerRechargeCooldowns = new CooldownManager(); // Recharge cooldowns per player
     this.playerCharacterNames = new Map(); // Map<playerId, characterName> - track character for each player
+    this.playerReloadInfo = new Map(); // Map<playerId, {startBullets, targetBullets, proportionalRechargeTime}> - track manual reload state
   }
 
   /**
@@ -243,10 +244,18 @@ export class ProjectileManager {
     // Handle bullet recharge when cooldown completes
     for (const [playerId, characterName] of this.playerCharacterNames.entries()) {
       const currentBullets = this.playerBullets.get(playerId) || 0;
-      if (currentBullets <= 0 && this.playerRechargeCooldowns.canAct(playerId)) {
-        // Recharge complete - refill bullets
-        const stats = getBoltStats(characterName);
-        this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+      if (this.playerRechargeCooldowns.canAct(playerId)) {
+        // Recharge complete - check if this was a manual reload or automatic
+        if (this.playerReloadInfo.has(playerId)) {
+          // Manual reload - refill to target bullets
+          const reloadInfo = this.playerReloadInfo.get(playerId);
+          this.playerBullets.set(playerId, reloadInfo.targetBullets);
+          this.playerReloadInfo.delete(playerId);
+        } else if (currentBullets <= 0) {
+          // Automatic reload (at 0 bullets) - refill to max
+          const stats = getBoltStats(characterName);
+          this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+        }
       }
     }
     
@@ -611,6 +620,9 @@ export class ProjectileManager {
     this.meleeCharacterCooldowns.clear();
     this.playerRechargeCooldowns.clear();
     
+    // Clear reload info
+    this.playerReloadInfo.delete(playerId);
+    
     // Reset bullets for new character
     const stats = getBoltStats(characterName);
     this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
@@ -628,6 +640,9 @@ export class ProjectileManager {
     this.mortarCharacterCooldowns.clear();
     this.meleeCharacterCooldowns.clear();
     this.playerRechargeCooldowns.clear();
+    
+    // Clear reload info
+    this.playerReloadInfo.delete(playerId);
     
     // Refill bullets if character name provided
     if (characterName) {
@@ -667,22 +682,35 @@ export class ProjectileManager {
    */
   manualReload(playerId, characterName) {
     const stats = getBoltStats(characterName);
-    const currentBullets = this.playerBullets.get(playerId);
-    
-    // If already full or currently recharging, don't reload
     const maxBullets = Math.floor(stats.maxBullets);
-    if (currentBullets === maxBullets) {
+    const currentBullets = this.playerBullets.get(playerId) || maxBullets;
+    
+    // If already full, don't reload
+    if (currentBullets >= maxBullets) {
       return false; // Already full
     }
     
     // If already recharging, don't start another reload
-    if (currentBullets <= 0 && !this.playerRechargeCooldowns.canAct(playerId)) {
+    if (!this.playerRechargeCooldowns.canAct(playerId)) {
       return false; // Already recharging
     }
     
-    // Start reload: set bullets to 0 and start recharge cooldown
-    this.playerBullets.set(playerId, 0);
-    this.playerRechargeCooldowns.setCooldown(playerId, stats.rechargeCooldown);
+    // Calculate how many bullets are missing
+    const missingBullets = maxBullets - currentBullets;
+    const missingBulletPercent = missingBullets / maxBullets;
+    
+    // Calculate proportional recharge time based on missing bullets
+    const proportionalRechargeTime = stats.rechargeCooldown * missingBulletPercent;
+    
+    // Store reload info for progress tracking
+    this.playerReloadInfo.set(playerId, {
+      startBullets: currentBullets,
+      targetBullets: maxBullets,
+      proportionalRechargeTime: proportionalRechargeTime
+    });
+    
+    // Start reload with proportional time
+    this.playerRechargeCooldowns.setCooldown(playerId, proportionalRechargeTime);
     this.playerCharacterNames.set(playerId, characterName);
     
     return true; // Reload started
@@ -708,18 +736,37 @@ export class ProjectileManager {
     
     const currentBullets = this.playerBullets.get(playerId) || 0;
     const rechargeCooldown = this.playerRechargeCooldowns.getCooldown(playerId);
-    const maxRechargeCooldown = stats.rechargeCooldown;
+    const isRecharging = rechargeCooldown > 0;
     
-    // If out of bullets, show recharge progress
-    if (currentBullets <= 0) {
-      const rechargePercent = maxRechargeCooldown > 0 ? Math.min(rechargeCooldown / maxRechargeCooldown, 1.0) : 0;
+    // If recharging (manual reload or automatic at 0), show recharge progress
+    if (isRecharging) {
+      // Check if this is a manual reload with reload info
+      let actualMaxRechargeTime = stats.rechargeCooldown;
+      let startBullets = 0;
+      let targetBullets = maxBullets;
+      
+      if (this.playerReloadInfo.has(playerId)) {
+        // Manual reload - use proportional recharge time
+        const reloadInfo = this.playerReloadInfo.get(playerId);
+        actualMaxRechargeTime = reloadInfo.proportionalRechargeTime;
+        startBullets = reloadInfo.startBullets;
+        targetBullets = reloadInfo.targetBullets;
+      }
+      
+      const rechargePercent = actualMaxRechargeTime > 0 ? Math.min(rechargeCooldown / actualMaxRechargeTime, 1.0) : 0;
+      
+      // Calculate current bullet count during reload (interpolate from start to target)
+      const bulletRange = targetBullets - startBullets;
+      const filledBullets = startBullets + (bulletRange * (1 - rechargePercent));
+      const bulletPercent = maxBullets > 0 ? filledBullets / maxBullets : 0;
+      
       return {
-        current: 0,
+        current: Math.floor(filledBullets),
         max: maxBullets,
-        percentage: 1 - rechargePercent, // Invert so it fills up as recharge progresses
+        percentage: bulletPercent,
         isRecharging: true,
         rechargeRemaining: rechargeCooldown,
-        rechargeMax: maxRechargeCooldown
+        rechargeMax: actualMaxRechargeTime
       };
     }
     
@@ -731,7 +778,7 @@ export class ProjectileManager {
       percentage: bulletPercent,
       isRecharging: false,
       rechargeRemaining: 0,
-      rechargeMax: maxRechargeCooldown
+      rechargeMax: stats.rechargeCooldown
     };
   }
 }
