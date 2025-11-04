@@ -605,17 +605,17 @@ function updateMenuForMode(mode) {
 // Settings Tab
 const settingsPanel = gameMenu.getPanel('settings');
 
-// Arena Selection Section
-const arenaSection = gameMenu.addSection('settings', {
-  title: 'Arena',
-  className: 'game-menu__section--arena'
+// Game Mode Display Section
+const modeDisplaySection = gameMenu.addSection('settings', {
+  title: 'Current Game Mode',
+  className: 'game-menu__section--mode-display'
 });
-if (arenaSection) {
-  const arenaContent = arenaSection.querySelector('.game-menu__section-content');
-  if (arenaContent && arenaMount) {
+if (modeDisplaySection) {
+  const modeDisplayContent = modeDisplaySection.querySelector('.game-menu__section-content');
+  if (modeDisplayContent && modeDisplayMount) {
     // Use the section content as the mount point instead of moving nodes
-    arenaContent.appendChild(arenaMount);
-    arenaMount.style.display = 'block';
+    modeDisplayContent.appendChild(modeDisplayMount);
+    modeDisplayMount.style.display = 'block';
   }
 }
 
@@ -633,31 +633,17 @@ if (gameModeSection) {
   }
 }
 
-// Input Mode Section
-const inputModeSection = gameMenu.addSection('settings', {
-  title: 'Input Mode',
-  className: 'game-menu__section--input-mode'
+// Arena Selection Section
+const arenaSection = gameMenu.addSection('settings', {
+  title: 'Arena',
+  className: 'game-menu__section--arena'
 });
-if (inputModeSection) {
-  const inputModeContent = inputModeSection.querySelector('.game-menu__section-content');
-  if (inputModeContent && inputModeMount) {
+if (arenaSection) {
+  const arenaContent = arenaSection.querySelector('.game-menu__section-content');
+  if (arenaContent && arenaMount) {
     // Use the section content as the mount point instead of moving nodes
-    inputModeContent.appendChild(inputModeMount);
-    inputModeMount.style.display = 'block';
-  }
-}
-
-// Game Mode Display Section
-const modeDisplaySection = gameMenu.addSection('settings', {
-  title: 'Current Game Mode',
-  className: 'game-menu__section--mode-display'
-});
-if (modeDisplaySection) {
-  const modeDisplayContent = modeDisplaySection.querySelector('.game-menu__section-content');
-  if (modeDisplayContent && modeDisplayMount) {
-    // Use the section content as the mount point instead of moving nodes
-    modeDisplayContent.appendChild(modeDisplayMount);
-    modeDisplayMount.style.display = 'block';
+    arenaContent.appendChild(arenaMount);
+    arenaMount.style.display = 'block';
   }
 }
 
@@ -674,6 +660,20 @@ if (legendSection) {
     legendMount.style.display = 'block';
 
     // Controls legend is only in the menu, not shown in-game
+  }
+}
+
+// Input Mode Section
+const inputModeSection = gameMenu.addSection('settings', {
+  title: 'Input Mode',
+  className: 'game-menu__section--input-mode'
+});
+if (inputModeSection) {
+  const inputModeContent = inputModeSection.querySelector('.game-menu__section-content');
+  if (inputModeContent && inputModeMount) {
+    // Use the section content as the mount point instead of moving nodes
+    inputModeContent.appendChild(inputModeMount);
+    inputModeMount.style.display = 'block';
   }
 }
 
