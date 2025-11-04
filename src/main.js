@@ -33,6 +33,10 @@ import { GameLoop } from './core/managers/gameloop/GameLoop.js';
 import { ParticleManager } from './utils/ParticleManager.js';
 import { ArenaManager } from './core/systems/arena/functions/ArenaManager.js';
 import { getCharacterHealthStats } from './core/systems/character/config/CharacterStats.js';
+import { ScreenShakeManager } from './utils/ScreenShakeManager.js';
+import { DamageNumberManager } from './utils/DamageNumberManager.js';
+import { SprintTrailManager } from './utils/SprintTrailManager.js';
+import { ScreenFlashManager } from './utils/ScreenFlashManager.js';
 
 // Initialize game components
 const canvas = document.getElementById('app-canvas');
@@ -99,6 +103,13 @@ projectileManager.setBotManager(botManager);
 
 // Initialize health bar manager (camera will be set later)
 const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);
+
+// Initialize visual effects managers
+const screenShakeManager = new ScreenShakeManager();
+const damageNumberManager = new DamageNumberManager(sceneManager.getScene(), sceneManager.getCamera());
+const sprintTrailManager = new SprintTrailManager(sceneManager.getScene());
+const screenFlashManager = new ScreenFlashManager();
+screenFlashManager.init();
 
 // Initialize multiplayer manager
 const multiplayerManager = new MultiplayerManager(
@@ -227,6 +238,21 @@ gameModeManager.setOnModeChangeCallback(() => {
 });
 
 const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager, botManager, healthBarManager, multiplayerManager, remotePlayerManager);
+
+// Connect visual effects managers to game loop
+gameLoop.setScreenShakeManager(screenShakeManager);
+gameLoop.setDamageNumberManager(damageNumberManager);
+gameLoop.setSprintTrailManager(sprintTrailManager);
+gameLoop.setScreenFlashManager(screenFlashManager);
+gameLoop.setSceneManagerForShake(sceneManager);
+
+// Connect screen shake manager to scene manager for camera shake
+sceneManager.setScreenShakeManager(screenShakeManager);
+
+// Update damage number manager camera when scene camera is set
+if (sceneManager.getCamera()) {
+  damageNumberManager.setCamera(sceneManager.getCamera());
+}
 
 // Initialize scoreboard with managers
 scoreboard = new Scoreboard({

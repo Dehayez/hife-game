@@ -14,6 +14,15 @@ export class SceneManager {
     this.blinkingEyes = [];
     this.eyeBlinkTimers = [];
     this.mushrooms = []; // Store mushroom elements (stems, caps, lights)
+    this.screenShakeManager = null; // Screen shake manager reference
+  }
+  
+  /**
+   * Set screen shake manager
+   * @param {Object} screenShakeManager - Screen shake manager instance
+   */
+  setScreenShakeManager(screenShakeManager) {
+    this.screenShakeManager = screenShakeManager;
   }
 
   init(canvas) {
@@ -648,6 +657,13 @@ export class SceneManager {
     
     const adjustedOffset = new THREE.Vector3(this.cameraOffset.x, this.currentYOffset, this.cameraOffset.z);
     const desiredCamPos = playerPosition.clone().add(adjustedOffset);
+    
+    // Apply screen shake if available
+    if (this.screenShakeManager) {
+      const shakeOffset = this.screenShakeManager.getOffset();
+      desiredCamPos.add(shakeOffset);
+    }
+    
     this.camera.position.lerp(desiredCamPos, 0.08);
     this.camera.lookAt(playerPosition.x, playerPosition.y + 0.4, playerPosition.z);
   }

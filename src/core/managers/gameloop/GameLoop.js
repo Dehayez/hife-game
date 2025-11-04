@@ -100,6 +100,53 @@ export class GameLoop {
     this.lastLeftTriggerInput = false; // Track LT press/release
     this.lastRightTriggerInput = false; // Track RT press/release
     this.mortarReleaseCooldown = 0; // Cooldown timer after releasing mortar (prevents immediate bolt)
+    
+    // Visual effects managers
+    this.screenShakeManager = null;
+    this.damageNumberManager = null;
+    this.sprintTrailManager = null;
+    this.screenFlashManager = null;
+    this.sceneManagerForShake = null;
+  }
+  
+  /**
+   * Set screen shake manager
+   * @param {Object} screenShakeManager - Screen shake manager instance
+   */
+  setScreenShakeManager(screenShakeManager) {
+    this.screenShakeManager = screenShakeManager;
+  }
+  
+  /**
+   * Set damage number manager
+   * @param {Object} damageNumberManager - Damage number manager instance
+   */
+  setDamageNumberManager(damageNumberManager) {
+    this.damageNumberManager = damageNumberManager;
+  }
+  
+  /**
+   * Set sprint trail manager
+   * @param {Object} sprintTrailManager - Sprint trail manager instance
+   */
+  setSprintTrailManager(sprintTrailManager) {
+    this.sprintTrailManager = sprintTrailManager;
+  }
+  
+  /**
+   * Set screen flash manager
+   * @param {Object} screenFlashManager - Screen flash manager instance
+   */
+  setScreenFlashManager(screenFlashManager) {
+    this.screenFlashManager = screenFlashManager;
+  }
+  
+  /**
+   * Set scene manager for shake effects
+   * @param {Object} sceneManager - Scene manager instance
+   */
+  setSceneManagerForShake(sceneManager) {
+    this.sceneManagerForShake = sceneManager;
   }
 
   /**
@@ -752,6 +799,30 @@ export class GameLoop {
       if (currentMode === 'shooting') {
         this.healthBarManager.update(dt);
       }
+    }
+    
+    // Update visual effects
+    if (this.screenShakeManager) {
+      this.screenShakeManager.update(dt);
+    }
+    
+    if (this.damageNumberManager) {
+      this.damageNumberManager.update(dt);
+    }
+    
+    if (this.sprintTrailManager && player) {
+      const isSprinting = this.inputManager.isRunning();
+      const characterColor = this.characterManager.getCharacterColor();
+      this.sprintTrailManager.update(dt, player.position, isSprinting, characterColor);
+      
+      // Billboard trail particles to camera
+      if (isSprinting) {
+        this.sprintTrailManager.billboardToCamera(this.sceneManager.getCamera());
+      }
+    }
+    
+    if (this.screenFlashManager) {
+      this.screenFlashManager.update(dt);
     }
   }
 
@@ -1534,6 +1605,13 @@ export class GameLoop {
 
     if (projectileCollision.hit) {
       const shooterId = projectileCollision.projectile?.userData?.playerId;
+      
+      // Screen shake on projectile hit
+      if (this.screenShakeManager) {
+        const shakeIntensity = Math.min(0.1, projectileCollision.damage / 50);
+        this.screenShakeManager.shake(shakeIntensity, 0.2, 0.9);
+      }
+      
       this._applyDamageToPlayer(projectileCollision.damage, player, shooterId);
 
       // Note: For mortars, splash will be created at target location when mortar hits ground
@@ -1549,6 +1627,13 @@ export class GameLoop {
 
     if (mortarCollision.hit) {
       const shooterId = mortarCollision.projectile?.userData?.playerId;
+      
+      // Screen shake on mortar hit (stronger than regular projectile)
+      if (this.screenShakeManager) {
+        const shakeIntensity = Math.min(0.2, mortarCollision.damage / 50);
+        this.screenShakeManager.shake(shakeIntensity, 0.3, 0.85);
+      }
+      
       this._applyDamageToPlayer(mortarCollision.damage, player, shooterId);
 
       // Note: Splash will be created at target location when mortar hits ground
@@ -1602,6 +1687,12 @@ export class GameLoop {
           // Get killer playerId from projectile
           const killerId = botCollision.projectile?.userData?.playerId || 'local';
           const botDied = this.botManager.damageBot(bot, botCollision.damage, killerId);
+          
+          // Show damage number for bot
+          if (this.damageNumberManager) {
+            this.damageNumberManager.showDamage(botCollision.damage, bot.position, 0xffaa00);
+          }
+          
           // Don't respawn immediately - death fade will handle it
         }
         
@@ -1616,6 +1707,17 @@ export class GameLoop {
           // Get killer playerId from mortar
           const killerId = botMortarCollision.projectile?.userData?.playerId || 'local';
           const botDied = this.botManager.damageBot(bot, botMortarCollision.damage, killerId);
+          
+          // Show damage number for bot (mortar damage is usually higher)
+          if (this.damageNumberManager) {
+            this.damageNumberManager.showDamage(botMortarCollision.damage, bot.position, 0xff6600);
+          }
+          
+          // Screen shake on mortar impact (weaker than when hitting player)
+          if (this.screenShakeManager) {
+            const shakeIntensity = Math.min(0.08, botMortarCollision.damage / 100);
+            this.screenShakeManager.shake(shakeIntensity, 0.2, 0.9);
+          }
           
           // If direct hit at ground level, create splash immediately
           if (botMortarCollision.needsSplash && botMortarCollision.projectile) {
@@ -1651,6 +1753,23 @@ export class GameLoop {
         player.userData.health = currentHealth;
         player.userData.maxHealth = maxHealth;
       }
+      
+      // Visual effects: Screen shake, damage number, and screen flash
+      if (this.screenShakeManager) {
+        // Shake intensity based on damage (normalized to 0-1)
+        const shakeIntensity = Math.min(0.15, damage / 50);
+        this.screenShakeManager.shake(shakeIntensity, 0.3, 0.9);
+      }
+      
+      if (this.damageNumberManager && player) {
+        // Show damage number at player position
+        this.damageNumberManager.showDamage(damage, player.position, 0xff0000);
+      }
+      
+      if (this.screenFlashManager) {
+        // Flash screen red when taking damage
+        this.screenFlashManager.flash('#ff0000', 0.15, 0.3);
+      }
 
       // Send damage event to other players via multiplayer
       if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {
@@ -1666,6 +1785,11 @@ export class GameLoop {
         // Only trigger once (check if already dying)
         if (!this.characterManager.isDying()) {
           this.characterManager.playDeathAnimation();
+          
+          // Extra screen shake on death
+          if (this.screenShakeManager) {
+            this.screenShakeManager.shake(0.3, 0.5, 0.85);
+          }
         }
 
         // Track kills for bots (local player deaths are tracked in GameModeManager)

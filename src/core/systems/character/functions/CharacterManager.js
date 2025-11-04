@@ -303,6 +303,14 @@ export class CharacterManager {
   getCharacterName() {
     return this.characterName;
   }
+  
+  /**
+   * Get character color as hex number
+   * @returns {number} Character color as hex number
+   */
+  getCharacterColor() {
+    return getCharacterColorHex(this.characterName);
+  }
 
   /**
    * Get character facing direction
