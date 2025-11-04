@@ -731,6 +731,7 @@ html, body { height: 100%; margin: 0; }
 /* Menu tabs */
 .game-menu__tabs {
   display: flex;
+  align-items: center;
   gap: 8px;
   padding: 16px 24px;
   overflow-x: auto;
