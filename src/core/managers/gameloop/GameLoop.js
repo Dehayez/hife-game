@@ -823,6 +823,13 @@ export class GameLoop {
     
     if (this.screenFlashManager) {
       this.screenFlashManager.update(dt);
+      
+      // Update health-based red tint/saturation based on current health
+      if (this.characterManager && player) {
+        const currentHealth = this.characterManager.getHealth();
+        const maxHealth = this.characterManager.getMaxHealth();
+        this.screenFlashManager.updateHealth(currentHealth, maxHealth);
+      }
     }
   }
 
@@ -1767,8 +1774,11 @@ export class GameLoop {
       }
       
       if (this.screenFlashManager) {
-        // Flash screen red when taking damage
-        this.screenFlashManager.flash('#ff0000', 0.15, 0.3);
+        // Flash screen red when taking damage (reduced intensity)
+        this.screenFlashManager.flash('#ff0000', 0.15, 0.15);
+        
+        // Update health overlay for persistent red tint
+        this.screenFlashManager.updateHealth(currentHealth, maxHealth);
       }
 
       // Send damage event to other players via multiplayer
