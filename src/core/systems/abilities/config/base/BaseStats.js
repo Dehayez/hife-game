@@ -38,7 +38,9 @@ export const GLOBAL_BASE_STATS = {
     projectileSpeed: 10,     // Base units per second
     size: 0.13,              // Base projectile radius
     lifetime: 3,              // Seconds before projectile despawns
-    cursorFollowStrength: 0.4 // Base cursor follow strength (0.0 = none, 1.0 = full)
+    cursorFollowStrength: 0.4, // Base cursor follow strength (0.0 = none, 1.0 = full)
+    maxBullets: 10,          // Base maximum number of bullets before recharge
+    rechargeCooldown: 2.0    // Base seconds to recharge all bullets
   },
   
   /**

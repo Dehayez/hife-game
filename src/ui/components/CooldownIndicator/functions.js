@@ -11,22 +11,35 @@ export function updateCooldowns(projectileManager, characterManager, shotLabel, 
   const stats = projectileManager.getCharacterStats(characterName);
   const meleeStats = getMeleeStats(characterName);
   
+  // Get bullet info for bolt/shot
+  const bulletInfo = projectileManager.getBoltBulletInfo(playerId, characterName);
+  
   // Update labels based on character (fire spells for Herald/Pyre)
   const isHerald = characterName === 'herald';
-  shotLabel.innerHTML = isHerald ? 'Bolt <span class="ui__cooldown-key">(LMB)</span>' : 'Shot <span class="ui__cooldown-key">(LMB)</span>';
+  // Update shot label to show bullet count
+  if (bulletInfo.isRecharging) {
+    shotLabel.innerHTML = isHerald ? `Recharging <span class="ui__cooldown-key">(${Math.ceil(bulletInfo.rechargeRemaining)}s)</span>` : `Reloading <span class="ui__cooldown-key">(${Math.ceil(bulletInfo.rechargeRemaining)}s)</span>`;
+  } else {
+    shotLabel.innerHTML = isHerald ? `Bolt <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>` : `Shot <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>`;
+  }
   mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RMB)</span>' : 'Mortar <span class="ui__cooldown-key">(RMB)</span>';
   meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
   
   // Get character color for cooldown fills
   const characterColor = getCharacterColorCss(characterName);
   
-  // Update shot cooldown
-  const shotCooldown = projectileManager.characterCooldowns.getCooldown(playerId);
-  const shotMaxCooldown = stats.bolt.cooldown || 0.3;
-  const shotPercent = shotMaxCooldown > 0 ? Math.min(shotCooldown / shotMaxCooldown, 1.0) : 0;
-  shotFill.style.width = `${(1 - shotPercent) * 100}%`;
-  shotFill.style.opacity = shotPercent > 0 ? '0.6' : '1.0';
-  shotFill.style.background = characterColor;
+  // Update shot/bullet indicator - show bullet count or recharge progress
+  if (bulletInfo.isRecharging) {
+    // Show recharge progress (fills up as recharge progresses)
+    shotFill.style.width = `${bulletInfo.percentage * 100}%`;
+    shotFill.style.opacity = '0.8'; // Slightly dimmed during recharge
+    shotFill.style.background = characterColor;
+  } else {
+    // Show bullet count (drains as bullets are used)
+    shotFill.style.width = `${bulletInfo.percentage * 100}%`;
+    shotFill.style.opacity = bulletInfo.current > 0 ? '1.0' : '0.6';
+    shotFill.style.background = characterColor;
+  }
   
   // Update mortar cooldown
   const mortarCooldown = projectileManager.mortarCharacterCooldowns.getCooldown(playerId);

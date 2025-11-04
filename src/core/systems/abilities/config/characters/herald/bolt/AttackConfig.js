@@ -9,6 +9,8 @@ export const HERALD_BOLT_ATTACK_CONFIG = {
   minSpeed: 0.3,            // 30% of base speed (start very slow)
   maxSpeed: 1.2,            // 120% of base speed (accelerate to fast)
   size: 1.385,              // 138.5% of base (0.18 radius) - Larger projectiles
-  cursorFollowStrength: 1.25 // 125% of base (0.5) - More cursor following
+  cursorFollowStrength: 1.25, // 125% of base (0.5) - More cursor following
+  maxBullets: 0.6,          // 60% of base (6 bullets) - Fewer bullets for powerful shots
+  rechargeCooldown: 1.5     // 150% of base (3.0s) - Slower recharge for powerful shots
 };
 

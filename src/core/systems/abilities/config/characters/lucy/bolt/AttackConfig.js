@@ -12,6 +12,8 @@ export const LUCY_BOLT_ATTACK_CONFIG = {
   minSpeed: 0.6,            // 60% of base speed (decelerate to slower)
   maxSpeed: 2.0,            // 200% of base speed (start very fast)
   size: 0.615,              // 61.5% of base (0.08 radius) - Smaller projectiles
-  cursorFollowStrength: 0.75 // 75% of base (0.3) - Less cursor following
+  cursorFollowStrength: 0.75, // 75% of base (0.3) - Less cursor following
+  maxBullets: 1.5,          // 150% of base (15 bullets) - More bullets for rapid fire
+  rechargeCooldown: 0.7     // 70% of base (1.4s) - Faster recharge for rapid fire
 };
 

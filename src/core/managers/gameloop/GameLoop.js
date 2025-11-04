@@ -325,7 +325,8 @@ export class GameLoop {
       // Reset all cooldowns on respawn
       this.resetCooldowns();
       if (this.projectileManager) {
-        this.projectileManager.resetAllCooldowns();
+        const characterName = this.characterManager.getCharacterName();
+        this.projectileManager.resetAllCooldowns('local', characterName);
       }
       
       this.characterManager.respawn(currentMode, this.collisionManager);
@@ -353,7 +354,8 @@ export class GameLoop {
       // Reset all cooldowns on respawn
       this.resetCooldowns();
       if (this.projectileManager) {
-        this.projectileManager.resetAllCooldowns();
+        const characterName = this.characterManager.getCharacterName();
+        this.projectileManager.resetAllCooldowns('local', characterName);
       }
       
       this.characterManager.respawn(currentMode, this.collisionManager);
@@ -1715,6 +1717,11 @@ export class GameLoop {
     this.characterManager.loadCharacter(newChar).then(() => {
       // Save to localStorage when character changes
       setLastCharacter(newChar);
+      
+      // Reset bullets for new character
+      if (this.projectileManager) {
+        this.projectileManager.setCharacter(newChar, 'local');
+      }
       
       // Update multiplayer if in a room
       if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {

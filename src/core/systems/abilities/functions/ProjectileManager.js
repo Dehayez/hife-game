@@ -40,6 +40,11 @@ export class ProjectileManager {
     this.characterCooldowns = new CooldownManager(); // Bolt cooldowns
     this.mortarCharacterCooldowns = new CooldownManager(); // Mortar cooldowns
     this.meleeCharacterCooldowns = new CooldownManager(); // Melee cooldowns
+    
+    // Bullet tracking per player
+    this.playerBullets = new Map(); // Map<playerId, currentBullets>
+    this.playerRechargeCooldowns = new CooldownManager(); // Recharge cooldowns per player
+    this.playerCharacterNames = new Map(); // Map<playerId, characterName> - track character for each player
   }
 
   /**
@@ -77,11 +82,33 @@ export class ProjectileManager {
    * @param {string} characterName - Character name ('lucy' or 'herald')
    * @param {number} targetX - Optional target X position for cursor following
    * @param {number} targetZ - Optional target Z position for cursor following
-   * @returns {THREE.Mesh|null} Created projectile mesh or null if on cooldown
+   * @returns {THREE.Mesh|null} Created projectile mesh or null if on cooldown or out of bullets
    */
   createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy', targetX = null, targetZ = null) {
     // Get character-specific bolt stats
     const stats = getBoltStats(characterName);
+    
+    // Track character name for this player
+    this.playerCharacterNames.set(playerId, characterName);
+    
+    // Initialize bullets if not set
+    if (!this.playerBullets.has(playerId)) {
+      this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+    }
+    
+    // Check if player has bullets available
+    let currentBullets = this.playerBullets.get(playerId) || 0;
+    if (currentBullets <= 0) {
+      // Out of bullets - check if recharge is complete
+      if (this.playerRechargeCooldowns.canAct(playerId)) {
+        // Recharge complete - refill bullets
+        currentBullets = Math.floor(stats.maxBullets);
+        this.playerBullets.set(playerId, currentBullets);
+      } else {
+        // Still recharging - cannot shoot
+        return null;
+      }
+    }
     
     // Check cooldown for this specific character
     if (!this.characterCooldowns.canAct(playerId)) return null;
@@ -105,6 +132,15 @@ export class ProjectileManager {
     
     // Add to projectiles array
     this.projectiles.push(projectile);
+    
+    // Consume a bullet
+    const newBulletCount = currentBullets - 1;
+    this.playerBullets.set(playerId, newBulletCount);
+    
+    // If bullets depleted, start recharge cooldown
+    if (newBulletCount <= 0) {
+      this.playerRechargeCooldowns.setCooldown(playerId, stats.rechargeCooldown);
+    }
     
     // Set cooldown for this specific character/player
     this.characterCooldowns.setCooldown(playerId, stats.cooldown);
@@ -200,6 +236,19 @@ export class ProjectileManager {
     
     // Update melee cooldowns
     this.meleeCharacterCooldowns.update(dt);
+    
+    // Update recharge cooldowns
+    this.playerRechargeCooldowns.update(dt);
+    
+    // Handle bullet recharge when cooldown completes
+    for (const [playerId, characterName] of this.playerCharacterNames.entries()) {
+      const currentBullets = this.playerBullets.get(playerId) || 0;
+      if (currentBullets <= 0 && this.playerRechargeCooldowns.canAct(playerId)) {
+        // Recharge complete - refill bullets
+        const stats = getBoltStats(characterName);
+        this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+      }
+    }
     
     // Update mortars and check for ground impact
     this.updateMortars(dt);
@@ -493,12 +542,31 @@ export class ProjectileManager {
   /**
    * Check if player can shoot bolt
    * @param {string} playerId - Player ID to check
+   * @param {string} characterName - Character name (optional, used if playerId not tracked)
    * @returns {boolean} True if player can shoot
    */
-  canShoot(playerId = null) {
-    // If player ID provided, check cooldown for that specific player/character
+  canShoot(playerId = null, characterName = null) {
+    // If player ID provided, check both cooldown and bullets
     if (playerId) {
-      return this.characterCooldowns.canAct(playerId);
+      // Check cooldown first
+      if (!this.characterCooldowns.canAct(playerId)) {
+        return false;
+      }
+      
+      // Check if player has bullets or can recharge
+      const currentBullets = this.playerBullets.get(playerId);
+      if (currentBullets === undefined) {
+        // Player not initialized yet - allow shooting (will initialize on first shot)
+        return true;
+      }
+      
+      // If has bullets, can shoot
+      if (currentBullets > 0) {
+        return true;
+      }
+      
+      // Out of bullets - check if recharge is complete
+      return this.playerRechargeCooldowns.canAct(playerId);
     }
     
     // Otherwise, check if any character can shoot
@@ -533,23 +601,40 @@ export class ProjectileManager {
 
   /**
    * Reset all cooldowns when character changes
-   * @param {string} characterName - Character name (not currently used but kept for API consistency)
+   * @param {string} characterName - Character name
+   * @param {string} playerId - Player ID (defaults to 'local')
    */
-  setCharacter(characterName) {
+  setCharacter(characterName, playerId = 'local') {
     // Reset all cooldowns when character changes
     this.characterCooldowns.clear();
     this.mortarCharacterCooldowns.clear();
     this.meleeCharacterCooldowns.clear();
+    this.playerRechargeCooldowns.clear();
+    
+    // Reset bullets for new character
+    const stats = getBoltStats(characterName);
+    this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+    this.playerCharacterNames.set(playerId, characterName);
   }
   
   /**
    * Reset all cooldowns for all abilities (shot, mortar, melee)
    * Called on death/respawn to ensure all abilities are ready
+   * @param {string} playerId - Player ID (defaults to 'local')
+   * @param {string} characterName - Character name (optional, used to refill bullets)
    */
-  resetAllCooldowns() {
+  resetAllCooldowns(playerId = 'local', characterName = null) {
     this.characterCooldowns.clear();
     this.mortarCharacterCooldowns.clear();
     this.meleeCharacterCooldowns.clear();
+    this.playerRechargeCooldowns.clear();
+    
+    // Refill bullets if character name provided
+    if (characterName) {
+      const stats = getBoltStats(characterName);
+      this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+      this.playerCharacterNames.set(playerId, characterName);
+    }
   }
   
   /**
@@ -571,6 +656,53 @@ export class ProjectileManager {
     return {
       bolt: getBoltStats(characterName),
       mortar: getMortarStats(characterName)
+    };
+  }
+
+  /**
+   * Get bullet info for a player (for UI display)
+   * @param {string} playerId - Player ID
+   * @param {string} characterName - Character name
+   * @returns {Object} Bullet info with current, max, percentage, and recharge info
+   */
+  getBoltBulletInfo(playerId, characterName) {
+    const stats = getBoltStats(characterName);
+    const maxBullets = Math.floor(stats.maxBullets);
+    
+    // Track character name for this player
+    this.playerCharacterNames.set(playerId, characterName);
+    
+    // Initialize bullets if not set yet
+    if (!this.playerBullets.has(playerId)) {
+      this.playerBullets.set(playerId, maxBullets);
+    }
+    
+    const currentBullets = this.playerBullets.get(playerId) || 0;
+    const rechargeCooldown = this.playerRechargeCooldowns.getCooldown(playerId);
+    const maxRechargeCooldown = stats.rechargeCooldown;
+    
+    // If out of bullets, show recharge progress
+    if (currentBullets <= 0) {
+      const rechargePercent = maxRechargeCooldown > 0 ? Math.min(rechargeCooldown / maxRechargeCooldown, 1.0) : 0;
+      return {
+        current: 0,
+        max: maxBullets,
+        percentage: 1 - rechargePercent, // Invert so it fills up as recharge progresses
+        isRecharging: true,
+        rechargeRemaining: rechargeCooldown,
+        rechargeMax: maxRechargeCooldown
+      };
+    }
+    
+    // Otherwise, show bullet count
+    const bulletPercent = maxBullets > 0 ? currentBullets / maxBullets : 0;
+    return {
+      current: currentBullets,
+      max: maxBullets,
+      percentage: bulletPercent,
+      isRecharging: false,
+      rechargeRemaining: 0,
+      rechargeMax: maxRechargeCooldown
     };
   }
 }
