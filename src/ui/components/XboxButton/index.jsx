@@ -4,14 +4,14 @@
  */
 
 // Import all styles
-import './scss/index.scss';
+import './index.scss';
 
-export { XboxButtonA } from './A/index.jsx';
-export { XboxButtonB } from './B/index.jsx';
-export { XboxButtonX } from './X/index.jsx';
-export { XboxButtonY } from './Y/index.jsx';
-export { XboxButtonLB } from './LB/index.jsx';
-export { XboxButtonLT } from './LT/index.jsx';
-export { XboxButtonRB } from './RB/index.jsx';
-export { XboxButtonRT } from './RT/index.jsx';
+export { XboxButtonA } from './A/XboxButtonA.jsx';
+export { XboxButtonB } from './B/XboxButtonB.jsx';
+export { XboxButtonX } from './X/XboxButtonX.jsx';
+export { XboxButtonY } from './Y/XboxButtonY.jsx';
+export { XboxButtonLB } from './LB/XboxButtonLB.jsx';
+export { XboxButtonLT } from './LT/XboxButtonLT.jsx';
+export { XboxButtonRB } from './RB/XboxButtonRB.jsx';
+export { XboxButtonRT } from './RT/XboxButtonRT.jsx';
 

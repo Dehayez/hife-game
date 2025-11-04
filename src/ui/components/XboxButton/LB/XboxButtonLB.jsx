@@ -1,5 +1,5 @@
 import React from 'react';
-import './scss/index.scss';
+import './XboxButtonLB.scss';
 
 /**
  * XboxButton LB Component

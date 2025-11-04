@@ -354,45 +354,6 @@ html, body {
           color: var(--color-text-primary) !important;
         }
       }
-
-      // Circular buttons for A, B, X, Y
-      &--xbox-a,
-      &--xbox-b,
-      &--xbox-x,
-      &--xbox-y {
-        border-radius: 50%;
-        width: 32px;
-        height: 32px;
-        min-width: 32px;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-      }
-
-      // Bumper style for LB, RB, LT, RT
-      &--xbox-lb,
-      &--xbox-lt {
-        border-radius: 24px 8px 8px 8px;
-        min-width: 36px;
-        height: 24px;
-        padding: 4px 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      &--xbox-rb,
-      &--xbox-rt {
-        border-radius: 8px 24px 8px 8px;
-        min-width: 36px;
-        height: 24px;
-        padding: 4px 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
     }
 
     &-content {
