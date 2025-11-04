@@ -6,22 +6,22 @@
  */
 
 import { RespawnOverlay } from '../../ui/components/RespawnOverlay/index.js';
-import { SceneManager } from '../systems/scene/functions/SceneManager.js';
-import { LargeArenaSceneManager } from '../systems/scene/functions/LargeArenaSceneManager.js';
-import { CharacterManager } from '../systems/character/functions/CharacterManager.js';
-import { InputManager } from '../systems/input/functions/InputManager.js';
-import { CollisionManager } from '../systems/collision/functions/CollisionManager.js';
-import { LargeArenaCollisionManager } from '../systems/collision/functions/LargeArenaCollisionManager.js';
-import { GameModeManager } from '../systems/gamemode/functions/GameModeManager.js';
-import { EntityManager } from '../systems/entity/functions/EntityManager.js';
-import { ProjectileManager } from '../systems/abilities/functions/ProjectileManager.js';
-import { MultiplayerManager } from '../managers/multiplayer/MultiplayerManager.js';
-import { RemotePlayerManager } from '../managers/multiplayer/RemotePlayerManager.js';
-import { BotManager } from '../systems/bot/functions/BotManager.js';
-import { HealthBarManager } from '../systems/healthbar/functions/HealthBarManager.js';
-import { GameLoop } from '../managers/gameloop/GameLoop.js';
+import { SceneManager } from './systems/scene/SceneManager.js';
+import { LargeArenaSceneManager } from './systems/scene/LargeArenaSceneManager.js';
+import { CharacterManager } from './systems/character/CharacterManager.js';
+import { InputManager } from './systems/input/InputManager.js';
+import { CollisionManager } from './systems/collision/CollisionManager.js';
+import { LargeArenaCollisionManager } from './systems/collision/LargeArenaCollisionManager.js';
+import { GameModeManager } from './systems/gamemode/GameModeManager.js';
+import { EntityManager } from './systems/entity/EntityManager.js';
+import { ProjectileManager } from './systems/abilities/functions/ProjectileManager.js';
+import { MultiplayerManager } from './systems/multiplayer/MultiplayerManager.js';
+import { RemotePlayerManager } from './systems/multiplayer/RemotePlayerManager.js';
+import { BotManager } from './systems/bot/BotManager.js';
+import { HealthBarManager } from './systems/healthbar/HealthBarManager.js';
+import { GameLoop } from './systems/gameloop/GameLoop.js';
 import { ParticleManager } from '../../utils/ParticleManager.js';
-import { ArenaManager } from '../systems/arena/functions/ArenaManager.js';
+import { ArenaManager } from './systems/arena/ArenaManager.js';
 import { ScreenShakeManager } from '../../utils/ScreenShakeManager.js';
 import { DamageNumberManager } from '../../utils/DamageNumberManager.js';
 import { ScreenFlashManager } from '../../utils/ScreenFlashManager.js';

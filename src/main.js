@@ -5,9 +5,9 @@
  * Orchestrates initialization and starts the game loop.
  */
 
-import { getInitialConfig, initializeGame, setupGameLoopWrapper, initializeBackgroundMusic, handleAutoJoinRoom, setupDebugUtilities } from './core/init/GameBootstrap.js';
-import { initializeManagers } from './core/init/ManagerInitializer.js';
-import { initializeUI } from './core/init/UIInitializer.js';
+import { getInitialConfig, initializeGame, setupGameLoopWrapper, initializeBackgroundMusic, handleAutoJoinRoom, setupDebugUtilities } from './core/GameBootstrap.js';
+import { initializeManagers } from './core/ManagerInitializer.js';
+import { initializeUI } from './core/UIInitializer.js';
 import { getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
 import { GAME_CONSTANTS } from './config/global/GameConstants.js';
 

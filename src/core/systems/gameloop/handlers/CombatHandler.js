@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getMeleeStats } from '../../../systems/abilities/functions/CharacterAbilityStats.js';
+import { getMeleeStats } from '../../abilities/functions/CharacterAbilityStats.js';
 
 /**
  * Combat handler for game loop
