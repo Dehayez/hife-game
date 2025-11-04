@@ -29,7 +29,6 @@ export function ControlsLegend({ inputManager, gameModeManager }) {
 
   return (
     <div className="ui__legend-panel">
-      <h3 className="ui__legend-title">Controls</h3>
       <div className="ui__legend-content">
         {inputMode === 'controller' ? (
           <ControllerControls isShootingMode={isShootingMode} />

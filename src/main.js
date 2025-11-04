@@ -661,13 +661,8 @@ if (modeDisplaySection) {
   }
 }
 
-// Multiplayer Tab - sections will be populated after room manager and bot control are initialized
-
-// Controls Tab
-const controlsPanel = gameMenu.getPanel('controls');
-
-// Controls Legend Section
-const legendSection = gameMenu.addSection('controls', {
+// Controls Legend Section (in Settings tab)
+const legendSection = gameMenu.addSection('settings', {
   title: 'Controls',
   className: 'game-menu__section--controls-legend'
 });
@@ -681,6 +676,8 @@ if (legendSection) {
     // Controls legend is only in the menu, not shown in-game
   }
 }
+
+// Multiplayer Tab - sections will be populated after room manager and bot control are initialized
 
 // Initialize room manager UI for shooting mode (before bot control)
 const roomManager = initRoomManager({

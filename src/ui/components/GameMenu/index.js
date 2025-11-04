@@ -12,7 +12,7 @@ import { createXboxButtonElement } from '../XboxButton/helpers.js';
 export class GameMenu {
   constructor(config) {
     this.isVisible = false;
-    this.activeTab = 'settings';
+    this.activeTab = 'multiplayer';
     
     // Store config
     this.config = config || {};
@@ -92,9 +92,8 @@ export class GameMenu {
     this.tabsContainer.appendChild(this.lbIcon);
     
     this.tabs = [
-      { id: 'settings', label: 'Settings' },
       { id: 'multiplayer', label: 'Multiplayer' },
-      { id: 'controls', label: 'Controls' }
+      { id: 'settings', label: 'Settings' }
     ];
     
     this.tabs.forEach(tab => {
@@ -106,7 +105,7 @@ export class GameMenu {
       this.tabsContainer.appendChild(tabButton);
     });
     
-    // RB icon (right of Controls)
+    // RB icon (right of Settings)
     this.rbIcon = document.createElement('div');
     this.rbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--rb ui__game-menu-icon';
     this.rbIcon.setAttribute('aria-label', 'Right Bumper');
@@ -173,7 +172,7 @@ export class GameMenu {
       const panel = document.createElement('div');
       panel.className = 'game-menu__panel ui__game-menu-panel';
       panel.dataset.panel = tab.id;
-      const isActive = tab.id === 'settings';
+      const isActive = tab.id === 'multiplayer';
       panel.setAttribute('aria-hidden', !isActive);
       // Use inert attribute to prevent focus on hidden panels
       if (!isActive) {
