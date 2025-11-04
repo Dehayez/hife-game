@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { GAME_CONSTANTS } from '../constants/config/GameConstants.js';
+import { GAME_CONSTANTS } from '../../config/GameConstants.js';
 
 /**
  * Get current player state for synchronization
