@@ -1008,20 +1008,6 @@ html, body {
     }
   }
 
-  &__section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-  }
-
-  &__section-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    flex: 1;
-  }
 
   &__section-content {
     padding: 20px;

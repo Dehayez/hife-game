@@ -902,21 +902,6 @@ html, body { height: 100%; margin: 0; }
   margin-bottom: 0;
 }
 
-/* Section header */
-.game-menu__section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-}
-
-.game-menu__section-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  flex: 1;
-}
 
 /* Section content - always visible */
 .game-menu__section-content {
@@ -932,9 +917,6 @@ html, body { height: 100%; margin: 0; }
   box-shadow: 0 0 8px rgba(var(--color-accent-rgb), 0.3);
 }
 
-.game-menu__section-header.game-menu__focused {
-  background: rgba(var(--color-accent-rgb), 0.15) !important;
-}
 
 .game-menu__tab.game-menu__focused {
   background: rgba(var(--color-accent-rgb), 0.2) !important;

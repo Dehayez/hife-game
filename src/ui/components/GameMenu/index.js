@@ -625,17 +625,6 @@ export class GameMenu {
       section.classList.add(sectionConfig.className);
     }
     
-    if (sectionConfig.title) {
-      const header = document.createElement('div');
-      header.className = 'game-menu__section-header ui__game-menu-section-header';
-      
-      const title = document.createElement('h3');
-      title.className = 'game-menu__section-title ui__game-menu-section-title';
-      title.textContent = sectionConfig.title;
-      header.appendChild(title);
-      
-      section.appendChild(header);
-    }
     
     const content = document.createElement('div');
     content.className = 'game-menu__section-content ui__game-menu-section-content';
