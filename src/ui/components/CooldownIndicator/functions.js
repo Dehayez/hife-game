@@ -1,7 +1,8 @@
-import { getMeleeStats } from '../../../core/systems/abilities/functions/CharacterAbilityStats.js';
+import { getMeleeStats, getBlastStats, getMultiProjectileStats } from '../../../core/systems/abilities/functions/CharacterAbilityStats.js';
 import { getCharacterColorCss } from '../../../config/abilities/CharacterColors.js';
+import { getCharacterPhysicsStats } from '../../../config/character/PhysicsConfig.js';
 
-export function updateCooldowns(projectileManager, characterManager, shotLabel, mortarLabel, meleeLabel, shotFill, mortarFill, meleeFill) {
+export function updateCooldowns(projectileManager, characterManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill) {
   if (!projectileManager || !characterManager) return;
   
   const characterName = characterManager.getCharacterName();
@@ -16,10 +17,18 @@ export function updateCooldowns(projectileManager, characterManager, shotLabel, 
   
   // Update labels based on character (fire spells for Herald/Pyre)
   const isHerald = characterName === 'herald';
-  // Update shot label to show bullet count (same format whether reloading or not)
-  shotLabel.innerHTML = isHerald ? `Bolt <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>` : `Shot <span class="ui__cooldown-key">(${bulletInfo.current}/${bulletInfo.max})</span>`;
+  // Update shot label without bullet count
+  shotLabel.innerHTML = isHerald ? 'Bolt <span class="ui__cooldown-key">(LMB)</span>' : 'Shot <span class="ui__cooldown-key">(LMB)</span>';
   mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RMB)</span>' : 'Mortar <span class="ui__cooldown-key">(RMB)</span>';
-  meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
+  
+  // Update melee/special ability label based on character
+  if (characterName === 'herald') {
+    meleeLabel.innerHTML = 'Blast <span class="ui__cooldown-key">(B)</span>';
+  } else if (characterName === 'lucy') {
+    meleeLabel.innerHTML = 'Multi-Projectile <span class="ui__cooldown-key">(B)</span>';
+  } else {
+    meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
+  }
   
   // Get character color for cooldown fills
   const characterColor = getCharacterColorCss(characterName);
@@ -37,6 +46,30 @@ export function updateCooldowns(projectileManager, characterManager, shotLabel, 
     shotFill.style.background = characterColor;
   }
   
+  // Update speed boost cooldown (Lucy and Herald)
+  const speedBoostInfo = projectileManager.getSpeedBoostInfo(playerId, characterName);
+  if (speedBoostLabel && speedBoostFill) {
+    if (speedBoostInfo) {
+      // Show speed boost indicator for characters with speed boost
+      speedBoostLabel.parentElement.style.display = 'block';
+      
+      if (speedBoostInfo.active) {
+        // Show duration progress (drains from full to empty as time expires)
+        speedBoostFill.style.width = `${(1 - speedBoostInfo.percentage) * 100}%`;
+        speedBoostFill.style.opacity = '1.0';
+        speedBoostFill.style.background = '#FFD700'; // Gold when active
+      } else {
+        // Show cooldown progress (fills from empty to full as cooldown completes)
+        speedBoostFill.style.width = `${(1 - speedBoostInfo.percentage) * 100}%`;
+        speedBoostFill.style.opacity = speedBoostInfo.percentage > 0 ? '0.6' : '1.0';
+        speedBoostFill.style.background = characterColor;
+      }
+    } else {
+      // Hide speed boost indicator for characters without speed boost
+      speedBoostLabel.parentElement.style.display = 'none';
+    }
+  }
+  
   // Update mortar cooldown
   const mortarCooldown = projectileManager.mortarCharacterCooldowns.getCooldown(playerId);
   const mortarMaxCooldown = stats.mortar.cooldown || 1.5;
@@ -45,12 +78,44 @@ export function updateCooldowns(projectileManager, characterManager, shotLabel, 
   mortarFill.style.opacity = mortarPercent > 0 ? '0.6' : '1.0';
   mortarFill.style.background = characterColor;
   
-  // Update melee cooldown
-  const meleeCooldown = projectileManager.meleeCharacterCooldowns.getCooldown(playerId);
-  const meleeMaxCooldown = meleeStats.cooldown || 1.5;
+  // Update melee/special ability cooldown
+  let meleeCooldown = 0;
+  let meleeMaxCooldown = 1.5;
+  
+  if (characterName === 'herald') {
+    // Use special ability cooldown for Herald's blast
+    const blastStats = getBlastStats(characterName);
+    if (blastStats) {
+      meleeCooldown = projectileManager.getSpecialAbilityCooldown ? projectileManager.getSpecialAbilityCooldown(playerId) : 0;
+      meleeMaxCooldown = blastStats.cooldown || 5.0;
+    }
+  } else if (characterName === 'lucy') {
+    // Use special ability cooldown for Lucy's multi-projectile
+    const multiProjectileStats = getMultiProjectileStats(characterName);
+    if (multiProjectileStats) {
+      meleeCooldown = projectileManager.getSpecialAbilityCooldown ? projectileManager.getSpecialAbilityCooldown(playerId) : 0;
+      meleeMaxCooldown = multiProjectileStats.cooldown || 4.0;
+    }
+  } else {
+    // Use melee cooldown for other characters
+    meleeCooldown = projectileManager.meleeCharacterCooldowns.getCooldown(playerId);
+    meleeMaxCooldown = meleeStats.cooldown || 1.5;
+  }
+  
   const meleePercent = meleeMaxCooldown > 0 ? Math.min(meleeCooldown / meleeMaxCooldown, 1.0) : 0;
   meleeFill.style.width = `${(1 - meleePercent) * 100}%`;
   meleeFill.style.opacity = meleePercent > 0 ? '0.6' : '1.0';
   meleeFill.style.background = characterColor;
+  
+  // Update levitation cooldown
+  if (levitateFill && levitateLabel) {
+    const physicsStats = getCharacterPhysicsStats();
+    const levitationCooldown = characterManager.getLevitationCooldown();
+    const levitationMaxCooldown = physicsStats.levitationCooldownTime || 0.3;
+    const levitationPercent = levitationMaxCooldown > 0 ? Math.min(levitationCooldown / levitationMaxCooldown, 1.0) : 0;
+    levitateFill.style.width = `${(1 - levitationPercent) * 100}%`;
+    levitateFill.style.opacity = levitationPercent > 0 ? '0.6' : '1.0';
+    levitateFill.style.background = characterColor;
+  }
 }
 

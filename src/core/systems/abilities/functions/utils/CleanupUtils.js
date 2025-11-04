@@ -17,17 +17,25 @@ export function disposeMesh(mesh) {
   if (!mesh) return;
   
   if (mesh.geometry) {
-    // Check if this is a pooled geometry (Sphere, Octahedron, or Cone)
-    // Use type check as optimization, but pool will handle disposal if not found
-    const geometryType = mesh.geometry.type;
-    if (geometryType === 'SphereGeometry' || 
-        geometryType === 'OctahedronGeometry' || 
-        geometryType === 'ConeGeometry') {
-      // Return to pool instead of disposing
-      const pool = getGeometryPool();
-      pool.releaseFromMesh(mesh, 1);
+    // Check if this is a cloned geometry (should be disposed, not returned to pool)
+    const isCloned = mesh.geometry.userData?.isCloned;
+    
+    if (!isCloned) {
+      // Check if this is a pooled geometry (Sphere, Octahedron, or Cone)
+      // Use type check as optimization, but pool will handle disposal if not found
+      const geometryType = mesh.geometry.type;
+      if (geometryType === 'SphereGeometry' || 
+          geometryType === 'OctahedronGeometry' || 
+          geometryType === 'ConeGeometry') {
+        // Return to pool instead of disposing
+        const pool = getGeometryPool();
+        pool.releaseFromMesh(mesh, 1);
+      } else {
+        // For other geometry types, dispose normally
+        mesh.geometry.dispose();
+      }
     } else {
-      // For other geometry types, dispose normally
+      // Cloned geometries should be disposed directly
       mesh.geometry.dispose();
     }
   }
@@ -70,16 +78,24 @@ export function disposeChildren(container) {
   
   container.children.forEach(child => {
     if (child.geometry) {
-      // Check if this is a pooled geometry (Sphere, Octahedron, or Cone)
-      // Use type check as optimization, but pool will handle disposal if not found
-      const geometryType = child.geometry.type;
-      if (geometryType === 'SphereGeometry' || 
-          geometryType === 'OctahedronGeometry' || 
-          geometryType === 'ConeGeometry') {
-        // Return to pool instead of disposing
-        pool.releaseFromMesh(child, 1);
+      // Check if this is a cloned geometry (should be disposed, not returned to pool)
+      const isCloned = child.geometry.userData?.isCloned;
+      
+      if (!isCloned) {
+        // Check if this is a pooled geometry (Sphere, Octahedron, or Cone)
+        // Use type check as optimization, but pool will handle disposal if not found
+        const geometryType = child.geometry.type;
+        if (geometryType === 'SphereGeometry' || 
+            geometryType === 'OctahedronGeometry' || 
+            geometryType === 'ConeGeometry') {
+          // Return to pool instead of disposing
+          pool.releaseFromMesh(child, 1);
+        } else {
+          // For other geometry types, dispose normally
+          child.geometry.dispose();
+        }
       } else {
-        // For other geometry types, dispose normally
+        // Cloned geometries should be disposed directly
         child.geometry.dispose();
       }
     }

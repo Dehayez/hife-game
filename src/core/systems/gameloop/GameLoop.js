@@ -6,11 +6,12 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor, getMeleeStats, getMortarStats } from '../abilities/functions/CharacterAbilityStats.js';
+import { getCharacterColor, getMeleeStats, getMortarStats, getBlastStats, getMultiProjectileStats } from '../abilities/functions/CharacterAbilityStats.js';
 import { setLastCharacter } from '../../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/functions/mortar/MortarArcPreview.js';
 import { VibrationManager } from '../../../utils/VibrationManager.js';
 import { getHealingVibrationInterval } from '../../../config/global/VibrationConfig.js';
+import { getVibrationIntensity } from '../../../utils/StorageUtils.js';
 
 export class GameLoop {
   /**
@@ -26,8 +27,9 @@ export class GameLoop {
    * @param {Object} healthBarManager - Health bar manager instance (optional)
    * @param {Object} multiplayerManager - Multiplayer manager instance (optional)
    * @param {Object} remotePlayerManager - Remote player manager instance (optional)
+   * @param {Object} learningManager - Bot learning manager instance (optional)
    */
-  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null, botManager = null, healthBarManager = null, multiplayerManager = null, remotePlayerManager = null) {
+  constructor(sceneManager, characterManager, inputManager, collisionManager, gameModeManager, entityManager, projectileManager = null, botManager = null, healthBarManager = null, multiplayerManager = null, remotePlayerManager = null, learningManager = null) {
     this.sceneManager = sceneManager;
     this.characterManager = characterManager;
     this.inputManager = inputManager;
@@ -39,6 +41,7 @@ export class GameLoop {
     this.healthBarManager = healthBarManager;
     this.multiplayerManager = multiplayerManager;
     this.remotePlayerManager = remotePlayerManager;
+    this.learningManager = learningManager;
     
     // Set up bot death callback to track kills
     if (this.botManager) {
@@ -64,6 +67,7 @@ export class GameLoop {
     this.lastMortarInput = false;
     this.lastCharacterSwapInput = false;
     this.lastSwordSwingInput = false;
+    this.lastSpeedBoostInput = false;
     this.lastHealInput = false;
     
     // Healing hold duration tracking
@@ -74,12 +78,23 @@ export class GameLoop {
     this.swordSwingAnimationDuration = 0.5; // Default duration (will be updated per character)
     this.lastCharacterPositionForParticles = null; // Track character position for particles that follow
     this.swordSwingCircle = null; // Reference to the sword swing circle visual effect
+    
+    // Blast animation tracking (Herald)
+    this.blastAnimationTime = 0;
+    this.blastAnimationDuration = 0.8; // Default duration
+    this.blastCircle = null; // Reference to the blast circle visual effect
+    
+    // Multi-projectile animation tracking (Lucy)
+    this.multiProjectileAnimationTime = 0;
+    this.multiProjectileAnimationDuration = 0.6; // Default duration
+    this.multiProjectileCircle = null; // Reference to the multi-projectile circle visual effect
     this.meleeDamageTickTimer = 0; // Timer for damage over time ticks
     this.meleeAffectedEntities = new Set(); // Track entities in range for damage over time
     this.meleeDamagePerTick = null; // Damage per tick (set during attack)
     this.meleeTickInterval = null; // Tick interval (set during attack)
     this.meleeRange = null; // Attack range (set during attack)
     this.meleeCooldownTimer = 0; // Cooldown timer for melee attacks
+    this.specialAbilityCooldownTimer = 0; // Cooldown timer for special abilities (Herald blast, Lucy multi-projectile)
     this.meleePoisonDamage = null; // Poison damage per tick (set during attack)
     this.meleePoisonTickInterval = null; // Poison tick interval (set during attack)
     this.meleePoisonDuration = null; // Poison duration (set during attack)
@@ -102,6 +117,7 @@ export class GameLoop {
     this.lastLeftTriggerInput = false; // Track LT press/release
     this.lastRightTriggerInput = false; // Track RT press/release
     this.mortarReleaseCooldown = 0; // Cooldown timer after releasing mortar (prevents immediate bolt)
+    this.healingActive = false; // Track if healing is currently active
     
     // Visual effects managers
     this.screenShakeManager = null;
@@ -111,6 +127,15 @@ export class GameLoop {
     
     // Vibration manager for gamepad haptic feedback
     this.vibrationManager = new VibrationManager(inputManager);
+    
+    // Initialize vibration intensity from storage
+    try {
+      const vibrationIntensity = getVibrationIntensity();
+      this.vibrationManager.setIntensity(vibrationIntensity);
+    } catch (error) {
+      // Use default intensity if storage read fails
+      this.vibrationManager.setIntensity(1.0);
+    }
     
     // Track previous grounded state for landing detection
     this._wasGrounded = true;
@@ -174,9 +199,9 @@ export class GameLoop {
     }
     
     // Clean up mortar hold visual when stopping
-    if (this.mortarHoldVisual) {
-      this._removeMortarHoldVisual();
-    }
+      if (this.mortarHoldVisual) {
+        this._removeMortarHoldVisual();
+      }
   }
 
   /**
@@ -201,8 +226,16 @@ export class GameLoop {
     if (!this.isRunning) return;
     
     const now = performance.now();
-    const dt = Math.min((now - this.lastTime) / 1000, 0.033);
+    let dt = (now - this.lastTime) / 1000;
     this.lastTime = now;
+
+    // Clamp dt to prevent invalid values and large spikes
+    // Clamp between 0.0001 and 0.033 (1/30 second max)
+    if (typeof dt !== 'number' || isNaN(dt) || !isFinite(dt) || dt <= 0) {
+      dt = 0.016; // Default to ~60fps
+    } else {
+      dt = Math.min(Math.max(dt, 0.0001), 0.033);
+    }
 
     this.update(dt);
     this.sceneManager.render();
@@ -225,6 +258,16 @@ export class GameLoop {
     }
     
     const player = this.characterManager.getPlayer();
+    
+    // Update sound manager listener position for distance-based volume
+    if (player && this.characterManager.getSoundManager()) {
+      const listenerPosition = {
+        x: player.position.x,
+        y: player.position.y,
+        z: player.position.z
+      };
+      this.characterManager.getSoundManager().setListenerPosition(listenerPosition);
+    }
     
     // Update gamepad input state (polling each frame)
     this.inputManager.updateGamepad(dt);
@@ -261,6 +304,11 @@ export class GameLoop {
     // Update game mode
     if (this.gameModeManager) {
       this.gameModeManager.update(dt, this.entityManager);
+    }
+    
+    // Update learning system periodically
+    if (this.learningManager && mode === 'shooting') {
+      this.learningManager.updateLearning();
     }
     
     // Handle shooting mode
@@ -330,15 +378,33 @@ export class GameLoop {
     }
     this.lastCharacterSwapInput = characterSwapInput;
     
-    // Handle sword swing (B button)
+    // Handle sword swing (B button) - now used for special abilities
     const swordSwingInput = this.inputManager.isSwordSwingPressed();
     if (swordSwingInput && !this.lastSwordSwingInput) {
       // Check cooldown before allowing attack
-      if (this.meleeCooldownTimer <= 0) {
-        this._handleSwordSwing(player);
+      if (this.specialAbilityCooldownTimer <= 0) {
+        const characterName = this.characterManager.getCharacterName();
+        if (characterName === 'herald') {
+          this._handleHeraldBlast(player);
+        } else if (characterName === 'lucy') {
+          this._handleLucyMultiProjectile(player);
+        } else {
+          // Fallback to melee for other characters
+          if (this.meleeCooldownTimer <= 0) {
+            this._handleSwordSwing(player);
+          }
+        }
       }
     }
     this.lastSwordSwingInput = swordSwingInput;
+    
+    // Update special ability cooldown timer
+    if (this.specialAbilityCooldownTimer > 0) {
+      this.specialAbilityCooldownTimer -= dt;
+      if (this.specialAbilityCooldownTimer < 0) {
+        this.specialAbilityCooldownTimer = 0;
+      }
+    }
     
     // Update melee cooldown timer
     if (this.meleeCooldownTimer > 0) {
@@ -352,6 +418,8 @@ export class GameLoop {
     if (this.projectileManager) {
       const playerId = 'local';
       this.projectileManager.setMeleeCooldown(playerId, this.meleeCooldownTimer);
+      // Sync special ability cooldown for UI display
+      this.projectileManager.setSpecialAbilityCooldown(playerId, this.specialAbilityCooldownTimer);
     }
     
     // Handle heal/reload (X button)
@@ -368,6 +436,7 @@ export class GameLoop {
 
     // Track if healing is actually active (not just button pressed)
     let isHealingActive = false;
+    
 
     // In shooting mode, X button is for reload (tap) or heal (hold)
     if (mode === 'shooting' && this.projectileManager) {
@@ -402,6 +471,9 @@ export class GameLoop {
       }
     }
 
+    // Update healing active state
+    this.healingActive = isHealingActive;
+    
     // Update healing active state in InputManager to prevent sprinting while healing
     this.inputManager.setHealingActive(isHealingActive);
 
@@ -454,6 +526,12 @@ export class GameLoop {
         this.gameModeManager.modeState.deaths++;
       }
       const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
+      
+      // Play respawn sound
+      const soundManager = this.characterManager.getSoundManager();
+      if (soundManager) {
+        soundManager.playRespawn();
+      }
       
       // Reset all cooldowns on respawn
       this.resetCooldowns();
@@ -518,30 +596,36 @@ export class GameLoop {
           
           const playerPos = player.position;
           const radius = this.meleeRange;
+          const radiusSq = radius * radius; // Pre-calculate squared radius for distance comparison
           const damagePerTick = this.meleeDamagePerTick;
           
-          // Damage bots in range
+          // Damage bots in range - optimized with distance squared comparison
           if (this.botManager) {
-            this.botManager.getAllBots().forEach(bot => {
-              const distance = Math.sqrt(
-                Math.pow(bot.position.x - playerPos.x, 2) + 
-                Math.pow(bot.position.z - playerPos.z, 2)
-              );
-              if (distance <= radius) {
-                // Check line of sight - don't damage through walls
-                // Use attack radius for more accurate circle-based checking
-                const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
-                const targetPos = new THREE.Vector3(bot.position.x, bot.position.y, bot.position.z);
-                const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
-                
-                if (!sightCheck.clear) {
-                  // Wall is blocking - remove from tracking and skip damage
-                  this.meleeAffectedEntities.delete(bot);
-                  return; // Skip this bot
+            const bots = this.botManager.getAllBots();
+            for (let i = 0; i < bots.length; i++) {
+              const bot = bots[i];
+              const dx = bot.position.x - playerPos.x;
+              const dz = bot.position.z - playerPos.z;
+              const distanceSq = dx * dx + dz * dz; // Use squared distance to avoid sqrt
+              
+              if (distanceSq <= radiusSq) {
+                // Only check line of sight if not already tracked (optimization)
+                // If already in affected entities, skip expensive line of sight check
+                if (!this.meleeAffectedEntities.has(bot)) {
+                  const sightCheck = this._hasLineOfSight(
+                    playerPos, 
+                    bot.position, 
+                    radius, 
+                    0.3
+                  );
+                  
+                  if (!sightCheck.clear) {
+                    continue; // Skip this bot - wall is blocking
+                  }
+                  
+                  // Track this bot as affected
+                  this.meleeAffectedEntities.add(bot);
                 }
-                
-                // Track this bot as affected
-                this.meleeAffectedEntities.add(bot);
                 
                 // Apply damage per tick
                 const botDied = this.botManager.damageBot(bot, damagePerTick, 'local');
@@ -553,35 +637,38 @@ export class GameLoop {
                 // Remove from tracking if out of range
                 this.meleeAffectedEntities.delete(bot);
               }
-            });
+            }
           }
           
-          // Damage remote players in multiplayer mode
+          // Damage remote players in multiplayer mode - optimized
           if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
             const remotePlayers = this.remotePlayerManager.getRemotePlayers();
             for (const [playerId, remotePlayer] of remotePlayers) {
               const mesh = remotePlayer.mesh;
               if (!mesh) continue;
               
-              const distance = Math.sqrt(
-                Math.pow(mesh.position.x - playerPos.x, 2) + 
-                Math.pow(mesh.position.z - playerPos.z, 2)
-              );
-              if (distance <= radius) {
-                // Check line of sight - don't damage through walls
-                // Use attack radius for more accurate circle-based checking
-                const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
-                const targetPos = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
-                const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
-                
-                if (!sightCheck.clear) {
-                  // Wall is blocking - remove from tracking and skip damage
-                  this.meleeAffectedEntities.delete(`remote_${playerId}`);
-                  continue; // Skip this remote player
+              const dx = mesh.position.x - playerPos.x;
+              const dz = mesh.position.z - playerPos.z;
+              const distanceSq = dx * dx + dz * dz; // Use squared distance to avoid sqrt
+              const entityKey = `remote_${playerId}`;
+              
+              if (distanceSq <= radiusSq) {
+                // Only check line of sight if not already tracked (optimization)
+                if (!this.meleeAffectedEntities.has(entityKey)) {
+                  const sightCheck = this._hasLineOfSight(
+                    playerPos,
+                    mesh.position,
+                    radius,
+                    0.3
+                  );
+                  
+                  if (!sightCheck.clear) {
+                    continue; // Skip this remote player - wall is blocking
+                  }
+                  
+                  // Track this remote player as affected
+                  this.meleeAffectedEntities.add(entityKey);
                 }
-                
-                // Track this remote player as affected
-                this.meleeAffectedEntities.add(`remote_${playerId}`);
                 
                 // Apply damage per tick to remote player (server will sync)
                 if (mesh.userData && mesh.userData.health !== undefined) {
@@ -596,7 +683,7 @@ export class GameLoop {
                 }
               } else {
                 // Remove from tracking if out of range
-                this.meleeAffectedEntities.delete(`remote_${playerId}`);
+                this.meleeAffectedEntities.delete(entityKey);
               }
             }
           }
@@ -681,6 +768,72 @@ export class GameLoop {
           this.swordSwingCircle.geometry.dispose();
           this.swordSwingCircle.material.dispose();
           this.swordSwingCircle = null;
+        }
+      }
+    }
+
+    // Update blast animation timer and circle position
+    if (this.blastAnimationTime > 0 && player) {
+      this.blastAnimationTime -= dt;
+      
+      // Update circle position to follow character
+      if (this.blastCircle) {
+        this.blastCircle.position.set(
+          player.position.x,
+          player.position.y + 0.2,
+          player.position.z
+        );
+        
+        // Animate circle expanding and fading
+        const progress = 1 - (this.blastAnimationTime / this.blastAnimationDuration);
+        if (this.blastCircle.material) {
+          this.blastCircle.material.opacity = 0.9 * (1 - progress);
+        }
+      }
+      
+      // Clean up when animation ends
+      if (this.blastAnimationTime <= 0) {
+        this.blastAnimationTime = 0;
+        
+        // Remove and dispose of circle
+        if (this.blastCircle) {
+          this.sceneManager.getScene().remove(this.blastCircle);
+          this.blastCircle.geometry.dispose();
+          this.blastCircle.material.dispose();
+          this.blastCircle = null;
+        }
+      }
+    }
+
+    // Update multi-projectile animation timer and circle position
+    if (this.multiProjectileAnimationTime > 0 && player) {
+      this.multiProjectileAnimationTime -= dt;
+      
+      // Update circle position to follow character
+      if (this.multiProjectileCircle) {
+        this.multiProjectileCircle.position.set(
+          player.position.x,
+          player.position.y + 0.2,
+          player.position.z
+        );
+        
+        // Animate circle fading
+        const progress = 1 - (this.multiProjectileAnimationTime / this.multiProjectileAnimationDuration);
+        if (this.multiProjectileCircle.material) {
+          this.multiProjectileCircle.material.opacity = 0.8 * (1 - progress);
+        }
+      }
+      
+      // Clean up when animation ends
+      if (this.multiProjectileAnimationTime <= 0) {
+        this.multiProjectileAnimationTime = 0;
+        
+        // Remove and dispose of circle
+        if (this.multiProjectileCircle) {
+          this.sceneManager.getScene().remove(this.multiProjectileCircle);
+          this.multiProjectileCircle.geometry.dispose();
+          this.multiProjectileCircle.material.dispose();
+          this.multiProjectileCircle = null;
         }
       }
     }
@@ -791,6 +944,19 @@ export class GameLoop {
       // Clear shoot input when in mortar hold mode or during cooldown
       this.lastShootInput = false;
     }
+    
+    // Handle speed boost input (LB button) - Lucy only
+    const speedBoostInput = this.inputManager.isSpeedBoostPressed();
+    if (speedBoostInput && !this.lastSpeedBoostInput) {
+      const characterName = this.characterManager.getCharacterName();
+      const playerId = 'local';
+      console.log('[SpeedBoost] Button pressed, activating for:', characterName);
+      const activated = this.projectileManager.activateSpeedBoost(playerId, characterName);
+      if (!activated) {
+        console.log('[SpeedBoost] Activation failed');
+      }
+    }
+    this.lastSpeedBoostInput = speedBoostInput;
     
     // Handle mortar hold system (RB hold, LT preview, RT release)
     this._handleMortarHoldSystem(player, dt);
@@ -998,6 +1164,15 @@ export class GameLoop {
       targetZ
     );
     
+    // Track player shot for learning system
+    if (projectile && this.learningManager) {
+      const playerPosVec = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
+      const targetPosVec = targetX !== null && targetZ !== null 
+        ? new THREE.Vector3(targetX, playerPos.y, targetZ)
+        : null;
+      this.learningManager.trackPlayerShot(playerPosVec, targetPosVec);
+    }
+    
     // Vibration for shooting bolt
     if (projectile && this.vibrationManager) {
       this.vibrationManager.shoot();
@@ -1102,6 +1277,7 @@ export class GameLoop {
       
       // Only release if not on cooldown
       if (canShoot) {
+        
         // RT just pressed - release mortar
         this._handleMortarInput(player);
         // Exit mortar hold mode after release
@@ -1606,6 +1782,21 @@ export class GameLoop {
       this.vibrationManager.mortar();
     }
     
+    // Play launch sound and start arc sound
+    if (mortar) {
+      const soundManager = this.characterManager.getSoundManager();
+      if (soundManager) {
+        // Play launch sound
+        soundManager.playMortarLaunch();
+        
+        // Start arc sound (continuous whoosh during flight)
+        const arcSound = soundManager.playMortarArc();
+        if (arcSound && mortar.userData) {
+          mortar.userData.arcSound = arcSound; // Store for cleanup when mortar hits ground
+        }
+      }
+    }
+    
     // Send mortar to other players via multiplayer
     if (mortar && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
       this.multiplayerManager.sendProjectileCreate({
@@ -1774,6 +1965,12 @@ export class GameLoop {
    */
   _applyDamageToPlayer(damage, player, shooterId = null) {
     if (this.characterManager) {
+      // Play take damage sound
+      const soundManager = this.characterManager.getSoundManager();
+      if (soundManager) {
+        soundManager.playTakeDamage();
+      }
+      
       const isDead = this.characterManager.takeDamage(damage);
       const currentHealth = this.characterManager.getHealth();
       const maxHealth = this.characterManager.getMaxHealth();
@@ -1825,6 +2022,11 @@ export class GameLoop {
         // Player died - play death animation and start fade out
         // Only trigger once (check if already dying)
         if (!this.characterManager.isDying()) {
+          // Play death sound
+          if (soundManager) {
+            soundManager.playDeath();
+          }
+          
           this.characterManager.playDeathAnimation();
           
           // Vibration for death
@@ -1881,6 +2083,12 @@ export class GameLoop {
         player.position.z = nextPos.z;
       }
 
+      // Track player movement for learning system
+      if (this.learningManager) {
+        const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+        this.learningManager.trackPlayerMovement(playerPos, velocity);
+      }
+      
       // Update character movement and animation
       // isRunning() already checks mortarHoldActive internally, so we can use it directly
       const isRunning = this.inputManager.isRunning();
@@ -1900,6 +2108,12 @@ export class GameLoop {
     // Vibration for character swap
     if (this.vibrationManager) {
       this.vibrationManager.characterSwap();
+    }
+    
+    // Play character swap sound
+    const soundManager = this.characterManager.getSoundManager();
+    if (soundManager) {
+      soundManager.playCharacterSwap();
     }
     
     const currentChar = this.characterManager.getCharacterName();
@@ -1958,7 +2172,7 @@ export class GameLoop {
    * @param {number} dt - Delta time
    * @private
    */
-  _handleHeal(player, dt) {
+  async _handleHeal(player, dt) {
     // Base heal rate per second
     const baseHealRate = 5; // HP per second
     
@@ -2012,7 +2226,7 @@ export class GameLoop {
 
   /**
    * Check if there's a clear line of sight between two points (no walls blocking)
-   * Optimized with adaptive sampling and circle area checking
+   * Optimized with reduced sampling and early exits
    * @param {THREE.Vector3} startPos - Start position
    * @param {THREE.Vector3} targetPos - Target position
    * @param {number} attackRadius - Radius of the attack circle (uses meleeRange if available)
@@ -2025,19 +2239,20 @@ export class GameLoop {
     
     const dx = targetPos.x - startPos.x;
     const dz = targetPos.z - startPos.z;
-    const distance = Math.sqrt(dx * dx + dz * dz);
+    const distanceSq = dx * dx + dz * dz;
+    const distance = Math.sqrt(distanceSq);
     
     if (distance < 0.1) return { clear: true, blockagePercentage: 0 }; // Very close, assume clear
     
     // Use attack radius if provided, otherwise use a default check radius
     const checkRadius = attackRadius || 0.3;
     
-    // Adaptive sampling: more samples for longer distances and larger attack radius
-    // Base samples: 8, add more for distance and radius
-    const baseSamples = 8;
-    const distanceSamples = Math.ceil(distance / 2); // +1 sample per 2 units
-    const radiusSamples = Math.ceil(checkRadius * 4); // More samples for larger radius
-    const totalSamples = Math.min(baseSamples + distanceSamples + radiusSamples, 20); // Cap at 20
+    // Reduced sampling for performance - fewer samples, more efficient
+    // Reduced from 8-20 samples to 4-10 samples
+    const baseSamples = 4;
+    const distanceSamples = Math.ceil(distance / 3); // +1 sample per 3 units (reduced frequency)
+    const radiusSamples = Math.ceil(checkRadius * 2); // Reduced from 4 to 2
+    const totalSamples = Math.min(baseSamples + distanceSamples + radiusSamples, 10); // Cap at 10 (reduced from 20)
     
     // Normalize direction
     const dirX = dx / distance;
@@ -2053,11 +2268,9 @@ export class GameLoop {
       const checkZ = startPos.z + dirZ * distance * t;
       const checkY = startPos.y; // Use start Y position
       
-      const checkPos = new THREE.Vector3(checkX, checkY, checkZ);
-      
       // Check if this point (with circle radius) collides with walls
       // Use checkRadius * 2 to match the collision manager's expected size parameter
-      if (this.collisionManager.willCollide(checkPos, checkRadius * 2)) {
+      if (this.collisionManager.willCollide(new THREE.Vector3(checkX, checkY, checkZ), checkRadius * 2)) {
         blockedSamples++;
         
         // Track first blocked point for early optimization
@@ -2067,12 +2280,11 @@ export class GameLoop {
         
         // Early exit optimization: if significant blockage found early, return immediately
         // This prevents checking further when we already know it's blocked
-        const currentBlockage = blockedSamples / i;
-        if (currentBlockage > blockageThreshold && i >= Math.min(4, totalSamples / 2)) {
-          // If more than threshold is blocked and we've checked at least 4 points or half the path
+        if (blockedSamples >= 2 && i >= 3) {
+          // If 2+ samples are blocked after checking at least 3 points, likely blocked
           return { 
             clear: false, 
-            blockagePercentage: currentBlockage,
+            blockagePercentage: blockedSamples / i,
             blockedDistance: firstBlockedDistance
           };
         }
@@ -2101,6 +2313,12 @@ export class GameLoop {
     // Vibration for sword swing
     if (this.vibrationManager) {
       this.vibrationManager.swordSwing();
+    }
+    
+    // Play melee swing sound
+    const soundManager = this.characterManager.getSoundManager();
+    if (soundManager) {
+      soundManager.playMeleeSwing();
     }
     
     // Get character-specific melee stats
@@ -2180,21 +2398,32 @@ export class GameLoop {
     
     // Apply immediate damage on first hit
     const playerPos = player.position;
+    const radiusSq = radius * radius; // Pre-calculate squared radius
     
-    // Damage bots in range immediately
+    // Damage bots in range immediately - optimized
     if (this.botManager && initialDamage > 0) {
-      this.botManager.getAllBots().forEach(bot => {
-        const distance = Math.sqrt(
-          Math.pow(bot.position.x - playerPos.x, 2) + 
-          Math.pow(bot.position.z - playerPos.z, 2)
-        );
-        if (distance <= radius) {
+      const bots = this.botManager.getAllBots();
+      let hitSoundPlayed = false; // Only play sound once per swing
+      for (let i = 0; i < bots.length; i++) {
+        const bot = bots[i];
+        const dx = bot.position.x - playerPos.x;
+        const dz = bot.position.z - playerPos.z;
+        const distanceSq = dx * dx + dz * dz; // Use squared distance to avoid sqrt
+        
+        if (distanceSq <= radiusSq) {
           // Check line of sight - don't damage through walls
-          const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
-          const targetPos = new THREE.Vector3(bot.position.x, bot.position.y, bot.position.z);
-          const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
+          const sightCheck = this._hasLineOfSight(playerPos, bot.position, radius, 0.3);
           
           if (sightCheck.clear) {
+            // Play melee hit sound (once per swing)
+            if (!hitSoundPlayed) {
+              const soundManager = this.characterManager.getSoundManager();
+              if (soundManager) {
+                soundManager.playMeleeHit();
+                hitSoundPlayed = true;
+              }
+            }
+            
             // Apply immediate damage
             const botDied = this.botManager.damageBot(bot, initialDamage, 'local');
             if (!botDied) {
@@ -2203,27 +2432,35 @@ export class GameLoop {
             }
           }
         }
-      });
+      }
     }
     
-    // Damage remote players in multiplayer mode immediately
+    // Damage remote players in multiplayer mode immediately - optimized
     if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom() && initialDamage > 0) {
       const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+      let hitSoundPlayed = false; // Only play sound once per swing (may be set by bots above)
       for (const [playerId, remotePlayer] of remotePlayers) {
         const mesh = remotePlayer.mesh;
         if (!mesh) continue;
         
-        const distance = Math.sqrt(
-          Math.pow(mesh.position.x - playerPos.x, 2) + 
-          Math.pow(mesh.position.z - playerPos.z, 2)
-        );
-        if (distance <= radius) {
+        const dx = mesh.position.x - playerPos.x;
+        const dz = mesh.position.z - playerPos.z;
+        const distanceSq = dx * dx + dz * dz; // Use squared distance to avoid sqrt
+        
+        if (distanceSq <= radiusSq) {
           // Check line of sight - don't damage through walls
-          const startPos = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
-          const targetPos = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
-          const sightCheck = this._hasLineOfSight(startPos, targetPos, radius, 0.3);
+          const sightCheck = this._hasLineOfSight(playerPos, mesh.position, radius, 0.3);
           
           if (sightCheck.clear) {
+            // Play melee hit sound (once per swing)
+            if (!hitSoundPlayed) {
+              const soundManager = this.characterManager.getSoundManager();
+              if (soundManager) {
+                soundManager.playMeleeHit();
+                hitSoundPlayed = true;
+              }
+            }
+            
             // Apply immediate damage to remote player (server will sync)
             if (mesh.userData && mesh.userData.health !== undefined) {
               mesh.userData.health = Math.max(0, mesh.userData.health - initialDamage);
@@ -2246,6 +2483,246 @@ export class GameLoop {
     }
     
     // Damage will be applied over time during the animation duration
+  }
+
+  /**
+   * Handle Herald's blast ability - blows all characters in radius far away
+   * @param {THREE.Mesh} player - Player mesh
+   * @private
+   */
+  _handleHeraldBlast(player) {
+    // Vibration for blast
+    if (this.vibrationManager) {
+      this.vibrationManager.veryHeavy();
+    }
+    
+    // Play blast sound
+    const soundManager = this.characterManager.getSoundManager();
+    if (soundManager) {
+      // Try to play custom blast sound, fallback to melee swing
+      soundManager.playMeleeSwing();
+    }
+    
+    // Get blast stats
+    const blastStats = getBlastStats('herald');
+    if (!blastStats) return;
+    
+    const radius = blastStats.radius;
+    const horizontalVelocity = blastStats.horizontalVelocity;
+    const verticalVelocity = blastStats.verticalVelocity;
+    const velocityDecay = blastStats.velocityDecay;
+    const bounceRestitution = blastStats.bounceRestitution;
+    const minBounceVelocity = blastStats.minBounceVelocity;
+    const cooldown = blastStats.cooldown;
+    const animationDuration = blastStats.animationDuration;
+    
+    // Set cooldown timer
+    this.specialAbilityCooldownTimer = cooldown;
+    
+    // Create visual effect (expanding circle)
+    const segments = 32;
+    const geometry = new THREE.RingGeometry(0, radius, segments);
+    const characterColor = this._getCharacterColorForParticles('herald');
+    const material = new THREE.MeshBasicMaterial({
+      color: characterColor,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide
+    });
+    
+    const circle = new THREE.Mesh(geometry, material);
+    circle.rotation.x = -Math.PI / 2; // Lay flat on ground
+    circle.position.set(player.position.x, player.position.y + 0.2, player.position.z);
+    
+    // Store reference to circle for animation
+    this.blastCircle = circle;
+    this.blastAnimationTime = animationDuration;
+    this.blastAnimationDuration = animationDuration;
+    
+    // Add to scene
+    this.sceneManager.getScene().add(circle);
+    
+    // Spawn particles
+    if (this.characterManager.particleManager) {
+      const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+      this.characterManager.particleManager.spawnSwordSwingParticles(playerPos, characterColor, radius, animationDuration);
+    }
+    
+    // Push all characters away
+    const playerPos = player.position;
+    const radiusSq = radius * radius; // Pre-calculate squared radius
+    const minDistanceSq = 0.01; // 0.1^2 for minimum distance check
+    
+    // Blast bots away with velocity - optimized
+    if (this.botManager) {
+      const bots = this.botManager.getAllBots();
+      for (let i = 0; i < bots.length; i++) {
+        const bot = bots[i];
+        const dx = bot.position.x - playerPos.x;
+        const dz = bot.position.z - playerPos.z;
+        const distanceSq = dx * dx + dz * dz;
+        
+        if (distanceSq <= radiusSq && distanceSq > minDistanceSq) {
+          const distance = Math.sqrt(distanceSq); // Only calculate sqrt when needed
+          // Normalize direction
+          const dirX = dx / distance;
+          const dirZ = dz / distance;
+          
+          // Calculate velocity based on distance (stronger when closer)
+          const distanceMultiplier = 1 - distance / radius;
+          const velX = dirX * horizontalVelocity * distanceMultiplier;
+          const velZ = dirZ * horizontalVelocity * distanceMultiplier;
+          
+          // Apply horizontal velocity
+          bot.userData.velocityX = velX;
+          bot.userData.velocityZ = velZ;
+          
+          // Apply vertical velocity (launch up)
+          bot.userData.velocityY = verticalVelocity;
+          
+          // Mark as knocked back for bounce physics
+          bot.userData.isKnockedBack = true;
+        }
+      }
+    }
+    
+    // Blast remote players away with velocity - optimized
+    if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+      const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+      for (const [playerId, remotePlayer] of remotePlayers) {
+        const mesh = remotePlayer.mesh;
+        if (!mesh) continue;
+        
+        const dx = mesh.position.x - playerPos.x;
+        const dz = mesh.position.z - playerPos.z;
+        const distanceSq = dx * dx + dz * dz;
+        
+        if (distanceSq <= radiusSq && distanceSq > minDistanceSq) {
+          const distance = Math.sqrt(distanceSq); // Only calculate sqrt when needed
+          // Normalize direction
+          const dirX = dx / distance;
+          const dirZ = dz / distance;
+          
+          // Calculate velocity based on distance (stronger when closer)
+          const distanceMultiplier = 1 - distance / radius;
+          const velX = dirX * horizontalVelocity * distanceMultiplier;
+          const velZ = dirZ * horizontalVelocity * distanceMultiplier;
+          
+          // Apply horizontal velocity (store in remote player data)
+          remotePlayer.velocityX = velX;
+          remotePlayer.velocityZ = velZ;
+          
+          // Apply vertical velocity (launch up) - store in mesh userData if available
+          if (mesh.userData) {
+            if (!mesh.userData.characterData) {
+              mesh.userData.characterData = {};
+            }
+            mesh.userData.characterData.velocityY = verticalVelocity;
+            mesh.userData.characterData.isKnockedBack = true; // Mark as knocked back for bounce physics
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle Lucy's multi-projectile ability - shoots multiple projectiles around her at character height
+   * @param {THREE.Mesh} player - Player mesh
+   * @private
+   */
+  _handleLucyMultiProjectile(player) {
+    // Vibration for multi-projectile
+    if (this.vibrationManager) {
+      this.vibrationManager.heavy();
+    }
+    
+    // Play multi-projectile sound
+    const soundManager = this.characterManager.getSoundManager();
+    if (soundManager) {
+      // Try to play custom sound, fallback to melee swing
+      soundManager.playMeleeSwing();
+    }
+    
+    // Get multi-projectile stats
+    const multiProjectileStats = getMultiProjectileStats('lucy');
+    if (!multiProjectileStats) return;
+    
+    const projectileCount = multiProjectileStats.projectileCount;
+    const damage = multiProjectileStats.damage;
+    const cooldown = multiProjectileStats.cooldown;
+    const animationDuration = multiProjectileStats.animationDuration;
+    const projectileSpeed = multiProjectileStats.projectileSpeed;
+    const spreadRadius = multiProjectileStats.spreadRadius;
+    
+    // Set cooldown timer
+    this.specialAbilityCooldownTimer = cooldown;
+    
+    // Create visual effect (circle)
+    const segments = 32;
+    const geometry = new THREE.RingGeometry(spreadRadius * 0.8, spreadRadius, segments);
+    const characterColor = this._getCharacterColorForParticles('lucy');
+    const material = new THREE.MeshBasicMaterial({
+      color: characterColor,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
+    
+    const circle = new THREE.Mesh(geometry, material);
+    circle.rotation.x = -Math.PI / 2; // Lay flat on ground
+    circle.position.set(player.position.x, player.position.y + 0.2, player.position.z);
+    
+    // Store reference to circle for animation
+    this.multiProjectileCircle = circle;
+    this.multiProjectileAnimationTime = animationDuration;
+    this.multiProjectileAnimationDuration = animationDuration;
+    
+    // Add to scene
+    this.sceneManager.getScene().add(circle);
+    
+    // Spawn particles
+    if (this.characterManager.particleManager) {
+      const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+      this.characterManager.particleManager.spawnSwordSwingParticles(playerPos, characterColor, spreadRadius, animationDuration);
+    }
+    
+    // Shoot projectiles in all directions around character
+    const playerPos = player.position;
+    const playerHeight = playerPos.y;
+    
+    for (let i = 0; i < projectileCount; i++) {
+      // Calculate angle for this projectile
+      const angle = (i / projectileCount) * Math.PI * 2;
+      
+      // Calculate direction vector
+      const directionX = Math.cos(angle);
+      const directionZ = Math.sin(angle);
+      
+      // Spawn position slightly offset from character
+      const offsetX = directionX * 0.5;
+      const offsetZ = directionZ * 0.5;
+      
+      // Create projectile
+      if (this.projectileManager) {
+        const playerId = 'local';
+        const projectile = this.projectileManager.createProjectile(
+          playerPos.x + offsetX,
+          playerHeight,
+          playerPos.z + offsetZ,
+          directionX,
+          directionZ,
+          playerId,
+          'lucy'
+        );
+        
+        // Override projectile speed if needed
+        if (projectile && projectile.userData) {
+          projectile.userData.customSpeed = projectileSpeed;
+          // Set custom damage
+          projectile.userData.damage = damage;
+        }
+      }
+    }
   }
 
   /**

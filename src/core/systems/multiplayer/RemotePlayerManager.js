@@ -10,6 +10,7 @@ import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimatio
 import { getCharacterMovementStats } from '../../../config/character/CharacterStats.js';
 import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
 import { createSpriteAtPosition } from '../../../utils/SpriteUtils.js';
+import { HERALD_BLAST_ATTACK_CONFIG } from '../../../config/abilities/characters/herald/blast/AttackConfig.js';
 
 export class RemotePlayerManager {
   /**
@@ -400,6 +401,80 @@ export class RemotePlayerManager {
       const mesh = remotePlayer.mesh;
       const now = Date.now();
       const timeSinceUpdate = (now - remotePlayer.lastUpdateTime) / 1000; // Convert to seconds
+      
+      // Apply horizontal velocity from blast (if set)
+      if (remotePlayer.velocityX !== undefined && remotePlayer.velocityZ !== undefined) {
+        const velocityDecay = HERALD_BLAST_ATTACK_CONFIG.velocityDecay;
+        const velX = remotePlayer.velocityX * dt;
+        const velZ = remotePlayer.velocityZ * dt;
+        
+        // Apply velocity
+        remotePlayer.position.x += velX;
+        remotePlayer.position.z += velZ;
+        mesh.position.x += velX;
+        mesh.position.z += velZ;
+        
+        // Decay velocity
+        remotePlayer.velocityX *= velocityDecay;
+        remotePlayer.velocityZ *= velocityDecay;
+        
+        // Stop velocity if very small
+        if (Math.abs(remotePlayer.velocityX) < 0.1) remotePlayer.velocityX = 0;
+        if (Math.abs(remotePlayer.velocityZ) < 0.1) remotePlayer.velocityZ = 0;
+        
+        // Clear knockback flag if velocity is too low (bouncing complete)
+        if (mesh.userData && mesh.userData.characterData && mesh.userData.characterData.isKnockedBack) {
+          if ((Math.abs(remotePlayer.velocityX) < 0.1 && Math.abs(remotePlayer.velocityZ) < 0.1) &&
+              Math.abs(mesh.userData.characterData.velocityY || 0) < 0.1) {
+            mesh.userData.characterData.isKnockedBack = false;
+          }
+        }
+      }
+      
+      // Apply vertical velocity from blast (if set) with bounce physics
+      if (mesh.userData && mesh.userData.characterData && mesh.userData.characterData.velocityY !== undefined) {
+        const velY = mesh.userData.characterData.velocityY;
+        const isKnockedBack = mesh.userData.characterData.isKnockedBack || false;
+        const minBounceVelocity = HERALD_BLAST_ATTACK_CONFIG.minBounceVelocity;
+        const bounceRestitution = HERALD_BLAST_ATTACK_CONFIG.bounceRestitution;
+        
+        if (Math.abs(velY) > 0.01) {
+          // Apply gravity (simplified - would need access to physics stats)
+          const gravity = -25.0; // Approximate gravity
+          mesh.userData.characterData.velocityY += gravity * dt;
+          
+          // Apply vertical velocity
+          const newY = mesh.position.y + mesh.userData.characterData.velocityY * dt;
+          
+          // Check for bounce (ground collision)
+          const groundY = remotePlayer.targetPosition.y; // Use target position as ground reference
+          const characterBottom = newY - 0.5; // Approximate character height
+          
+          if (characterBottom <= groundY && velY < 0) {
+            // Hit ground - check if should bounce
+            if (isKnockedBack && velY < -minBounceVelocity) {
+              // Bounce! Apply restitution (invert and reduce velocity)
+              mesh.userData.characterData.velocityY = -velY * bounceRestitution;
+              mesh.position.y = groundY + 0.5;
+              remotePlayer.position.y = groundY + 0.5;
+            } else {
+              // Normal landing - stop bouncing
+              mesh.userData.characterData.velocityY = 0;
+              mesh.position.y = groundY + 0.5;
+              remotePlayer.position.y = groundY + 0.5;
+              
+              // Clear knockback flag if velocity too low
+              if (isKnockedBack && Math.abs(velY) < minBounceVelocity) {
+                mesh.userData.characterData.isKnockedBack = false;
+              }
+            }
+          } else {
+            // In air - continue movement
+            mesh.position.y = newY;
+            remotePlayer.position.y = newY;
+          }
+        }
+      }
       
       // Calculate distance to target
       const dx = remotePlayer.targetPosition.x - remotePlayer.position.x;

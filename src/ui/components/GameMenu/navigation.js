@@ -182,23 +182,57 @@ export function handleControllerInput(instance) {
     instance.controllerNavigation.buttonPressed.delete('rt');
   }
 
+  // Check if focused element is a range input (needed for both joystick and d-pad)
+  const focusedElement = document.activeElement;
+  const isRangeInput = focusedElement && focusedElement.tagName === 'INPUT' && focusedElement.type === 'range';
+
   // Left joystick navigation (for menu items)
   const leftStickX = gamepad.axes[0] || 0;
   const leftStickY = gamepad.axes[1] || 0;
   const stickThreshold = 0.5;
   
-  if (Math.abs(leftStickX) > stickThreshold || Math.abs(leftStickY) > stickThreshold) {
-    const direction = Math.abs(leftStickX) > Math.abs(leftStickY) 
-      ? (leftStickX > 0 ? 'right' : 'left')
-      : (leftStickY > 0 ? 'down' : 'up');
+  if (isRangeInput) {
+    // Handle slider adjustment with left/right stick movement
+    if (Math.abs(leftStickX) > stickThreshold) {
+      const stickKey = 'stick-slider';
+      if (!instance.controllerNavigation.buttonPressed.has(stickKey)) {
+        instance.controllerNavigation.buttonPressed.add(stickKey);
+        adjustRangeInput(focusedElement, leftStickX > 0 ? 'right' : 'left', instance);
+        setTimeout(() => {
+          instance.controllerNavigation.buttonPressed.delete(stickKey);
+        }, 100); // Faster response for slider adjustment
+      }
+    } else {
+      instance.controllerNavigation.buttonPressed.delete('stick-slider');
+    }
     
-    const stickKey = `stick-${direction}`;
-    if (!instance.controllerNavigation.buttonPressed.has(stickKey)) {
-      instance.controllerNavigation.buttonPressed.add(stickKey);
-      handleJoystickNavigation(direction, instance);
-      setTimeout(() => {
-        instance.controllerNavigation.buttonPressed.delete(stickKey);
-      }, 200);
+    // Allow vertical navigation even when slider is focused
+    if (Math.abs(leftStickY) > stickThreshold) {
+      const direction = leftStickY > 0 ? 'down' : 'up';
+      const stickKey = `stick-${direction}`;
+      if (!instance.controllerNavigation.buttonPressed.has(stickKey)) {
+        instance.controllerNavigation.buttonPressed.add(stickKey);
+        handleJoystickNavigation(direction, instance);
+        setTimeout(() => {
+          instance.controllerNavigation.buttonPressed.delete(stickKey);
+        }, 200);
+      }
+    }
+  } else {
+    // Normal navigation when slider is not focused
+    if (Math.abs(leftStickX) > stickThreshold || Math.abs(leftStickY) > stickThreshold) {
+      const direction = Math.abs(leftStickX) > Math.abs(leftStickY) 
+        ? (leftStickX > 0 ? 'right' : 'left')
+        : (leftStickY > 0 ? 'down' : 'up');
+      
+      const stickKey = `stick-${direction}`;
+      if (!instance.controllerNavigation.buttonPressed.has(stickKey)) {
+        instance.controllerNavigation.buttonPressed.add(stickKey);
+        handleJoystickNavigation(direction, instance);
+        setTimeout(() => {
+          instance.controllerNavigation.buttonPressed.delete(stickKey);
+        }, 200);
+      }
     }
   }
 
@@ -221,22 +255,75 @@ export function handleControllerInput(instance) {
   }
   
   if (dpadX !== 0 || dpadY !== 0) {
-    const direction = dpadY !== 0 
-      ? (dpadY > 0 ? 'down' : 'up')
-      : (dpadX > 0 ? 'right' : 'left');
-    
-    const dpadKey = `dpad-${direction}`;
-    if (!instance.controllerNavigation.buttonPressed.has(dpadKey)) {
-      instance.controllerNavigation.buttonPressed.add(dpadKey);
-      handleJoystickNavigation(direction, instance);
-      setTimeout(() => {
-        instance.controllerNavigation.buttonPressed.delete(dpadKey);
-      }, 200);
+    if (isRangeInput && dpadX !== 0) {
+      // Handle slider adjustment with left/right d-pad
+      const dpadKey = 'dpad-slider';
+      if (!instance.controllerNavigation.buttonPressed.has(dpadKey)) {
+        instance.controllerNavigation.buttonPressed.add(dpadKey);
+        adjustRangeInput(focusedElement, dpadX > 0 ? 'right' : 'left', instance);
+        setTimeout(() => {
+          instance.controllerNavigation.buttonPressed.delete(dpadKey);
+        }, 100); // Faster response for slider adjustment
+      }
+    } else {
+      // Normal navigation
+      const direction = dpadY !== 0 
+        ? (dpadY > 0 ? 'down' : 'up')
+        : (dpadX > 0 ? 'right' : 'left');
+      
+      const dpadKey = `dpad-${direction}`;
+      if (!instance.controllerNavigation.buttonPressed.has(dpadKey)) {
+        instance.controllerNavigation.buttonPressed.add(dpadKey);
+        handleJoystickNavigation(direction, instance);
+        setTimeout(() => {
+          instance.controllerNavigation.buttonPressed.delete(dpadKey);
+        }, 200);
+      }
     }
   } else {
-    ['dpad-up', 'dpad-down', 'dpad-left', 'dpad-right'].forEach(key => {
+    ['dpad-up', 'dpad-down', 'dpad-left', 'dpad-right', 'dpad-slider'].forEach(key => {
       instance.controllerNavigation.buttonPressed.delete(key);
     });
   }
+}
+
+/**
+ * Adjust range input value with controller
+ * @param {HTMLInputElement} rangeInput - Range input element
+ * @param {string} direction - 'left' or 'right'
+ * @param {Object} instance - GameMenu instance
+ */
+function adjustRangeInput(rangeInput, direction, instance) {
+  if (!rangeInput || rangeInput.type !== 'range') return;
+  
+  const min = parseFloat(rangeInput.min) || 0;
+  const max = parseFloat(rangeInput.max) || 1;
+  const step = parseFloat(rangeInput.step) || 0.01;
+  const currentValue = parseFloat(rangeInput.value) || 0;
+  
+  // Calculate adjustment (5% of range per step, or at least the step size)
+  const range = max - min;
+  const adjustment = Math.max(step, range * 0.05);
+  
+  let newValue = currentValue;
+  if (direction === 'right') {
+    newValue = Math.min(max, currentValue + adjustment);
+  } else if (direction === 'left') {
+    newValue = Math.max(min, currentValue - adjustment);
+  }
+  
+  // Round to step precision
+  newValue = Math.round(newValue / step) * step;
+  newValue = Math.max(min, Math.min(max, newValue));
+  
+  // Update the value
+  rangeInput.value = newValue;
+  
+  // Trigger input event to update handlers and display
+  rangeInput.dispatchEvent(new Event('input', { bubbles: true }));
+  
+  // Keep focus and highlight
+  rangeInput.focus();
+  instance.highlightElement(rangeInput);
 }
 

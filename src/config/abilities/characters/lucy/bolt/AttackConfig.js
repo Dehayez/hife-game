@@ -13,7 +13,16 @@ export const LUCY_BOLT_ATTACK_CONFIG = {
   maxSpeed: 2.0,            // 200% of base speed (start very fast)
   size: 0.615,              // 61.5% of base (0.08 radius) - Smaller projectiles
   cursorFollowStrength: 0.75, // 75% of base (0.3) - Less cursor following
-  maxBullets: 1.5,          // 150% of base (15 bullets) - More bullets for rapid fire
-  rechargeCooldown: 0.7     // 70% of base (1.4s) - Faster recharge for rapid fire
+  maxBullets: 4.2,          // 420% of base (42 bullets) - More bullets for rapid fire
+  rechargeCooldown: 0.7,    // 70% of base (1.4s) - Faster recharge for rapid fire
+  speedBoost: {
+    cooldownMultiplier: 0.5, // 50% of base cooldown (2x faster attack speed)
+    duration: 5.0,           // 5 seconds duration
+    cooldown: 20.0           // 20 seconds cooldown between uses
+  },
+  joystickSpeedMultiplier: {
+    minSpeedMultiplier: 0.7,  // Minimum speed when joystick not pushed (0.7x base speed)
+    maxSpeedMultiplier: 1.5   // Maximum speed when joystick fully pushed (1.5x base speed)
+  }
 };
 

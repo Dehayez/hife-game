@@ -196,4 +196,144 @@ export function setLastInputMode(inputMode) {
   }
 }
 
+/**
+ * Get saved bot difficulty preference
+ * @returns {string} Bot difficulty ('easy', 'beginner', 'midway', 'veteran', default 'beginner')
+ */
+export function getLastBotDifficulty() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_bot_difficulty`;
+    const stored = localStorage.getItem(key);
+    const validDifficulties = ['easy', 'beginner', 'midway', 'veteran'];
+    if (stored && validDifficulties.includes(stored)) {
+      return stored;
+    }
+    return 'beginner';
+  } catch (e) {
+    handleStorageError(e, 'read', 'lastBotDifficulty');
+    return 'beginner';
+  }
+}
+
+/**
+ * Save bot difficulty preference
+ * @param {string} difficulty - Bot difficulty ('easy', 'beginner', 'midway', 'veteran')
+ * @returns {boolean} True if saved successfully
+ */
+export function setLastBotDifficulty(difficulty) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}last_bot_difficulty`;
+    const validDifficulties = ['easy', 'beginner', 'midway', 'veteran'];
+    if (validDifficulties.includes(difficulty)) {
+      localStorage.setItem(key, difficulty);
+      return true;
+    }
+  } catch (e) {
+    return handleStorageError(e, 'write', 'lastBotDifficulty');
+  }
+  return false;
+}
+
+/**
+ * Get sound effects volume (0.0 to 1.0)
+ * @returns {number} Sound effects volume (default 0.15)
+ */
+export function getSoundEffectsVolume() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}sound_effects_volume`;
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      const volume = parseFloat(stored);
+      return Math.max(0, Math.min(1, volume));
+    }
+  } catch (e) {
+    handleStorageError(e, 'read', 'soundEffectsVolume');
+  }
+  return 0.15; // Default volume
+}
+
+/**
+ * Save sound effects volume
+ * @param {number} volume - Volume level (0.0 to 1.0)
+ * @returns {boolean} True if saved successfully
+ */
+export function setSoundEffectsVolume(volume) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}sound_effects_volume`;
+    const clampedVolume = Math.max(0, Math.min(1, parseFloat(volume) || 0));
+    localStorage.setItem(key, clampedVolume.toString());
+    return true;
+  } catch (e) {
+    return handleStorageError(e, 'write', 'soundEffectsVolume');
+  }
+}
+
+/**
+ * Get background cinematic volume (0.0 to 1.0)
+ * @returns {number} Background cinematic volume (default 0.2)
+ */
+export function getBackgroundCinematicVolume() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}background_cinematic_volume`;
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      const volume = parseFloat(stored);
+      return Math.max(0, Math.min(1, volume));
+    }
+  } catch (e) {
+    handleStorageError(e, 'read', 'backgroundCinematicVolume');
+  }
+  return 0.2; // Default volume
+}
+
+/**
+ * Save background cinematic volume
+ * @param {number} volume - Volume level (0.0 to 1.0)
+ * @returns {boolean} True if saved successfully
+ */
+export function setBackgroundCinematicVolume(volume) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}background_cinematic_volume`;
+    const clampedVolume = Math.max(0, Math.min(1, parseFloat(volume) || 0));
+    localStorage.setItem(key, clampedVolume.toString());
+    return true;
+  } catch (e) {
+    return handleStorageError(e, 'write', 'backgroundCinematicVolume');
+  }
+}
+
+/**
+ * Get vibration intensity (0.0 to 1.0)
+ * @returns {number} Vibration intensity multiplier (default 1.0)
+ */
+export function getVibrationIntensity() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}vibration_intensity`;
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      const intensity = parseFloat(stored);
+      return Math.max(0, Math.min(1, intensity));
+    }
+  } catch (e) {
+    handleStorageError(e, 'read', 'vibrationIntensity');
+  }
+  return 1.0; // Default intensity
+}
+
+/**
+ * Save vibration intensity
+ * @param {number} intensity - Intensity multiplier (0.0 to 1.0)
+ * @returns {boolean} True if saved successfully
+ */
+export function setVibrationIntensity(intensity) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}vibration_intensity`;
+    const clampedIntensity = Math.max(0, Math.min(1, parseFloat(intensity) || 0));
+    localStorage.setItem(key, clampedIntensity.toString());
+    return true;
+  } catch (e) {
+    return handleStorageError(e, 'write', 'vibrationIntensity');
+  }
+}
+
 

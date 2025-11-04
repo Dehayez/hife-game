@@ -26,10 +26,11 @@ export class ProjectileManager {
    * @param {Object} collisionManager - Collision manager for wall/ground checks
    * @param {Object} particleManager - Optional particle manager for impact effects
    */
-  constructor(scene, collisionManager = null, particleManager = null) {
+  constructor(scene, collisionManager = null, particleManager = null, soundManager = null) {
     this.scene = scene;
     this.collisionManager = collisionManager;
     this.particleManager = particleManager;
+    this.soundManager = soundManager;
     
     // Active projectile arrays
     this.projectiles = [];
@@ -46,6 +47,10 @@ export class ProjectileManager {
     this.playerRechargeCooldowns = new CooldownManager(); // Recharge cooldowns per player
     this.playerCharacterNames = new Map(); // Map<playerId, characterName> - track character for each player
     this.playerReloadInfo = new Map(); // Map<playerId, {startBullets, targetBullets, proportionalRechargeTime}> - track manual reload state
+    
+    // Speed boost tracking per player (Lucy only)
+    this.playerSpeedBoostActive = new Map(); // Map<playerId, {active: boolean, endTime: number}>
+    this.playerSpeedBoostCooldowns = new CooldownManager(); // Speed boost cooldowns per player
   }
 
   /**
@@ -70,6 +75,14 @@ export class ProjectileManager {
    */
   setBotManager(botManager) {
     this.botManager = botManager;
+  }
+
+  /**
+   * Set the sound manager (for playing mortar explosion sounds)
+   * @param {Object} soundManager - Sound manager instance
+   */
+  setSoundManager(soundManager) {
+    this.soundManager = soundManager;
   }
 
   /**
@@ -131,6 +144,12 @@ export class ProjectileManager {
     
     if (!projectile) return null;
     
+    // Play bolt shot sound with position-based volume
+    if (this.soundManager) {
+      const soundPosition = { x: startX, y: startY, z: startZ };
+      this.soundManager.playBoltShot(soundPosition);
+    }
+    
     // Add to projectiles array
     this.projectiles.push(projectile);
     
@@ -146,8 +165,28 @@ export class ProjectileManager {
       this.playerReloadInfo.delete(playerId);
     }
     
+    // Apply speed boost multiplier if active (Lucy only)
+    let cooldown = stats.cooldown;
+    const speedBoostInfo = this.playerSpeedBoostActive.get(playerId);
+    if (speedBoostInfo && stats.speedBoost) {
+      // Check if speed boost is still active (verify with current time)
+      const currentTime = Date.now() / 1000;
+      const isStillActive = speedBoostInfo.active && currentTime < speedBoostInfo.endTime;
+      
+      if (isStillActive) {
+        // Apply speed boost multiplier (reduces cooldown = faster shooting)
+        const originalCooldown = cooldown;
+        cooldown *= stats.speedBoost.cooldownMultiplier;
+        console.log('[SpeedBoost] Applied! Original:', originalCooldown, 'New:', cooldown, 'Multiplier:', stats.speedBoost.cooldownMultiplier);
+      } else if (speedBoostInfo.active && currentTime >= speedBoostInfo.endTime) {
+        // Speed boost just expired - update state
+        speedBoostInfo.active = false;
+        console.log('[SpeedBoost] Expired');
+      }
+    }
+    
     // Set cooldown for this specific character/player
-    this.characterCooldowns.setCooldown(playerId, stats.cooldown);
+    this.characterCooldowns.setCooldown(playerId, cooldown);
     
     return projectile;
   }
@@ -226,10 +265,9 @@ export class ProjectileManager {
   update(dt) {
     // Validate dt before updating cooldowns
     if (typeof dt !== 'number' || isNaN(dt) || dt <= 0 || !isFinite(dt)) {
-      // Invalid dt - skip cooldown updates but continue with other updates
+      // Invalid dt - use safe default and continue with other updates
       // This prevents cooldowns from getting stuck if dt is invalid
-      console.warn('Invalid dt in ProjectileManager.update:', dt);
-      dt = 0; // Set to 0 so other updates can still run
+      dt = 0.016; // Default to ~60fps frame time
     }
     
     // Update bolt cooldowns
@@ -243,6 +281,34 @@ export class ProjectileManager {
     
     // Update recharge cooldowns
     this.playerRechargeCooldowns.update(dt);
+    
+    // Update speed boost cooldowns
+    this.playerSpeedBoostCooldowns.update(dt);
+    
+    // Update speed boost active states (check if duration expired)
+    const currentTime = Date.now() / 1000; // Convert to seconds
+    for (const [playerId, speedBoostInfo] of this.playerSpeedBoostActive.entries()) {
+      if (speedBoostInfo && speedBoostInfo.active) {
+        if (currentTime >= speedBoostInfo.endTime) {
+          // Speed boost expired - start cooldown now
+          speedBoostInfo.active = false;
+          
+          // Get character name from playerCharacterNames map to get cooldown value
+          const characterName = this.playerCharacterNames.get(playerId);
+          if (characterName) {
+            try {
+              const stats = getBoltStats(characterName);
+              if (stats.speedBoost) {
+                this.playerSpeedBoostCooldowns.setCooldown(playerId, stats.speedBoost.cooldown);
+                console.log('[SpeedBoost] Expired, starting cooldown:', stats.speedBoost.cooldown);
+              }
+            } catch (error) {
+              console.warn('[SpeedBoost] Could not set cooldown on expiry:', error);
+            }
+          }
+        }
+      }
+    }
     
     // Handle bullet recharge when cooldown completes
     for (const [playerId, characterName] of this.playerCharacterNames.entries()) {
@@ -381,6 +447,16 @@ export class ProjectileManager {
     for (const projectile of this.projectiles) {
       // Remove projectiles that have hit something
       if (projectile.userData.hasHit) {
+        // Play bolt hit sound with position-based volume
+        if (this.soundManager && !projectile.userData.hitSoundPlayed) {
+          const hitPosition = {
+            x: projectile.position.x,
+            y: projectile.position.y,
+            z: projectile.position.z
+          };
+          this.soundManager.playBoltHit(hitPosition);
+          projectile.userData.hitSoundPlayed = true; // Prevent multiple sounds
+        }
         projectilesToRemove.push(projectile);
         continue;
       }
@@ -433,6 +509,12 @@ export class ProjectileManager {
   createSplash(x, y, z, mortarData) {
     const splashArea = createSplashArea(this.scene, x, y, z, mortarData);
     this.splashAreas.push(splashArea);
+    
+    // Play mortar explosion sound with position-based volume
+    if (this.soundManager) {
+      const explosionPosition = { x: x, y: y, z: z };
+      this.soundManager.playMortarExplosion(explosionPosition);
+    }
   }
 
   /**
@@ -494,6 +576,12 @@ export class ProjectileManager {
    * @param {THREE.Mesh} mortar - Mortar mesh
    */
   removeMortar(mortar) {
+    // Stop arc sound if playing
+    if (mortar.userData && mortar.userData.arcSound) {
+      mortar.userData.arcSound.stop();
+      mortar.userData.arcSound = null;
+    }
+    
     removeMortarMesh(mortar, this.scene, this.particleManager);
     
     // Remove from array
@@ -671,6 +759,32 @@ export class ProjectileManager {
   }
 
   /**
+   * Set special ability cooldown for a player
+   * Called from GameLoop to sync special ability cooldown timer (Herald blast, Lucy multi-projectile)
+   * @param {string} playerId - Player ID ('local' or player identifier)
+   * @param {number} cooldown - Cooldown value in seconds
+   */
+  setSpecialAbilityCooldown(playerId, cooldown) {
+    // Store special ability cooldown per player
+    if (!this.specialAbilityCooldowns) {
+      this.specialAbilityCooldowns = new Map();
+    }
+    this.specialAbilityCooldowns.set(playerId, cooldown);
+  }
+
+  /**
+   * Get special ability cooldown for a player
+   * @param {string} playerId - Player ID ('local' or player identifier)
+   * @returns {number} Cooldown value in seconds
+   */
+  getSpecialAbilityCooldown(playerId) {
+    if (!this.specialAbilityCooldowns) {
+      return 0;
+    }
+    return this.specialAbilityCooldowns.get(playerId) || 0;
+  }
+
+  /**
    * Get character stats (for external access if needed)
    * @param {string} characterName - Character name
    * @returns {Object} Character stats object
@@ -722,6 +836,115 @@ export class ProjectileManager {
     this.playerCharacterNames.set(playerId, characterName);
     
     return true; // Reload started
+  }
+
+  /**
+   * Activate speed boost for a player
+   * @param {string} playerId - Player ID
+   * @param {string} characterName - Character name
+   * @returns {boolean} True if speed boost was activated, false if on cooldown or not available
+   */
+  activateSpeedBoost(playerId, characterName) {
+    const stats = getBoltStats(characterName);
+    
+    // Check if speed boost config exists
+    if (!stats.speedBoost) {
+      console.log('[SpeedBoost] No speedBoost config in stats:', stats);
+      return false;
+    }
+    
+    // Check if already on cooldown
+    if (!this.playerSpeedBoostCooldowns.canAct(playerId)) {
+      const cooldown = this.playerSpeedBoostCooldowns.getCooldown(playerId);
+      console.log('[SpeedBoost] On cooldown:', cooldown);
+      return false; // On cooldown
+    }
+    
+    // Check if already active
+    const speedBoostInfo = this.playerSpeedBoostActive.get(playerId);
+    if (speedBoostInfo && speedBoostInfo.active) {
+      console.log('[SpeedBoost] Already active');
+      return false; // Already active
+    }
+    
+    // Activate speed boost
+    const currentTime = Date.now() / 1000; // Convert to seconds
+    const endTime = currentTime + stats.speedBoost.duration;
+    
+    this.playerSpeedBoostActive.set(playerId, {
+      active: true,
+      endTime: endTime
+    });
+    
+    // Ensure characterName is stored for cooldown calculation when speedboost expires
+    this.playerCharacterNames.set(playerId, characterName);
+    
+    // Don't set cooldown here - it will be set when speedboost expires
+    
+    console.log('[SpeedBoost] Activated! Duration:', stats.speedBoost.duration, 'Cooldown:', stats.speedBoost.cooldown);
+    return true; // Speed boost activated
+  }
+
+  /**
+   * Get speed boost info for a player (for UI display)
+   * @param {string} playerId - Player ID
+   * @param {string} characterName - Character name
+   * @returns {Object} Speed boost info with active state, cooldown, and percentage
+   */
+  getSpeedBoostInfo(playerId, characterName) {
+    const stats = getBoltStats(characterName);
+    
+    // Check if speed boost config exists - works for any character with speed boost config
+    if (!stats.speedBoost) {
+      return {
+        active: false,
+        cooldown: 0,
+        percentage: 0,
+        canActivate: false
+      };
+    }
+    
+    const speedBoostInfo = this.playerSpeedBoostActive.get(playerId);
+    const currentTime = Date.now() / 1000;
+    
+    // Check if still active (also check expiration)
+    let isActive = false;
+    if (speedBoostInfo && speedBoostInfo.active) {
+      if (currentTime < speedBoostInfo.endTime) {
+        isActive = true;
+      } else {
+        // Expired - update state
+        speedBoostInfo.active = false;
+        isActive = false;
+      }
+    }
+    
+    const cooldown = this.playerSpeedBoostCooldowns.getCooldown(playerId);
+    const canActivate = this.playerSpeedBoostCooldowns.canAct(playerId) && !isActive;
+    
+    let percentage = 0;
+    
+    if (isActive && speedBoostInfo) {
+      // Show duration progress (how much time is left)
+      const elapsed = currentTime - (speedBoostInfo.endTime - stats.speedBoost.duration);
+      const durationProgress = stats.speedBoost.duration > 0 
+        ? Math.min(Math.max(elapsed / stats.speedBoost.duration, 0), 1.0)
+        : 0;
+      percentage = durationProgress; // 0 = just started, 1 = about to expire
+    } else {
+      // Show cooldown progress (how much cooldown is left)
+      const cooldownPercent = stats.speedBoost.cooldown > 0 
+        ? Math.min(cooldown / stats.speedBoost.cooldown, 1.0) 
+        : 0;
+      percentage = cooldownPercent; // 1 = full cooldown, 0 = ready
+    }
+    
+    return {
+      active: isActive,
+      cooldown: cooldown,
+      percentage: percentage,
+      canActivate: canActivate
+    };
   }
 
   /**

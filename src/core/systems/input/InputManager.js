@@ -29,7 +29,8 @@ export class InputManager {
       heal: false,
       swordSwing: false,
       doubleJump: false,
-      levitate: false
+      levitate: false,
+      speedBoost: false
     };
     
     this.mousePosition = { x: 0, y: 0 };
@@ -44,6 +45,7 @@ export class InputManager {
     this.healPressed = false;
     this.swordSwingPressed = false;
     this.scoreboardPressed = false;
+    this.speedBoostPressed = false;
 
     // Gamepad state
     this.gamepad = null;
@@ -403,6 +405,7 @@ export class InputManager {
         this.inputState.swordSwing = false;
         this.inputState.doubleJump = false;
         this.inputState.levitate = false;
+        this.inputState.speedBoost = false;
         
         // Reset mortar hold state
         this.mortarHoldPressed = false;
@@ -575,6 +578,7 @@ export class InputManager {
       this.rightTriggerPressed = false;
       this.characterSwapPressed = false;
       this.healPressed = false;
+      this.speedBoostPressed = false;
       this._previousJumpButtonState = false;
       this._previousKeyboardJumpState = false;
       this._gamepadJumpState = false;
@@ -588,6 +592,7 @@ export class InputManager {
       this.rightTriggerPressed = false;
       this.characterSwapPressed = false;
       this.healPressed = false;
+      this.speedBoostPressed = false;
       this._previousJumpButtonState = false;
       this._previousKeyboardJumpState = false;
       this._gamepadJumpState = false;
@@ -959,6 +964,20 @@ export class InputManager {
     } else if (!swordSwingPressed && this.swordSwingPressed) {
       this.swordSwingPressed = false;
       this.inputState.swordSwing = false;
+    }
+
+    // Speed Boost (LB button 4) - Attack speed boost for Lucy
+    const speedBoostPressed = gamepad.buttons[4] && gamepad.buttons[4].pressed; // LB button only
+
+    if (speedBoostPressed && !this.speedBoostPressed) {
+      this.speedBoostPressed = true;
+      this.inputState.speedBoost = true;
+      if (this._loggingEnabled) {
+        this._logInput('⚡ SPEED BOOST', 'pressed', gamepad);
+      }
+    } else if (!speedBoostPressed && this.speedBoostPressed) {
+      this.speedBoostPressed = false;
+      this.inputState.speedBoost = false;
     }
 
     // Right analog stick (axes 2 and 3) for aiming/shooting direction
@@ -1399,6 +1418,14 @@ export class InputManager {
    */
   isScoreboardPressed() {
     return this.inputState.scoreboard;
+  }
+
+  /**
+   * Check if speed boost button is pressed
+   * @returns {boolean} True if speed boost button is pressed
+   */
+  isSpeedBoostPressed() {
+    return this.inputState.speedBoost;
   }
 }
 

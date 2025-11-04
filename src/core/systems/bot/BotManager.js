@@ -19,6 +19,7 @@ import { initializeBotPhysics, updateBotPhysics } from './BotPhysics.js';
 import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.js';
 import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../../../utils/DeathFadeUtils.js';
 import { createSpriteAtPosition } from '../../../utils/SpriteUtils.js';
+import { HERALD_BLAST_ATTACK_CONFIG } from '../../../config/abilities/characters/herald/blast/AttackConfig.js';
 
 export class BotManager {
   /**
@@ -27,13 +28,16 @@ export class BotManager {
    * @param {Object} collisionManager - Collision manager for wall/ground checks
    * @param {Object} projectileManager - Projectile manager for shooting
    * @param {Object} particleManager - Optional particle manager for death effects
+   * @param {Object} learningManager - Optional learning manager for adaptive AI
    */
-  constructor(scene, collisionManager = null, projectileManager = null, particleManager = null) {
+  constructor(scene, collisionManager = null, projectileManager = null, particleManager = null, learningManager = null) {
     this.scene = scene;
     this.collisionManager = collisionManager;
     this.projectileManager = projectileManager;
     this.particleManager = particleManager;
+    this.learningManager = learningManager;
     this.bots = [];
+    this.difficulty = 'beginner'; // Default difficulty
     
     // Get stats from config
     const movementStats = getBotMovementStats();
@@ -41,6 +45,30 @@ export class BotManager {
     this.playerSize = movementStats.playerSize;
     this.moveSpeed = movementStats.moveSpeed;
     this.runSpeedMultiplier = 1.7; // Not currently used for bots
+  }
+  
+  /**
+   * Set the learning manager
+   * @param {Object} learningManager - Learning manager instance
+   */
+  setLearningManager(learningManager) {
+    this.learningManager = learningManager;
+  }
+  
+  /**
+   * Set difficulty level for all bots
+   * @param {string} difficulty - Difficulty level
+   */
+  setDifficulty(difficulty) {
+    this.difficulty = difficulty;
+    if (this.learningManager) {
+      this.learningManager.setDifficulty(difficulty);
+    }
+    
+    // Update existing bots
+    for (const bot of this.bots) {
+      bot.userData.difficulty = difficulty;
+    }
   }
 
   /**
@@ -81,9 +109,10 @@ export class BotManager {
    * @param {string} characterName - Character name ('lucy' or 'herald')
    * @param {number} startX - Starting X position
    * @param {number} startZ - Starting Z position
+   * @param {string} difficulty - Difficulty level (optional, uses manager default)
    * @returns {Promise<THREE.Mesh>} Created bot mesh
    */
-  async createBot(botId, characterName = 'herald', startX = 0, startZ = 0) {
+  async createBot(botId, characterName = 'herald', startX = 0, startZ = 0, difficulty = null) {
     // Create bot sprite
     const bot = createSpriteAtPosition(this.playerHeight, startX, startZ);
     this.scene.add(bot);
@@ -123,8 +152,9 @@ export class BotManager {
     // Initialize physics
     initializeBotPhysics(bot.userData);
 
-    // Initialize AI
-    initializeBotAI(bot.userData, startX, startZ);
+    // Initialize AI with difficulty
+    const botDifficulty = difficulty || this.difficulty;
+    initializeBotAI(bot.userData, startX, startZ, botDifficulty);
 
     // Set initial animation
     setBotAnimation(bot, 'idle_front', true);
@@ -174,19 +204,51 @@ export class BotManager {
       // Update physics
       updateBotPhysics(bot, userData, dt, this.collisionManager);
 
+      // Decay horizontal velocity (for knockback effects like blast)
+      if (userData.velocityX !== undefined && userData.velocityZ !== undefined) {
+        const velocityDecay = HERALD_BLAST_ATTACK_CONFIG.velocityDecay;
+        userData.velocityX *= velocityDecay;
+        userData.velocityZ *= velocityDecay;
+        
+        // Stop velocity if it's very small
+        if (Math.abs(userData.velocityX) < 0.1) userData.velocityX = 0;
+        if (Math.abs(userData.velocityZ) < 0.1) userData.velocityZ = 0;
+        
+        // Clear knockback flag if velocity is too low (bouncing complete)
+        if (userData.isKnockedBack && 
+            (Math.abs(userData.velocityX) < 0.1 && Math.abs(userData.velocityZ) < 0.1) &&
+            userData.isGrounded) {
+          userData.isKnockedBack = false;
+        }
+      }
+
       // Update AI direction change
       updateDirectionChangeTimer(userData, dt);
 
-      // Calculate movement
-      const movementResult = calculateBotMovement(bot, userData, playerPosition, dt, this.collisionManager);
+      // Calculate movement with learning manager (only if not being knocked back)
+      const hasKnockback = userData.velocityX !== undefined && userData.velocityZ !== undefined && 
+                          (Math.abs(userData.velocityX) > 0.1 || Math.abs(userData.velocityZ) > 0.1);
       
-      // Apply movement
-      bot.position.x += movementResult.moveX;
-      bot.position.z += movementResult.moveZ;
-      userData.direction = movementResult.direction;
+      let moveX = 0;
+      let moveZ = 0;
+      
+      if (!hasKnockback) {
+        const movementResult = calculateBotMovement(bot, userData, playerPosition, dt, this.collisionManager, this.learningManager);
+        
+        // Apply movement
+        moveX = movementResult.moveX;
+        moveZ = movementResult.moveZ;
+        bot.position.x += moveX;
+        bot.position.z += moveZ;
+        userData.direction = movementResult.direction;
+      } else {
+        // Use velocity for animation when knocked back
+        moveX = (userData.velocityX || 0) * dt;
+        moveZ = (userData.velocityZ || 0) * dt;
+      }
 
       // Update animation based on movement
-      updateBotAnimationFromMovement(bot, movementResult.moveX, movementResult.moveZ);
+      updateBotAnimationFromMovement(bot, moveX, moveZ);
       
       // Update animation frame
       updateBotAnimation(bot, dt);
@@ -194,8 +256,8 @@ export class BotManager {
       // Billboard to camera
       billboardBotToCamera(bot, camera);
 
-      // Update shooting
-      updateBotShooting(bot, userData, playerPosition, this.projectileManager, dt);
+      // Update shooting with learning manager
+      updateBotShooting(bot, userData, playerPosition, this.projectileManager, dt, this.learningManager);
     }
   }
 
@@ -324,8 +386,9 @@ export class BotManager {
     // Reset physics
     initializeBotPhysics(bot.userData);
     
-    // Reinitialize AI
-    initializeBotAI(bot.userData, bot.position.x, bot.position.z);
+    // Reinitialize AI with current difficulty
+    const botDifficulty = bot.userData.difficulty || this.difficulty;
+    initializeBotAI(bot.userData, bot.position.x, bot.position.z, botDifficulty);
     
     // Reset animation to idle
     setBotAnimation(bot, 'idle_front', true);

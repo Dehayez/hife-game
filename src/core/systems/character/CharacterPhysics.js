@@ -4,7 +4,8 @@
  * Handles character physics including gravity, jump, and ground collision.
  */
 
-import { getCharacterPhysicsStats, getCharacterMovementStats, getCharacterHealthStats } from '../../../config/character/CharacterStats.js';
+import { getCharacterPhysicsStats } from '../../../config/character/PhysicsConfig.js';
+import { getCharacterMovementStats, getCharacterHealthStats } from '../../../config/character/CharacterStats.js';
 
 /**
  * Update character jump physics and ground collision
@@ -36,13 +37,28 @@ export function updateCharacterPhysics(
     characterData.jumpCooldown -= dt;
   }
 
+  // Update levitation cooldown
+  if (characterData.levitationCooldown > 0) {
+    characterData.levitationCooldown -= dt;
+  }
+
   // Apply gravity
   characterData.velocityY += physicsStats.gravity * dt;
   
-  // Apply levitation force if levitating and going down (not jumping up)
-  if (isLevitating && characterData.velocityY < 0) {
+  // Apply levitation force if levitating and cooldown is ready
+  // Works both when going up and when going down (slows fall)
+  // Track previous levitation state to only start cooldown once per use
+  const wasLevitating = characterData.wasLevitating || false;
+  if (isLevitating && characterData.levitationCooldown <= 0) {
+    // Apply upward force regardless of direction (works when going up or down)
     characterData.velocityY += physicsStats.levitationForce * dt;
+    // Start cooldown only when levitation first starts (not continuously)
+    if (!wasLevitating) {
+      characterData.levitationCooldown = physicsStats.levitationCooldownTime;
+    }
   }
+  // Track levitation state for next frame
+  characterData.wasLevitating = isLevitating;
 
   // Update vertical position
   player.position.y += characterData.velocityY * dt;
@@ -143,6 +159,8 @@ export function initializeCharacterPhysics(characterData) {
   characterData.isGrounded = true;
   characterData.wasGrounded = true;
   characterData.jumpCooldown = 0;
+  characterData.levitationCooldown = 0;
+  characterData.wasLevitating = false;
   characterData.health = healthStats.defaultHealth;
   characterData.hasDoubleJumped = false;
 }
@@ -193,6 +211,8 @@ export function respawnCharacterPhysics(player, characterData, gameMode = null, 
   characterData.isGrounded = true;
   characterData.wasGrounded = true; // Prevent landing sound on respawn
   characterData.jumpCooldown = 0;
+  characterData.levitationCooldown = 0;
+  characterData.wasLevitating = false;
   characterData.hasDoubleJumped = false;
   
   // Reset health

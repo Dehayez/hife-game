@@ -13,11 +13,12 @@ import { initGameModeDisplay } from '../ui/components/GameModeDisplay/index.js';
 import { initArenaSwitcher } from '../ui/components/ArenaSwitcher/index.js';
 import { initRoomManager } from '../ui/components/RoomManager/index.js';
 import { initBotControl } from '../ui/components/BotControl/index.js';
+import { initLearningFeedback } from '../ui/components/LearningFeedback/index.js';
 import { initCooldownIndicator } from '../ui/components/CooldownIndicator/index.js';
 import { initConnectionStatus } from '../ui/components/ConnectionStatus/index.js';
 import { initInputModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
 import { getParam } from '../utils/UrlUtils.js';
-import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode } from '../utils/StorageUtils.js';
+import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode, getSoundEffectsVolume, setSoundEffectsVolume, getBackgroundCinematicVolume, setBackgroundCinematicVolume, getVibrationIntensity, setVibrationIntensity } from '../utils/StorageUtils.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 import { GAME_CONSTANTS } from '../config/global/GameConstants.js';
 
@@ -36,6 +37,7 @@ export function initializeUI(managers, config) {
     multiplayerManager,
     projectileManager,
     botManager,
+    learningManager,
     healthBarManager,
     sceneManager,
     gameLoop
@@ -52,6 +54,7 @@ export function initializeUI(managers, config) {
   const arenaMount = document.getElementById('arena-switcher') || document.body;
   const roomMount = document.getElementById('room-manager') || document.body;
   const botControlMount = document.getElementById('bot-control') || document.body;
+  const learningFeedbackMount = document.getElementById('learning-feedback') || document.body;
   const cooldownMount = document.getElementById('cooldown-indicator') || document.body;
   const connectionStatusMount = document.getElementById('connection-status') || document.body;
   const legendMount = document.getElementById('controls-legend') || document.body;
@@ -363,9 +366,17 @@ export function initializeUI(managers, config) {
   const botControl = initBotControl({
     mount: botControlMount,
     botManager: botManager,
+    learningManager: learningManager,
     healthBarManager: healthBarManager,
     arenaManager: arenaManager,
-    sceneManager: sceneManager
+    sceneManager: sceneManager,
+    inputManager: inputManager
+  });
+  
+  // Initialize learning feedback
+  const learningFeedback = initLearningFeedback({
+    mount: learningFeedbackMount,
+    learningManager: learningManager
   });
   
   // Build menu structure
@@ -377,7 +388,10 @@ export function initializeUI(managers, config) {
     inputModeMount,
     roomMount,
     botControlMount,
-    gameMode
+    learningFeedbackMount,
+    gameMode,
+    characterManager,
+    managers
   });
   
   return {
@@ -388,6 +402,7 @@ export function initializeUI(managers, config) {
     cooldownIndicator,
     roomManager,
     botControl,
+    learningFeedback,
     scoreboard: managers.scoreboard,
     isMenuOpen: () => isMenuOpen,
     setIsMenuOpen: (value) => { isMenuOpen = value; }
@@ -399,14 +414,21 @@ export function initializeUI(managers, config) {
  */
 function updateMenuForMode(mode, gameMenu) {
   const botSection = gameMenu.getSection('multiplayer', 'game-menu__section--bot-control');
+  const learningSection = gameMenu.getSection('multiplayer', 'game-menu__section--learning-feedback');
   
   if (mode === 'shooting') {
     if (botSection) {
       botSection.style.display = 'block';
     }
+    if (learningSection) {
+      learningSection.style.display = 'block';
+    }
   } else {
     if (botSection) {
       botSection.style.display = 'none';
+    }
+    if (learningSection) {
+      learningSection.style.display = 'none';
     }
   }
 }
@@ -423,7 +445,10 @@ function buildMenuStructure(gameMenu, mounts) {
     inputModeMount,
     roomMount,
     botControlMount,
-    gameMode
+    learningFeedbackMount,
+    gameMode,
+    characterManager,
+    managers
   } = mounts;
   
   // Game Mode Display Section
@@ -491,17 +516,145 @@ function buildMenuStructure(gameMenu, mounts) {
     }
   }
   
-  // Room Manager Section
-  const roomSection = gameMenu.addSection('multiplayer', {
-    title: 'Multiplayer Room',
-    className: 'game-menu__section--room-manager'
+  // Audio Settings Section
+  const audioSettingsSection = gameMenu.addSection('settings', {
+    title: 'Audio Settings',
+    className: 'game-menu__section--audio-settings'
   });
-  if (roomSection && roomMount.firstChild) {
-    const roomContent = roomSection.querySelector('.game-menu__section-content');
-    if (roomContent) {
-      while (roomMount.firstChild) {
-        roomContent.appendChild(roomMount.firstChild);
-      }
+  if (audioSettingsSection && characterManager) {
+    const audioContent = audioSettingsSection.querySelector('.game-menu__section-content');
+    if (audioContent) {
+      const soundManager = characterManager.getSoundManager();
+      const gameLoop = managers.gameLoop;
+      
+      // Sound Effects Volume Slider
+      const soundEffectsContainer = document.createElement('div');
+      soundEffectsContainer.className = 'game-menu__control ui__control';
+      soundEffectsContainer.style.marginTop = '10px';
+      
+      const soundEffectsLabel = document.createElement('label');
+      soundEffectsLabel.className = 'game-menu__label ui__label';
+      soundEffectsLabel.textContent = 'Sound Effects';
+      soundEffectsLabel.style.marginRight = '10px';
+      soundEffectsContainer.appendChild(soundEffectsLabel);
+      
+      const soundEffectsSlider = document.createElement('input');
+      soundEffectsSlider.type = 'range';
+      soundEffectsSlider.min = '0';
+      soundEffectsSlider.max = '1';
+      soundEffectsSlider.step = '0.01';
+      soundEffectsSlider.value = getSoundEffectsVolume();
+      soundEffectsSlider.style.width = '200px';
+      soundEffectsSlider.style.cursor = 'pointer';
+      soundEffectsSlider.tabIndex = 0; // Make focusable for controller navigation
+      soundEffectsSlider.addEventListener('input', (e) => {
+        const volume = parseFloat(e.target.value);
+        setSoundEffectsVolume(volume);
+        if (soundManager) {
+          soundManager.setSoundEffectsVolume(volume);
+        }
+      });
+      soundEffectsContainer.appendChild(soundEffectsSlider);
+      
+      const soundEffectsValue = document.createElement('span');
+      soundEffectsValue.className = 'game-menu__value ui__label';
+      soundEffectsValue.textContent = Math.round(getSoundEffectsVolume() * 100) + '%';
+      soundEffectsValue.style.marginLeft = '10px';
+      soundEffectsValue.style.minWidth = '40px';
+      soundEffectsContainer.appendChild(soundEffectsValue);
+      
+      soundEffectsSlider.addEventListener('input', (e) => {
+        const volume = parseFloat(e.target.value);
+        soundEffectsValue.textContent = Math.round(volume * 100) + '%';
+      });
+      
+      audioContent.appendChild(soundEffectsContainer);
+      
+      // Background Cinematic Volume Slider
+      const backgroundCinematicContainer = document.createElement('div');
+      backgroundCinematicContainer.className = 'game-menu__control ui__control';
+      backgroundCinematicContainer.style.marginTop = '10px';
+      
+      const backgroundCinematicLabel = document.createElement('label');
+      backgroundCinematicLabel.className = 'game-menu__label ui__label';
+      backgroundCinematicLabel.textContent = 'Background Cinematic';
+      backgroundCinematicLabel.style.marginRight = '10px';
+      backgroundCinematicContainer.appendChild(backgroundCinematicLabel);
+      
+      const backgroundCinematicSlider = document.createElement('input');
+      backgroundCinematicSlider.type = 'range';
+      backgroundCinematicSlider.min = '0';
+      backgroundCinematicSlider.max = '1';
+      backgroundCinematicSlider.step = '0.01';
+      backgroundCinematicSlider.value = getBackgroundCinematicVolume();
+      backgroundCinematicSlider.style.width = '200px';
+      backgroundCinematicSlider.style.cursor = 'pointer';
+      backgroundCinematicSlider.tabIndex = 0; // Make focusable for controller navigation
+      backgroundCinematicSlider.addEventListener('input', (e) => {
+        const volume = parseFloat(e.target.value);
+        setBackgroundCinematicVolume(volume);
+        if (soundManager) {
+          soundManager.setBackgroundMusicVolume(volume);
+        }
+      });
+      backgroundCinematicContainer.appendChild(backgroundCinematicSlider);
+      
+      const backgroundCinematicValue = document.createElement('span');
+      backgroundCinematicValue.className = 'game-menu__value ui__label';
+      backgroundCinematicValue.textContent = Math.round(getBackgroundCinematicVolume() * 100) + '%';
+      backgroundCinematicValue.style.marginLeft = '10px';
+      backgroundCinematicValue.style.minWidth = '40px';
+      backgroundCinematicContainer.appendChild(backgroundCinematicValue);
+      
+      backgroundCinematicSlider.addEventListener('input', (e) => {
+        const volume = parseFloat(e.target.value);
+        backgroundCinematicValue.textContent = Math.round(volume * 100) + '%';
+      });
+      
+      audioContent.appendChild(backgroundCinematicContainer);
+      
+      // Vibration Intensity Slider
+      const vibrationContainer = document.createElement('div');
+      vibrationContainer.className = 'game-menu__control ui__control';
+      vibrationContainer.style.marginTop = '10px';
+      
+      const vibrationLabel = document.createElement('label');
+      vibrationLabel.className = 'game-menu__label ui__label';
+      vibrationLabel.textContent = 'Vibration Intensity';
+      vibrationLabel.style.marginRight = '10px';
+      vibrationContainer.appendChild(vibrationLabel);
+      
+      const vibrationSlider = document.createElement('input');
+      vibrationSlider.type = 'range';
+      vibrationSlider.min = '0';
+      vibrationSlider.max = '1';
+      vibrationSlider.step = '0.01';
+      vibrationSlider.value = getVibrationIntensity();
+      vibrationSlider.style.width = '200px';
+      vibrationSlider.style.cursor = 'pointer';
+      vibrationSlider.tabIndex = 0; // Make focusable for controller navigation
+      vibrationSlider.addEventListener('input', (e) => {
+        const intensity = parseFloat(e.target.value);
+        setVibrationIntensity(intensity);
+        if (gameLoop && gameLoop.vibrationManager) {
+          gameLoop.vibrationManager.setIntensity(intensity);
+        }
+      });
+      vibrationContainer.appendChild(vibrationSlider);
+      
+      const vibrationValue = document.createElement('span');
+      vibrationValue.className = 'game-menu__value ui__label';
+      vibrationValue.textContent = Math.round(getVibrationIntensity() * 100) + '%';
+      vibrationValue.style.marginLeft = '10px';
+      vibrationValue.style.minWidth = '40px';
+      vibrationContainer.appendChild(vibrationValue);
+      
+      vibrationSlider.addEventListener('input', (e) => {
+        const intensity = parseFloat(e.target.value);
+        vibrationValue.textContent = Math.round(intensity * 100) + '%';
+      });
+      
+      audioContent.appendChild(vibrationContainer);
     }
   }
   
@@ -519,6 +672,37 @@ function buildMenuStructure(gameMenu, mounts) {
     }
     if (gameMode !== 'shooting') {
       botSection.style.display = 'none';
+    }
+  }
+  
+  // Learning Feedback Section
+  const learningSection = gameMenu.addSection('multiplayer', {
+    title: 'Bot Learning Progress',
+    className: 'game-menu__section--learning-feedback'
+  });
+  if (learningSection && learningFeedbackMount.firstChild) {
+    const learningContent = learningSection.querySelector('.game-menu__section-content');
+    if (learningContent) {
+      while (learningFeedbackMount.firstChild) {
+        learningContent.appendChild(learningFeedbackMount.firstChild);
+      }
+    }
+    if (gameMode !== 'shooting') {
+      learningSection.style.display = 'none';
+    }
+  }
+  
+  // Room Manager Section
+  const roomSection = gameMenu.addSection('multiplayer', {
+    title: 'Multiplayer Room',
+    className: 'game-menu__section--room-manager'
+  });
+  if (roomSection && roomMount.firstChild) {
+    const roomContent = roomSection.querySelector('.game-menu__section-content');
+    if (roomContent) {
+      while (roomMount.firstChild) {
+        roomContent.appendChild(roomMount.firstChild);
+      }
     }
   }
 }

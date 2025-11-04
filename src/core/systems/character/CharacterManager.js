@@ -13,11 +13,8 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { SoundManager } from '../../../utils/SoundManager.js';
-import { 
-  getCharacterHealthStats, 
-  getCharacterMovementStats, 
-  getCharacterPhysicsStats
-} from '../../../config/character/CharacterStats.js';
+import { getCharacterHealthStats, getCharacterMovementStats } from '../../../config/character/CharacterStats.js';
+import { getCharacterPhysicsStats } from '../../../config/character/PhysicsConfig.js';
 import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
 import { 
   loadCharacterAnimations, 
@@ -429,6 +426,14 @@ export class CharacterManager {
    */
   getMaxHealth() {
     return this.characterData.maxHealth;
+  }
+
+  /**
+   * Get levitation cooldown
+   * @returns {number} Current levitation cooldown
+   */
+  getLevitationCooldown() {
+    return this.characterData.levitationCooldown || 0;
   }
 
   /**

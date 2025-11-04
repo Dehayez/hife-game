@@ -7,7 +7,8 @@
  * Uses BaseEntityStats for shared health, movement, and physics stats.
  */
 
-import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../global/BaseEntityStats.js';
+import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats } from '../global/BaseEntityStats.js';
+import { getCharacterPhysicsStats } from './PhysicsConfig.js';
 
 /**
  * Player Character Configuration Stats
@@ -33,13 +34,9 @@ export const CHARACTER_STATS = {
   },
   
   /**
-   * Physics Configuration (extends base entity stats)
+   * Physics Configuration (imported from PhysicsConfig.js)
    */
-  physics: {
-    ...BASE_ENTITY_STATS.physics,
-    jumpCooldownTime: 0.6,     // Seconds between jumps (prevents rapid jumping)
-    levitationForce: 20        // Upward force when levitating (reduces gravity effect)
-  }
+  physics: getCharacterPhysicsStats()
 };
 
 /**
@@ -62,8 +59,6 @@ export function getCharacterMovementStats() {
  * Get character physics stats
  * @returns {Object} Physics configuration
  */
-export function getCharacterPhysicsStats() {
-  return CHARACTER_STATS.physics;
-}
+export { getCharacterPhysicsStats };
 
 

@@ -24,9 +24,11 @@ import { getCharacterColorHex } from '../../../../config/abilities/CharacterColo
 import { LUCY_BOLT_ATTACK_CONFIG } from '../../../../config/abilities/characters/lucy/bolt/AttackConfig.js';
 import { LUCY_MORTAR_ATTACK_CONFIG } from '../../../../config/abilities/characters/lucy/mortar/AttackConfig.js';
 import { LUCY_MELEE_ATTACK_CONFIG } from '../../../../config/abilities/characters/lucy/melee/AttackConfig.js';
+import { LUCY_MULTI_PROJECTILE_ATTACK_CONFIG } from '../../../../config/abilities/characters/lucy/multiProjectile/AttackConfig.js';
 import { HERALD_BOLT_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/bolt/AttackConfig.js';
 import { HERALD_MORTAR_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/mortar/AttackConfig.js';
 import { HERALD_MELEE_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/melee/AttackConfig.js';
+import { HERALD_BLAST_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/blast/AttackConfig.js';
 
 /**
  * Deep merge function that applies multipliers or overrides
@@ -154,4 +156,28 @@ export function getCharacterColor(characterName) {
 export function getMeleeStats(characterName) {
   const stats = getCharacterStats(characterName);
   return stats?.melee || {};
+}
+
+/**
+ * Get blast attack stats for Herald
+ * @param {string} characterName - Character name
+ * @returns {Object} Blast ability stats or null if not Herald
+ */
+export function getBlastStats(characterName) {
+  if (characterName === 'herald') {
+    return HERALD_BLAST_ATTACK_CONFIG;
+  }
+  return null;
+}
+
+/**
+ * Get multi-projectile attack stats for Lucy
+ * @param {string} characterName - Character name
+ * @returns {Object} Multi-projectile ability stats or null if not Lucy
+ */
+export function getMultiProjectileStats(characterName) {
+  if (characterName === 'lucy') {
+    return LUCY_MULTI_PROJECTILE_ATTACK_CONFIG;
+  }
+  return null;
 }

@@ -417,6 +417,10 @@ export class GameMenu {
       if (focused.tagName === 'SELECT') {
         focused.focus();
         focused.click();
+      } else if (focused.tagName === 'INPUT' && focused.type === 'range') {
+        // Range inputs are already interactive, just ensure they're focused
+        focused.focus();
+        this.highlightElement(focused);
       }
     }
   }

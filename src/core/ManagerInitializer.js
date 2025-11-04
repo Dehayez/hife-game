@@ -18,6 +18,7 @@ import { ProjectileManager } from './systems/abilities/functions/ProjectileManag
 import { MultiplayerManager } from './systems/multiplayer/MultiplayerManager.js';
 import { RemotePlayerManager } from './systems/multiplayer/RemotePlayerManager.js';
 import { BotManager } from './systems/bot/BotManager.js';
+import { BotLearningManager } from './systems/bot/BotLearningManager.js';
 import { HealthBarManager } from './systems/healthbar/HealthBarManager.js';
 import { GameLoop } from './systems/gameloop/GameLoop.js';
 import { ParticleManager } from '../utils/ParticleManager.js';
@@ -27,6 +28,7 @@ import { DamageNumberManager } from '../utils/DamageNumberManager.js';
 import { ScreenFlashManager } from '../utils/ScreenFlashManager.js';
 import { Scoreboard } from '../ui/components/Scoreboard/index.js';
 import { spawnRemotePlayerWithHealthBar, removeRemotePlayer, sendPlayerState, handleRemotePlayerStateUpdate } from './MultiplayerHelpers.js';
+import { getLastBotDifficulty } from '../utils/StorageUtils.js';
 
 /**
  * Initialize all game managers
@@ -77,10 +79,25 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   // Initialize multiplayer-related managers
   const remotePlayerManager = new RemotePlayerManager(sceneManager.getScene(), particleManager);
   const projectileManager = new ProjectileManager(sceneManager.getScene(), collisionManager, particleManager);
-  const botManager = new BotManager(sceneManager.getScene(), collisionManager, projectileManager, particleManager);
+  
+  // Initialize bot learning manager
+  const savedDifficulty = getLastBotDifficulty();
+  const learningManager = new BotLearningManager(savedDifficulty);
+  
+  // Initialize bot manager with learning manager
+  const botManager = new BotManager(sceneManager.getScene(), collisionManager, projectileManager, particleManager, learningManager);
   
   // Connect bot manager to projectile manager
   projectileManager.setBotManager(botManager);
+  
+  // Connect sound manager to projectile manager (for mortar explosion sounds)
+  const soundManager = characterManager.getSoundManager();
+  if (soundManager) {
+    projectileManager.setSoundManager(soundManager);
+  }
+  
+  // Connect learning manager to bot manager
+  botManager.setLearningManager(learningManager);
   
   // Initialize health bar manager
   const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);
@@ -217,7 +234,8 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     botManager,
     healthBarManager,
     multiplayerManager,
-    remotePlayerManager
+    remotePlayerManager,
+    learningManager
   );
   
   // Connect visual effects managers to game loop
@@ -266,6 +284,7 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     remotePlayerManager,
     projectileManager,
     botManager,
+    learningManager,
     healthBarManager,
     screenShakeManager,
     damageNumberManager,

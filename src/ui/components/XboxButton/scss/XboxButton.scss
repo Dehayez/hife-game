@@ -1,15 +1,15 @@
 /**
  * XboxButton Main SCSS
- * Imports all button component styles
+ * Uses all button component styles
  */
 
-@import '../A/XboxButtonA.scss';
-@import '../B/XboxButtonB.scss';
-@import '../X/XboxButtonX.scss';
-@import '../Y/XboxButtonY.scss';
-@import '../LB/XboxButtonLB.scss';
-@import '../LT/XboxButtonLT.scss';
-@import '../RB/XboxButtonRB.scss';
-@import '../RT/XboxButtonRT.scss';
+@use '../A/XboxButtonA.scss' as *;
+@use '../B/XboxButtonB.scss' as *;
+@use '../X/XboxButtonX.scss' as *;
+@use '../Y/XboxButtonY.scss' as *;
+@use '../LB/XboxButtonLB.scss' as *;
+@use '../LT/XboxButtonLT.scss' as *;
+@use '../RB/XboxButtonRB.scss' as *;
+@use '../RT/XboxButtonRT.scss' as *;
 
 

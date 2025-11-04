@@ -7,9 +7,13 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
     shotFill: null,
     mortarFill: null,
     meleeFill: null,
+    speedBoostFill: null,
+    levitateFill: null,
     shotBar: null,
     mortarBar: null,
     meleeBar: null,
+    speedBoostBar: null,
+    levitateBar: null,
     update: function() {},
     show: function() {},
     hide: function() {}
@@ -38,6 +42,21 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   shotBar.appendChild(shotFill);
   shotIndicator.appendChild(shotLabel);
   shotIndicator.appendChild(shotBar);
+  
+  // Speed boost cooldown (Lucy only) - below shot progress
+  const speedBoostIndicator = document.createElement('div');
+  speedBoostIndicator.className = 'ui__cooldown-item';
+  const speedBoostLabel = document.createElement('div');
+  speedBoostLabel.className = 'ui__cooldown-label';
+  speedBoostLabel.innerHTML = 'Speed Boost <span class="ui__cooldown-key">(LB)</span>';
+  const speedBoostBar = document.createElement('div');
+  speedBoostBar.className = 'ui__cooldown-bar';
+  const speedBoostFill = document.createElement('div');
+  speedBoostFill.className = 'ui__cooldown-fill';
+  speedBoostFill.style.width = '100%';
+  speedBoostBar.appendChild(speedBoostFill);
+  speedBoostIndicator.appendChild(speedBoostLabel);
+  speedBoostIndicator.appendChild(speedBoostBar);
   
   // Mortar cooldown (will update dynamically based on character)
   const mortarIndicator = document.createElement('div');
@@ -69,9 +88,26 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   meleeIndicator.appendChild(meleeLabel);
   meleeIndicator.appendChild(meleeBar);
   
+  // Levitate cooldown
+  const levitateIndicator = document.createElement('div');
+  levitateIndicator.className = 'ui__cooldown-item';
+  const levitateLabel = document.createElement('div');
+  levitateLabel.className = 'ui__cooldown-label';
+  levitateLabel.innerHTML = 'Levitate <span class="ui__cooldown-key">(Hold A/Space)</span>';
+  const levitateBar = document.createElement('div');
+  levitateBar.className = 'ui__cooldown-bar';
+  const levitateFill = document.createElement('div');
+  levitateFill.className = 'ui__cooldown-fill';
+  levitateFill.style.width = '100%';
+  levitateBar.appendChild(levitateFill);
+  levitateIndicator.appendChild(levitateLabel);
+  levitateIndicator.appendChild(levitateBar);
+  
   container.appendChild(shotIndicator);
+  container.appendChild(speedBoostIndicator);
   container.appendChild(mortarIndicator);
   container.appendChild(meleeIndicator);
+  container.appendChild(levitateIndicator);
   mount.appendChild(container);
   
   // Store references for updates
@@ -80,11 +116,15 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
     shotFill,
     mortarFill,
     meleeFill,
+    speedBoostFill,
+    levitateFill,
     shotBar,
     mortarBar,
     meleeBar,
+    speedBoostBar,
+    levitateBar,
     update: function() {
-      updateCooldowns(projectileManager, characterManager, shotLabel, mortarLabel, meleeLabel, shotFill, mortarFill, meleeFill);
+      updateCooldowns(projectileManager, characterManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill);
     },
     show: function() {
       container.style.display = 'block';

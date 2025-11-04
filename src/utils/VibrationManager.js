@@ -21,6 +21,7 @@ export class VibrationManager {
     this.inputManager = inputManager;
     this._vibrationQueue = [];
     this._isVibrating = false;
+    this.intensity = 1.0; // Intensity multiplier (0.0 to 1.0)
   }
 
   /**
@@ -63,6 +64,22 @@ export class VibrationManager {
   }
 
   /**
+   * Set vibration intensity multiplier
+   * @param {number} intensity - Intensity multiplier (0.0 to 1.0)
+   */
+  setIntensity(intensity) {
+    this.intensity = Math.max(0, Math.min(1, intensity));
+  }
+
+  /**
+   * Get current vibration intensity multiplier
+   * @returns {number} Current intensity multiplier (0.0 to 1.0)
+   */
+  getIntensity() {
+    return this.intensity;
+  }
+
+  /**
    * Vibrate the gamepad
    * @param {number} strongMagnitude - Strong motor vibration (0.0 to 1.0)
    * @param {number} weakMagnitude - Weak motor vibration (0.0 to 1.0)
@@ -71,6 +88,10 @@ export class VibrationManager {
   vibrate(strongMagnitude = 0.5, weakMagnitude = 0.5, duration = 100) {
     const gamepad = this._getGamepad();
     if (!gamepad) return;
+
+    // Apply intensity multiplier
+    strongMagnitude = strongMagnitude * this.intensity;
+    weakMagnitude = weakMagnitude * this.intensity;
 
     // Clamp magnitudes to valid range
     strongMagnitude = Math.max(0, Math.min(1, strongMagnitude));
@@ -160,7 +181,7 @@ export class VibrationManager {
    * @param {number} count - Number of pulses
    * @param {number} pulseDuration - Duration of each pulse in milliseconds
    * @param {number} interval - Interval between pulses in milliseconds
-   * @param {number} magnitude - Vibration magnitude (0.0 to 1.0)
+   * @param {number} magnitude - Vibration magnitude (0.0 to 1.0) - will be multiplied by intensity
    */
   pulse(count = 3, pulseDuration = 50, interval = 50, magnitude = 0.5) {
     for (let i = 0; i < count; i++) {

@@ -86,7 +86,22 @@ export function createProjectileMesh(config) {
     castShadow = true
   } = config;
 
-  const mesh = new THREE.Mesh(geometry, material);
+  // Clone pooled geometries so each mesh has its own instance
+  // This prevents rendering conflicts when multiple meshes share the same geometry
+  let finalGeometry = geometry;
+  if (geometry && geometry.type) {
+    const geometryType = geometry.type;
+    if (geometryType === 'SphereGeometry' || 
+        geometryType === 'OctahedronGeometry' || 
+        geometryType === 'ConeGeometry') {
+      // Clone the pooled geometry so each mesh has its own instance
+      finalGeometry = geometry.clone();
+      // Mark as cloned so cleanup knows to dispose it
+      finalGeometry.userData = { ...(geometry.userData || {}), isCloned: true };
+    }
+  }
+
+  const mesh = new THREE.Mesh(finalGeometry, material);
   
   if (position) {
     mesh.position.copy(position);

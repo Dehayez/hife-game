@@ -8,6 +8,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { BOLT_ATTACK_CONFIG } from '../../../../../config/abilities/base/BoltAttackConfig.js';
 import { calculateSpeed2D } from '../utils/VectorUtils.js';
+import { getBoltStats } from '../CharacterAbilityStats.js';
 
 /**
  * Update projectile speed based on character type
@@ -19,11 +20,51 @@ import { calculateSpeed2D } from '../utils/VectorUtils.js';
 export function updateSpeed(projectile, camera, inputManager, playerPosition) {
   let targetSpeed;
   
-  if (projectile.userData.characterName === 'herald' && inputManager) {
-    // Herald: Speed controlled by input method (can only increase, never decrease)
+  // Get character-specific joystick speed multiplier config
+  const characterName = projectile.userData.characterName || 'lucy';
+  const boltStats = getBoltStats(characterName);
+  const joystickConfig = boltStats?.joystickSpeedMultiplier || {};
+  
+  // Speed scaling range for joystick control (from config, with fallback defaults)
+  const MIN_SPEED_MULTIPLIER = joystickConfig.minSpeedMultiplier ?? 0.7;
+  const MAX_SPEED_MULTIPLIER = joystickConfig.maxSpeedMultiplier ?? 1.5;
+  
+  // Check if using controller with joystick input for all characters
+  // Use live joystick magnitude for real-time speed control
+  if (inputManager && inputManager.getInputMode() === 'controller') {
+    // Use current joystick magnitude for live speed control
+    // Speed updates in real-time as you adjust the joystick
+    const joystickMagnitude = inputManager.getRightJoystickMagnitude();
+    
+    if (joystickMagnitude > 0.01) {
+      // Controller mode: Speed scales with joystick magnitude
+      // Further joystick push = faster bolt
+      const speedMultiplier = MIN_SPEED_MULTIPLIER + (joystickMagnitude * (MAX_SPEED_MULTIPLIER - MIN_SPEED_MULTIPLIER));
+      
+      if (projectile.userData.characterName === 'herald') {
+        // Herald: Use existing acceleration pattern which already accounts for joystick
+        // The existing system uses minSpeed + (speedRange * joystickMagnitude)
+        // So we just use that directly without additional scaling
+        targetSpeed = calculateHeraldSpeed(projectile, camera, inputManager, playerPosition);
+      } else {
+        // Other characters (Lucy, etc.): Scale base speed by joystick magnitude from config
+        targetSpeed = projectile.userData.baseSpeed * speedMultiplier;
+      }
+    } else {
+      // Joystick not pushed or too small - use minimum speed from config
+      if (projectile.userData.characterName === 'herald') {
+        // Herald: Use minimum speed from existing system
+        targetSpeed = projectile.userData.startSpeed;
+      } else {
+        // Other characters: Use minimum speed multiplier from config
+        targetSpeed = projectile.userData.baseSpeed * MIN_SPEED_MULTIPLIER;
+      }
+    }
+  } else if (projectile.userData.characterName === 'herald' && inputManager) {
+    // Herald: Speed controlled by input method (keyboard/mouse)
     targetSpeed = calculateHeraldSpeed(projectile, camera, inputManager, playerPosition);
   } else {
-    // Lucy: Fixed speed or deceleration pattern (no joystick control)
+    // Default: Use base speed (keyboard/mouse for non-Herald characters)
     targetSpeed = projectile.userData.baseSpeed;
   }
   

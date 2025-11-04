@@ -63,14 +63,14 @@ export const VIBRATION_CONFIG = {
       duration: 60  // milliseconds
     },
     mortar: {
-      strongMagnitude: 0.7,
-      weakMagnitude: 0.8,
-      duration: 120  // milliseconds
+      strongMagnitude: 1.0,
+      weakMagnitude: 1.0,
+      duration: 180  // milliseconds
     },
     mortarExplosion: {
       strongMagnitude: 1.0,
       weakMagnitude: 1.0,
-      duration: 180  // milliseconds
+      duration: 250  // milliseconds
     },
     takeDamage: {
       // Damage thresholds for scaling vibration intensity
@@ -135,7 +135,13 @@ export const VIBRATION_CONFIG = {
    */
   healing: {
     vibrationInterval: 0.2  // seconds between vibrations during continuous healing
-  }
+  },
+
+  /**
+   * Vibration Intensity/Volume Multiplier
+   * Applied to all vibration magnitudes (0.0 to 1.0)
+   */
+  defaultIntensity: 1.0  // Default intensity multiplier
 };
 
 /**
@@ -179,4 +185,12 @@ export function getDamageVibration(damage) {
  */
 export function getHealingVibrationInterval() {
   return VIBRATION_CONFIG.healing.vibrationInterval;
+}
+
+/**
+ * Get default vibration intensity multiplier
+ * @returns {number} Default intensity multiplier (0.0 to 1.0)
+ */
+export function getDefaultVibrationIntensity() {
+  return VIBRATION_CONFIG.defaultIntensity;
 }

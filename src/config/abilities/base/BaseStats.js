@@ -35,9 +35,9 @@ export const GLOBAL_BASE_STATS = {
   bolt: {
     damage: 20,              // Base damage per hit
     cooldown: 0.4,           // Base seconds between shots
-    projectileSpeed: 10,     // Base units per second
+    projectileSpeed: 4,     // Base units per second
     size: 0.13,              // Base projectile radius
-    lifetime: 3,              // Seconds before projectile despawns
+    lifetime: 8,              // Seconds before projectile despawns
     cursorFollowStrength: 0.4, // Base cursor follow strength (0.0 = none, 1.0 = full)
     maxBullets: 10,          // Base maximum number of bullets before recharge
     rechargeCooldown: 2.0    // Base seconds to recharge all bullets
