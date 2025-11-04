@@ -7,33 +7,13 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { MORTAR_ATTACK_CONFIG } from '../../config/base/MortarAttackConfig.js';
+import { DEFAULT_MORTAR_CONFIG, MORTAR_GRAVITY, MORTAR_LIFETIME, EXPLOSION_RADIUS, DIRECT_HIT_RADIUS } from '../../config/base/MortarDefaultConfig.js';
 import { createSphereGeometry, createEmissiveMaterial, createProjectileMesh } from '../utils/GeometryUtils.js';
 import { createTrailLight } from '../utils/LightUtils.js';
 import { normalize2D } from '../utils/VectorUtils.js';
 
-// Global mortar physics constants (imported from config)
-export const MORTAR_GRAVITY = MORTAR_ATTACK_CONFIG.physics.gravity;
-export const MORTAR_LIFETIME = MORTAR_ATTACK_CONFIG.physics.lifetime;
-export const EXPLOSION_RADIUS = MORTAR_ATTACK_CONFIG.physics.explosionRadius;
-export const DIRECT_HIT_RADIUS = MORTAR_ATTACK_CONFIG.physics.directHitRadius;
-
-/**
- * Default mortar creation configuration
- * These are the default behaviors - can be overridden per character
- */
-export const DEFAULT_MORTAR_CONFIG = {
-  // Visual settings (from config)
-  geometrySegments: MORTAR_ATTACK_CONFIG.visual.geometrySegments,
-  emissiveIntensity: MORTAR_ATTACK_CONFIG.visual.emissiveIntensity,
-  metalness: MORTAR_ATTACK_CONFIG.visual.metalness,
-  roughness: MORTAR_ATTACK_CONFIG.visual.roughness,
-  trailLightIntensity: MORTAR_ATTACK_CONFIG.trailLight.intensity,
-  trailLightRange: MORTAR_ATTACK_CONFIG.trailLight.range,
-  
-  // Movement
-  rotationSpeed: MORTAR_ATTACK_CONFIG.visual.rotationSpeed,
-};
+// Re-export config constants for convenience
+export { MORTAR_GRAVITY, MORTAR_LIFETIME, EXPLOSION_RADIUS, DIRECT_HIT_RADIUS, DEFAULT_MORTAR_CONFIG };
 
 /**
  * Calculate mortar trajectory

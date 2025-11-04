@@ -34,7 +34,7 @@ import { HERALD_MELEE_ATTACK_CONFIG } from '../config/characters/herald/melee/At
  * @param {Object} character - Character-specific multipliers/overrides
  * @returns {Object} Merged stats object
  */
-function mergeStats(base, character) {
+export function mergeStats(base, character) {
   const result = {};
   
   // Copy base values
@@ -76,7 +76,7 @@ function mergeStats(base, character) {
  * @param {Object} meleeConfig - Melee attack config
  * @returns {Object} Complete character stats
  */
-function createCharacterStats(characterName, boltConfig, mortarConfig, meleeConfig) {
+export function createCharacterStats(characterName, boltConfig, mortarConfig, meleeConfig) {
   return {
     name: characterName,
     color: getCharacterColorHex(characterName),
@@ -86,18 +86,8 @@ function createCharacterStats(characterName, boltConfig, mortarConfig, meleeConf
   };
 }
 
-/**
- * Character Ability Stats Configuration
- * 
- * Each character has stats for three abilities:
- * 1. Bolt (regular projectile)
- * 2. Mortar (arc projectile with splash area)
- * 3. Melee (sword swing attack)
- */
-export const CHARACTER_STATS = {
-  lucy: createCharacterStats('lucy', LUCY_BOLT_ATTACK_CONFIG, LUCY_MORTAR_ATTACK_CONFIG, LUCY_MELEE_ATTACK_CONFIG),
-  herald: createCharacterStats('herald', HERALD_BOLT_ATTACK_CONFIG, HERALD_MORTAR_ATTACK_CONFIG, HERALD_MELEE_ATTACK_CONFIG)
-};
+// Cache for CHARACTER_STATS to avoid circular dependency
+let _characterStatsCache = null;
 
 /**
  * Get character stats by name
@@ -105,7 +95,25 @@ export const CHARACTER_STATS = {
  * @returns {Object} Character stats object or defaults to Lucy
  */
 export function getCharacterStats(characterName) {
-  return CHARACTER_STATS[characterName] || CHARACTER_STATS.lucy;
+  // Lazy load CHARACTER_STATS from config to avoid circular dependency
+  if (!_characterStatsCache) {
+    _characterStatsCache = import('../config/CharacterAbilityStatsConfig.js').then(m => m.CHARACTER_STATS);
+  }
+  
+  // If already loaded, use cache
+  if (_characterStatsCache && typeof _characterStatsCache.then !== 'function') {
+    return _characterStatsCache[characterName] || _characterStatsCache.lucy;
+  }
+  
+  // If still loading, compute on the fly
+  if (characterName === 'lucy') {
+    return createCharacterStats('lucy', LUCY_BOLT_ATTACK_CONFIG, LUCY_MORTAR_ATTACK_CONFIG, LUCY_MELEE_ATTACK_CONFIG);
+  } else if (characterName === 'herald') {
+    return createCharacterStats('herald', HERALD_BOLT_ATTACK_CONFIG, HERALD_MORTAR_ATTACK_CONFIG, HERALD_MELEE_ATTACK_CONFIG);
+  }
+  
+  // Default to lucy
+  return createCharacterStats('lucy', LUCY_BOLT_ATTACK_CONFIG, LUCY_MORTAR_ATTACK_CONFIG, LUCY_MELEE_ATTACK_CONFIG);
 }
 
 /**
@@ -115,7 +123,7 @@ export function getCharacterStats(characterName) {
  */
 export function getBoltStats(characterName) {
   const stats = getCharacterStats(characterName);
-  return stats.bolt;
+  return stats?.bolt || {};
 }
 
 /**
@@ -125,7 +133,7 @@ export function getBoltStats(characterName) {
  */
 export function getMortarStats(characterName) {
   const stats = getCharacterStats(characterName);
-  return stats.mortar;
+  return stats?.mortar || {};
 }
 
 /**
@@ -145,5 +153,5 @@ export function getCharacterColor(characterName) {
  */
 export function getMeleeStats(characterName) {
   const stats = getCharacterStats(characterName);
-  return stats.melee;
+  return stats?.melee || {};
 }
