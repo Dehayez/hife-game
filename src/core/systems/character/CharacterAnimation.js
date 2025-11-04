@@ -4,8 +4,8 @@
  * Handles character animation loading, updating, and frame management.
  */
 
-import { loadAnimationSmart } from '../../../../utils/TextureLoader.js';
-import { getRunningSmokeConfig } from '../../../../config/abilities/base/SmokeParticleConfig.js';
+import { loadAnimationSmart } from '../../../utils/TextureLoader.js';
+import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
 
 /**
  * Load character animations

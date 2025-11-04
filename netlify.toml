@@ -5,6 +5,13 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Handle 404 errors by serving 404.html
+[[redirects]]
+  from = "/404.html"
+  to = "/404.html"
+  status = 404
+
+# SPA fallback - redirect all other routes to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"

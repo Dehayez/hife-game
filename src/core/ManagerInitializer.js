@@ -5,7 +5,7 @@
  * Separates manager initialization from main.js for better organization.
  */
 
-import { RespawnOverlay } from '../../ui/components/RespawnOverlay/index.js';
+import { RespawnOverlay } from '../ui/components/RespawnOverlay/index.js';
 import { SceneManager } from './systems/scene/SceneManager.js';
 import { LargeArenaSceneManager } from './systems/scene/LargeArenaSceneManager.js';
 import { CharacterManager } from './systems/character/CharacterManager.js';
@@ -20,12 +20,12 @@ import { RemotePlayerManager } from './systems/multiplayer/RemotePlayerManager.j
 import { BotManager } from './systems/bot/BotManager.js';
 import { HealthBarManager } from './systems/healthbar/HealthBarManager.js';
 import { GameLoop } from './systems/gameloop/GameLoop.js';
-import { ParticleManager } from '../../utils/ParticleManager.js';
+import { ParticleManager } from '../utils/ParticleManager.js';
 import { ArenaManager } from './systems/arena/ArenaManager.js';
-import { ScreenShakeManager } from '../../utils/ScreenShakeManager.js';
-import { DamageNumberManager } from '../../utils/DamageNumberManager.js';
-import { ScreenFlashManager } from '../../utils/ScreenFlashManager.js';
-import { Scoreboard } from '../../ui/components/Scoreboard/index.js';
+import { ScreenShakeManager } from '../utils/ScreenShakeManager.js';
+import { DamageNumberManager } from '../utils/DamageNumberManager.js';
+import { ScreenFlashManager } from '../utils/ScreenFlashManager.js';
+import { Scoreboard } from '../ui/components/Scoreboard/index.js';
 import { spawnRemotePlayerWithHealthBar, removeRemotePlayer, sendPlayerState, handleRemotePlayerStateUpdate } from './MultiplayerHelpers.js';
 
 /**

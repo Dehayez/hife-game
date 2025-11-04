@@ -11,7 +11,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { CollisionManager } from './CollisionManager.js';
-import { getLargeArenaObstacles, getLargeArenaColors, getLargeArenaConfig } from '../../../../config/collision/CollisionStats.js';
+import { getLargeArenaObstacles, getLargeArenaColors, getLargeArenaConfig } from '../../../config/collision/CollisionStats.js';
 
 export class LargeArenaCollisionManager extends CollisionManager {
   /**

@@ -4,7 +4,7 @@
  * Handles bot animation updates and changes based on movement state.
  */
 
-import { loadAnimationSmart } from '../../../../utils/TextureLoader.js';
+import { loadAnimationSmart } from '../../../utils/TextureLoader.js';
 
 /**
  * Load bot animations for a character

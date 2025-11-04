@@ -5,9 +5,9 @@
  * Coordinates manager initialization, UI setup, and game start.
  */
 
-import { getParam } from '../../utils/UrlUtils.js';
-import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode } from '../../utils/StorageUtils.js';
-import { GAME_CONSTANTS } from '../../config/global/GameConstants.js';
+import { getParam } from '../utils/UrlUtils.js';
+import { getLastCharacter, setLastCharacter, getLastGameMode, setLastGameMode } from '../utils/StorageUtils.js';
+import { GAME_CONSTANTS } from '../config/global/GameConstants.js';
 import { initializeManagers } from './ManagerInitializer.js';
 import { initializeUI } from './UIInitializer.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';

@@ -5,7 +5,8 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCollectibleStats } from '../../../../config/entity/EntityStats.js';
+import { getCollectibleStats } from '../../../config/entity/EntityStats.js';
+import { getGeometryPool } from '../abilities/functions/utils/GeometryPool.js';
 
 /**
  * Create a collectible gem
@@ -19,7 +20,9 @@ export function createCollectible(scene, x, z, id) {
   const stats = getCollectibleStats();
   
   // Create magical crystal gem - faceted crystal shape with red color
-  const geo = new THREE.OctahedronGeometry(stats.size, 0);
+  // Use geometry pool for optimization
+  const pool = getGeometryPool();
+  const geo = pool.acquireOctahedron(stats.size, 0);
   const color = stats.color;
   
   const mat = new THREE.MeshStandardMaterial({ 

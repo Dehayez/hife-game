@@ -4,7 +4,7 @@
  * Handles bot physics including gravity, ground collision, and vertical movement.
  */
 
-import { getBotPhysicsStats, getBotMovementStats } from '../../../../config/bot/BotStats.js';
+import { getBotPhysicsStats, getBotMovementStats } from '../../../config/bot/BotStats.js';
 
 /**
  * Update bot jump physics and ground collision

@@ -5,21 +5,21 @@
  * Separates UI setup from main.js for better organization.
  */
 
-import { GameMenu } from '../../ui/components/GameMenu/index.js';
-import { initCharacterSwitcher } from '../../ui/adapters/reactAdapters.jsx';
-import { initControlsLegend } from '../../ui/adapters/reactAdapters.jsx';
-import { initGameModeSwitcher } from '../../ui/adapters/reactAdapters.jsx';
-import { initGameModeDisplay } from '../../ui/components/GameModeDisplay/index.js';
-import { initArenaSwitcher } from '../../ui/components/ArenaSwitcher/index.js';
-import { initRoomManager } from '../../ui/components/RoomManager/index.js';
-import { initBotControl } from '../../ui/components/BotControl/index.js';
-import { initCooldownIndicator } from '../../ui/components/CooldownIndicator/index.js';
-import { initConnectionStatus } from '../../ui/components/ConnectionStatus/index.js';
-import { initInputModeSwitcher } from '../../ui/adapters/reactAdapters.jsx';
-import { getParam } from '../../utils/UrlUtils.js';
-import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode } from '../../utils/StorageUtils.js';
+import { GameMenu } from '../ui/components/GameMenu/index.js';
+import { initCharacterSwitcher } from '../ui/adapters/reactAdapters.jsx';
+import { initControlsLegend } from '../ui/adapters/reactAdapters.jsx';
+import { initGameModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
+import { initGameModeDisplay } from '../ui/components/GameModeDisplay/index.js';
+import { initArenaSwitcher } from '../ui/components/ArenaSwitcher/index.js';
+import { initRoomManager } from '../ui/components/RoomManager/index.js';
+import { initBotControl } from '../ui/components/BotControl/index.js';
+import { initCooldownIndicator } from '../ui/components/CooldownIndicator/index.js';
+import { initConnectionStatus } from '../ui/components/ConnectionStatus/index.js';
+import { initInputModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
+import { getParam } from '../utils/UrlUtils.js';
+import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode } from '../utils/StorageUtils.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
-import { GAME_CONSTANTS } from '../../config/global/GameConstants.js';
+import { GAME_CONSTANTS } from '../config/global/GameConstants.js';
 
 /**
  * Initialize all UI components

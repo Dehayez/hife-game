@@ -3,17 +3,33 @@
  * 
  * Utility functions for cleaning up THREE.js resources.
  * Ensures proper disposal of geometries, materials, and objects.
+ * Uses geometry pooling for optimization - returns geometries to pool instead of disposing.
  */
+
+import { getGeometryPool } from './GeometryPool.js';
 
 /**
  * Dispose of geometry and material from a mesh
+ * Returns sphere geometries to pool instead of disposing them
  * @param {THREE.Mesh} mesh - Mesh to cleanup
  */
 export function disposeMesh(mesh) {
   if (!mesh) return;
   
   if (mesh.geometry) {
-    mesh.geometry.dispose();
+    // Check if this is a pooled geometry (Sphere, Octahedron, or Cone)
+    // Use type check as optimization, but pool will handle disposal if not found
+    const geometryType = mesh.geometry.type;
+    if (geometryType === 'SphereGeometry' || 
+        geometryType === 'OctahedronGeometry' || 
+        geometryType === 'ConeGeometry') {
+      // Return to pool instead of disposing
+      const pool = getGeometryPool();
+      pool.releaseFromMesh(mesh, 1);
+    } else {
+      // For other geometry types, dispose normally
+      mesh.geometry.dispose();
+    }
   }
   
   if (mesh.material) {
@@ -44,13 +60,29 @@ export function disposeMaterial(material) {
 
 /**
  * Dispose of geometry and materials from multiple children
+ * Returns sphere geometries to pool instead of disposing them
  * @param {THREE.Object3D} container - Container object with children
  */
 export function disposeChildren(container) {
   if (!container || !container.children) return;
   
+  const pool = getGeometryPool();
+  
   container.children.forEach(child => {
-    if (child.geometry) child.geometry.dispose();
+    if (child.geometry) {
+      // Check if this is a pooled geometry (Sphere, Octahedron, or Cone)
+      // Use type check as optimization, but pool will handle disposal if not found
+      const geometryType = child.geometry.type;
+      if (geometryType === 'SphereGeometry' || 
+          geometryType === 'OctahedronGeometry' || 
+          geometryType === 'ConeGeometry') {
+        // Return to pool instead of disposing
+        pool.releaseFromMesh(child, 1);
+      } else {
+        // For other geometry types, dispose normally
+        child.geometry.dispose();
+      }
+    }
     if (child.material) {
       if (Array.isArray(child.material)) {
         child.material.forEach(material => disposeMaterial(material));

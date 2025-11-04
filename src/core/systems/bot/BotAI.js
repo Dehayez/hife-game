@@ -5,7 +5,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getBotAIStats, getBotMovementStats } from '../../../../config/bot/BotStats.js';
+import { getBotAIStats, getBotMovementStats } from '../../../config/bot/BotStats.js';
 
 /**
  * Update bot AI direction change timer

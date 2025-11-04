@@ -5,7 +5,8 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getHazardStats } from '../../../../config/entity/EntityStats.js';
+import { getHazardStats } from '../../../config/entity/EntityStats.js';
+import { getGeometryPool } from '../abilities/functions/utils/GeometryPool.js';
 
 /**
  * Create a hazard (thorn cluster)
@@ -23,8 +24,13 @@ export function createHazard(scene, x, z, id, size = null) {
   // Create cursed thorn cluster - dark mystical thorn formation
   const group = new THREE.Group();
   
+  // Use geometry pool for optimization
+  const pool = getGeometryPool();
+  
   // Main thorn body - dark purple/black with spikes
-  const mainGeo = new THREE.ConeGeometry(hazardSize * stats.mainBodySize, stats.mainBodyHeight, 6);
+  // ConeGeometry: radius, height, radialSegments
+  const mainRadius = hazardSize * stats.mainBodySize;
+  const mainGeo = pool.acquireCone(mainRadius, stats.mainBodyHeight, 6);
   const mainMat = new THREE.MeshStandardMaterial({ 
     color: stats.mainColor,
     emissive: stats.mainEmissive,
@@ -38,7 +44,9 @@ export function createHazard(scene, x, z, id, size = null) {
   
   // Add spike thorns around the base
   for (let i = 0; i < stats.spikeCount; i++) {
-    const spikeGeo = new THREE.ConeGeometry(hazardSize * stats.spikeSize, stats.spikeHeight, 4);
+    // Use geometry pool for optimization
+    const spikeRadius = hazardSize * stats.spikeSize;
+    const spikeGeo = pool.acquireCone(spikeRadius, stats.spikeHeight, 4);
     const spikeMat = new THREE.MeshStandardMaterial({ 
       color: stats.spikeColor,
       emissive: stats.spikeEmissive,

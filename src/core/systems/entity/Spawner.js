@@ -4,7 +4,7 @@
  * Handles entity spawning and position generation.
  */
 
-import { getSpawnStats } from '../../../../config/entity/EntityStats.js';
+import { getSpawnStats } from '../../../config/entity/EntityStats.js';
 
 /**
  * Generate random positions for spawning entities

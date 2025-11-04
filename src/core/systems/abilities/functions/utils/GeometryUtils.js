@@ -3,18 +3,22 @@
  * 
  * Utility functions for creating common THREE.js geometries and materials.
  * Reduces code duplication across projectile types.
+ * Uses geometry pooling for optimization.
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { getGeometryPool } from './GeometryPool.js';
 
 /**
  * Create a sphere geometry with specified parameters
+ * Uses geometry pool for optimization - geometries are reused instead of created/disposed
  * @param {number} radius - Sphere radius
  * @param {number} segments - Geometry segments (detail level)
- * @returns {THREE.SphereGeometry} Created geometry
+ * @returns {THREE.SphereGeometry} Geometry from pool
  */
 export function createSphereGeometry(radius, segments) {
-  return new THREE.SphereGeometry(radius, segments, segments);
+  const pool = getGeometryPool();
+  return pool.acquireSphere(radius, segments);
 }
 
 /**

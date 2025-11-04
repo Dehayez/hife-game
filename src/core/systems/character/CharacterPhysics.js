@@ -4,7 +4,7 @@
  * Handles character physics including gravity, jump, and ground collision.
  */
 
-import { getCharacterPhysicsStats, getCharacterMovementStats, getCharacterHealthStats } from '../../../../config/character/CharacterStats.js';
+import { getCharacterPhysicsStats, getCharacterMovementStats, getCharacterHealthStats } from '../../../config/character/CharacterStats.js';
 
 /**
  * Update character jump physics and ground collision

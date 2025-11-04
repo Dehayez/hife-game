@@ -16,13 +16,14 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getSpawnStats } from '../../../../config/entity/EntityStats.js';
+import { getSpawnStats } from '../../../config/entity/EntityStats.js';
 import { createCollectible, collectItem, updateCollectible } from './Collectible.js';
 import { createHazard, updateHazard } from './Hazard.js';
 import { createCheckpoint, activateCheckpoint, updateCheckpoint } from './Checkpoint.js';
 import { createConfettiBurst, updateConfetti, removeConfetti } from './Confetti.js';
 import { updateCollectibleAnimation, updateCheckpointAnimation } from './EntityAnimation.js';
 import { checkPlayerCollision } from './CollisionDetector.js';
+import { getGeometryPool } from '../abilities/functions/utils/GeometryPool.js';
 import { generateRandomPositions, getAdjustedSpawnCount } from './Spawner.js';
 
 export class EntityManager {
@@ -351,23 +352,43 @@ export class EntityManager {
    * Clear all entities
    */
   clearAll() {
-    // Remove collectibles
+    // Use geometry pool for cleanup
+    const pool = getGeometryPool();
+    
+    // Remove collectibles - release geometries to pool
     for (const item of this.collectibles) {
       if (item.userData.glowLight) {
         this.scene.remove(item.userData.glowLight);
       }
       this.scene.remove(item);
-      if (item.geometry) item.geometry.dispose();
-      if (item.material) item.material.dispose();
+      // Release geometry to pool instead of disposing
+      if (item.geometry) {
+        pool.releaseFromMesh(item, 1);
+      }
+      // Dispose materials
+      if (item.material) {
+        if (Array.isArray(item.material)) {
+          item.material.forEach(material => material.dispose());
+        } else {
+          item.material.dispose();
+        }
+      }
     }
     
-    // Remove hazards
+    // Remove hazards - release geometries to pool
     for (const hazard of this.hazards) {
       this.scene.remove(hazard);
-      // Dispose of all children
+      // Release geometries to pool instead of disposing
+      pool.releaseFromGroup(hazard, 1);
+      // Dispose materials
       hazard.traverse((child) => {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) child.material.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(material => material.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
       });
     }
     
