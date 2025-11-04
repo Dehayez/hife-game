@@ -806,21 +806,9 @@ html, body { height: 100%; margin: 0; }
 }
 
 .game-menu__footer-button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  height: 28px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-medium-2);
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-family: system-ui, -apple-system, sans-serif;
-  transition: background 0.2s ease, border-color 0.2s ease;
-  user-select: none;
-  pointer-events: none;
 }
 
 .game-menu__footer-button--esc {
