@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "concurrently \"yarn dev:server\" \"yarn dev:client\"",
     "dev:client": "vite",
-    "dev:server": "node server.js",
+    "dev:server": "node src/server/index.js",
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server.js"
+    "server": "node src/server/index.js"
   },
   "dependencies": {
     "concurrently": "^9.2.1",
