@@ -9,6 +9,7 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getCharacterColor, getMeleeStats, getMortarStats } from '../../systems/abilities/functions/CharacterAbilityStats.js';
 import { setLastCharacter } from '../../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../../systems/abilities/functions/mortar/MortarArcPreview.js';
+import { VibrationManager } from '../../../utils/VibrationManager.js';
 
 export class GameLoop {
   /**
@@ -106,6 +107,16 @@ export class GameLoop {
     this.damageNumberManager = null;
     this.screenFlashManager = null;
     this.sceneManagerForShake = null;
+    
+    // Vibration manager for gamepad haptic feedback
+    this.vibrationManager = new VibrationManager(inputManager);
+    
+    // Track previous grounded state for landing detection
+    this._wasGrounded = true;
+    
+    // Healing vibration throttle (to prevent too much vibration during continuous healing)
+    this._lastHealVibrationTime = 0;
+    this._healVibrationInterval = 0.2; // Vibrate every 200ms during healing
   }
   
   /**
@@ -285,15 +296,31 @@ export class GameLoop {
       // If double jump is detected, try double jump first
       if (this.inputManager.isDoubleJumpDetected()) {
         this.characterManager.doubleJump();
+        // Vibration for double jump
+        if (this.vibrationManager) {
+          this.vibrationManager.doubleJump();
+        }
       } else {
         // Otherwise do regular jump
         this.characterManager.jump();
+        // Vibration for jump
+        if (this.vibrationManager) {
+          this.vibrationManager.jump();
+        }
       }
     }
     
     // Update jump physics
     const isLevitating = this.inputManager.isLevitatePressed();
     this.characterManager.updateJumpPhysics(dt, this.collisionManager, isLevitating);
+    
+    // Detect landing and add vibration
+    const isGrounded = this.characterManager.characterData && this.characterManager.characterData.isGrounded;
+    if (isGrounded && !this._wasGrounded && this.vibrationManager) {
+      // Just landed - add vibration
+      this.vibrationManager.land();
+    }
+    this._wasGrounded = isGrounded || false;
     
     // Handle character swap (Y button)
     const characterSwapInput = this.inputManager.isCharacterSwapPressed();
@@ -401,6 +428,11 @@ export class GameLoop {
       }
       
       this.characterManager.respawn(currentMode, this.collisionManager);
+      
+      // Vibration for respawn
+      if (this.vibrationManager) {
+        this.vibrationManager.respawn();
+      }
     }
     
     // Handle movement
@@ -964,6 +996,11 @@ export class GameLoop {
       targetX,
       targetZ
     );
+    
+    // Vibration for shooting bolt
+    if (projectile && this.vibrationManager) {
+      this.vibrationManager.shoot();
+    }
     
     // Send projectile to other players via multiplayer
     if (projectile && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
@@ -1563,6 +1600,11 @@ export class GameLoop {
       characterName
     );
     
+    // Vibration for shooting mortar
+    if (mortar && this.vibrationManager) {
+      this.vibrationManager.mortar();
+    }
+    
     // Send mortar to other players via multiplayer
     if (mortar && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
       this.multiplayerManager.sendProjectileCreate({
@@ -1609,6 +1651,11 @@ export class GameLoop {
 
     if (mortarCollision.hit) {
       const shooterId = mortarCollision.projectile?.userData?.playerId;
+      
+      // Vibration for mortar explosion (in addition to damage vibration)
+      if (this.vibrationManager) {
+        this.vibrationManager.mortarExplosion();
+      }
       
       // Shake will be applied in _applyDamageToPlayer based on actual damage
       this._applyDamageToPlayer(mortarCollision.damage, player, shooterId);
@@ -1664,6 +1711,11 @@ export class GameLoop {
           // Get killer playerId from projectile
           const killerId = botCollision.projectile?.userData?.playerId || 'local';
           const botDied = this.botManager.damageBot(bot, botCollision.damage, killerId);
+          
+          // Vibration for hitting an enemy with projectile
+          if (killerId === 'local' && this.vibrationManager) {
+            this.vibrationManager.projectileHit();
+          }
           
           // Show damage number for bot
           if (this.damageNumberManager) {
@@ -1753,6 +1805,11 @@ export class GameLoop {
         // Update health overlay for persistent red tint
         this.screenFlashManager.updateHealth(currentHealth, maxHealth);
       }
+      
+      // Vibration for taking damage
+      if (this.vibrationManager) {
+        this.vibrationManager.takeDamage(damage);
+      }
 
       // Send damage event to other players via multiplayer
       if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {
@@ -1768,6 +1825,11 @@ export class GameLoop {
         // Only trigger once (check if already dying)
         if (!this.characterManager.isDying()) {
           this.characterManager.playDeathAnimation();
+          
+          // Vibration for death
+          if (this.vibrationManager) {
+            this.vibrationManager.death();
+          }
           
           // Extra screen shake on death (reduced intensity)
           if (this.screenShakeManager) {
@@ -1834,6 +1896,11 @@ export class GameLoop {
    * @private
    */
   _handleCharacterSwap() {
+    // Vibration for character swap
+    if (this.vibrationManager) {
+      this.vibrationManager.characterSwap();
+    }
+    
     const currentChar = this.characterManager.getCharacterName();
     const newChar = currentChar === 'lucy' ? 'herald' : 'lucy';
     
@@ -1913,6 +1980,15 @@ export class GameLoop {
     
     if (newHealth > this.characterManager.getHealth()) {
       this.characterManager.setHealth(newHealth);
+      
+      // Vibration for healing (throttled to prevent too much vibration)
+      if (this.vibrationManager) {
+        const now = performance.now() / 1000; // Convert to seconds
+        if (now - this._lastHealVibrationTime >= this._healVibrationInterval) {
+          this.vibrationManager.heal();
+          this._lastHealVibrationTime = now;
+        }
+      }
       
       // Add healing particles with character color
       // Increase particle count based on multiplier
@@ -2021,6 +2097,11 @@ export class GameLoop {
    * @private
    */
   _handleSwordSwing(player) {
+    // Vibration for sword swing
+    if (this.vibrationManager) {
+      this.vibrationManager.swordSwing();
+    }
+    
     // Get character-specific melee stats
     const characterName = this.characterManager.getCharacterName();
     const meleeStats = getMeleeStats(characterName);
