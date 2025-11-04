@@ -30,6 +30,7 @@ export function ControllerControls({ isShootingMode }) {
         <LegendGroup label="Levitate:">
           <LegendKeys>
             <XboxButton button="A" />
+            <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(hold)</span>
           </LegendKeys>
         </LegendGroup>
       </LegendSection>
@@ -86,10 +87,11 @@ export function ControllerControls({ isShootingMode }) {
         <LegendGroup label="Heal:">
           <LegendKeys>
             <XboxButton button="X" className="ui__legend-key--xbox-x" />
+            <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(Hold)</span>
           </LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Sword:">
+        <LegendGroup label="Melee:">
           <LegendKeys>
             <XboxButton button="B" className="ui__legend-key--xbox-b" />
           </LegendKeys>
