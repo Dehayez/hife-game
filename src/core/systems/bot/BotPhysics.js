@@ -51,7 +51,19 @@ export function updateBotPhysics(bot, userData, dt, collisionManager) {
     : physicsStats.groundY;
   
   const botBottom = bot.position.y - movementStats.playerHeight * 0.5;
-  if (botBottom <= groundHeight) {
+  
+  // Check if bot is outside arena bounds (allows falling when outside)
+  // For LargeArenaCollisionManager, groundHeight is -Infinity when outside
+  // For standard CollisionManager, check arena bounds explicitly
+  let isOutsideArena = groundHeight === -Infinity;
+  if (!isOutsideArena && collisionManager && collisionManager.arenaSize) {
+    const halfArena = collisionManager.arenaSize / 2;
+    isOutsideArena = Math.abs(bot.position.x) >= halfArena || Math.abs(bot.position.z) >= halfArena;
+  }
+  
+  // Only enforce ground height if we're inside the arena
+  // This allows falling when outside the arena bounds
+  if (!isOutsideArena && botBottom <= groundHeight) {
     bot.position.y = groundHeight + movementStats.playerHeight * 0.5;
     
     // Check if this is a bounce (from blast knockback) or normal landing

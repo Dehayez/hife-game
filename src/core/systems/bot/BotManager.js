@@ -20,6 +20,7 @@ import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.
 import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../../../utils/DeathFadeUtils.js';
 import { createSpriteAtPosition } from '../../../utils/SpriteUtils.js';
 import { HERALD_BLAST_ATTACK_CONFIG } from '../../../config/abilities/characters/herald/blast/AttackConfig.js';
+import { getRespawnStats } from '../../../config/collision/CollisionStats.js';
 
 export class BotManager {
   /**
@@ -198,6 +199,15 @@ export class BotManager {
         // Bot just died - start death fade
         userData.deaths = (userData.deaths || 0) + 1;
         this._startBotDeathFade(bot);
+        continue;
+      }
+
+      // Check if bot has fallen out of arena (below fall threshold)
+      const respawnStats = getRespawnStats();
+      if (bot.position.y < respawnStats.fallThreshold) {
+        // Bot fell out - respawn immediately
+        userData.deaths = (userData.deaths || 0) + 1;
+        this.respawnBot(bot);
         continue;
       }
 
