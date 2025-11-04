@@ -124,23 +124,7 @@ html, body { height: 100%; margin: 0; }
   gap: 8px; 
   align-items: center;
 }
-.ui__legend-key { 
-  background: var(--color-bg-secondary); 
-  border: 1px solid var(--color-border-medium-2); 
-  border-radius: 4px; 
-  padding: 4px 6px; 
-  font-size: 11px; 
-  font-weight: 500; 
-  color: var(--color-text-primary) !important; 
-  text-align: center; 
-  min-width: 24px; 
-  height: 20px; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center;
-  font-family: 'Courier New', monospace;
-  opacity: 0.9;
-}
+
 .ui__legend-key--shift { 
   min-width: 60px; 
   font-size: 11px; 
@@ -173,12 +157,6 @@ html, body { height: 100%; margin: 0; }
   grid-row: 2;
 }
 
-/* Xbox controller button styles */
-.ui__legend-key--xbox {
-  position: relative;
-  font-weight: 600;
-  color: var(--color-text-primary) !important;
-}
 
 .xbox-button {
   display: inline-block;
@@ -186,53 +164,6 @@ html, body { height: 100%; margin: 0; }
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* Xbox button colors */
-.ui__legend-key--xbox-a .xbox-button,
-.ui__legend-key--xbox-b .xbox-button,
-.ui__legend-key--xbox-x .xbox-button,
-.ui__legend-key--xbox-y .xbox-button,
-.ui__legend-key--xbox-rt .xbox-button {
-  color: var(--color-text-primary) !important;
-}
-
-/* Circular buttons for A, B, X, Y */
-.ui__legend-key--xbox-a,
-.ui__legend-key--xbox-b,
-.ui__legend-key--xbox-x,
-.ui__legend-key--xbox-y {
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-/* Bumper style for LB, RB, LT, RT */
-.ui__legend-key--xbox-lb,
-.ui__legend-key--xbox-lt {
-  border-radius: 24px 8px 8px 8px; /* Higher left side, like LB icon */
-  min-width: 36px;
-  height: 24px;
-  padding: 4px 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ui__legend-key--xbox-rb,
-.ui__legend-key--xbox-rt {
-  border-radius: 8px 24px 8px 8px; /* Higher right side, like RB icon */
-  min-width: 36px;
-  height: 24px;
-  padding: 4px 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 /* Legend content container */
 .ui__legend-content {
