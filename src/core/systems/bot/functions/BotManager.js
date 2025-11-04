@@ -17,8 +17,8 @@ import { initializeBotAI, updateDirectionChangeTimer, calculateBotMovement, upda
 import { loadBotAnimations, setBotAnimation, updateBotAnimation, updateBotAnimationFromMovement, billboardBotToCamera } from './BotAnimation.js';
 import { initializeBotPhysics, updateBotPhysics } from './BotPhysics.js';
 import { getCharacterColorHex } from '../../abilities/config/CharacterColors.js';
-import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../../../utils/DeathFadeUtils.js';
-import { createSpriteAtPosition } from '../../../utils/SpriteUtils.js';
+import { startDeathFade, updateDeathFade, DEATH_FADE_CONFIG } from '../../../../utils/DeathFadeUtils.js';
+import { createSpriteAtPosition } from '../../../../utils/SpriteUtils.js';
 
 export class BotManager {
   /**

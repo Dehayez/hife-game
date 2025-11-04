@@ -17,7 +17,7 @@ import { createBolt, updateBolt, removeBolt } from './bolt';
 import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './mortar';
 import { createSplashArea, updateSplashArea, removeSplashArea as removeSplashAreaFromScene } from './mortar/SplashArea.js';
 import { checkAllCollisions, checkMortarGroundAndSplashCollision } from './collision/CollisionHandler.js';
-import { CooldownManager } from '../../../utils/CooldownUtils.js';
+import { CooldownManager } from '../../../../utils/CooldownUtils.js';
 
 export class ProjectileManager {
   /**
