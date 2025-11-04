@@ -34,10 +34,12 @@ export class ScreenShakeManager {
    */
   update(dt) {
     if (this.shakeDuration > 0) {
-      // Apply random offset based on intensity
-      const offsetX = (Math.random() - 0.5) * 2 * this.shakeIntensity;
-      const offsetY = (Math.random() - 0.5) * 2 * this.shakeIntensity;
-      const offsetZ = (Math.random() - 0.5) * 2 * this.shakeIntensity;
+      // Apply random offset based on intensity (scale by a factor for visibility)
+      // Scale intensity by 2 to make shake more noticeable
+      const scaledIntensity = this.shakeIntensity * 2;
+      const offsetX = (Math.random() - 0.5) * 2 * scaledIntensity;
+      const offsetY = (Math.random() - 0.5) * 2 * scaledIntensity;
+      const offsetZ = (Math.random() - 0.5) * 2 * scaledIntensity;
       
       this.shakeOffset.set(offsetX, offsetY, offsetZ);
       

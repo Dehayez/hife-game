@@ -35,7 +35,6 @@ import { ArenaManager } from './core/systems/arena/functions/ArenaManager.js';
 import { getCharacterHealthStats } from './core/systems/character/config/CharacterStats.js';
 import { ScreenShakeManager } from './utils/ScreenShakeManager.js';
 import { DamageNumberManager } from './utils/DamageNumberManager.js';
-import { SprintTrailManager } from './utils/SprintTrailManager.js';
 import { ScreenFlashManager } from './utils/ScreenFlashManager.js';
 
 // Initialize game components
@@ -107,7 +106,6 @@ const healthBarManager = new HealthBarManager(sceneManager.getScene(), null);
 // Initialize visual effects managers
 const screenShakeManager = new ScreenShakeManager();
 const damageNumberManager = new DamageNumberManager(sceneManager.getScene(), sceneManager.getCamera());
-const sprintTrailManager = new SprintTrailManager(sceneManager.getScene());
 const screenFlashManager = new ScreenFlashManager();
 screenFlashManager.init();
 
@@ -242,7 +240,6 @@ const gameLoop = new GameLoop(sceneManager, characterManager, inputManager, coll
 // Connect visual effects managers to game loop
 gameLoop.setScreenShakeManager(screenShakeManager);
 gameLoop.setDamageNumberManager(damageNumberManager);
-gameLoop.setSprintTrailManager(sprintTrailManager);
 gameLoop.setScreenFlashManager(screenFlashManager);
 gameLoop.setSceneManagerForShake(sceneManager);
 

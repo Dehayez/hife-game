@@ -572,13 +572,15 @@ export class LargeArenaSceneManager {
     const adjustedOffset = new THREE.Vector3(this.cameraOffset.x, this.currentYOffset, this.cameraOffset.z);
     const desiredCamPos = playerPosition.clone().add(adjustedOffset);
     
-    // Apply screen shake if available
+    // Lerp camera to desired position first
+    this.camera.position.lerp(desiredCamPos, 0.08);
+    
+    // Apply screen shake directly to camera position (after lerp, so it's not smoothed out)
     if (this.screenShakeManager) {
       const shakeOffset = this.screenShakeManager.getOffset();
-      desiredCamPos.add(shakeOffset);
+      this.camera.position.add(shakeOffset);
     }
     
-    this.camera.position.lerp(desiredCamPos, 0.08);
     this.camera.lookAt(playerPosition.x, playerPosition.y + 0.4, playerPosition.z);
   }
 

@@ -104,7 +104,6 @@ export class GameLoop {
     // Visual effects managers
     this.screenShakeManager = null;
     this.damageNumberManager = null;
-    this.sprintTrailManager = null;
     this.screenFlashManager = null;
     this.sceneManagerForShake = null;
   }
@@ -123,14 +122,6 @@ export class GameLoop {
    */
   setDamageNumberManager(damageNumberManager) {
     this.damageNumberManager = damageNumberManager;
-  }
-  
-  /**
-   * Set sprint trail manager
-   * @param {Object} sprintTrailManager - Sprint trail manager instance
-   */
-  setSprintTrailManager(sprintTrailManager) {
-    this.sprintTrailManager = sprintTrailManager;
   }
   
   /**
@@ -808,17 +799,6 @@ export class GameLoop {
     
     if (this.damageNumberManager) {
       this.damageNumberManager.update(dt);
-    }
-    
-    if (this.sprintTrailManager && player) {
-      const isSprinting = this.inputManager.isRunning();
-      const characterColor = this.characterManager.getCharacterColor();
-      this.sprintTrailManager.update(dt, player.position, isSprinting, characterColor);
-      
-      // Billboard trail particles to camera
-      if (isSprinting) {
-        this.sprintTrailManager.billboardToCamera(this.sceneManager.getCamera());
-      }
     }
     
     if (this.screenFlashManager) {
@@ -1613,12 +1593,7 @@ export class GameLoop {
     if (projectileCollision.hit) {
       const shooterId = projectileCollision.projectile?.userData?.playerId;
       
-      // Screen shake on projectile hit
-      if (this.screenShakeManager) {
-        const shakeIntensity = Math.min(0.1, projectileCollision.damage / 50);
-        this.screenShakeManager.shake(shakeIntensity, 0.2, 0.9);
-      }
-      
+      // Shake will be applied in _applyDamageToPlayer based on actual damage
       this._applyDamageToPlayer(projectileCollision.damage, player, shooterId);
 
       // Note: For mortars, splash will be created at target location when mortar hits ground
@@ -1635,12 +1610,7 @@ export class GameLoop {
     if (mortarCollision.hit) {
       const shooterId = mortarCollision.projectile?.userData?.playerId;
       
-      // Screen shake on mortar hit (stronger than regular projectile)
-      if (this.screenShakeManager) {
-        const shakeIntensity = Math.min(0.2, mortarCollision.damage / 50);
-        this.screenShakeManager.shake(shakeIntensity, 0.3, 0.85);
-      }
-      
+      // Shake will be applied in _applyDamageToPlayer based on actual damage
       this._applyDamageToPlayer(mortarCollision.damage, player, shooterId);
 
       // Note: Splash will be created at target location when mortar hits ground
@@ -1763,9 +1733,12 @@ export class GameLoop {
       
       // Visual effects: Screen shake, damage number, and screen flash
       if (this.screenShakeManager) {
-        // Shake intensity based on damage (normalized to 0-1)
-        const shakeIntensity = Math.min(0.15, damage / 50);
-        this.screenShakeManager.shake(shakeIntensity, 0.3, 0.9);
+        // Shake intensity based on damage - scales linearly with damage (reduced overall intensity)
+        // For example: 10 damage = 0.05 intensity, 20 damage = 0.1 intensity, 50+ damage = 0.25 intensity
+        const shakeIntensity = Math.min(0.25, damage / 1000);
+        // Duration scales slightly with damage too (more damage = longer shake)
+        const shakeDuration = 0.15 + (damage / 300); // 0.15s to 0.32s
+        this.screenShakeManager.shake(shakeIntensity, shakeDuration, 0.9);
       }
       
       if (this.damageNumberManager && player) {
@@ -1796,9 +1769,9 @@ export class GameLoop {
         if (!this.characterManager.isDying()) {
           this.characterManager.playDeathAnimation();
           
-          // Extra screen shake on death
+          // Extra screen shake on death (reduced intensity)
           if (this.screenShakeManager) {
-            this.screenShakeManager.shake(0.3, 0.5, 0.85);
+            this.screenShakeManager.shake(0.15, 0.4, 0.85);
           }
         }
 
