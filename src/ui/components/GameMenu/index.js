@@ -7,6 +7,7 @@
 
 import { isXboxController, checkXboxController, updateFooterContent, updateHeaderVisibility, updateBumperIcons } from './functions.js';
 import { handleControllerInput, handleJoystickNavigation } from './navigation.js';
+import { createXboxButtonElement } from '../XboxButton/helpers.js';
 
 export class GameMenu {
   constructor(config) {
@@ -83,8 +84,11 @@ export class GameMenu {
     // LB icon (left of Settings)
     this.lbIcon = document.createElement('div');
     this.lbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--lb ui__game-menu-icon';
-    this.lbIcon.textContent = 'LB';
     this.lbIcon.setAttribute('aria-label', 'Left Bumper');
+    const lbButton = createXboxButtonElement('LB');
+    if (lbButton) {
+      this.lbIcon.appendChild(lbButton);
+    }
     this.tabsContainer.appendChild(this.lbIcon);
     
     this.tabs = [
@@ -105,8 +109,11 @@ export class GameMenu {
     // RB icon (right of Controls)
     this.rbIcon = document.createElement('div');
     this.rbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--rb ui__game-menu-icon';
-    this.rbIcon.textContent = 'RB';
     this.rbIcon.setAttribute('aria-label', 'Right Bumper');
+    const rbButton = createXboxButtonElement('RB');
+    if (rbButton) {
+      this.rbIcon.appendChild(rbButton);
+    }
     this.tabsContainer.appendChild(this.rbIcon);
     
     this.container.appendChild(this.tabsContainer);
@@ -118,8 +125,11 @@ export class GameMenu {
     // LT icon (left of sections)
     this.ltIcon = document.createElement('div');
     this.ltIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--lt ui__game-menu-icon';
-    this.ltIcon.textContent = 'LT';
     this.ltIcon.setAttribute('aria-label', 'Left Trigger');
+    const ltButton = createXboxButtonElement('LT');
+    if (ltButton) {
+      this.ltIcon.appendChild(ltButton);
+    }
     this.sectionsContainer.appendChild(this.ltIcon);
     
     this.sectionsList = document.createElement('div');
@@ -129,8 +139,11 @@ export class GameMenu {
     // RT icon (right of sections)
     this.rtIcon = document.createElement('div');
     this.rtIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--rt ui__game-menu-icon';
-    this.rtIcon.textContent = 'RT';
     this.rtIcon.setAttribute('aria-label', 'Right Trigger');
+    const rtButton = createXboxButtonElement('RT');
+    if (rtButton) {
+      this.rtIcon.appendChild(rtButton);
+    }
     // Prevent clicks from triggering shooting
     this.rtIcon.addEventListener('click', (e) => {
       e.preventDefault();

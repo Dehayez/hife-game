@@ -1,3 +1,5 @@
+import { createXboxButtonElement } from '../XboxButton/helpers.js';
+
 export function isXboxController(gamepad) {
   if (!gamepad) return false;
   const id = gamepad.id.toLowerCase();
@@ -56,7 +58,11 @@ export function updateFooterContent(footer, inputManager) {
     // Xbox controller commands
     const bButton = document.createElement('span');
     bButton.className = 'game-menu__footer-button game-menu__footer-button--xbox-b';
-    bButton.innerHTML = '<span class="xbox-button">B</span>';
+    
+    const xboxButtonElement = createXboxButtonElement('B');
+    if (xboxButtonElement) {
+      bButton.appendChild(xboxButtonElement);
+    }
     
     const backLabel = document.createElement('span');
     backLabel.className = 'game-menu__footer-label';

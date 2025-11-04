@@ -1,4 +1,14 @@
 import React from 'react';
+import {
+  XboxButtonA,
+  XboxButtonB,
+  XboxButtonX,
+  XboxButtonY,
+  XboxButtonLB,
+  XboxButtonLT,
+  XboxButtonRB,
+  XboxButtonRT
+} from '../XboxButton/index.jsx';
 
 export function LegendGroup({ label, children, className = '' }) {
   return (
@@ -25,10 +35,28 @@ export function LegendKey({ children, className = '', ...props }) {
   );
 }
 
+const buttonComponents = {
+  A: XboxButtonA,
+  B: XboxButtonB,
+  X: XboxButtonX,
+  Y: XboxButtonY,
+  LB: XboxButtonLB,
+  LT: XboxButtonLT,
+  RB: XboxButtonRB,
+  RT: XboxButtonRT
+};
+
 export function XboxButton({ label, button, className = '' }) {
+  const ButtonComponent = buttonComponents[button];
+  
+  if (!ButtonComponent) {
+    console.warn(`Unknown Xbox button: ${button}`);
+    return null;
+  }
+  
   return (
-    <LegendKey className={`ui__legend-key--xbox ui__legend-key--xbox-${button} ${className}`} title={`Xbox ${button}`}>
-      <span className="xbox-button">{button}</span>
+    <LegendKey className={`ui__legend-key--xbox ui__legend-key--xbox-${button.toLowerCase()} ${className}`} title={`Xbox ${button}`}>
+      <ButtonComponent />
     </LegendKey>
   );
 }

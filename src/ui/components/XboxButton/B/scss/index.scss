@@ -1,0 +1,23 @@
+.xbox-button--b {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  position: relative;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, sans-serif;
+  
+  .xbox-button__label {
+    display: inline-block;
+    font-weight: 600;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--color-text-primary);
+  }
+}
+
