@@ -10,7 +10,7 @@ import {
   getMechanicVibration,
   getDamageVibration,
   getHealingVibrationInterval
-} from '../config/VibrationConfig.js';
+} from '../config/global/VibrationConfig.js';
 
 export class VibrationManager {
   /**

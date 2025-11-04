@@ -5,7 +5,7 @@
  */
 
 import { loadAnimationSmart } from '../../../../utils/TextureLoader.js';
-import { getRunningSmokeConfig } from '../../abilities/config/base/SmokeParticleConfig.js';
+import { getRunningSmokeConfig } from '../../../../config/abilities/base/SmokeParticleConfig.js';
 
 /**
  * Load character animations

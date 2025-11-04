@@ -7,7 +7,7 @@
  * Uses BaseEntityStats for shared health, movement, and physics stats.
  */
 
-import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../../../../config/BaseEntityStats.js';
+import { BASE_ENTITY_STATS, getBaseEntityHealthStats, getBaseEntityMovementStats, getBaseEntityPhysicsStats } from '../global/BaseEntityStats.js';
 
 /**
  * Bot Configuration Stats

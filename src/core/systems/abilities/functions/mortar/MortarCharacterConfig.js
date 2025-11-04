@@ -5,9 +5,9 @@
  * This is an implementation helper that merges configs from the config/ folder.
  */
 
-import { LUCY_MORTAR_ATTACK_CONFIG } from '../../config/characters/lucy/mortar/AttackConfig.js';
-import { HERALD_MORTAR_ATTACK_CONFIG } from '../../config/characters/herald/mortar/AttackConfig.js';
-import { DEFAULT_MORTAR_CONFIG } from '../../config/base/MortarDefaultConfig.js';
+import { LUCY_MORTAR_ATTACK_CONFIG } from '../../../../../config/abilities/characters/lucy/mortar/AttackConfig.js';
+import { HERALD_MORTAR_ATTACK_CONFIG } from '../../../../../config/abilities/characters/herald/mortar/AttackConfig.js';
+import { DEFAULT_MORTAR_CONFIG } from '../../../../../config/abilities/base/MortarDefaultConfig.js';
 
 /**
  * Get character-specific mortar config

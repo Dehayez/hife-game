@@ -5,7 +5,7 @@
  * This config is computed by merging base stats with character-specific configs.
  */
 
-import { createCharacterStats } from '../functions/CharacterAbilityStats.js';
+import { createCharacterStats } from '../../core/systems/abilities/functions/CharacterAbilityStats.js';
 import { LUCY_BOLT_ATTACK_CONFIG } from './characters/lucy/bolt/AttackConfig.js';
 import { LUCY_MORTAR_ATTACK_CONFIG } from './characters/lucy/mortar/AttackConfig.js';
 import { LUCY_MELEE_ATTACK_CONFIG } from './characters/lucy/melee/AttackConfig.js';

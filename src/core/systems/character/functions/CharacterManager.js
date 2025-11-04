@@ -17,8 +17,8 @@ import {
   getCharacterHealthStats, 
   getCharacterMovementStats, 
   getCharacterPhysicsStats
-} from '../config/CharacterStats.js';
-import { getRunningSmokeConfig } from '../../abilities/config/base/SmokeParticleConfig.js';
+} from '../../../../config/character/CharacterStats.js';
+import { getRunningSmokeConfig } from '../../../../config/abilities/base/SmokeParticleConfig.js';
 import { 
   loadCharacterAnimations, 
   setCharacterAnimation, 
@@ -33,7 +33,7 @@ import {
   respawnCharacterPhysics 
 } from './CharacterPhysics.js';
 import { loadAllCharacterSounds } from './CharacterSound.js';
-import { getCharacterColorHex } from '../../abilities/config/CharacterColors.js';
+import { getCharacterColorHex } from '../../../../config/abilities/CharacterColors.js';
 import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../../../../utils/DeathFadeUtils.js';
 import { createSpriteMesh } from '../../../../utils/SpriteUtils.js';
 

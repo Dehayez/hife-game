@@ -5,7 +5,7 @@
  * Used by both CharacterManager and BotManager to avoid code duplication.
  */
 
-import { getCharacterColorHex } from '../core/systems/abilities/config/CharacterColors.js';
+import { getCharacterColorHex } from '../config/abilities/CharacterColors.js';
 
 /**
  * Death fade configuration

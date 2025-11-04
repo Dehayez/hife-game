@@ -9,7 +9,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getWallStats, getInnerWallPositions, getRespawnStats, getGroundStats } from '../config/CollisionStats.js';
+import { getWallStats, getInnerWallPositions, getRespawnStats, getGroundStats } from '../../../../config/collision/CollisionStats.js';
 
 export class CollisionManager {
   /**

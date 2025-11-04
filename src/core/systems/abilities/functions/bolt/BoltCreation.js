@@ -6,8 +6,8 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getBoltStats, getCharacterColor } from '../CharacterAbilityStats.js';
-import { BOLT_ATTACK_CONFIG } from '../../config/base/BoltAttackConfig.js';
-import { GENERAL_ABILITY_CONFIG } from '../../config/base/MeleeAttackConfig.js';
+import { BOLT_ATTACK_CONFIG } from '../../../../../config/abilities/base/BoltAttackConfig.js';
+import { GENERAL_ABILITY_CONFIG } from '../../../../../config/abilities/base/MeleeAttackConfig.js';
 import { createSphereGeometry, createEmissiveMaterial, createProjectileMesh } from '../utils/GeometryUtils.js';
 import { createTrailLight } from '../utils/LightUtils.js';
 import { normalize2D } from '../utils/VectorUtils.js';

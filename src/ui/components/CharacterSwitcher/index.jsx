@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCharacterColorValues } from '../../../core/systems/abilities/config/CharacterColors.js';
+import { getCharacterColorValues } from '../../../config/abilities/CharacterColors.js';
 import { toTitleCase } from './functions.js';
 
 export function CharacterSwitcher({ options, value, onChange }) {

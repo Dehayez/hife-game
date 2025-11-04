@@ -5,8 +5,8 @@
  * Uses configuration from config/base/{ability}ParticleConfig.js
  */
 
-import { BOLT_COLLISION_PARTICLES } from '../../config/base/BoltParticleConfig.js';
-import { MORTAR_COLLISION_PARTICLES } from '../../config/base/MortarParticleConfig.js';
+import { BOLT_COLLISION_PARTICLES } from '../../../../../config/abilities/base/BoltParticleConfig.js';
+import { MORTAR_COLLISION_PARTICLES } from '../../../../../config/abilities/base/MortarParticleConfig.js';
 
 /**
  * Calculate particle count and spread radius for a bolt projectile

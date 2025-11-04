@@ -7,7 +7,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { DEFAULT_MORTAR_CONFIG, MORTAR_GRAVITY, MORTAR_LIFETIME, EXPLOSION_RADIUS, DIRECT_HIT_RADIUS } from '../../config/base/MortarDefaultConfig.js';
+import { DEFAULT_MORTAR_CONFIG, MORTAR_GRAVITY, MORTAR_LIFETIME, EXPLOSION_RADIUS, DIRECT_HIT_RADIUS } from '../../../../../config/abilities/base/MortarDefaultConfig.js';
 import { createSphereGeometry, createEmissiveMaterial, createProjectileMesh } from '../utils/GeometryUtils.js';
 import { createTrailLight } from '../utils/LightUtils.js';
 import { normalize2D } from '../utils/VectorUtils.js';

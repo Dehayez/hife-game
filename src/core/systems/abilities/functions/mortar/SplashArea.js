@@ -7,7 +7,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getCharacterColor } from '../CharacterAbilityStats.js';
-import { SPLASH_AREA_CONFIG } from '../../config/base/MortarAttackConfig.js';
+import { SPLASH_AREA_CONFIG } from '../../../../../config/abilities/base/MortarAttackConfig.js';
 import { createCircleGeometry, createEmissiveMaterial } from '../utils/GeometryUtils.js';
 import { createTrailLight } from '../utils/LightUtils.js';
 import { removeFromScene } from '../utils/CleanupUtils.js';

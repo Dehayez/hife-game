@@ -5,7 +5,7 @@
  * Extracted from BoltUpdate.js for better organization.
  */
 
-import { BOLT_ATTACK_CONFIG } from '../../config/base/BoltAttackConfig.js';
+import { BOLT_ATTACK_CONFIG } from '../../../../../config/abilities/base/BoltAttackConfig.js';
 import { updateTrailLightPosition } from '../utils/LightUtils.js';
 
 /**

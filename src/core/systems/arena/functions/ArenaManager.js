@@ -8,7 +8,7 @@
  * - ArenaConfig.js: Arena configurations
  */
 
-import { getArenaConfig, getAllArenas, isLargeArena } from '../config/ArenaConfig.js';
+import { getArenaConfig, getAllArenas, isLargeArena } from '../../../../config/arena/ArenaConfig.js';
 
 export class ArenaManager {
   /**

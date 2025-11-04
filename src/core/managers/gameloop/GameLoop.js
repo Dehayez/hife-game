@@ -10,7 +10,7 @@ import { getCharacterColor, getMeleeStats, getMortarStats } from '../../systems/
 import { setLastCharacter } from '../../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../../systems/abilities/functions/mortar/MortarArcPreview.js';
 import { VibrationManager } from '../../../utils/VibrationManager.js';
-import { getHealingVibrationInterval } from '../../../config/VibrationConfig.js';
+import { getHealingVibrationInterval } from '../../../config/global/VibrationConfig.js';
 
 export class GameLoop {
   /**

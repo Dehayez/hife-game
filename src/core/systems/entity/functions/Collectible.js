@@ -5,7 +5,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCollectibleStats } from '../config/EntityStats.js';
+import { getCollectibleStats } from '../../../../config/entity/EntityStats.js';
 
 /**
  * Create a collectible gem

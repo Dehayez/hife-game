@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { BOLT_ATTACK_CONFIG } from '../../config/base/BoltAttackConfig.js';
+import { BOLT_ATTACK_CONFIG } from '../../../../../config/abilities/base/BoltAttackConfig.js';
 import { calculateSpeed2D } from '../utils/VectorUtils.js';
 
 /**

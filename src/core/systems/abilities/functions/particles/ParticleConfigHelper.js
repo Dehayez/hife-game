@@ -5,12 +5,12 @@
  * This is an implementation helper that uses config files from the config/ folder.
  */
 
-import { BOLT_PARTICLE_BASE } from '../../config/base/BoltParticleConfig.js';
-import { MORTAR_PARTICLE_BASE } from '../../config/base/MortarParticleConfig.js';
-import { LUCY_BOLT_PARTICLE_CONFIG } from '../../config/characters/lucy/bolt/ParticleConfig.js';
-import { LUCY_MORTAR_PARTICLE_CONFIG } from '../../config/characters/lucy/mortar/ParticleConfig.js';
-import { HERALD_BOLT_PARTICLE_CONFIG } from '../../config/characters/herald/bolt/ParticleConfig.js';
-import { HERALD_MORTAR_PARTICLE_CONFIG } from '../../config/characters/herald/mortar/ParticleConfig.js';
+import { BOLT_PARTICLE_BASE } from '../../../../../config/abilities/base/BoltParticleConfig.js';
+import { MORTAR_PARTICLE_BASE } from '../../../../../config/abilities/base/MortarParticleConfig.js';
+import { LUCY_BOLT_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/lucy/bolt/ParticleConfig.js';
+import { LUCY_MORTAR_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/lucy/mortar/ParticleConfig.js';
+import { HERALD_BOLT_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/herald/bolt/ParticleConfig.js';
+import { HERALD_MORTAR_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/herald/mortar/ParticleConfig.js';
 
 /**
  * Get projectile particle config for a character and ability

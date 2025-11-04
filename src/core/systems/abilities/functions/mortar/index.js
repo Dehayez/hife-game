@@ -8,7 +8,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getMortarStats, getCharacterColor } from '../CharacterAbilityStats.js';
 import { calculateMortarParticles } from '../particles/ParticleCalculation.js';
-import { MORTAR_ATTACK_CONFIG } from '../../config/base/MortarAttackConfig.js';
+import { MORTAR_ATTACK_CONFIG } from '../../../../../config/abilities/base/MortarAttackConfig.js';
 import { getProjectileParticleConfig } from '../particles/ParticleConfigHelper.js';
 import {
   MORTAR_GRAVITY,

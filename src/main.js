@@ -9,7 +9,7 @@ import { getInitialConfig, initializeGame, setupGameLoopWrapper, initializeBackg
 import { initializeManagers } from './core/init/ManagerInitializer.js';
 import { initializeUI } from './core/init/UIInitializer.js';
 import { getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
-import { GAME_CONSTANTS } from './config/GameConstants.js';
+import { GAME_CONSTANTS } from './config/global/GameConstants.js';
 
 // Get canvas element
 const canvas = document.getElementById('app-canvas');

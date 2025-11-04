@@ -7,7 +7,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getMortarStats } from '../CharacterAbilityStats.js';
-import { MORTAR_ATTACK_CONFIG } from '../../config/base/MortarAttackConfig.js';
+import { MORTAR_ATTACK_CONFIG } from '../../../../../config/abilities/base/MortarAttackConfig.js';
 import { MORTAR_GRAVITY } from './BaseMortar.js';
 
 // Get arc preview settings from config

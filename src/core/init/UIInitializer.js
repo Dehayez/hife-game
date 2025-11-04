@@ -19,7 +19,7 @@ import { initInputModeSwitcher } from '../../ui/adapters/reactAdapters.jsx';
 import { getParam } from '../../utils/UrlUtils.js';
 import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode } from '../../utils/StorageUtils.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
-import { GAME_CONSTANTS } from '../../config/GameConstants.js';
+import { GAME_CONSTANTS } from '../../config/global/GameConstants.js';
 
 /**
  * Initialize all UI components

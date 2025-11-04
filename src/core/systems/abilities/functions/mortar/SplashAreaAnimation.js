@@ -5,7 +5,7 @@
  * Extracted from SplashArea.js for better organization.
  */
 
-import { SPLASH_AREA_CONFIG } from '../../config/base/MortarAttackConfig.js';
+import { SPLASH_AREA_CONFIG } from '../../../../../config/abilities/base/MortarAttackConfig.js';
 
 /**
  * Update splash area animation phases

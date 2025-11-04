@@ -1,5 +1,5 @@
 import { getMeleeStats } from '../../../core/systems/abilities/functions/CharacterAbilityStats.js';
-import { getCharacterColorCss } from '../../../core/systems/abilities/config/CharacterColors.js';
+import { getCharacterColorCss } from '../../../config/abilities/CharacterColors.js';
 
 export function updateCooldowns(projectileManager, characterManager, shotLabel, mortarLabel, meleeLabel, shotFill, mortarFill, meleeFill) {
   if (!projectileManager || !characterManager) return;

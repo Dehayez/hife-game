@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { SPLASH_AREA_CONFIG } from '../../config/base/MortarAttackConfig.js';
+import { SPLASH_AREA_CONFIG } from '../../../../../config/abilities/base/MortarAttackConfig.js';
 
 /**
  * Create splash particle system

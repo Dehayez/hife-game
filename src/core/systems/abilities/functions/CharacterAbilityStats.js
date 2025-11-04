@@ -19,14 +19,14 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { GLOBAL_BASE_STATS } from '../config/base/BaseStats.js';
-import { getCharacterColorHex } from '../config/CharacterColors.js';
-import { LUCY_BOLT_ATTACK_CONFIG } from '../config/characters/lucy/bolt/AttackConfig.js';
-import { LUCY_MORTAR_ATTACK_CONFIG } from '../config/characters/lucy/mortar/AttackConfig.js';
-import { LUCY_MELEE_ATTACK_CONFIG } from '../config/characters/lucy/melee/AttackConfig.js';
-import { HERALD_BOLT_ATTACK_CONFIG } from '../config/characters/herald/bolt/AttackConfig.js';
-import { HERALD_MORTAR_ATTACK_CONFIG } from '../config/characters/herald/mortar/AttackConfig.js';
-import { HERALD_MELEE_ATTACK_CONFIG } from '../config/characters/herald/melee/AttackConfig.js';
+import { GLOBAL_BASE_STATS } from '../../../../config/abilities/base/BaseStats.js';
+import { getCharacterColorHex } from '../../../../config/abilities/CharacterColors.js';
+import { LUCY_BOLT_ATTACK_CONFIG } from '../../../../config/abilities/characters/lucy/bolt/AttackConfig.js';
+import { LUCY_MORTAR_ATTACK_CONFIG } from '../../../../config/abilities/characters/lucy/mortar/AttackConfig.js';
+import { LUCY_MELEE_ATTACK_CONFIG } from '../../../../config/abilities/characters/lucy/melee/AttackConfig.js';
+import { HERALD_BOLT_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/bolt/AttackConfig.js';
+import { HERALD_MORTAR_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/mortar/AttackConfig.js';
+import { HERALD_MELEE_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/melee/AttackConfig.js';
 
 /**
  * Deep merge function that applies multipliers or overrides
@@ -97,7 +97,7 @@ let _characterStatsCache = null;
 export function getCharacterStats(characterName) {
   // Lazy load CHARACTER_STATS from config to avoid circular dependency
   if (!_characterStatsCache) {
-    _characterStatsCache = import('../config/CharacterAbilityStatsConfig.js').then(m => m.CHARACTER_STATS);
+    _characterStatsCache = import('../../../../config/abilities/CharacterAbilityStatsConfig.js').then(m => m.CHARACTER_STATS);
   }
   
   // If already loaded, use cache
