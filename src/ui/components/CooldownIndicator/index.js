@@ -1,6 +1,6 @@
 import { updateCooldowns } from './functions.js';
 
-export function initCooldownIndicator({ mount, projectileManager, characterManager }) {
+export function initCooldownIndicator({ mount, projectileManager, characterManager, inputManager }) {
   // Create a default return object even if mount doesn't exist
   const defaultReturn = {
     container: null,
@@ -124,7 +124,7 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
     speedBoostBar,
     levitateBar,
     update: function() {
-      updateCooldowns(projectileManager, characterManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill);
+      updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill);
     },
     show: function() {
       container.style.display = 'block';

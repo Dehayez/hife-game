@@ -91,7 +91,8 @@ export function initializeUI(managers, config) {
   const cooldownIndicator = initCooldownIndicator({
     mount: cooldownMount,
     projectileManager: projectileManager,
-    characterManager: characterManager
+    characterManager: characterManager,
+    inputManager: inputManager
   });
   
   // Show cooldown indicator in all game modes

@@ -35,6 +35,13 @@ export function KeyboardControls({ isShootingMode }) {
             <LegendKey className="ui__legend-key--space">Space</LegendKey>
           </LegendKeys>
         </LegendGroup>
+
+        <LegendGroup label="Levitate:">
+          <LegendKeys variant="jump">
+            <LegendKey className="ui__legend-key--space">Space</LegendKey>
+            <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(hold)</span>
+          </LegendKeys>
+        </LegendGroup>
       </LegendSection>
 
       {isShootingMode && (
@@ -64,6 +71,33 @@ export function KeyboardControls({ isShootingMode }) {
           </LegendGroup>
         </LegendSection>
       )}
+
+      <LegendSection>
+        <LegendGroup label="Swap:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">C</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+
+        <LegendGroup label="Heal:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">H</LegendKey>
+            <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(Hold)</span>
+          </LegendKeys>
+        </LegendGroup>
+
+        <LegendGroup label="Melee:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">F</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+
+        <LegendGroup label="Speed Boost:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">E</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+      </LegendSection>
     </>
   );
 }

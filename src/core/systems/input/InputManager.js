@@ -144,6 +144,16 @@ export class InputManager {
         this.inputState.levitate = false;
       }
       
+      // Clear ability states when switching modes to prevent stuck states
+      this.inputState.characterSwap = false;
+      this.inputState.heal = false;
+      this.inputState.swordSwing = false;
+      this.inputState.speedBoost = false;
+      this.characterSwapPressed = false;
+      this.healPressed = false;
+      this.swordSwingPressed = false;
+      this.speedBoostPressed = false;
+      
       return true;
     }
     return false;
@@ -565,6 +575,7 @@ export class InputManager {
       this.inputState.characterSwap = false;
       this.inputState.heal = false;
       this.inputState.swordSwing = false;
+      this.inputState.speedBoost = false;
       this.gamepadMovementVector.x = 0;
       this.gamepadMovementVector.y = 0;
       this._gamepadMovementActive = false;
@@ -1187,6 +1198,45 @@ export class InputManager {
     if (keys.jump.includes(e.key)) {
       // Track keyboard Spacebar state (separate from jump action)
       this._keyboardJumpButtonPressed = pressed;
+    }
+    
+    // Character Swap (C key) - press detection
+    if (keys.characterSwap && keys.characterSwap.includes(e.key)) {
+      if (pressed && !this.characterSwapPressed) {
+        this.characterSwapPressed = true;
+        this.inputState.characterSwap = true;
+      } else if (!pressed && this.characterSwapPressed) {
+        this.characterSwapPressed = false;
+        this.inputState.characterSwap = false;
+      }
+    }
+    
+    // Heal (H key) - hold to heal
+    if (keys.heal && keys.heal.includes(e.key)) {
+      this.healPressed = pressed;
+      this.inputState.heal = pressed;
+    }
+    
+    // Sword Swing / Melee (F key) - press detection
+    if (keys.swordSwing && keys.swordSwing.includes(e.key)) {
+      if (pressed && !this.swordSwingPressed) {
+        this.swordSwingPressed = true;
+        this.inputState.swordSwing = true;
+      } else if (!pressed && this.swordSwingPressed) {
+        this.swordSwingPressed = false;
+        this.inputState.swordSwing = false;
+      }
+    }
+    
+    // Speed Boost (E key) - press detection
+    if (keys.speedBoost && keys.speedBoost.includes(e.key)) {
+      if (pressed && !this.speedBoostPressed) {
+        this.speedBoostPressed = true;
+        this.inputState.speedBoost = true;
+      } else if (!pressed && this.speedBoostPressed) {
+        this.speedBoostPressed = false;
+        this.inputState.speedBoost = false;
+      }
     }
   }
 

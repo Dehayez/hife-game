@@ -139,6 +139,14 @@ html, body { height: 100%; margin: 0; }
   justify-content: center; /* Center space text */
 }
 
+.ui__legend-key--char { 
+  min-width: 28px; 
+  font-size: 11px; 
+  font-weight: 600;
+  justify-content: center;
+  text-align: center;
+}
+
 /* Arrow keys positioning */
 .ui__legend-key--up {
   grid-column: 2; /* Center Up */

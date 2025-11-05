@@ -33,7 +33,13 @@ export const INPUT_STATS = {
     jump: [' '],              // Space
     run: ['Shift'],           // Shift
     shoot: ['Mouse0'],        // Left mouse button (button 0)
-    mortar: ['Mouse2']        // Right mouse button (button 2)
+    mortar: ['Mouse2'],       // Right mouse button (button 2)
+    
+    // Ability keys
+    characterSwap: ['c', 'C', 'KeyC'],      // C - Character Swap
+    heal: ['h', 'H', 'KeyH'],               // H - Heal (hold)
+    swordSwing: ['f', 'F', 'KeyF'],         // F - Melee/Sword Swing
+    speedBoost: ['e', 'E', 'KeyE']          // E - Speed Boost
   }
 };
 
