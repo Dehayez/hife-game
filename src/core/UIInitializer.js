@@ -94,12 +94,8 @@ export function initializeUI(managers, config) {
     characterManager: characterManager
   });
   
-  // Show/hide cooldown indicator based on initial mode
-  if (gameMode === 'shooting') {
-    cooldownIndicator?.show();
-  } else {
-    cooldownIndicator?.hide();
-  }
+  // Show cooldown indicator in all game modes
+  cooldownIndicator?.show();
   
   // Initialize connection status
   initConnectionStatus({
@@ -258,11 +254,9 @@ export function initializeUI(managers, config) {
         window.history.pushState({}, '', url);
       }
       
+      // Cooldown indicator is now shown in all game modes
+      
       if (mode === 'shooting') {
-        if (cooldownIndicator) {
-          cooldownIndicator.show();
-        }
-        
         if (healthBarManager && characterManager.getPlayer()) {
           const player = characterManager.getPlayer();
           const existingBar = healthBarManager.healthBars.get(player);
@@ -275,10 +269,6 @@ export function initializeUI(managers, config) {
         
         updateMenuForMode(mode, gameMenu);
       } else {
-        if (cooldownIndicator) {
-          cooldownIndicator.hide();
-        }
-        
         if (botManager) {
           botManager.clearAll();
         }

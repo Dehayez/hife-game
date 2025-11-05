@@ -141,8 +141,8 @@ export function setupGameLoopWrapper(gameLoop, managers, uiComponents) {
       lastScoreboardButtonState = isScoreboardButtonPressed;
     }
     
-    // Update cooldown indicator
-    if (cooldownIndicator && gameModeManager && gameModeManager.getMode() === 'shooting') {
+    // Update cooldown indicator (works in all game modes)
+    if (cooldownIndicator) {
       cooldownIndicator.update();
     }
     

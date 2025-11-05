@@ -23,10 +23,10 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
     return defaultReturn;
   }
 
-  // Only show in shooting mode
+  // Show abilities UI in all game modes
   const container = document.createElement('div');
   container.className = 'ui__cooldown-indicator';
-  container.style.display = 'none'; // Hidden by default, shown in shooting mode
+  container.style.display = 'block'; // Shown in all game modes
   
   // Regular shot cooldown (will update dynamically based on character)
   const shotIndicator = document.createElement('div');

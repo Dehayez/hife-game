@@ -311,8 +311,8 @@ export class GameLoop {
       this.learningManager.updateLearning();
     }
     
-    // Handle shooting mode
-    if (mode === 'shooting' && this.projectileManager) {
+    // Handle abilities (bolt, mortar, speed boost) in all game modes
+    if (this.projectileManager) {
       // Set up cursor tracking for projectiles (update player position each frame)
       if (player) {
         const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
@@ -322,14 +322,14 @@ export class GameLoop {
           playerPos
         );
       }
-      this._handleShootingMode(dt, player);
+      this._handleShootingMode(dt, player, mode);
     } else {
-      // Clean up arc preview when not in shooting mode
+      // Clean up arc preview when projectile manager is not available
       if (this.mortarArcPreview) {
         removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
         this.mortarArcPreview = null;
       }
-      // Clean up mortar hold visual when not in shooting mode
+      // Clean up mortar hold visual when projectile manager is not available
       if (this.mortarHoldVisual) {
         this._removeMortarHoldVisual();
       }
@@ -914,12 +914,13 @@ export class GameLoop {
   }
 
   /**
-   * Handle shooting mode updates
+   * Handle ability updates (bolt, mortar, speed boost) - works in all game modes
    * @param {number} dt - Delta time
    * @param {THREE.Mesh} player - Player mesh
+   * @param {string} mode - Current game mode
    * @private
    */
-  _handleShootingMode(dt, player) {
+  _handleShootingMode(dt, player, mode = 'free-play') {
     // Update projectiles
     this.projectileManager.update(dt);
     
@@ -978,17 +979,14 @@ export class GameLoop {
     // Check projectile collisions
     this._handleProjectileCollisions(player);
     
-    // Update bots
-    if (this.botManager) {
+    // Update bots (only in shooting mode)
+    if (mode === 'shooting' && this.botManager) {
       this.botManager.update(dt, player.position, this.sceneManager.getCamera());
     }
     
     // Update health bars (only in shooting mode)
-    if (this.healthBarManager) {
-      const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : 'free-play';
-      if (currentMode === 'shooting') {
-        this.healthBarManager.update(dt);
-      }
+    if (mode === 'shooting' && this.healthBarManager) {
+      this.healthBarManager.update(dt);
     }
     
     // Update visual effects
