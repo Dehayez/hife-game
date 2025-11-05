@@ -11,6 +11,7 @@ import { getCharacterMovementStats } from '../../../config/character/CharacterSt
 import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
 import { createSpriteAtPosition } from '../../../utils/SpriteUtils.js';
 import { HERALD_BLAST_ATTACK_CONFIG } from '../../../config/abilities/characters/herald/blast/AttackConfig.js';
+import { waitForAllAnimationsLoaded } from '../../../utils/TextureLoader.js';
 
 export class RemotePlayerManager {
   /**
@@ -90,8 +91,71 @@ export class RemotePlayerManager {
     // Load character animations
     const animations = await loadCharacterAnimations(characterName);
     
-    // Set initial animation
+    if (!animations || !animations.idle_front) {
+      throw new Error(`Failed to load animations for character ${characterName}`);
+    }
+    
+    // Wait for all textures to be fully loaded before proceeding
+    await waitForAllAnimationsLoaded(animations);
+    
+    // Set initial animation - this sets the texture on the material
     setCharacterAnimation(playerMesh, 'idle_front', animations, null, true);
+    
+    // Verify texture is set and image is loaded
+    if (!playerMesh.material || !playerMesh.material.map) {
+      throw new Error(`Failed to set texture for player ${playerId}`);
+    }
+    
+    const texture = playerMesh.material.map;
+    
+    // Wait for texture image to be fully loaded if not already
+    if (texture.image) {
+      if (!texture.image.complete || texture.image.naturalWidth === 0) {
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            texture.image.removeEventListener('load', onLoad);
+            texture.image.removeEventListener('error', onError);
+            reject(new Error(`Texture load timeout for player ${playerId}`));
+          }, 5000); // 5 second timeout
+          
+          const onLoad = () => {
+            clearTimeout(timeout);
+            texture.image.removeEventListener('load', onLoad);
+            texture.image.removeEventListener('error', onError);
+            resolve();
+          };
+          
+          const onError = () => {
+            clearTimeout(timeout);
+            texture.image.removeEventListener('load', onLoad);
+            texture.image.removeEventListener('error', onError);
+            reject(new Error(`Texture load error for player ${playerId}`));
+          };
+          
+          texture.image.addEventListener('load', onLoad);
+          texture.image.addEventListener('error', onError);
+        });
+      }
+      
+      // Verify image is actually loaded
+      if (!texture.image.complete || texture.image.naturalWidth === 0) {
+        throw new Error(`Texture image not loaded for player ${playerId}`);
+      }
+    } else {
+      throw new Error(`Texture has no image for player ${playerId}`);
+    }
+    
+    // Ensure material and texture are marked for update
+    playerMesh.material.needsUpdate = true;
+    if (texture.needsUpdate !== undefined) {
+      texture.needsUpdate = true;
+    }
+    
+    // Ensure mesh is visible
+    playerMesh.visible = true;
+    
+    // Add to scene AFTER textures are loaded and mesh is configured
+    this.scene.add(playerMesh);
 
     // Store remote player data
     const initialX = playerMesh.position.x;
@@ -134,8 +198,6 @@ export class RemotePlayerManager {
       lastUpdateTime: Date.now()
     });
 
-      this.scene.add(playerMesh);
-      
       // Remove from spawning set now that spawn is complete
       this.spawningPlayers.delete(playerId);
       
@@ -153,6 +215,9 @@ export class RemotePlayerManager {
           playerMesh.geometry.dispose();
         }
         if (playerMesh.material) {
+          if (playerMesh.material.map) {
+            playerMesh.material.map.dispose();
+          }
           playerMesh.material.dispose();
         }
       }
@@ -165,7 +230,9 @@ export class RemotePlayerManager {
       // Remove from spawning set on error
       this.spawningPlayers.delete(playerId);
       console.error(`Error spawning remote player ${playerId}:`, error);
-      throw error;
+      
+      // Return null instead of throwing to prevent crashes
+      return null;
     }
   }
 
@@ -207,101 +274,8 @@ export class RemotePlayerManager {
     // Reload animations for new character
     const newAnimations = await loadCharacterAnimations(characterName);
     
-    // Wait for textures to be fully loaded
-    const waitForTextures = async (animations) => {
-      const promises = [];
-      Object.values(animations).forEach(anim => {
-        if (anim.mode === 'frames' && anim.textures) {
-          anim.textures.forEach(tex => {
-            if (tex && tex.image) {
-              if (tex.image.complete && tex.image.naturalWidth > 0) {
-                return; // Already loaded
-              }
-              promises.push(new Promise(resolve => {
-                if (tex.image.complete) {
-                  resolve();
-                  return;
-                }
-                tex.image.onload = () => resolve();
-                tex.image.onerror = () => resolve(); // Resolve even on error to avoid hanging
-              }));
-            } else if (tex) {
-              // Texture might not have image property yet, wait a bit
-              promises.push(new Promise(resolve => {
-                const checkInterval = setInterval(() => {
-                  if (tex.image) {
-                    if (tex.image.complete) {
-                      clearInterval(checkInterval);
-                      resolve();
-                    } else {
-                      tex.image.onload = () => {
-                        clearInterval(checkInterval);
-                        resolve();
-                      };
-                      tex.image.onerror = () => {
-                        clearInterval(checkInterval);
-                        resolve();
-                      };
-                    }
-                  }
-                }, 50);
-                // Timeout after 2 seconds
-                setTimeout(() => {
-                  clearInterval(checkInterval);
-                  resolve();
-                }, 2000);
-              }));
-            }
-          });
-        } else if (anim.texture) {
-          if (anim.texture.image) {
-            if (anim.texture.image.complete && anim.texture.image.naturalWidth > 0) {
-              return; // Already loaded
-            }
-            promises.push(new Promise(resolve => {
-              if (anim.texture.image.complete) {
-                resolve();
-                return;
-              }
-              anim.texture.image.onload = () => resolve();
-              anim.texture.image.onerror = () => resolve();
-            }));
-          } else {
-            // Texture might not have image property yet, wait a bit
-            promises.push(new Promise(resolve => {
-              const checkInterval = setInterval(() => {
-                if (anim.texture.image) {
-                  if (anim.texture.image.complete) {
-                    clearInterval(checkInterval);
-                    resolve();
-                  } else {
-                    anim.texture.image.onload = () => {
-                      clearInterval(checkInterval);
-                      resolve();
-                    };
-                    anim.texture.image.onerror = () => {
-                      clearInterval(checkInterval);
-                      resolve();
-                    };
-                  }
-                }
-              }, 50);
-              // Timeout after 2 seconds
-              setTimeout(() => {
-                clearInterval(checkInterval);
-                resolve();
-              }, 2000);
-            }));
-          }
-        }
-      });
-      
-      if (promises.length > 0) {
-        await Promise.all(promises);
-      }
-    };
-    
-    await waitForTextures(newAnimations);
+    // Wait for all textures to be fully loaded
+    await waitForAllAnimationsLoaded(newAnimations);
     
     remotePlayer.animations = newAnimations;
     
@@ -723,28 +697,48 @@ export class RemotePlayerManager {
           (child.userData.type === 'remote-player' || child.userData.type === 'player')) {
         // If it's not in our tracked meshes, it's orphaned
         if (!trackedMeshes.has(child)) {
-          // Check if it's at the center (0, 0, 0) or close to it, which might indicate a failed spawn
-          const isAtCenter = Math.abs(child.position.x) < 0.1 && 
-                            Math.abs(child.position.z) < 0.1 &&
-                            Math.abs(child.position.y) < 1.0;
+          // Check if mesh has no texture or invalid texture (might indicate failed spawn)
+          const hasNoTexture = !child.material || !child.material.map;
+          const hasInvalidTexture = child.material && child.material.map && 
+                                    (!child.material.map.image || 
+                                     !child.material.map.image.complete || 
+                                     child.material.map.image.naturalWidth === 0);
           
-          if (isAtCenter || child.userData.type === 'remote-player') {
-            // Also check if mesh has no texture or is invisible (might indicate failed spawn)
-            const hasNoTexture = !child.material || !child.material.map || 
-                                  (child.material.map && !child.material.map.image);
-            const isInvisible = child.visible === false;
-            
-            // Remove orphaned remote player mesh (especially if it's at center or has no texture)
-            if (isAtCenter || hasNoTexture || isInvisible || child.userData.type === 'remote-player') {
-              this.scene.remove(child);
-              if (child.geometry) child.geometry.dispose();
-              if (child.material) {
-                if (child.material.map) child.material.map.dispose();
-                child.material.dispose();
-              }
-              removedCount++;
-              console.warn(`Removed orphaned player mesh at position (${child.position.x}, ${child.position.y}, ${child.position.z})`);
+          // Remove orphaned remote player mesh (especially if it has no texture or invalid texture)
+          if (hasNoTexture || hasInvalidTexture || child.userData.type === 'remote-player') {
+            console.warn(`Removing orphaned player mesh ${child.userData.playerId || 'unknown'} - hasTexture: ${!hasNoTexture}, validTexture: ${!hasInvalidTexture}`);
+            this.scene.remove(child);
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+              if (child.material.map) child.material.map.dispose();
+              child.material.dispose();
             }
+            removedCount++;
+          }
+        } else {
+          // Check if tracked mesh has no texture (shouldn't happen, but clean up if it does)
+          const hasNoTexture = !child.material || !child.material.map;
+          const hasInvalidTexture = child.material && child.material.map && 
+                                    (!child.material.map.image || 
+                                     !child.material.map.image.complete || 
+                                     child.material.map.image.naturalWidth === 0);
+          
+          if (hasNoTexture || hasInvalidTexture) {
+            console.warn(`Removing tracked player mesh ${child.userData.playerId || 'unknown'} with invalid texture`);
+            // Find and remove from remotePlayers
+            for (const [playerId, remotePlayer] of this.remotePlayers) {
+              if (remotePlayer && remotePlayer.mesh === child) {
+                this.remotePlayers.delete(playerId);
+                break;
+              }
+            }
+            this.scene.remove(child);
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+              if (child.material.map) child.material.map.dispose();
+              child.material.dispose();
+            }
+            removedCount++;
           }
         }
       }

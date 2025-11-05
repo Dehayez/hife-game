@@ -47,6 +47,8 @@ export function loadSpriteSheet(basePathPng) {
   if (textureCache.has(basePathPng)) {
     tex = textureCache.get(basePathPng);
   } else {
+    // Load texture using the loader - this returns a texture object immediately
+    // but the image may not be loaded yet
     tex = loader.load(basePathPng);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.magFilter = THREE.NearestFilter;
@@ -177,4 +179,80 @@ export function getCacheStats() {
     spriteSheets: spriteSheetCache.size,
     jsonFiles: jsonCache.size
   };
+}
+
+/**
+ * Wait for a single texture to be fully loaded
+ * @param {THREE.Texture} texture - Texture to wait for
+ * @returns {Promise<void>} Resolves when texture is loaded
+ */
+export function waitForTextureLoaded(texture) {
+  if (!texture) return Promise.resolve();
+  
+  return new Promise(resolve => {
+    if (!texture.image) {
+      // Texture doesn't have image yet, wait a bit
+      let attempts = 0;
+      const maxAttempts = 40; // 2 seconds max (40 * 50ms)
+      const checkInterval = setInterval(() => {
+        attempts++;
+        if (texture.image) {
+          clearInterval(checkInterval);
+          if (texture.image.complete && texture.image.naturalWidth > 0) {
+            resolve();
+          } else {
+            texture.image.addEventListener('load', () => resolve(), { once: true });
+            texture.image.addEventListener('error', () => resolve(), { once: true });
+          }
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          resolve(); // Timeout, resolve anyway
+        }
+      }, 50);
+      return;
+    }
+    
+    // Texture has image
+    if (texture.image.complete && texture.image.naturalWidth > 0) {
+      resolve();
+    } else {
+      texture.image.addEventListener('load', () => resolve(), { once: true });
+      texture.image.addEventListener('error', () => resolve(), { once: true });
+    }
+  });
+}
+
+/**
+ * Wait for all textures in an animation object to be fully loaded
+ * @param {Object} animation - Animation object with textures
+ * @returns {Promise<void>} Resolves when all textures are loaded
+ */
+export async function waitForTexturesLoaded(animation) {
+  if (!animation) return Promise.resolve();
+  
+  if (animation.mode === 'frames' && animation.textures) {
+    // Wait for all frame textures
+    await Promise.all(animation.textures.map(texture => waitForTextureLoaded(texture)));
+  } else if (animation.texture) {
+    // Wait for sprite sheet texture
+    await waitForTextureLoaded(animation.texture);
+  }
+}
+
+/**
+ * Wait for all textures in an animations object to be fully loaded
+ * @param {Object} animations - Animations object with multiple animation objects
+ * @returns {Promise<void>} Resolves when all textures are loaded
+ */
+export async function waitForAllAnimationsLoaded(animations) {
+  if (!animations) return Promise.resolve();
+  
+  const promises = [];
+  for (const key in animations) {
+    if (animations.hasOwnProperty(key)) {
+      promises.push(waitForTexturesLoaded(animations[key]));
+    }
+  }
+  
+  await Promise.all(promises);
 }

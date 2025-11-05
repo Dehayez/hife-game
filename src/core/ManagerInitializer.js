@@ -118,18 +118,17 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     if (playerId !== multiplayerManager.getLocalPlayerId()) {
       // Check if player already exists before spawning (prevent duplicates)
       const existingPlayer = remotePlayerManager.getRemotePlayer(playerId);
-      if (existingPlayer) {
+      if (existingPlayer && existingPlayer.mesh) {
         // Player already exists, skip spawn
+        console.log(`Player ${playerId} already exists, skipping spawn`);
         return;
       }
       
-      // Clean up any orphaned meshes and health bars before spawning new player
-      remotePlayerManager.cleanupOrphanedMeshes();
-      if (healthBarManager && typeof healthBarManager.cleanupOrphanedHealthBars === 'function') {
-        healthBarManager.cleanupOrphanedHealthBars();
-      }
-      
+      // Use initial position (0,0,0) - will be updated when first player-state is received
       const initialPosition = { x: 0, y: 0, z: 0 };
+      
+      // Spawn player with proper initialization
+      // Note: spawnRemotePlayerWithHealthBar has duplicate prevention built-in
       spawnRemotePlayerWithHealthBar(
         remotePlayerManager,
         healthBarManager,
@@ -137,14 +136,17 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
         playerId,
         playerInfo,
         initialPosition
-      ).then(() => {
-        if (characterManager.getPlayer()) {
-          setTimeout(() => {
-            sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
-          }, 50);
+      ).then((spawnedPlayer) => {
+        if (spawnedPlayer && spawnedPlayer.mesh) {
+          // Send local player state so others can see us
+          if (characterManager.getPlayer()) {
+            setTimeout(() => {
+              sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
+            }, 100);
+          }
         }
       }).catch(error => {
-        console.error('Error spawning remote player:', error);
+        console.error(`Error spawning remote player ${playerId}:`, error);
       });
     }
   });

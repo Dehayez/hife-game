@@ -218,6 +218,7 @@ export class MultiplayerManager {
     
     // Handle existing players response
     this.socket.on('existing-players', (players) => {
+      // Spawn all existing players
       players.forEach(playerData => {
         if (!this.connectedPlayers.has(playerData.playerId)) {
           this.connectedPlayers.set(playerData.playerId, {

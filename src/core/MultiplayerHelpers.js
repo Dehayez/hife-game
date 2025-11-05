@@ -104,7 +104,7 @@ export function createRemotePlayerHealthBar(healthBarManager, remotePlayer, mult
  * @param {string} playerId - Player ID
  * @param {Object} playerInfo - Player info object
  * @param {Object} initialPosition - Initial position object
- * @returns {Promise} Promise that resolves when player is spawned
+ * @returns {Promise} Promise that resolves when player is spawned and healthbar is created
  */
 export async function spawnRemotePlayerWithHealthBar(
   remotePlayerManager,
@@ -116,17 +116,34 @@ export async function spawnRemotePlayerWithHealthBar(
 ) {
   try {
     const characterName = playerInfo?.characterName || 'lucy';
+    
+    // Spawn remote player (this waits for textures to be fully loaded and sets them)
     const remotePlayer = await remotePlayerManager.spawnRemotePlayer(
       playerId,
       characterName,
       initialPosition
     );
     
+    if (!remotePlayer || !remotePlayer.mesh) {
+      console.error(`Failed to spawn remote player ${playerId}: mesh not created`);
+      return null;
+    }
+    
+    // Ensure mesh is visible (should already be set in spawnRemotePlayer)
+    const mesh = remotePlayer.mesh;
+    mesh.visible = true;
+    
+    // Verify texture is set and ready
+    if (!mesh.material || !mesh.material.map) {
+      console.warn(`Remote player ${playerId} has no texture set`);
+    }
+    
+    // Create health bar after player is spawned
     createRemotePlayerHealthBar(healthBarManager, remotePlayer, multiplayerManager, playerId);
     
     return remotePlayer;
   } catch (error) {
-    console.error('Error spawning remote player:', error);
+    console.error(`Error spawning remote player ${playerId}:`, error);
     return null;
   }
 }
@@ -161,46 +178,35 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
   const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
   
   // If remote player doesn't exist yet, spawn them
-  // Note: spawnRemotePlayer now has duplicate prevention built-in, so multiple calls are safe
+  // Note: spawnRemotePlayer has duplicate prevention, so this is safe
   if (!remotePlayer) {
     const playerInfo = multiplayerManager.getPlayerInfo(playerId);
-    remotePlayerManager.spawnRemotePlayer(
+    const initialPosition = { x: data.x || 0, y: data.y || 0, z: data.z || 0 };
+    
+    // Spawn player with proper initialization
+    spawnRemotePlayerWithHealthBar(
+      remotePlayerManager,
+      healthBarManager,
+      multiplayerManager,
       playerId,
-      playerInfo?.characterName || 'lucy',
-      { x: data.x || 0, y: data.y || 0, z: data.z || 0 }
-    ).then(() => {
-      // Create health bar for remote player
-      // Note: createHealthBar now checks for duplicates internally, so this is safe to call multiple times
-      const spawnedPlayer = remotePlayerManager.getRemotePlayer(playerId);
-      if (healthBarManager && spawnedPlayer && spawnedPlayer.mesh) {
-        const mesh = spawnedPlayer.mesh;
-        const playerInfo = multiplayerManager.getPlayerInfo(playerId);
-        const characterName = playerInfo?.characterName || 'lucy';
-        import('../config/character/CharacterStats.js').then(({ getCharacterHealthStats }) => {
-          const healthStats = getCharacterHealthStats();
-          mesh.userData.health = mesh.userData.health || healthStats.defaultHealth;
-          mesh.userData.maxHealth = mesh.userData.maxHealth || healthStats.maxHealth;
-          healthBarManager.createHealthBar(mesh, false);
-        }).catch(() => {
-          mesh.userData.health = mesh.userData.health || 100;
-          mesh.userData.maxHealth = mesh.userData.maxHealth || 100;
-          healthBarManager.createHealthBar(mesh, false);
+      playerInfo,
+      initialPosition
+    ).then((spawnedPlayer) => {
+      if (spawnedPlayer && spawnedPlayer.mesh) {
+        // Update position and state after spawning
+        remotePlayerManager.updateRemotePlayer(playerId, {
+          x: data.x,
+          y: data.y,
+          z: data.z,
+          rotation: data.rotation,
+          currentAnimKey: data.currentAnimKey,
+          lastFacing: data.lastFacing,
+          isGrounded: data.isGrounded,
+          isRunning: data.isRunning
         });
       }
-      
-      // Update position after spawning
-      remotePlayerManager.updateRemotePlayer(playerId, {
-        x: data.x,
-        y: data.y,
-        z: data.z,
-        rotation: data.rotation,
-        currentAnimKey: data.currentAnimKey,
-        lastFacing: data.lastFacing,
-        isGrounded: data.isGrounded,
-        isRunning: data.isRunning
-      });
     }).catch(error => {
-      console.error('Error spawning remote player:', error);
+      console.error(`Error spawning remote player ${playerId}:`, error);
     });
   } else {
     // Update existing remote player
