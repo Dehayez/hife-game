@@ -7,7 +7,7 @@
 
 export const GAME_CONSTANTS = {
   // Timing constants
-  SYNC_INTERVAL: 100, // Position sync interval in milliseconds (~10 times per second)
+  SYNC_INTERVAL: 66, // Position sync interval in milliseconds (~15 times per second for ultra-smooth multiplayer with less jitter)
   ANIMATION_UPDATE_THROTTLE: 16, // Max update interval for animations in milliseconds
   STALE_PLAYER_CLEANUP: 5000, // Cleanup stale players every 5 seconds
   AUTO_JOIN_DELAY: 100, // Delay before attempting auto-join in milliseconds

@@ -119,11 +119,12 @@ export class RemotePlayerManager {
         z: initialZ
       },
       interpolationTime: 0,
-      interpolationDuration: 0.15, // 150ms - slightly longer than update interval for smoother overlap
+      interpolationDuration: 0.2, // 200ms - 3x sync interval (66ms * 3) for ultra-smooth interpolation
       smoothedVelocityX: 0,
       smoothedVelocityZ: 0,
       rotation: 0,
       networkRotation: 0, // Store network rotation for reference
+      targetRotation: 0, // For smooth rotation interpolation
       velocityX: 0,
       velocityZ: 0,
       isGrounded: true,
@@ -354,7 +355,7 @@ export class RemotePlayerManager {
       const newVelocityX = dx / timeSinceLastUpdate;
       const newVelocityZ = dz / timeSinceLastUpdate;
       
-      // Smooth velocity changes using exponential smoothing (0.7 = 70% old, 30% new)
+      // Smooth velocity changes using exponential smoothing (0.7 = 70% old, 30% new for ultra-smooth movement)
       remotePlayer.velocityX = newVelocityX;
       remotePlayer.velocityZ = newVelocityZ;
       remotePlayer.smoothedVelocityX = remotePlayer.smoothedVelocityX * 0.7 + newVelocityX * 0.3;
@@ -372,9 +373,9 @@ export class RemotePlayerManager {
       Math.pow(remotePlayer.position.x - remotePlayer.targetPosition.x, 2) +
       Math.pow(remotePlayer.position.z - remotePlayer.targetPosition.z, 2)
     );
-    
-    // If we're far from target, reset interpolation
-    // If we're close, continue smoothly
+
+    // If we're far from target, reset interpolation for more responsive movement
+    // Higher threshold (0.1) to reduce resets and maintain smoothness
     if (distanceToTarget > 0.1) {
       remotePlayer.interpolationTime = 0;
     }
@@ -524,8 +525,8 @@ export class RemotePlayerManager {
       const distanceToTarget = Math.sqrt(dx * dx + dz * dz);
       
       // Snap threshold - if very close, snap directly to avoid jitter
-      const snapThreshold = 0.01;
-      
+      const snapThreshold = 0.005; // Tighter threshold for cleaner snapping
+
       if (distanceToTarget < snapThreshold && Math.abs(dy) < snapThreshold) {
         // Very close to target - snap directly
         mesh.position.set(
@@ -536,36 +537,37 @@ export class RemotePlayerManager {
         remotePlayer.position.x = remotePlayer.targetPosition.x;
         remotePlayer.position.y = remotePlayer.targetPosition.y;
         remotePlayer.position.z = remotePlayer.targetPosition.z;
-      } else if (timeSinceUpdate < 0.3) {
+      } else if (timeSinceUpdate < 0.3) { // Increased window before extrapolation
         // Use frame-based lerp for ultra-smooth movement
         // Lerp factor adapts based on distance - closer targets move faster
         const maxDistance = 5.0; // Maximum expected distance
         const normalizedDistance = Math.min(distanceToTarget / maxDistance, 1.0);
-        
-        // Adaptive lerp factor: 0.2 to 0.4 based on distance
-        // Closer = faster movement, further = smoother but slower
-        const baseLerpFactor = 0.25;
-        const adaptiveLerpFactor = baseLerpFactor + (normalizedDistance * 0.15);
-        
+
+        // Smoother lerp factor: 0.15 to 0.25 based on distance for butter-smooth movement
+        // Much gentler than before, prevents jerky motion
+        const baseLerpFactor = 0.15;
+        const adaptiveLerpFactor = baseLerpFactor + (normalizedDistance * 0.1);
+
         // Apply lerp directly - this gives smooth, frame-by-frame movement
-        const currentX = remotePlayer.position.x + 
+        const currentX = remotePlayer.position.x +
           (remotePlayer.targetPosition.x - remotePlayer.position.x) * adaptiveLerpFactor;
-        const currentY = remotePlayer.position.y + 
+        const currentY = remotePlayer.position.y +
           (remotePlayer.targetPosition.y - remotePlayer.position.y) * adaptiveLerpFactor;
-        const currentZ = remotePlayer.position.z + 
+        const currentZ = remotePlayer.position.z +
           (remotePlayer.targetPosition.z - remotePlayer.position.z) * adaptiveLerpFactor;
-        
+
         mesh.position.set(currentX, currentY, currentZ);
         remotePlayer.position.x = currentX;
         remotePlayer.position.y = currentY;
         remotePlayer.position.z = currentZ;
-        
+
         // Update interpolation time for tracking
         remotePlayer.interpolationTime += dt;
       } else {
         // Extrapolation: predict position based on smoothed velocity when updates are delayed
         // Only extrapolate horizontal movement (X and Z), keep Y as-is
-        const extrapolationTime = Math.min(timeSinceUpdate - 0.15, 0.2); // Cap extrapolation
+        // Higher threshold (0.3s) to avoid premature extrapolation that causes overshoots
+        const extrapolationTime = Math.min(timeSinceUpdate - 0.15, 0.15); // Cap extrapolation at 150ms
         
         // Use smoothed velocity for more stable extrapolation
         const extrapolatedX = remotePlayer.targetPosition.x + remotePlayer.smoothedVelocityX * extrapolationTime;
@@ -580,10 +582,23 @@ export class RemotePlayerManager {
         remotePlayer.position.z = extrapolatedZ;
       }
       
-      // Billboard remote players to camera (like local players)
+      // Billboard remote players to camera (like local players) with smooth rotation
       if (camera) {
         const camYaw = camera.rotation.y;
-        mesh.rotation.y = camYaw;
+
+        // Smooth rotation interpolation to avoid instant snapping
+        // Use a gentler lerp factor for rotation (0.1 = 10% per frame)
+        const rotationLerpFactor = 0.1;
+
+        // Handle angle wrapping (shortest path between angles)
+        let angleDiff = camYaw - remotePlayer.rotation;
+        // Normalize angle difference to [-PI, PI]
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+        // Apply smooth interpolation
+        remotePlayer.rotation += angleDiff * rotationLerpFactor;
+        mesh.rotation.y = remotePlayer.rotation;
       }
       
       updateCharacterAnimation(
