@@ -8,7 +8,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getMortarStats } from '../CharacterAbilityStats.js';
 import { MORTAR_ATTACK_CONFIG } from '../../../../../config/abilities/base/MortarAttackConfig.js';
-import { MORTAR_GRAVITY } from './BaseMortar.js';
+import { MORTAR_GRAVITY, calculateMortarTrajectory } from './BaseMortar.js';
 
 // Get arc preview settings from config
 const ARC_CONFIG = MORTAR_ATTACK_CONFIG.arcPreview;
@@ -24,15 +24,16 @@ const ARC_TUBE_SEGMENTS = ARC_CONFIG.tubeSegments;
  * @param {number} startY - Starting Y position (character height)
  * @param {number} startZ - Starting Z position
  * @param {number} targetX - Target X position
+ * @param {number} targetY - Target Y position (ground height at target)
  * @param {number} targetZ - Target Z position
  * @param {string} characterName - Character name ('lucy' or 'herald')
  * @param {number} numPoints - Number of points to generate for the arc (default: 50)
  * @returns {Array<THREE.Vector3>} Array of points along the trajectory
  */
-function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, numPoints = ARC_POINTS) {
+function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetY, targetZ, characterName, collisionManager, numPoints = ARC_POINTS) {
   const stats = getMortarStats(characterName);
   
-  // Calculate horizontal distance
+  // Calculate horizontal distance to target
   const dx = targetX - startX;
   const dz = targetZ - startZ;
   const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
@@ -42,18 +43,63 @@ function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, cha
     return [new THREE.Vector3(startX, startY, startZ)];
   }
   
-  // Calculate trajectory physics (same as Mortar.js)
-  const gravity = Math.abs(MORTAR_GRAVITY);
-  const timeToPeak = Math.sqrt(2 * stats.arcHeight / gravity);
-  const totalTime = timeToPeak * 2; // Time to go up and down
-  const horizontalSpeed = horizontalDistance / totalTime;
-  const verticalSpeed = gravity * timeToPeak; // Initial vertical velocity
+  // Use the same trajectory calculation as the actual mortar
+  // This uses fixed arcHeight, which means when flying high, the projectile will travel further
+  const startPos = new THREE.Vector3(startX, startY, startZ);
+  const targetPos = new THREE.Vector3(targetX, targetY, targetZ);
+  const trajectory = calculateMortarTrajectory(startPos, targetPos, stats.arcHeight);
   
-  const launchVelocityX = (dx / horizontalDistance) * horizontalSpeed;
-  const launchVelocityZ = (dz / horizontalDistance) * horizontalSpeed;
-  const launchVelocityY = verticalSpeed;
+  if (!trajectory) {
+    return [new THREE.Vector3(startX, startY, startZ)];
+  }
   
-  // Generate points along trajectory
+  // Get launch velocities from trajectory
+  const launchVelocityX = trajectory.launchVelocity.x;
+  const launchVelocityY = trajectory.launchVelocity.y;
+  const launchVelocityZ = trajectory.launchVelocity.z;
+  
+  // Calculate the actual landing point by simulating the trajectory
+  // We need to find where the projectile hits the ground
+  const gravity = MORTAR_GRAVITY;
+  let totalTime = trajectory.totalTime;
+  
+  // If starting from high up, extend the trajectory to find where it actually lands
+  // Simulate until we hit the ground
+  const maxSimulationTime = 10; // Maximum time to simulate (safety limit)
+  let simulationTime = 0;
+  let currentX = startX;
+  let currentY = startY;
+  let currentZ = startZ;
+  let velocityY = launchVelocityY;
+  
+  // Find where the projectile actually hits the ground
+  while (simulationTime < maxSimulationTime) {
+    const dt = 0.05; // Step size for simulation
+    simulationTime += dt;
+    
+    // Update velocity (accumulate gravity)
+    velocityY += gravity * dt;
+    
+    // Update position using current velocity
+    currentX += launchVelocityX * dt;
+    currentY += velocityY * dt;
+    currentZ += launchVelocityZ * dt;
+    
+    // Check if we hit the ground
+    if (collisionManager) {
+      const groundHeight = collisionManager.getGroundHeight(currentX, currentZ, 0.1);
+      if (currentY <= groundHeight) {
+        // Hit ground - this is the actual landing point
+        totalTime = simulationTime;
+        break;
+      }
+    } else {
+      // No collision manager - use original trajectory time
+      break;
+    }
+  }
+  
+  // Generate points along the full trajectory
   const points = [];
   for (let i = 0; i <= numPoints; i++) {
     const t = (i / numPoints) * totalTime;
@@ -62,6 +108,16 @@ function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, cha
     const x = startX + launchVelocityX * t;
     const y = startY + launchVelocityY * t + 0.5 * MORTAR_GRAVITY * t * t;
     const z = startZ + launchVelocityZ * t;
+    
+    // Check if point is below ground and clamp to ground height
+    if (collisionManager && i > 0) {
+      const groundHeight = collisionManager.getGroundHeight(x, z, 0.1);
+      if (y < groundHeight) {
+        points.push(new THREE.Vector3(x, groundHeight, z));
+        // Stop generating points after hitting ground
+        break;
+      }
+    }
     
     points.push(new THREE.Vector3(x, y, z));
   }
@@ -82,8 +138,14 @@ function calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, cha
  * @returns {THREE.Mesh|null} Tube mesh representing the arc preview, or null if too few points
  */
 export function createMortarArcPreview(scene, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
-  // Calculate trajectory points
-  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, ARC_POINTS);
+  // Get ground height at target position (for reference, but trajectory will show actual landing)
+  const targetY = collisionManager 
+    ? collisionManager.getGroundHeight(targetX, targetZ, 0.1)
+    : 0;
+  
+  // Calculate trajectory points using same physics as actual mortar
+  // This will naturally show longer range when flying high
+  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetY, targetZ, characterName, collisionManager, ARC_POINTS);
   
   // Ensure we have enough points (CatmullRomCurve3 needs at least 4 points)
   if (points.length < 4) {
@@ -146,8 +208,14 @@ export function createMortarArcPreview(scene, startX, startY, startZ, targetX, t
  * @returns {boolean} True if update was successful, false if too few points
  */
 export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
-  // Recalculate trajectory points
-  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetZ, characterName, ARC_POINTS);
+  // Get ground height at target position (for reference, but trajectory will show actual landing)
+  const targetY = collisionManager 
+    ? collisionManager.getGroundHeight(targetX, targetZ, 0.1)
+    : 0;
+  
+  // Recalculate trajectory points using same physics as actual mortar
+  // This will naturally show longer range when flying high
+  const points = calculateTrajectoryPoints(startX, startY, startZ, targetX, targetY, targetZ, characterName, collisionManager, ARC_POINTS);
   
   // Ensure we have enough points (CatmullRomCurve3 needs at least 4 points)
   if (points.length < 4) {
