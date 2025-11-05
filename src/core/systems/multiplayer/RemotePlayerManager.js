@@ -22,6 +22,7 @@ export class RemotePlayerManager {
     this.scene = scene;
     this.particleManager = particleManager;
     this.remotePlayers = new Map(); // Map<playerId, remotePlayerData>
+    this.spawningPlayers = new Set(); // Set<playerId> - Track players currently being spawned to prevent duplicates
     this.movementStats = getCharacterMovementStats();
   }
 
@@ -32,11 +33,39 @@ export class RemotePlayerManager {
    * @param {Object} initialPosition - Initial position {x, y, z}
    */
   async spawnRemotePlayer(playerId, characterName = 'lucy', initialPosition = { x: 0, y: 0, z: 0 }) {
+    // Check if player already exists or is currently being spawned
     if (this.remotePlayers.has(playerId)) {
-      return;
+      return this.remotePlayers.get(playerId);
+    }
+    
+    // Check if player is currently being spawned (prevent duplicate spawns)
+    if (this.spawningPlayers.has(playerId)) {
+      // Wait for the existing spawn to complete
+      // Poll until player is added or timeout
+      const maxWaitTime = 5000; // 5 seconds max wait
+      const startTime = Date.now();
+      while (this.spawningPlayers.has(playerId) && !this.remotePlayers.has(playerId)) {
+        if (Date.now() - startTime > maxWaitTime) {
+          console.warn(`Timeout waiting for player ${playerId} to spawn`);
+          this.spawningPlayers.delete(playerId);
+          return null;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      // Return the player if it was successfully spawned
+      if (this.remotePlayers.has(playerId)) {
+        return this.remotePlayers.get(playerId);
+      }
+      
+      // If spawn failed, continue with our own spawn
     }
 
-    // Create player sprite
+    // Mark player as spawning to prevent concurrent spawns
+    this.spawningPlayers.add(playerId);
+
+    try {
+      // Create player sprite
     const playerHeight = this.movementStats.playerHeight;
     const playerMesh = createSpriteAtPosition(
       playerHeight,
@@ -103,10 +132,19 @@ export class RemotePlayerManager {
       lastUpdateTime: Date.now()
     });
 
-    this.scene.add(playerMesh);
-    
-    // Return remote player data for health bar creation
-    return this.remotePlayers.get(playerId);
+      this.scene.add(playerMesh);
+      
+      // Remove from spawning set now that spawn is complete
+      this.spawningPlayers.delete(playerId);
+      
+      // Return remote player data for health bar creation
+      return this.remotePlayers.get(playerId);
+    } catch (error) {
+      // Remove from spawning set on error
+      this.spawningPlayers.delete(playerId);
+      console.error(`Error spawning remote player ${playerId}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -382,6 +420,8 @@ export class RemotePlayerManager {
   removeRemotePlayer(playerId) {
     const remotePlayer = this.remotePlayers.get(playerId);
     if (!remotePlayer) {
+      // Also clear from spawning set if it's there
+      this.spawningPlayers.delete(playerId);
       return;
     }
 
@@ -389,6 +429,7 @@ export class RemotePlayerManager {
     remotePlayer.mesh.geometry.dispose();
     remotePlayer.mesh.material.dispose();
     this.remotePlayers.delete(playerId);
+    this.spawningPlayers.delete(playerId);
   }
 
   /**
@@ -596,6 +637,7 @@ export class RemotePlayerManager {
     for (const [playerId] of this.remotePlayers) {
       this.removeRemotePlayer(playerId);
     }
+    this.spawningPlayers.clear();
   }
 
   /**

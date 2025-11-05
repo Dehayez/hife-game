@@ -116,6 +116,13 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   const onPlayerJoined = multiplayerCallbacks.onPlayerJoined || ((playerId, playerInfo) => {
     // Access multiplayerManager from closure
     if (playerId !== multiplayerManager.getLocalPlayerId()) {
+      // Check if player already exists before spawning (prevent duplicates)
+      const existingPlayer = remotePlayerManager.getRemotePlayer(playerId);
+      if (existingPlayer) {
+        // Player already exists, skip spawn
+        return;
+      }
+      
       const initialPosition = { x: 0, y: 0, z: 0 };
       spawnRemotePlayerWithHealthBar(
         remotePlayerManager,

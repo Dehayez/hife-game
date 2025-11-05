@@ -37,6 +37,12 @@ export class HealthBarManager {
    * @returns {THREE.Object3D} Health bar container
    */
   createHealthBar(target, isPlayer = false) {
+    // Check if health bar already exists for this target
+    if (this.healthBars.has(target)) {
+      // Return existing health bar to prevent duplicates
+      return this.healthBars.get(target);
+    }
+    
     const sizeStats = getHealthBarSizeStats();
     const colorStats = getHealthBarColorStats();
     const opacityStats = getHealthBarOpacityStats();

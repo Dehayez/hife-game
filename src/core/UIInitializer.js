@@ -708,6 +708,20 @@ function buildMenuStructure(gameMenu, mounts) {
     }
   }
   
+  // Room Manager Section
+  const roomSection = gameMenu.addSection('multiplayer', {
+    title: 'Multiplayer Room',
+    className: 'game-menu__section--room-manager'
+  });
+  if (roomSection && roomMount.firstChild) {
+    const roomContent = roomSection.querySelector('.game-menu__section-content');
+    if (roomContent) {
+      while (roomMount.firstChild) {
+        roomContent.appendChild(roomMount.firstChild);
+      }
+    }
+  }
+  
   // Bot Control Section
   const botSection = gameMenu.addSection('multiplayer', {
     title: 'Bot Control',
@@ -739,20 +753,6 @@ function buildMenuStructure(gameMenu, mounts) {
     }
     if (gameMode !== 'shooting') {
       learningSection.style.display = 'none';
-    }
-  }
-  
-  // Room Manager Section
-  const roomSection = gameMenu.addSection('multiplayer', {
-    title: 'Multiplayer Room',
-    className: 'game-menu__section--room-manager'
-  });
-  if (roomSection && roomMount.firstChild) {
-    const roomContent = roomSection.querySelector('.game-menu__section-content');
-    if (roomContent) {
-      while (roomMount.firstChild) {
-        roomContent.appendChild(roomMount.firstChild);
-      }
     }
   }
 }

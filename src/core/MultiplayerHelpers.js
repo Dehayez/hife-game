@@ -80,6 +80,8 @@ export function createRemotePlayerHealthBar(healthBarManager, remotePlayer, mult
   const playerInfo = multiplayerManager.getPlayerInfo(playerId);
   const characterName = playerInfo?.characterName || 'lucy';
   
+  // Note: createHealthBar now checks for duplicates internally, so this is safe to call multiple times
+  
   // Import here to avoid circular dependencies
   import('../config/character/CharacterStats.js').then(({ getCharacterHealthStats }) => {
     const healthStats = getCharacterHealthStats();
@@ -159,6 +161,7 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
   const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
   
   // If remote player doesn't exist yet, spawn them
+  // Note: spawnRemotePlayer now has duplicate prevention built-in, so multiple calls are safe
   if (!remotePlayer) {
     const playerInfo = multiplayerManager.getPlayerInfo(playerId);
     remotePlayerManager.spawnRemotePlayer(
@@ -167,6 +170,7 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
       { x: data.x || 0, y: data.y || 0, z: data.z || 0 }
     ).then(() => {
       // Create health bar for remote player
+      // Note: createHealthBar now checks for duplicates internally, so this is safe to call multiple times
       const spawnedPlayer = remotePlayerManager.getRemotePlayer(playerId);
       if (healthBarManager && spawnedPlayer && spawnedPlayer.mesh) {
         const mesh = spawnedPlayer.mesh;
