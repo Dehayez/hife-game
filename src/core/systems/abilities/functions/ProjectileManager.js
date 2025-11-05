@@ -12,12 +12,14 @@
  * - collision/CollisionHandler.js: Collision detection logic
  */
 
-import { getBoltStats, getMortarStats } from './CharacterAbilityStats.js';
+import { getBoltStats, getMortarStats, getCharacterColor } from './CharacterAbilityStats.js';
 import { createBolt, updateBolt, removeBolt } from './bolt';
 import { createMortar, updateMortar, removeMortar as removeMortarMesh } from './mortar';
 import { createSplashArea, updateSplashArea, removeSplashArea as removeSplashAreaFromScene } from './mortar/SplashArea.js';
 import { checkAllCollisions, checkMortarGroundAndSplashCollision } from './collision/CollisionHandler.js';
 import { CooldownManager } from '../../../../utils/CooldownUtils.js';
+import { InstancedProjectileRenderer } from './utils/InstancedProjectileRenderer.js';
+import { PerformanceOptimizer } from './utils/PerformanceOptimizer.js';
 
 export class ProjectileManager {
   /**
@@ -26,16 +28,28 @@ export class ProjectileManager {
    * @param {Object} collisionManager - Collision manager for wall/ground checks
    * @param {Object} particleManager - Optional particle manager for impact effects
    */
-  constructor(scene, collisionManager = null, particleManager = null, soundManager = null) {
+  constructor(scene, collisionManager = null, particleManager = null, soundManager = null, useInstancedRendering = false) {
     this.scene = scene;
     this.collisionManager = collisionManager;
     this.particleManager = particleManager;
     this.soundManager = soundManager;
+    this.useInstancedRendering = useInstancedRendering;
     
     // Active projectile arrays
     this.projectiles = [];
     this.mortars = [];
     this.splashAreas = [];
+    
+    // Instanced rendering system for performance optimization
+    if (this.useInstancedRendering) {
+      this.instancedRenderer = new InstancedProjectileRenderer(scene, 1000);
+    }
+    
+    // Advanced performance optimizer
+    this.performanceOptimizer = new PerformanceOptimizer();
+    
+    // Track update frame counter for adaptive update frequency
+    this.updateFrameCounter = 0;
     
     // Cooldown tracking per player/character using shared CooldownManager
     this.characterCooldowns = new CooldownManager(); // Bolt cooldowns
@@ -127,6 +141,10 @@ export class ProjectileManager {
     // Check cooldown for this specific character
     if (!this.characterCooldowns.canAct(playerId)) return null;
     
+    // Check performance optimization level for trail lights
+    const optLevel = this.performanceOptimizer.updateLevel(this.projectiles.length);
+    const enableTrailLights = this.performanceOptimizer.shouldEnableTrailLights();
+    
     // Create projectile using Bolt module
     const projectile = createBolt(
       this.scene,
@@ -139,10 +157,45 @@ export class ProjectileManager {
       characterName,
       targetX,
       targetZ,
-      this.particleManager
+      this.particleManager,
+      enableTrailLights // Pass trail light enable flag
     );
     
     if (!projectile) return null;
+    
+    // Disable or reduce trail light intensity if performance optimization requires it
+    if (projectile.userData.trailLight && !enableTrailLights) {
+      // Disable trail light completely
+      projectile.userData.trailLight.visible = false;
+      projectile.userData.trailLight.intensity = 0;
+    } else if (projectile.userData.trailLight) {
+      // Reduce intensity if needed
+      const intensityMultiplier = this.performanceOptimizer.getTrailLightIntensity();
+      projectile.userData.trailLight.intensity *= intensityMultiplier;
+    }
+    
+    // Register with instanced renderer if enabled
+    if (this.useInstancedRendering && this.instancedRenderer) {
+      const projectileId = `projectile_${Date.now()}_${Math.random()}`;
+      projectile.userData.instanceId = projectileId;
+      
+      // Get character color from projectile userData (stored by createBolt)
+      const characterColor = projectile.userData.characterColor || getCharacterColor(characterName);
+      
+      const instanceData = this.instancedRenderer.addProjectile(
+        projectileId,
+        { x: startX, y: startY, z: startZ },
+        characterColor,
+        characterName
+      );
+      
+      if (instanceData) {
+        projectile.userData.instanceData = instanceData;
+        // Hide the individual mesh since it's rendered via InstancedMesh
+        // Keep mesh in scene for collision detection, but make it invisible
+        projectile.visible = false;
+      }
+    }
     
     // Play bolt shot sound with position-based volume
     if (this.soundManager) {
@@ -177,7 +230,7 @@ export class ProjectileManager {
         // Apply speed boost multiplier (reduces cooldown = faster shooting)
         const originalCooldown = cooldown;
         cooldown *= stats.speedBoost.cooldownMultiplier;
-        console.log('[SpeedBoost] Applied! Original:', originalCooldown, 'New:', cooldown, 'Multiplier:', stats.speedBoost.cooldownMultiplier);
+        // Removed console.log for performance - too many logs when shooting rapidly
       } else if (speedBoostInfo.active && currentTime >= speedBoostInfo.endTime) {
         // Speed boost just expired - update state
         speedBoostInfo.active = false;
@@ -444,7 +497,28 @@ export class ProjectileManager {
   updateProjectiles(dt) {
     const projectilesToRemove = [];
     
+    // Update performance optimization level
+    const optLevel = this.performanceOptimizer.updateLevel(this.projectiles.length);
+    const updateFrequency = this.performanceOptimizer.getUpdateFrequency();
+    this.updateFrameCounter++;
+    
+    // Early culling - remove out-of-bounds projectiles immediately
+    const arenaSize = this.collisionManager?.arenaSize || 40;
     for (const projectile of this.projectiles) {
+      if (this.performanceOptimizer.shouldEarlyCull(projectile, arenaSize)) {
+        projectilesToRemove.push(projectile);
+      }
+    }
+    
+    // Adaptive update frequency - skip some projectiles when many are active
+    const shouldUpdateAll = updateFrequency >= 1.0 || 
+                           (this.updateFrameCounter % Math.ceil(1 / updateFrequency) === 0);
+    
+    for (const projectile of this.projectiles) {
+      // Skip if already marked for removal
+      if (projectilesToRemove.includes(projectile)) {
+        continue;
+      }
       // Remove projectiles that have hit something
       if (projectile.userData.hasHit) {
         // Play bolt hit sound with position-based volume
@@ -478,6 +552,23 @@ export class ProjectileManager {
       // and is never updated here. This ensures projectiles fire from jump height but
       // don't change trajectory when player continues jumping.
       
+      // Adaptive update frequency - skip updating some projectiles when many are active
+      if (!shouldUpdateAll && Math.random() > updateFrequency) {
+        // Skip this projectile's update this frame (only update position for instanced rendering)
+        if (this.useInstancedRendering && this.instancedRenderer && projectile.userData.instanceId) {
+          // Still update instanced renderer position even if we skip full update
+          this.instancedRenderer.updateProjectile(
+            projectile.userData.instanceId,
+            {
+              x: projectile.position.x,
+              y: projectile.position.y,
+              z: projectile.position.z
+            }
+          );
+        }
+        continue; // Skip rest of update for this projectile
+      }
+      
       // Update projectile using Bolt module
       const shouldRemove = updateBolt(
         projectile,
@@ -488,9 +579,26 @@ export class ProjectileManager {
         this.playerPosition
       );
       
+      // Update instanced renderer if enabled (batched at end of loop)
+      if (this.useInstancedRendering && this.instancedRenderer && projectile.userData.instanceId) {
+        this.instancedRenderer.updateProjectile(
+          projectile.userData.instanceId,
+          {
+            x: projectile.position.x,
+            y: projectile.position.y,
+            z: projectile.position.z
+          }
+        );
+      }
+      
       if (shouldRemove) {
         projectilesToRemove.push(projectile);
       }
+    }
+    
+    // Batch upload all instanced matrix updates at once (much more efficient)
+    if (this.useInstancedRendering && this.instancedRenderer) {
+      this.instancedRenderer.markMatricesForUpdate();
     }
     
     // Remove expired or collided projectiles
@@ -562,7 +670,25 @@ export class ProjectileManager {
    * @param {THREE.Mesh} projectile - Projectile mesh
    */
   removeProjectile(projectile) {
-    removeBolt(projectile, this.scene, this.particleManager);
+    // Remove from instanced renderer if enabled
+    if (this.useInstancedRendering && this.instancedRenderer && projectile.userData.instanceId) {
+      this.instancedRenderer.removeProjectile(projectile.userData.instanceId);
+    }
+    
+    // Hide the mesh but keep it for collision detection compatibility
+    // The instanced renderer handles the visual removal
+    if (this.useInstancedRendering) {
+      // Still need to clean up trail light and particles
+      if (projectile.userData.trailLight) {
+        this.scene.remove(projectile.userData.trailLight);
+      }
+      if (this.particleManager && projectile.userData.ambientParticles) {
+        this.particleManager.removeProjectileParticles(projectile.userData.ambientParticles);
+      }
+    } else {
+      // Use traditional removal method
+      removeBolt(projectile, this.scene, this.particleManager);
+    }
     
     // Remove from array
     const index = this.projectiles.indexOf(projectile);
@@ -623,6 +749,11 @@ export class ProjectileManager {
     // Remove all splash areas
     for (const splashArea of [...this.splashAreas]) {
       this.removeSplashArea(splashArea);
+    }
+    
+    // Clear instanced renderer if enabled
+    if (this.useInstancedRendering && this.instancedRenderer) {
+      this.instancedRenderer.clear();
     }
     
     // Clear arrays

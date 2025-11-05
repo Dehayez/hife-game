@@ -8,7 +8,8 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getBoltStats, getCharacterColor } from '../CharacterAbilityStats.js';
 import { BOLT_ATTACK_CONFIG } from '../../../../../config/abilities/base/BoltAttackConfig.js';
 import { GENERAL_ABILITY_CONFIG } from '../../../../../config/abilities/base/MeleeAttackConfig.js';
-import { createSphereGeometry, createEmissiveMaterial, createProjectileMesh } from '../utils/GeometryUtils.js';
+import { createSphereGeometry, createProjectileMesh } from '../utils/GeometryUtils.js';
+import { getMaterialCache } from '../utils/MaterialCache.js';
 import { createTrailLight } from '../utils/LightUtils.js';
 import { normalize2D } from '../utils/VectorUtils.js';
 
@@ -25,9 +26,10 @@ import { normalize2D } from '../utils/VectorUtils.js';
  * @param {number} targetX - Optional target X position for cursor following
  * @param {number} targetZ - Optional target Z position for cursor following
  * @param {Object} particleManager - Optional particle manager for projectile effects
+ * @param {boolean} enableTrailLight - Whether to enable trail light (default: true)
  * @returns {THREE.Mesh|null} Created projectile mesh or null if invalid direction
  */
-export function createBolt(scene, startX, startY, startZ, directionX, directionZ, playerId, characterName, targetX = null, targetZ = null, particleManager = null) {
+export function createBolt(scene, startX, startY, startZ, directionX, directionZ, playerId, characterName, targetX = null, targetZ = null, particleManager = null, enableTrailLight = true) {
   // Get character-specific bolt stats
   const stats = getBoltStats(characterName);
   const characterColor = getCharacterColor(characterName);
@@ -39,13 +41,10 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
   const { x: normX, z: normZ } = normalized;
 
   // Create projectile geometry and material
+  // Use material cache to share materials by color (reduces memory and draw calls)
   const geometry = createSphereGeometry(stats.size, BOLT_ATTACK_CONFIG.visual.geometrySegments);
-  const material = createEmissiveMaterial({
-    color: characterColor,
-    emissiveIntensity: BOLT_ATTACK_CONFIG.visual.emissiveIntensity,
-    metalness: BOLT_ATTACK_CONFIG.visual.metalness,
-    roughness: BOLT_ATTACK_CONFIG.visual.roughness
-  });
+  const materialCache = getMaterialCache();
+  const material = materialCache.getMaterial(characterColor);
   
   const projectile = createProjectileMesh({
     geometry,
@@ -54,14 +53,17 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
     castShadow: true
   });
   
-  // Add trail effect - point light with character color
-  const trailLight = createTrailLight({
-    color: characterColor,
-    intensity: BOLT_ATTACK_CONFIG.trailLight.intensity,
-    range: BOLT_ATTACK_CONFIG.trailLight.range,
-    position: new THREE.Vector3(startX, startY, startZ)
-  });
-  scene.add(trailLight);
+  // Add trail effect - point light with character color (only if enabled)
+  let trailLight = null;
+  if (enableTrailLight) {
+    trailLight = createTrailLight({
+      color: characterColor,
+      intensity: BOLT_ATTACK_CONFIG.trailLight.intensity,
+      range: BOLT_ATTACK_CONFIG.trailLight.range,
+      position: new THREE.Vector3(startX, startY, startZ)
+    });
+    scene.add(trailLight);
+  }
   
   // Calculate initial speed based on acceleration/deceleration pattern
   const baseSpeed = stats.projectileSpeed;
@@ -117,6 +119,12 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
     particleManager: particleManager, // Store particle manager for trail particles
     ambientParticles: ambientParticles // Store ambient particle references (for cleanup)
   };
+  
+  // Note: When using instanced rendering, the mesh is kept for logic/collision
+  // but the visual rendering is handled by InstancedMesh. The mesh should not
+  // be added to the scene when instanced rendering is active.
+  // The ProjectileManager will handle adding/removing based on rendering mode.
+  // For now, we add it to the scene - ProjectileManager will handle visibility
   
   scene.add(projectile);
   return projectile;
