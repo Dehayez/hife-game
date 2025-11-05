@@ -417,10 +417,17 @@ export class GameMenu {
       if (focused.tagName === 'SELECT') {
         focused.focus();
         focused.click();
-      } else if (focused.tagName === 'INPUT' && focused.type === 'range') {
-        // Range inputs are already interactive, just ensure they're focused
-        focused.focus();
-        this.highlightElement(focused);
+      } else if (focused.tagName === 'INPUT') {
+        if (focused.type === 'checkbox') {
+          // Toggle checkbox when activated with controller
+          focused.checked = !focused.checked;
+          focused.dispatchEvent(new Event('change', { bubbles: true }));
+          this.highlightElement(focused);
+        } else if (focused.type === 'range') {
+          // Range inputs are already interactive, just ensure they're focused
+          focused.focus();
+          this.highlightElement(focused);
+        }
       }
     }
   }

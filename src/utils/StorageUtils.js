@@ -336,4 +336,36 @@ export function setVibrationIntensity(intensity) {
   }
 }
 
+/**
+ * Get controls legend visibility preference
+ * @returns {boolean} True if controls legend should be visible (default true)
+ */
+export function getControlsLegendVisible() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}controls_legend_visible`;
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      return stored === 'true';
+    }
+  } catch (e) {
+    handleStorageError(e, 'read', 'controlsLegendVisible');
+  }
+  return true; // Default visible
+}
+
+/**
+ * Save controls legend visibility preference
+ * @param {boolean} visible - True if controls legend should be visible
+ * @returns {boolean} True if saved successfully
+ */
+export function setControlsLegendVisible(visible) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}controls_legend_visible`;
+    localStorage.setItem(key, visible ? 'true' : 'false');
+    return true;
+  } catch (e) {
+    return handleStorageError(e, 'write', 'controlsLegendVisible');
+  }
+}
+
 

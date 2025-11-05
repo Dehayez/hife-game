@@ -18,7 +18,7 @@ import { initCooldownIndicator } from '../ui/components/CooldownIndicator/index.
 import { initConnectionStatus } from '../ui/components/ConnectionStatus/index.js';
 import { initInputModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
 import { getParam } from '../utils/UrlUtils.js';
-import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode, getSoundEffectsVolume, setSoundEffectsVolume, getBackgroundCinematicVolume, setBackgroundCinematicVolume, getVibrationIntensity, setVibrationIntensity } from '../utils/StorageUtils.js';
+import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode, getSoundEffectsVolume, setSoundEffectsVolume, getBackgroundCinematicVolume, setBackgroundCinematicVolume, getVibrationIntensity, setVibrationIntensity, getControlsLegendVisible, setControlsLegendVisible } from '../utils/StorageUtils.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 import { GAME_CONSTANTS } from '../config/global/GameConstants.js';
 
@@ -58,6 +58,7 @@ export function initializeUI(managers, config) {
   const cooldownMount = document.getElementById('cooldown-indicator') || document.body;
   const connectionStatusMount = document.getElementById('connection-status') || document.body;
   const legendMount = document.getElementById('controls-legend') || document.body;
+  const legendWrapperMount = document.getElementById('controls-legend-wrapper') || document.body;
   const inputModeMount = document.getElementById('input-mode-switcher') || document.body;
   const modeDisplayMount = document.getElementById('game-mode-display') || document.body;
   const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
@@ -165,17 +166,43 @@ export function initializeUI(managers, config) {
     characterSwitcher.setValue(characterName);
   });
   
-  // Initialize controls legend
+  // Initialize controls legend (render into wrapper for in-game display)
   const controlsLegend = initControlsLegend({
+    mount: legendWrapperMount,
+    inputManager: inputManager,
+    gameModeManager: gameModeManager
+  });
+  
+  // Initialize controls legend for menu display (separate instance)
+  const controlsLegendMenu = initControlsLegend({
     mount: legendMount,
     inputManager: inputManager,
     gameModeManager: gameModeManager
   });
   
-  // Update legend when game mode changes
+  // Initialize controls legend visibility from storage
+  const controlsLegendVisible = getControlsLegendVisible();
+  const updateControlsLegendVisibility = (visible) => {
+    if (legendWrapperMount) {
+      if (visible) {
+        legendWrapperMount.classList.add('is-visible');
+      } else {
+        legendWrapperMount.classList.remove('is-visible');
+      }
+      setControlsLegendVisible(visible);
+    }
+  };
+  
+  // Set initial visibility
+  updateControlsLegendVisibility(controlsLegendVisible);
+  
+  // Update legends when game mode changes
   gameModeManager.setOnModeChangeCallback(() => {
     if (controlsLegend) {
       controlsLegend.update();
+    }
+    if (controlsLegendMenu) {
+      controlsLegendMenu.update();
     }
   });
   
@@ -382,7 +409,8 @@ export function initializeUI(managers, config) {
     learningFeedbackMount,
     gameMode,
     characterManager,
-    managers
+    managers,
+    updateControlsLegendVisibility
   });
   
   return {
@@ -439,7 +467,8 @@ function buildMenuStructure(gameMenu, mounts) {
     learningFeedbackMount,
     gameMode,
     characterManager,
-    managers
+    managers,
+    updateControlsLegendVisibility
   } = mounts;
   
   // Game Mode Display Section
@@ -489,6 +518,36 @@ function buildMenuStructure(gameMenu, mounts) {
   if (legendSection && legendMount) {
     const legendContent = legendSection.querySelector('.game-menu__section-content');
     if (legendContent) {
+      // Add toggle for showing/hiding controls legend in-game
+      const toggleContainer = document.createElement('div');
+      toggleContainer.className = 'game-menu__control ui__control';
+      toggleContainer.style.marginTop = '10px';
+      
+      const toggleLabel = document.createElement('label');
+      toggleLabel.className = 'game-menu__label ui__label';
+      toggleLabel.textContent = 'Show Controls UI';
+      toggleLabel.style.marginRight = '10px';
+      toggleLabel.style.cursor = 'pointer';
+      toggleContainer.appendChild(toggleLabel);
+      
+      const toggleCheckbox = document.createElement('input');
+      toggleCheckbox.type = 'checkbox';
+      toggleCheckbox.checked = getControlsLegendVisible();
+      toggleCheckbox.style.cursor = 'pointer';
+      toggleCheckbox.style.width = '18px';
+      toggleCheckbox.style.height = '18px';
+      toggleCheckbox.tabIndex = 0; // Make focusable for controller navigation
+      toggleCheckbox.addEventListener('change', (e) => {
+        const visible = e.target.checked;
+        if (updateControlsLegendVisibility) {
+          updateControlsLegendVisibility(visible);
+        }
+      });
+      toggleContainer.appendChild(toggleCheckbox);
+      
+      legendContent.appendChild(toggleContainer);
+      
+      // Add the controls legend component for menu display
       legendContent.appendChild(legendMount);
       legendMount.style.display = 'block';
     }
