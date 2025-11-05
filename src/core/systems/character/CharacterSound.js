@@ -5,6 +5,7 @@
  */
 
 import { getLoadingProgressManager } from '../../../utils/LoadingProgressManager.js';
+import { tryLoadAudio } from '../../../utils/AudioLoader.js';
 
 /**
  * Sound file extensions to try
@@ -12,32 +13,17 @@ import { getLoadingProgressManager } from '../../../utils/LoadingProgressManager
 const SOUND_EXTENSIONS = ['mp3', 'ogg', 'wav'];
 
 /**
- * Try to load a sound file
+ * Try to load a sound file (uses AudioLoader cache)
  * @param {string} path - Sound file path (without extension)
  * @returns {Promise<string|null>} Path to sound file if found, null otherwise
  */
 async function tryLoadSound(path) {
   for (const ext of SOUND_EXTENSIONS) {
     const testPath = `${path}.${ext}`;
-    try {
-      const testAudio = new Audio(testPath);
-      const canLoad = await new Promise((resolve) => {
-        const timeout = setTimeout(() => resolve(false), 500);
-        testAudio.addEventListener('canplay', () => {
-          clearTimeout(timeout);
-          resolve(true);
-        }, { once: true });
-        testAudio.addEventListener('error', () => {
-          clearTimeout(timeout);
-          resolve(false);
-        }, { once: true });
-        testAudio.load();
-      });
-      if (canLoad) {
-        return testPath;
-      }
-    } catch (e) {
-      // Try next format
+    // Use AudioLoader's tryLoadAudio which checks cache first
+    const audio = await tryLoadAudio(testPath);
+    if (audio) {
+      return testPath;
     }
   }
   return null;
@@ -93,28 +79,28 @@ export async function loadAllCharacterSounds(characterName, soundManager, onProg
   // Load footstep sound
   const footstepSound = await loadCharacterSound(characterName, 'footstep');
   if (footstepSound && soundManager) {
-    soundManager.loadFootstepSound(footstepSound);
+    await soundManager.loadFootstepSound(footstepSound);
   }
   updateProgress('footstep');
   
   // Load obstacle footstep sound
   const obstacleFootstepSound = await loadCharacterSound(characterName, 'footstep_obstacle');
   if (obstacleFootstepSound && soundManager) {
-    soundManager.loadObstacleFootstepSound(obstacleFootstepSound);
+    await soundManager.loadObstacleFootstepSound(obstacleFootstepSound);
   }
   updateProgress('footstep_obstacle');
   
   // Load jump sound
   const jumpSound = await loadCharacterSound(characterName, 'jump');
   if (jumpSound && soundManager) {
-    soundManager.loadJumpSound(jumpSound);
+    await soundManager.loadJumpSound(jumpSound);
   }
   updateProgress('jump');
   
   // Load obstacle jump sound
   const obstacleJumpSound = await loadCharacterSound(characterName, 'jump_obstacle');
   if (obstacleJumpSound && soundManager) {
-    soundManager.loadObstacleJumpSound(obstacleJumpSound);
+    await soundManager.loadObstacleJumpSound(obstacleJumpSound);
   }
   updateProgress('jump_obstacle');
 }

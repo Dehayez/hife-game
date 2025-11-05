@@ -1,5 +1,5 @@
 import { getSoundEffectsVolume, getBackgroundCinematicVolume } from './StorageUtils.js';
-import { tryLoadAudio, getAudioPath } from './AudioLoader.js';
+import { tryLoadAudio, getAudioPath, loadCustomAudio } from './AudioLoader.js';
 import { isSoundEnabled } from '../config/global/SoundConfig.js';
 
 export class SoundManager {
@@ -34,17 +34,27 @@ export class SoundManager {
     this.initFromStorage();
     
     this._initAudioContext();
+    // Load sounds asynchronously (fire-and-forget in constructor)
+    // These will be properly loaded via loadFootstepSound/etc methods during character initialization
     if (customFootstepPath) {
-      this._loadCustomFootstep(customFootstepPath);
+      this._loadCustomFootstep(customFootstepPath).catch(() => {
+        // Silently handle errors in constructor
+      });
     }
     if (customObstacleFootstepPath) {
-      this._loadCustomObstacleFootstep(customObstacleFootstepPath);
+      this._loadCustomObstacleFootstep(customObstacleFootstepPath).catch(() => {
+        // Silently handle errors in constructor
+      });
     }
     if (customJumpPath) {
-      this._loadCustomJump(customJumpPath);
+      this._loadCustomJump(customJumpPath).catch(() => {
+        // Silently handle errors in constructor
+      });
     }
     if (customObstacleJumpPath) {
-      this._loadCustomObstacleJump(customObstacleJumpPath);
+      this._loadCustomObstacleJump(customObstacleJumpPath).catch(() => {
+        // Silently handle errors in constructor
+      });
     }
   }
 
@@ -125,170 +135,214 @@ export class SoundManager {
     return baseVolume * distanceMultiplier;
   }
 
-  _loadCustomFootstep(path) {
+  async _loadCustomFootstep(path) {
     // Clear existing audio if loading new one
     this.footstepAudio = null;
     
     if (!path) return;
     
     try {
-      this.footstepAudio = new Audio(path);
-      this.footstepAudio.volume = this.soundEffectsVolume;
-      this.footstepAudio.preload = 'auto';
+      // Use AudioLoader which handles caching
+      this.footstepAudio = await tryLoadAudio(path);
+      if (!this.footstepAudio) {
+        // Fallback to loadCustomAudio if tryLoadAudio fails
+        this.footstepAudio = loadCustomAudio(path, this.soundEffectsVolume);
+      } else {
+        this.footstepAudio.volume = this.soundEffectsVolume;
+      }
       
-      // Handle loading errors gracefully
-      this.footstepAudio.addEventListener('error', (e) => {
-        this.footstepAudio = null;
+      if (this.footstepAudio) {
+        // Handle loading errors gracefully
+        this.footstepAudio.addEventListener('error', (e) => {
+          this.footstepAudio = null;
+          this._footstepReady = false;
+        });
+        
+        // Mark as ready when loaded
+        this.footstepAudio.addEventListener('canplaythrough', () => {
+          this._footstepReady = true;
+        }, { once: true });
+        
+        this.footstepAudio.addEventListener('loadeddata', () => {
+          this._footstepReady = true;
+        }, { once: true });
+        
+        // Initialize ready state
         this._footstepReady = false;
-      });
-      
-      // Mark as ready when loaded
-      this.footstepAudio.addEventListener('canplaythrough', () => {
-        this._footstepReady = true;
-      }, { once: true });
-      
-      this.footstepAudio.addEventListener('loadeddata', () => {
-        this._footstepReady = true;
-      }, { once: true });
-      
-      // Initialize ready state
-      this._footstepReady = false;
-      
-      // Try to load immediately
-      this.footstepAudio.load();
+        
+        // Try to load immediately if not already loaded
+        if (this.footstepAudio.readyState === 0) {
+          this.footstepAudio.load();
+        } else {
+          this._footstepReady = true;
+        }
+      }
     } catch (error) {
       this.footstepAudio = null;
       this._footstepReady = false;
     }
   }
 
-  _loadCustomObstacleFootstep(path) {
+  async _loadCustomObstacleFootstep(path) {
     // Clear existing audio if loading new one
     this.obstacleFootstepAudio = null;
     
     if (!path) return;
     
     try {
-      this.obstacleFootstepAudio = new Audio(path);
-      this.obstacleFootstepAudio.volume = this.soundEffectsVolume;
-      this.obstacleFootstepAudio.preload = 'auto';
+      // Use AudioLoader which handles caching
+      this.obstacleFootstepAudio = await tryLoadAudio(path);
+      if (!this.obstacleFootstepAudio) {
+        // Fallback to loadCustomAudio if tryLoadAudio fails
+        this.obstacleFootstepAudio = loadCustomAudio(path, this.soundEffectsVolume);
+      } else {
+        this.obstacleFootstepAudio.volume = this.soundEffectsVolume;
+      }
       
-      // Handle loading errors gracefully
-      this.obstacleFootstepAudio.addEventListener('error', (e) => {
-        this.obstacleFootstepAudio = null;
+      if (this.obstacleFootstepAudio) {
+        // Handle loading errors gracefully
+        this.obstacleFootstepAudio.addEventListener('error', (e) => {
+          this.obstacleFootstepAudio = null;
+          this._obstacleFootstepReady = false;
+        });
+        
+        // Mark as ready when loaded
+        this.obstacleFootstepAudio.addEventListener('canplaythrough', () => {
+          this._obstacleFootstepReady = true;
+        }, { once: true });
+        
+        this.obstacleFootstepAudio.addEventListener('loadeddata', () => {
+          this._obstacleFootstepReady = true;
+        }, { once: true });
+        
+        // Initialize ready state
         this._obstacleFootstepReady = false;
-      });
-      
-      // Mark as ready when loaded
-      this.obstacleFootstepAudio.addEventListener('canplaythrough', () => {
-        this._obstacleFootstepReady = true;
-      }, { once: true });
-      
-      this.obstacleFootstepAudio.addEventListener('loadeddata', () => {
-        this._obstacleFootstepReady = true;
-      }, { once: true });
-      
-      // Initialize ready state
-      this._obstacleFootstepReady = false;
-      
-      // Try to load immediately
-      this.obstacleFootstepAudio.load();
+        
+        // Try to load immediately if not already loaded
+        if (this.obstacleFootstepAudio.readyState === 0) {
+          this.obstacleFootstepAudio.load();
+        } else {
+          this._obstacleFootstepReady = true;
+        }
+      }
     } catch (error) {
       this.obstacleFootstepAudio = null;
     }
   }
 
-  loadFootstepSound(path) {
+  async loadFootstepSound(path) {
     this.customFootstepPath = path;
-    this._loadCustomFootstep(path);
+    await this._loadCustomFootstep(path);
   }
 
-  loadObstacleFootstepSound(path) {
+  async loadObstacleFootstepSound(path) {
     this.customObstacleFootstepPath = path;
-    this._loadCustomObstacleFootstep(path);
+    await this._loadCustomObstacleFootstep(path);
   }
 
-  _loadCustomJump(path) {
+  async _loadCustomJump(path) {
     // Clear existing audio if loading new one
     this.jumpAudio = null;
     
     if (!path) return;
     
     try {
-      this.jumpAudio = new Audio(path);
-      this.jumpAudio.volume = this.soundEffectsVolume;
-      this.jumpAudio.preload = 'auto';
+      // Use AudioLoader which handles caching
+      this.jumpAudio = await tryLoadAudio(path);
+      if (!this.jumpAudio) {
+        // Fallback to loadCustomAudio if tryLoadAudio fails
+        this.jumpAudio = loadCustomAudio(path, this.soundEffectsVolume);
+      } else {
+        this.jumpAudio.volume = this.soundEffectsVolume;
+      }
       
-      // Handle loading errors gracefully
-      this.jumpAudio.addEventListener('error', (e) => {
-        this.jumpAudio = null;
+      if (this.jumpAudio) {
+        // Handle loading errors gracefully
+        this.jumpAudio.addEventListener('error', (e) => {
+          this.jumpAudio = null;
+          this._jumpReady = false;
+        });
+        
+        // Mark as ready when loaded
+        this.jumpAudio.addEventListener('canplaythrough', () => {
+          this._jumpReady = true;
+        }, { once: true });
+        
+        this.jumpAudio.addEventListener('loadeddata', () => {
+          this._jumpReady = true;
+        }, { once: true });
+        
+        // Initialize ready state
         this._jumpReady = false;
-      });
-      
-      // Mark as ready when loaded
-      this.jumpAudio.addEventListener('canplaythrough', () => {
-        this._jumpReady = true;
-      }, { once: true });
-      
-      this.jumpAudio.addEventListener('loadeddata', () => {
-        this._jumpReady = true;
-      }, { once: true });
-      
-      // Initialize ready state
-      this._jumpReady = false;
-      
-      // Try to load immediately
-      this.jumpAudio.load();
+        
+        // Try to load immediately if not already loaded
+        if (this.jumpAudio.readyState === 0) {
+          this.jumpAudio.load();
+        } else {
+          this._jumpReady = true;
+        }
+      }
     } catch (error) {
       this.jumpAudio = null;
       this._jumpReady = false;
     }
   }
 
-  _loadCustomObstacleJump(path) {
+  async _loadCustomObstacleJump(path) {
     // Clear existing audio if loading new one
     this.obstacleJumpAudio = null;
     
     if (!path) return;
     
     try {
-      this.obstacleJumpAudio = new Audio(path);
-      this.obstacleJumpAudio.volume = this.soundEffectsVolume;
-      this.obstacleJumpAudio.preload = 'auto';
+      // Use AudioLoader which handles caching
+      this.obstacleJumpAudio = await tryLoadAudio(path);
+      if (!this.obstacleJumpAudio) {
+        // Fallback to loadCustomAudio if tryLoadAudio fails
+        this.obstacleJumpAudio = loadCustomAudio(path, this.soundEffectsVolume);
+      } else {
+        this.obstacleJumpAudio.volume = this.soundEffectsVolume;
+      }
       
-      // Handle loading errors gracefully
-      this.obstacleJumpAudio.addEventListener('error', (e) => {
-        this.obstacleJumpAudio = null;
+      if (this.obstacleJumpAudio) {
+        // Handle loading errors gracefully
+        this.obstacleJumpAudio.addEventListener('error', (e) => {
+          this.obstacleJumpAudio = null;
+          this._obstacleJumpReady = false;
+        });
+        
+        // Mark as ready when loaded
+        this.obstacleJumpAudio.addEventListener('canplaythrough', () => {
+          this._obstacleJumpReady = true;
+        }, { once: true });
+        
+        this.obstacleJumpAudio.addEventListener('loadeddata', () => {
+          this._obstacleJumpReady = true;
+        }, { once: true });
+        
+        // Initialize ready state
         this._obstacleJumpReady = false;
-      });
-      
-      // Mark as ready when loaded
-      this.obstacleJumpAudio.addEventListener('canplaythrough', () => {
-        this._obstacleJumpReady = true;
-      }, { once: true });
-      
-      this.obstacleJumpAudio.addEventListener('loadeddata', () => {
-        this._obstacleJumpReady = true;
-      }, { once: true });
-      
-      // Initialize ready state
-      this._obstacleJumpReady = false;
-      
-      // Try to load immediately
-      this.obstacleJumpAudio.load();
+        
+        // Try to load immediately if not already loaded
+        if (this.obstacleJumpAudio.readyState === 0) {
+          this.obstacleJumpAudio.load();
+        } else {
+          this._obstacleJumpReady = true;
+        }
+      }
     } catch (error) {
       this.obstacleJumpAudio = null;
     }
   }
 
-  loadJumpSound(path) {
+  async loadJumpSound(path) {
     this.customJumpPath = path;
-    this._loadCustomJump(path);
+    await this._loadCustomJump(path);
   }
 
-  loadObstacleJumpSound(path) {
+  async loadObstacleJumpSound(path) {
     this.customObstacleJumpPath = path;
-    this._loadCustomObstacleJump(path);
+    await this._loadCustomObstacleJump(path);
   }
 
   /**
@@ -858,10 +912,10 @@ export class SoundManager {
   }
 
   /**
-   * Load background music from a file path
+   * Load background music from a file path (uses AudioLoader cache)
    * @param {string} path - Path to background music file
    */
-  loadBackgroundMusic(path) {
+  async loadBackgroundMusic(path) {
     if (!path) {
       return;
     }
@@ -875,31 +929,44 @@ export class SoundManager {
     }
 
     try {
-      this.backgroundMusic = new Audio(path);
-      this.backgroundMusic.volume = this.backgroundMusicVolume;
-      this.backgroundMusic.loop = true;
-      this.backgroundMusic.preload = 'auto';
+      // Use AudioLoader which handles caching
+      this.backgroundMusic = await tryLoadAudio(path);
+      if (!this.backgroundMusic) {
+        // Fallback to loadCustomAudio if tryLoadAudio fails
+        this.backgroundMusic = loadCustomAudio(path, this.backgroundMusicVolume);
+      } else {
+        this.backgroundMusic.volume = this.backgroundMusicVolume;
+      }
+      
+      if (this.backgroundMusic) {
+        this.backgroundMusic.loop = true;
 
-      // Handle loading errors gracefully
-      this.backgroundMusic.addEventListener('error', (e) => {
-        this.backgroundMusic = null;
-      });
+        // Handle loading errors gracefully
+        this.backgroundMusic.addEventListener('error', (e) => {
+          this.backgroundMusic = null;
+        });
 
-      // Auto-play when loaded
-      this.backgroundMusic.addEventListener('canplaythrough', () => {
-        // Attempt to play automatically when ready
-        // Check after a short delay if it actually started
-        this.playBackgroundMusic();
-        setTimeout(() => {
-          if (!this.isBackgroundMusicPlaying()) {
-            // Music didn't start, will need user interaction
-            this._backgroundMusicPlaying = false;
-          }
-        }, 100);
-      }, { once: true });
+        // Auto-play when loaded
+        this.backgroundMusic.addEventListener('canplaythrough', () => {
+          // Attempt to play automatically when ready
+          // Check after a short delay if it actually started
+          this.playBackgroundMusic();
+          setTimeout(() => {
+            if (!this.isBackgroundMusicPlaying()) {
+              // Music didn't start, will need user interaction
+              this._backgroundMusicPlaying = false;
+            }
+          }, 100);
+        }, { once: true });
 
-      // Try to load immediately
-      this.backgroundMusic.load();
+        // Try to load immediately if not already loaded
+        if (this.backgroundMusic.readyState === 0) {
+          this.backgroundMusic.load();
+        } else {
+          // Already loaded from cache, try to play
+          this.playBackgroundMusic();
+        }
+      }
     } catch (error) {
       this.backgroundMusic = null;
     }
@@ -1172,28 +1239,32 @@ export class SoundManager {
     
     const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
     
-    // Check cache first
+    // Check cache first - tryLoadAudio already handles caching, but we can check our own cache too
+    let audioToPlay = null;
     if (this.customAudioCache.has(path)) {
-      const audio = this.customAudioCache.get(path);
-      if (audio) {
-        try {
-          audio.currentTime = 0;
-          audio.volume = adjustedVolume;
-          await audio.play();
-          return;
-        } catch (error) {
-          // Play failed, fallback to procedural
-        }
+      const cachedAudio = this.customAudioCache.get(path);
+      if (cachedAudio) {
+        // Clone the cached audio for independent playback (allows overlapping sounds)
+        audioToPlay = cachedAudio.cloneNode();
       }
     }
     
-    // Try to load custom audio
-    const audio = await tryLoadAudio(path);
-    if (audio) {
-      audio.volume = adjustedVolume;
-      this.customAudioCache.set(path, audio);
+    // If not in cache, try to load it (tryLoadAudio will check AudioLoader's cache)
+    if (!audioToPlay) {
+      audioToPlay = await tryLoadAudio(path);
+      if (audioToPlay) {
+        // Cache the original for future use (store the original, not the clone)
+        // Note: tryLoadAudio returns a clone, so we need to get the original from AudioLoader
+        // For now, we'll just cache what we get and clone it next time
+        this.customAudioCache.set(path, audioToPlay);
+      }
+    }
+    
+    if (audioToPlay) {
       try {
-        await audio.play();
+        audioToPlay.currentTime = 0;
+        audioToPlay.volume = adjustedVolume;
+        await audioToPlay.play();
         return;
       } catch (error) {
         // Play failed, fallback to procedural
@@ -1532,41 +1603,36 @@ export class SoundManager {
   async _playContinuousSoundWithFallback(path, proceduralFn) {
     if (!this.soundEnabled) return null;
     
-    // Check cache first
+    // Check cache first - for continuous sounds, we can reuse the same instance
+    let audioToPlay = null;
     if (this.customAudioCache.has(path)) {
-      const audio = this.customAudioCache.get(path);
-      if (audio) {
-        try {
-          audio.currentTime = 0;
-          audio.volume = this.soundEffectsVolume;
-          audio.loop = true;
-          await audio.play();
-          return {
-            audio: audio,
-            stop: () => {
-              audio.pause();
-              audio.currentTime = 0;
-            }
-          };
-        } catch (error) {
-          // Play failed, fallback to procedural
-        }
+      const cachedAudio = this.customAudioCache.get(path);
+      if (cachedAudio) {
+        // For continuous/looping sounds, we can reuse (no need to clone)
+        audioToPlay = cachedAudio;
       }
     }
     
-    // Try to load custom audio
-    const audio = await tryLoadAudio(path);
-    if (audio) {
-      audio.volume = this.soundEffectsVolume;
-      audio.loop = true;
-      this.customAudioCache.set(path, audio);
+    // If not in cache, try to load it (tryLoadAudio will check AudioLoader's cache)
+    if (!audioToPlay) {
+      audioToPlay = await tryLoadAudio(path);
+      if (audioToPlay) {
+        // Cache the audio for future use
+        this.customAudioCache.set(path, audioToPlay);
+      }
+    }
+    
+    if (audioToPlay) {
       try {
-        await audio.play();
+        audioToPlay.currentTime = 0;
+        audioToPlay.volume = this.soundEffectsVolume;
+        audioToPlay.loop = true;
+        await audioToPlay.play();
         return {
-          audio: audio,
+          audio: audioToPlay,
           stop: () => {
-            audio.pause();
-            audio.currentTime = 0;
+            audioToPlay.pause();
+            audioToPlay.currentTime = 0;
           }
         };
       } catch (error) {

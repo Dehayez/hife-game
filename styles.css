@@ -915,6 +915,8 @@ html, body { height: 100%; margin: 0; }
 /* Section content - always visible */
 .game-menu__section-content {
   padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
   /* Content styles handled by child components */
 }
 

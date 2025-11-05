@@ -26,6 +26,7 @@ export function NotFound() {
             className="not-found__logo"
             width="256"
             height="256"
+            loading="eager"
           />
         </div>
         

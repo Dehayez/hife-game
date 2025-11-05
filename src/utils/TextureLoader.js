@@ -1,8 +1,15 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
 const loader = new THREE.TextureLoader();
+// Texture cache to prevent reloading the same textures
+const textureCache = new Map();
 
 export function loadTexture(path) {
+  // Check cache first
+  if (textureCache.has(path)) {
+    return Promise.resolve(textureCache.get(path));
+  }
+
   return new Promise((resolve, reject) => {
     const tex = loader.load(
       path,
@@ -13,6 +20,8 @@ export function loadTexture(path) {
         tex.wrapS = THREE.ClampToEdgeWrapping;
         tex.wrapT = THREE.ClampToEdgeWrapping;
         tex.alphaTest = 0.1;
+        // Cache the texture
+        textureCache.set(path, tex);
         resolve(tex);
       },
       undefined,
@@ -21,21 +30,37 @@ export function loadTexture(path) {
   });
 }
 
+// Sprite sheet cache to prevent reloading the same sprite sheets
+const spriteSheetCache = new Map();
+
 export function loadSpriteSheet(basePathPng) {
+  // Check cache first
+  if (spriteSheetCache.has(basePathPng)) {
+    return spriteSheetCache.get(basePathPng);
+  }
+
   // Try to load metadata JSON next to the PNG (same name .json)
   const metaPath = basePathPng.replace(/\.png$/i, '.json');
-  const tex = loader.load(basePathPng);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.alphaTest = 0.1;
+  
+  // Check if texture is already cached
+  let tex;
+  if (textureCache.has(basePathPng)) {
+    tex = textureCache.get(basePathPng);
+  } else {
+    tex = loader.load(basePathPng);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.alphaTest = 0.1;
+    textureCache.set(basePathPng, tex);
+  }
 
   const anim = { texture: tex, frameCount: 1, fps: 6, frameIndex: 0, timeAcc: 0 };
   
-  // Load metadata if present (best-effort)
-  fetch(metaPath, { cache: 'no-store' }).then(async (res) => {
+  // Load metadata if present (best-effort) - use browser cache
+  fetch(metaPath, { cache: 'default' }).then(async (res) => {
     if (res.ok) {
       const data = await res.json();
       const fc = Number(data.frameCount) || 1;
@@ -57,14 +82,29 @@ export function loadSpriteSheet(basePathPng) {
     tex.repeat.set(1, 1);
   });
   
+  // Cache the sprite sheet animation object
+  spriteSheetCache.set(basePathPng, anim);
+  
   return anim;
 }
 
+// JSON cache to prevent reloading the same JSON files
+const jsonCache = new Map();
+
 export async function tryLoadJson(path) {
+  // Check cache first
+  if (jsonCache.has(path)) {
+    return jsonCache.get(path);
+  }
+
   try {
-    const res = await fetch(path, { cache: 'no-store' });
+    // Use browser cache instead of forcing reload
+    const res = await fetch(path, { cache: 'default' });
     if (!res.ok) return null;
-    return await res.json();
+    const data = await res.json();
+    // Cache the JSON data
+    jsonCache.set(path, data);
+    return data;
   } catch (error) {
     return null;
   }
@@ -117,4 +157,24 @@ export async function loadAnimationSmart(basePathNoExt, fallbackFps = 8, default
   sheet.fps = Number(sheet.fps) || fallbackFps;
   sheet.frameCount = Number(sheet.frameCount) || defaultFrameCount;
   return sheet;
+}
+
+/**
+ * Clear all caches (useful for development or memory management)
+ */
+export function clearTextureCaches() {
+  textureCache.clear();
+  spriteSheetCache.clear();
+  jsonCache.clear();
+}
+
+/**
+ * Get cache statistics (useful for debugging)
+ */
+export function getCacheStats() {
+  return {
+    textures: textureCache.size,
+    spriteSheets: spriteSheetCache.size,
+    jsonFiles: jsonCache.size
+  };
 }

@@ -50,13 +50,13 @@ export function getInitialConfig() {
  * @param {Object} characterManager - Character manager instance
  * @param {string} musicPath - Path to background music file
  */
-export function initializeBackgroundMusic(characterManager, musicPath) {
+export async function initializeBackgroundMusic(characterManager, musicPath) {
   if (!musicPath) return;
   
   const soundManager = characterManager.getSoundManager();
   if (!soundManager) return;
   
-  soundManager.loadBackgroundMusic(musicPath);
+  await soundManager.loadBackgroundMusic(musicPath);
   
   // Fallback: If autoplay is blocked, try again on first user interaction
   let interactionHandled = false;

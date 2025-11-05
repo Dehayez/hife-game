@@ -5,6 +5,9 @@
  * Handles loading sounds from the assets/audio folder structure.
  */
 
+// Audio cache to prevent reloading the same audio files
+const audioCache = new Map();
+
 /**
  * Load a custom audio file with fallback
  * @param {string} path - Path to audio file
@@ -14,10 +17,21 @@
 export function loadCustomAudio(path, volume = 1.0) {
   if (!path) return null;
   
+  // Check cache first
+  if (audioCache.has(path)) {
+    const cachedAudio = audioCache.get(path);
+    // Clone the cached audio for independent playback
+    const audioClone = cachedAudio.cloneNode();
+    audioClone.volume = volume;
+    return audioClone;
+  }
+  
   try {
     const audio = new Audio(path);
     audio.volume = volume;
     audio.preload = 'auto';
+    // Cache the original audio element
+    audioCache.set(path, audio);
     return audio;
   } catch (error) {
     console.warn(`Failed to load audio: ${path}`, error);
@@ -48,6 +62,14 @@ export function getAudioPath(category, subcategory, soundName, characterName = n
 export async function tryLoadAudio(path) {
   if (!path) return null;
   
+  // Check cache first
+  if (audioCache.has(path)) {
+    const cachedAudio = audioCache.get(path);
+    // Return a clone so multiple instances can play simultaneously
+    const audioClone = cachedAudio.cloneNode();
+    return Promise.resolve(audioClone);
+  }
+  
   try {
     const audio = new Audio(path);
     audio.preload = 'auto';
@@ -59,7 +81,11 @@ export async function tryLoadAudio(path) {
       
       audio.addEventListener('canplaythrough', () => {
         clearTimeout(timeout);
-        resolve(audio);
+        // Cache the loaded audio
+        audioCache.set(path, audio);
+        // Return a clone for independent playback
+        const audioClone = audio.cloneNode();
+        resolve(audioClone);
       }, { once: true });
       
       audio.addEventListener('error', () => {
@@ -73,5 +99,21 @@ export async function tryLoadAudio(path) {
   } catch (error) {
     return null;
   }
+}
+
+/**
+ * Clear audio cache (useful for development or memory management)
+ */
+export function clearAudioCache() {
+  audioCache.clear();
+}
+
+/**
+ * Get audio cache statistics (useful for debugging)
+ */
+export function getAudioCacheStats() {
+  return {
+    cachedAudios: audioCache.size
+  };
 }
 
