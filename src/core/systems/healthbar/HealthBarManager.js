@@ -243,5 +243,53 @@ export class HealthBarManager {
     }
     this.healthBars.clear();
   }
+
+  /**
+   * Find and remove orphaned health bars from the scene
+   * This helps clean up any health bars that were created but not properly tracked
+   * @returns {number} Number of orphaned health bars removed
+   */
+  cleanupOrphanedHealthBars() {
+    if (!this.scene) return 0;
+    
+    let removedCount = 0;
+    const trackedHealthBars = new Set();
+    
+    // Collect all tracked health bar containers
+    for (const healthBarContainer of this.healthBars.values()) {
+      if (healthBarContainer) {
+        trackedHealthBars.add(healthBarContainer);
+      }
+    }
+    
+    // Find all health bar containers in the scene that aren't tracked
+    const sceneChildren = [...this.scene.children];
+    for (const child of sceneChildren) {
+      // Check if this looks like a health bar container (has userData.target and userData.isPlayer)
+      if (child.userData && 
+          (child.userData.target !== undefined || child.userData.isPlayer !== undefined)) {
+        // Check if it has health bar structure (bgBar and healthBar)
+        const hasHealthBarStructure = child.userData.bgBar && child.userData.healthBar;
+        
+        if (hasHealthBarStructure && !trackedHealthBars.has(child)) {
+          // This is an orphaned health bar - remove it
+          this.scene.remove(child);
+          
+          // Clean up geometry and materials
+          if (child.children) {
+            child.children.forEach(subChild => {
+              if (subChild.geometry) subChild.geometry.dispose();
+              if (subChild.material) subChild.material.dispose();
+            });
+          }
+          
+          removedCount++;
+          console.warn(`Removed orphaned health bar at position (${child.position.x}, ${child.position.y}, ${child.position.z})`);
+        }
+      }
+    }
+    
+    return removedCount;
+  }
 }
 

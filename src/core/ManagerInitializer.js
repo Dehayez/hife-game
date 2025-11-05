@@ -123,6 +123,12 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
         return;
       }
       
+      // Clean up any orphaned meshes and health bars before spawning new player
+      remotePlayerManager.cleanupOrphanedMeshes();
+      if (healthBarManager && typeof healthBarManager.cleanupOrphanedHealthBars === 'function') {
+        healthBarManager.cleanupOrphanedHealthBars();
+      }
+      
       const initialPosition = { x: 0, y: 0, z: 0 };
       spawnRemotePlayerWithHealthBar(
         remotePlayerManager,

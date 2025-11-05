@@ -64,10 +64,11 @@ export class RemotePlayerManager {
     // Mark player as spawning to prevent concurrent spawns
     this.spawningPlayers.add(playerId);
 
+    let playerMesh = null;
     try {
       // Create player sprite
     const playerHeight = this.movementStats.playerHeight;
-    const playerMesh = createSpriteAtPosition(
+    playerMesh = createSpriteAtPosition(
       playerHeight,
       initialPosition.x || 0,
       initialPosition.z || 0,
@@ -141,6 +142,26 @@ export class RemotePlayerManager {
       // Return remote player data for health bar creation
       return this.remotePlayers.get(playerId);
     } catch (error) {
+      // Clean up mesh if it was created but spawn failed
+      if (playerMesh) {
+        // Remove from scene if it was added
+        if (playerMesh.parent) {
+          this.scene.remove(playerMesh);
+        }
+        // Dispose geometry and material if they exist
+        if (playerMesh.geometry) {
+          playerMesh.geometry.dispose();
+        }
+        if (playerMesh.material) {
+          playerMesh.material.dispose();
+        }
+      }
+      
+      // Remove from remotePlayers map if it was added
+      if (this.remotePlayers.has(playerId)) {
+        this.remotePlayers.delete(playerId);
+      }
+      
       // Remove from spawning set on error
       this.spawningPlayers.delete(playerId);
       console.error(`Error spawning remote player ${playerId}:`, error);
@@ -674,6 +695,62 @@ export class RemotePlayerManager {
         this.removeRemotePlayer(playerId);
       }
     }
+  }
+
+  /**
+   * Find and remove orphaned player meshes from the scene
+   * This helps clean up any meshes that were created but not properly tracked
+   * @returns {number} Number of orphaned meshes removed
+   */
+  cleanupOrphanedMeshes() {
+    if (!this.scene) return 0;
+    
+    let removedCount = 0;
+    const trackedMeshes = new Set();
+    
+    // Collect all tracked remote player meshes
+    for (const [playerId, remotePlayer] of this.remotePlayers) {
+      if (remotePlayer && remotePlayer.mesh) {
+        trackedMeshes.add(remotePlayer.mesh);
+      }
+    }
+    
+    // Find all meshes in the scene that look like player meshes but aren't tracked
+    const sceneChildren = [...this.scene.children];
+    for (const child of sceneChildren) {
+      // Check if this looks like a player mesh (has userData with type)
+      if (child.userData && 
+          (child.userData.type === 'remote-player' || child.userData.type === 'player')) {
+        // If it's not in our tracked meshes, it's orphaned
+        if (!trackedMeshes.has(child)) {
+          // Check if it's at the center (0, 0, 0) or close to it, which might indicate a failed spawn
+          const isAtCenter = Math.abs(child.position.x) < 0.1 && 
+                            Math.abs(child.position.z) < 0.1 &&
+                            Math.abs(child.position.y) < 1.0;
+          
+          if (isAtCenter || child.userData.type === 'remote-player') {
+            // Also check if mesh has no texture or is invisible (might indicate failed spawn)
+            const hasNoTexture = !child.material || !child.material.map || 
+                                  (child.material.map && !child.material.map.image);
+            const isInvisible = child.visible === false;
+            
+            // Remove orphaned remote player mesh (especially if it's at center or has no texture)
+            if (isAtCenter || hasNoTexture || isInvisible || child.userData.type === 'remote-player') {
+              this.scene.remove(child);
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (child.material.map) child.material.map.dispose();
+                child.material.dispose();
+              }
+              removedCount++;
+              console.warn(`Removed orphaned player mesh at position (${child.position.x}, ${child.position.y}, ${child.position.z})`);
+            }
+          }
+        }
+      }
+    }
+    
+    return removedCount;
   }
 }
 
