@@ -155,7 +155,7 @@ export class GameMenu {
     this.rtIcon.addEventListener('touchstart', (e) => {
       e.preventDefault();
       e.stopPropagation();
-    });
+    }, { passive: false });
     this.sectionsContainer.appendChild(this.rtIcon);
     
     // Initially hidden, shown when tab has sections
