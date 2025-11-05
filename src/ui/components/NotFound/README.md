@@ -32,3 +32,5 @@ Uses CSS custom properties from the main theme:
 - `--color-accent`
 - `--color-character-lucy`
 - `--color-text-primary`
+
+
