@@ -40,6 +40,9 @@ export class ProjectileManager {
     this.mortars = [];
     this.splashAreas = [];
     
+    // Track projectiles by ID for multiplayer synchronization
+    this.projectilesById = new Map(); // Map<projectileId, projectile>
+    
     // Instanced rendering system for performance optimization
     if (this.useInstancedRendering) {
       this.instancedRenderer = new InstancedProjectileRenderer(scene, 1000);
@@ -206,6 +209,11 @@ export class ProjectileManager {
     // Add to projectiles array
     this.projectiles.push(projectile);
     
+    // Track projectile by ID for multiplayer synchronization
+    if (projectile.userData.projectileId) {
+      this.projectilesById.set(projectile.userData.projectileId, projectile);
+    }
+    
     // Consume a bullet
     const newBulletCount = currentBullets - 1;
     this.playerBullets.set(playerId, newBulletCount);
@@ -308,6 +316,14 @@ export class ProjectileManager {
     this.camera = camera;
     this.inputManager = inputManager;
     this.playerPosition = playerPosition;
+  }
+  
+  /**
+   * Set multiplayer manager for sending position updates
+   * @param {Object} multiplayerManager - Multiplayer manager instance
+   */
+  setMultiplayerManager(multiplayerManager) {
+    this.multiplayerManager = multiplayerManager;
   }
 
   /**
@@ -579,6 +595,31 @@ export class ProjectileManager {
         this.playerPosition
       );
       
+      // Apply drift correction for remote projectiles
+      // This ensures they stay in sync while using synced velocity
+      if (projectile.userData.playerId !== 'local' && projectile.userData.lastSyncTime) {
+        const timeSinceSync = (Date.now() - projectile.userData.lastSyncTime) / 1000; // Convert to seconds
+        const maxDrift = 0.2; // Maximum allowed drift (in units)
+        const correctionRate = 0.1; // How fast to correct drift (10% per frame)
+        
+        // Only correct if we have a recent sync (within last 0.2 seconds)
+        if (timeSinceSync < 0.2) {
+          const lastPos = projectile.userData.lastSyncedPosition;
+          const dx = lastPos.x - projectile.position.x;
+          const dy = lastPos.y - projectile.position.y;
+          const dz = lastPos.z - projectile.position.z;
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          
+          // Gradually correct drift if it's getting significant
+          if (distance > maxDrift) {
+            // Apply gradual correction (maintains smooth movement while fixing drift)
+            projectile.position.x += dx * correctionRate;
+            projectile.position.y += dy * correctionRate;
+            projectile.position.z += dz * correctionRate;
+          }
+        }
+      }
+      
       // Update instanced renderer if enabled (batched at end of loop)
       if (this.useInstancedRendering && this.instancedRenderer && projectile.userData.instanceId) {
         this.instancedRenderer.updateProjectile(
@@ -589,6 +630,41 @@ export class ProjectileManager {
             z: projectile.position.z
           }
         );
+      }
+      
+      // Send periodic position updates for owner projectiles (every 0.03 seconds)
+      // Increased frequency to capture cursor following velocity changes better
+      if (projectile.userData.playerId === 'local' && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+        projectile.userData.syncTime = (projectile.userData.syncTime || 0) + dt;
+        const syncInterval = 0.03; // Send updates every 30ms (faster sync for cursor following)
+        
+        if (projectile.userData.syncTime >= syncInterval) {
+          projectile.userData.syncTime = 0;
+          
+          // Calculate distance moved since last sync
+          const lastPos = projectile.userData.lastSyncedPosition;
+          const dx = projectile.position.x - lastPos.x;
+          const dy = projectile.position.y - lastPos.y;
+          const dz = projectile.position.z - lastPos.z;
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          
+          // Only send update if position changed significantly (more than 0.01 units)
+          if (distance > 0.01) {
+            this.multiplayerManager.sendProjectileUpdate({
+              projectileId: projectile.userData.projectileId,
+              x: projectile.position.x,
+              y: projectile.position.y,
+              z: projectile.position.z,
+              velocityX: projectile.userData.velocityX,
+              velocityZ: projectile.userData.velocityZ
+            });
+            
+            // Update last synced position
+            lastPos.x = projectile.position.x;
+            lastPos.y = projectile.position.y;
+            lastPos.z = projectile.position.z;
+          }
+        }
       }
       
       if (shouldRemove) {
@@ -670,6 +746,11 @@ export class ProjectileManager {
    * @param {THREE.Mesh} projectile - Projectile mesh
    */
   removeProjectile(projectile) {
+    // Remove from ID tracking
+    if (projectile.userData.projectileId) {
+      this.projectilesById.delete(projectile.userData.projectileId);
+    }
+    
     // Remove from instanced renderer if enabled
     if (this.useInstancedRendering && this.instancedRenderer && projectile.userData.instanceId) {
       this.instancedRenderer.removeProjectile(projectile.userData.instanceId);
@@ -695,6 +776,66 @@ export class ProjectileManager {
     if (index > -1) {
       this.projectiles.splice(index, 1);
     }
+  }
+  
+  /**
+   * Update remote projectile position (called when receiving position updates from owner)
+   * @param {string} projectileId - Projectile ID
+   * @param {number} x - X position
+   * @param {number} y - Y position
+   * @param {number} z - Z position
+   * @param {number} velocityX - Velocity X component
+   * @param {number} velocityZ - Velocity Z component
+   */
+  updateRemoteProjectilePosition(projectileId, x, y, z, velocityX, velocityZ) {
+    const projectile = this.projectilesById.get(projectileId);
+    if (!projectile) {
+      return;
+    }
+    
+    // ALWAYS update velocity - this is critical for cursor following
+    // The owner's velocity reflects their cursor following behavior (curved path)
+    // By syncing velocity, the remote projectile will follow the same curved path
+    projectile.userData.velocityX = velocityX;
+    projectile.userData.velocityZ = velocityZ;
+    
+    // Store synced position and time for drift correction
+    projectile.userData.lastSyncedPosition.x = x;
+    projectile.userData.lastSyncedPosition.y = y;
+    projectile.userData.lastSyncedPosition.z = z;
+    projectile.userData.lastSyncTime = Date.now();
+    
+    // Calculate position difference to check if we need to correct drift
+    const dx = x - projectile.position.x;
+    const dy = y - projectile.position.y;
+    const dz = z - projectile.position.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    
+    // Only correct position if drift is significant (more than 0.3 units)
+    // This allows the projectile to move smoothly using the synced velocity
+    // while preventing major desync
+    if (distance > 0.3) {
+      // Snap to synced position if too far off (prevents major desync)
+      projectile.position.x = x;
+      projectile.position.y = y;
+      projectile.position.z = z;
+      
+      // Update trail light position if it exists
+      if (projectile.userData.trailLight) {
+        projectile.userData.trailLight.position.set(x, y, z);
+      }
+      
+      // Update instanced renderer if enabled
+      if (this.useInstancedRendering && this.instancedRenderer && projectile.userData.instanceId) {
+        this.instancedRenderer.updateProjectile(
+          projectile.userData.instanceId,
+          { x, y, z }
+        );
+      }
+    }
+    // Otherwise, let the projectile continue moving with the synced velocity
+    // The normal update loop will handle the movement, and the synced velocity
+    // will make it follow the same curved path as the owner's projectile
   }
 
   /**
@@ -756,10 +897,11 @@ export class ProjectileManager {
       this.instancedRenderer.clear();
     }
     
-    // Clear arrays
+    // Clear arrays and ID tracking
     this.projectiles = [];
     this.mortars = [];
     this.splashAreas = [];
+    this.projectilesById.clear();
   }
 
   /**

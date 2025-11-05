@@ -37,6 +37,22 @@ export function handleProjectileCreate(socket, players, projectileData) {
 }
 
 /**
+ * Handle projectile position update
+ * @param {Object} socket - Socket instance
+ * @param {Map} players - Players map
+ * @param {Object} updateData - Projectile update data
+ */
+export function handleProjectileUpdate(socket, players, updateData) {
+  const player = players.get(socket.id);
+  if (player && player.roomCode) {
+    socket.to(player.roomCode).emit('projectile-update', {
+      playerId: socket.id,
+      ...updateData
+    });
+  }
+}
+
+/**
  * Handle player damage
  * @param {Object} socket - Socket instance
  * @param {Map} players - Players map

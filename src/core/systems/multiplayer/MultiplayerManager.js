@@ -206,6 +206,16 @@ export class MultiplayerManager {
       }
     });
     
+    // Handle projectile position updates
+    this.socket.on('projectile-update', (data) => {
+      if (data.playerId !== this.localPlayerId && this.onDataReceived) {
+        this.onDataReceived(data.playerId, {
+          type: 'projectile-update',
+          ...data
+        });
+      }
+    });
+    
     // Handle player damage
     this.socket.on('player-damage', (data) => {
       if (data.playerId !== this.localPlayerId && this.onDataReceived) {
@@ -446,11 +456,21 @@ export class MultiplayerManager {
 
   /**
    * Send projectile creation event
-   * @param {Object} projectileData - Projectile data {type, startX, startY, startZ, directionX, directionZ, targetX, targetZ, characterName}
+   * @param {Object} projectileData - Projectile data {type, startX, startY, startZ, directionX, directionZ, targetX, targetZ, characterName, projectileId}
    */
   sendProjectileCreate(projectileData) {
     if (this.roomCode && this.socket) {
       this.socket.emit('projectile-create', projectileData);
+    }
+  }
+
+  /**
+   * Send projectile position update event
+   * @param {Object} updateData - Projectile update data {projectileId, x, y, z, velocityX, velocityZ}
+   */
+  sendProjectileUpdate(updateData) {
+    if (this.roomCode && this.socket) {
+      this.socket.emit('projectile-update', updateData);
     }
   }
 

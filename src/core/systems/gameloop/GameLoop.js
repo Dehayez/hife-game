@@ -1273,7 +1273,8 @@ export class GameLoop {
         directionZ: directionZ,
         characterName: characterName,
         targetX: targetX,
-        targetZ: targetZ
+        targetZ: targetZ,
+        projectileId: projectile.userData.projectileId
       });
     }
   }

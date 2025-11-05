@@ -177,7 +177,7 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
             characterName
           );
         } else {
-          projectileManager.createProjectile(
+          const projectile = projectileManager.createProjectile(
             data.startX,
             data.startY,
             data.startZ,
@@ -188,7 +188,28 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
             data.targetX || null,
             data.targetZ || null
           );
+          
+          // Set projectile ID from network data if provided
+          if (projectile && data.projectileId) {
+            projectile.userData.projectileId = data.projectileId;
+            // Re-register with correct ID
+            if (projectileManager.projectilesById) {
+              projectileManager.projectilesById.set(data.projectileId, projectile);
+            }
+          }
         }
+      }
+    } else if (data.type === 'projectile-update') {
+      if (playerId !== multiplayerManager.getLocalPlayerId() && projectileManager) {
+        // Update remote projectile position from owner's position
+        projectileManager.updateRemoteProjectilePosition(
+          data.projectileId,
+          data.x,
+          data.y,
+          data.z,
+          data.velocityX,
+          data.velocityZ
+        );
       }
     } else if (data.type === 'player-damage') {
       if (playerId !== multiplayerManager.getLocalPlayerId()) {
@@ -254,6 +275,9 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
       }
     }
   });
+  
+  // Connect multiplayer manager to projectile manager for position syncing
+  projectileManager.setMultiplayerManager(multiplayerManager);
   
   // Initialize game loop
   const gameLoop = new GameLoop(

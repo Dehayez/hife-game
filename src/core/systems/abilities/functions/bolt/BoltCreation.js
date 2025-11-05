@@ -92,9 +92,13 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
     );
   }
   
+  // Generate unique projectile ID for multiplayer synchronization
+  const projectileId = `projectile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
   // Store projectile data with character-specific stats
   projectile.userData = {
     type: 'projectile',
+    projectileId: projectileId, // Unique ID for multiplayer synchronization
     playerId: playerId,
     characterName: characterName,
     characterColor: characterColor, // Store character color for impact effects
@@ -117,7 +121,9 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
     initialDirZ: normZ, // Initial shooting direction Z
     shooterY: startY, // Store shooter's Y position (bot or player) to follow their height
     particleManager: particleManager, // Store particle manager for trail particles
-    ambientParticles: ambientParticles // Store ambient particle references (for cleanup)
+    ambientParticles: ambientParticles, // Store ambient particle references (for cleanup)
+    lastSyncedPosition: { x: startX, y: startY, z: startZ }, // Store last synced position for remote projectiles
+    syncTime: 0 // Time since last sync (for periodic syncing)
   };
   
   // Note: When using instanced rendering, the mesh is kept for logic/collision

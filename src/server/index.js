@@ -8,7 +8,7 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { handleCreateRoom, handleJoinRoom, handleLeaveRoom } from './handlers/roomHandler.js';
-import { handlePlayerState, handleProjectileCreate, handlePlayerDamage, handleCharacterChange, handleRequestExistingPlayers } from './handlers/playerHandler.js';
+import { handlePlayerState, handleProjectileCreate, handleProjectileUpdate, handlePlayerDamage, handleCharacterChange, handleRequestExistingPlayers } from './handlers/playerHandler.js';
 
 const PORT = process.env.PORT || 3001;
 
@@ -80,6 +80,11 @@ io.on('connection', (socket) => {
   // Send projectile creation (bolt or mortar)
   socket.on('projectile-create', (projectileData) => {
     handleProjectileCreate(socket, players, projectileData);
+  });
+  
+  // Send projectile position update
+  socket.on('projectile-update', (updateData) => {
+    handleProjectileUpdate(socket, players, updateData);
   });
 
   // Send player damage/health update

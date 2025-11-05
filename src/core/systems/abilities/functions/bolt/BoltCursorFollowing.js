@@ -17,6 +17,11 @@ import { normalize2D, calculateSpeed2D } from '../utils/VectorUtils.js';
  * @param {number} dt - Delta time in seconds
  */
 export function applyCursorFollowing(projectile, dt) {
+  // Skip cursor following for remote projectiles (they sync position from owner)
+  if (projectile.userData.playerId !== 'local') {
+    return;
+  }
+  
   const followStrength = projectile.userData.cursorFollowStrength || 0;
   const targetX = projectile.userData.targetX;
   const targetZ = projectile.userData.targetZ;

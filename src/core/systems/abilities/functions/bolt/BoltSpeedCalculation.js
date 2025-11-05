@@ -18,6 +18,11 @@ import { getBoltStats } from '../CharacterAbilityStats.js';
  * @param {Object} playerPosition - Player position vector
  */
 export function updateSpeed(projectile, camera, inputManager, playerPosition) {
+  // Skip speed calculation for remote projectiles (they use synced velocity)
+  if (projectile.userData.playerId !== 'local') {
+    return;
+  }
+  
   let targetSpeed;
   
   // Get character-specific joystick speed multiplier config

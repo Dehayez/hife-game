@@ -18,6 +18,11 @@ import { normalize2D, distance2D, dot2D } from '../utils/VectorUtils.js';
  * @param {Object} playerPosition - Player position vector
  */
 export function updateCursorTracking(projectile, camera, inputManager, playerPosition) {
+  // Skip cursor tracking for remote projectiles (they sync position from owner)
+  if (projectile.userData.playerId !== 'local') {
+    return;
+  }
+  
   const followStrength = projectile.userData.cursorFollowStrength || 0;
   
   if (followStrength <= 0 || !inputManager || !playerPosition) {
