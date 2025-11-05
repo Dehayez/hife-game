@@ -742,23 +742,39 @@ export class InputManager {
     const leftStickX = gamepad.axes[0];
     const leftStickY = gamepad.axes[1];
     
-    // Apply dead zone to raw stick values
-    const leftXDead = Math.abs(leftStickX) > this.gamepadDeadZone ? leftStickX : 0;
-    const leftYDead = Math.abs(leftStickY) > this.gamepadDeadZone ? leftStickY : 0;
+    // Calculate raw magnitude for circular dead zone
+    const leftStickRawMagnitude = Math.min(1, Math.sqrt(leftStickX * leftStickX + leftStickY * leftStickY));
+    
+    // Apply circular/radial dead zone instead of rectangular (prevents axis snapping)
+    let leftXDead, leftYDead;
+    if (leftStickRawMagnitude > this.gamepadDeadZone) {
+      // Scale input to compensate for dead zone (radial dead zone scaling)
+      // This maps the dead zone range to 0-1, preserving direction accuracy
+      const scale = (leftStickRawMagnitude - this.gamepadDeadZone) / (1 - this.gamepadDeadZone);
+      const normalizedX = leftStickX / leftStickRawMagnitude;
+      const normalizedY = leftStickY / leftStickRawMagnitude;
+      leftXDead = normalizedX * scale;
+      leftYDead = normalizedY * scale;
+    } else {
+      // In dead zone - set to zero
+      leftXDead = 0;
+      leftYDead = 0;
+    }
     
     // Store analog movement vector for smooth 360-degree movement
     // This allows movement in all directions, not just cardinal
-    if (Math.abs(leftStickX) > this.gamepadDeadZone || Math.abs(leftStickY) > this.gamepadDeadZone) {
+    if (leftStickRawMagnitude > this.gamepadDeadZone) {
+      // Use dead zone compensated values for smooth analog movement
       // Normalize to ensure smooth circular movement (not square movement)
-      const stickMagnitude = Math.sqrt(leftStickX * leftStickX + leftStickY * leftStickY);
+      const stickMagnitude = Math.sqrt(leftXDead * leftXDead + leftYDead * leftYDead);
       if (stickMagnitude > 1.0) {
         // Normalize if magnitude exceeds 1 (shouldn't happen but safety check)
-        this.gamepadMovementVector.x = leftStickX / stickMagnitude;
-        this.gamepadMovementVector.y = leftStickY / stickMagnitude;
+        this.gamepadMovementVector.x = leftXDead / stickMagnitude;
+        this.gamepadMovementVector.y = leftYDead / stickMagnitude;
       } else {
-        // Use raw values for analog movement (allows variable speed based on stick position)
-        this.gamepadMovementVector.x = leftStickX;
-        this.gamepadMovementVector.y = leftStickY;
+        // Use dead zone compensated values for analog movement (allows variable speed based on stick position)
+        this.gamepadMovementVector.x = leftXDead;
+        this.gamepadMovementVector.y = leftYDead;
       }
       this._gamepadMovementActive = true;
     } else {
@@ -771,7 +787,7 @@ export class InputManager {
     // Store left stick direction for projectile control (raw, normalized)
     // Always update projectile direction regardless of game mode
     const leftStickLength = Math.sqrt(leftXDead * leftXDead + leftYDead * leftYDead);
-    if (leftStickLength > this.gamepadDeadZone) {
+    if (leftStickLength > 0.001) {
       // Normalize and store direction
       this.projectileDirection.x = leftXDead / leftStickLength;
       this.projectileDirection.z = -leftYDead / leftStickLength; // Invert Y for 3D (up stick = forward in Z)
@@ -990,14 +1006,27 @@ export class InputManager {
     // Calculate raw magnitude (0-1) from raw stick values
     const rawMagnitude = Math.min(1, Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY));
     
-    // Apply dead zone to raw stick values
-    const rightXDead = Math.abs(rightStickX) > this.gamepadDeadZone ? rightStickX : 0;
-    const rightYDead = Math.abs(rightStickY) > this.gamepadDeadZone ? rightStickY : 0;
+    // Apply circular/radial dead zone instead of rectangular (prevents axis snapping)
+    // Calculate magnitude first, then apply dead zone scaling
+    let rightXDead, rightYDead;
+    if (rawMagnitude > this.gamepadDeadZone) {
+      // Scale input to compensate for dead zone (radial dead zone scaling)
+      // This maps the dead zone range to 0-1, preserving direction accuracy
+      const scale = (rawMagnitude - this.gamepadDeadZone) / (1 - this.gamepadDeadZone);
+      const normalizedX = rightStickX / rawMagnitude;
+      const normalizedY = rightStickY / rawMagnitude;
+      rightXDead = normalizedX * scale;
+      rightYDead = normalizedY * scale;
+    } else {
+      // In dead zone - set to zero
+      rightXDead = 0;
+      rightYDead = 0;
+    }
     
     // Store normalized right joystick direction (screen-relative, not world space)
     // This will be converted to camera-relative world space in GameLoop
     const rightStickLength = Math.sqrt(rightXDead * rightXDead + rightYDead * rightYDead);
-    if (rightStickLength > this.gamepadDeadZone) {
+    if (rightStickLength > 0.001) {
       // Normalize and store joystick input (raw joystick space)
       // X = right/left, Z = up/down (will be converted to camera-relative in GameLoop)
       this.rightJoystickDirection.x = rightXDead / rightStickLength;
@@ -1040,25 +1069,28 @@ export class InputManager {
     
     // Store analog aiming vector for cursor movement (screen space)
     // This allows backwards compatibility with cursor-based aiming
-    if (Math.abs(rightStickX) > this.gamepadDeadZone || Math.abs(rightStickY) > this.gamepadDeadZone) {
+    // Use dead zone compensated values to prevent axis snapping
+    if (rawMagnitude > this.gamepadDeadZone) {
+      // Use dead zone compensated values for smooth analog aiming
       // Normalize to ensure smooth circular aiming (not square aiming)
-      const stickMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
+      const stickMagnitude = Math.sqrt(rightXDead * rightXDead + rightYDead * rightYDead);
       if (stickMagnitude > 1.0) {
         // Normalize if magnitude exceeds 1 (shouldn't happen but safety check)
-        this.gamepadAimingVector.x = rightStickX / stickMagnitude;
-        this.gamepadAimingVector.y = rightStickY / stickMagnitude;
+        this.gamepadAimingVector.x = rightXDead / stickMagnitude;
+        this.gamepadAimingVector.y = rightYDead / stickMagnitude;
       } else {
-        // Use raw values for analog aiming (allows variable sensitivity based on stick position)
-        this.gamepadAimingVector.x = rightStickX;
-        this.gamepadAimingVector.y = rightStickY;
+        // Use dead zone compensated values for analog aiming (allows variable sensitivity based on stick position)
+        this.gamepadAimingVector.x = rightXDead;
+        this.gamepadAimingVector.y = rightYDead;
       }
       this._gamepadAimingActive = true;
       
       // Also update mouse position for backwards compatibility with cursor-based aiming
       // This allows both joystick direction and cursor position to work
+      // Use dead zone compensated values for cursor movement
       const cursorSensitivity = 500; // pixels per second per stick unit
-      const deltaX = rightStickX * cursorSensitivity * dt;
-      const deltaY = rightStickY * cursorSensitivity * dt;
+      const deltaX = rightXDead * cursorSensitivity * dt;
+      const deltaY = rightYDead * cursorSensitivity * dt;
       
       // Update mouse position
       this.mousePosition.x = Math.max(0, Math.min(window.innerWidth, this.mousePosition.x + deltaX));
