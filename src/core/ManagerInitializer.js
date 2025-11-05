@@ -194,8 +194,26 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
       if (playerId !== multiplayerManager.getLocalPlayerId()) {
         const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
         if (remotePlayer && remotePlayer.mesh && healthBarManager) {
+          // Update health immediately - don't let anything override this
+          const previousHealth = remotePlayer.mesh.userData.health || 0;
           remotePlayer.mesh.userData.health = data.health;
           remotePlayer.mesh.userData.maxHealth = data.maxHealth;
+          
+          // Immediately update healthbar instead of waiting for next frame
+          const healthBars = healthBarManager.getHealthBars();
+          const healthBarContainer = healthBars.get(remotePlayer.mesh);
+          if (healthBarContainer) {
+            healthBarManager.updateHealthBar(healthBarContainer, data.health, data.maxHealth);
+          }
+          
+          // If player died (health went from >0 to 0), trigger death state
+          if (previousHealth > 0 && data.health <= 0) {
+            // Mark player as dead in userData
+            remotePlayer.mesh.userData.isDead = true;
+          } else if (data.health > 0) {
+            // Player is alive, clear death flag
+            remotePlayer.mesh.userData.isDead = false;
+          }
         }
       }
     } else if (data.type === 'character-change') {

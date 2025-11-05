@@ -31,6 +31,14 @@ export class HealthBarManager {
   }
 
   /**
+   * Get health bars map (for external access to update healthbars immediately)
+   * @returns {Map} Health bars map
+   */
+  getHealthBars() {
+    return this.healthBars;
+  }
+
+  /**
    * Create a health bar for a target
    * @param {THREE.Object3D} target - Target object to track
    * @param {boolean} isPlayer - Whether target is the player

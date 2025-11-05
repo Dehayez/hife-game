@@ -548,8 +548,19 @@ export class GameLoop {
       // Update userData after respawn
       const player = this.characterManager.getPlayer();
       if (player && player.userData) {
-        player.userData.health = this.characterManager.getHealth();
-        player.userData.maxHealth = this.characterManager.getMaxHealth();
+        const currentHealth = this.characterManager.getHealth();
+        const maxHealth = this.characterManager.getMaxHealth();
+        player.userData.health = currentHealth;
+        player.userData.maxHealth = maxHealth;
+        
+        // Immediately send damage event with full health to sync respawn
+        if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+          this.multiplayerManager.sendPlayerDamage({
+            damage: 0, // No damage, just health update
+            health: currentHealth,
+            maxHealth: maxHealth
+          });
+        }
       }
     }
     
