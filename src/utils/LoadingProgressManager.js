@@ -29,7 +29,11 @@ export class LoadingProgressManager {
     this.barElement = document.getElementById('loading-progress-bar');
     
     if (!this.progressElement || !this.textElement || !this.barElement) {
-      console.warn('Loading progress elements not found in DOM');
+      console.warn('Loading progress elements not found in DOM', {
+        progress: !!this.progressElement,
+        text: !!this.textElement,
+        bar: !!this.barElement
+      });
     }
   }
 
@@ -92,15 +96,20 @@ export class LoadingProgressManager {
    */
   _updateProgress() {
     if (!this.progressElement || !this.textElement || !this.barElement) {
-      return;
+      // Re-initialize elements in case DOM wasn't ready
+      this._initializeElements();
+      if (!this.progressElement || !this.textElement || !this.barElement) {
+        return;
+      }
     }
 
     const percentage = this.totalSteps > 0 
       ? Math.min(100, Math.max(0, (this.currentStep / this.totalSteps) * 100))
       : 0;
 
-    // Update progress bar width
-    this.barElement.style.width = `${percentage}%`;
+    // Update progress bar width (ensure minimum 1% to show the bar)
+    const displayWidth = Math.max(1, percentage);
+    this.barElement.style.width = `${displayWidth}%`;
 
     // Update text
     if (this.currentTask) {
