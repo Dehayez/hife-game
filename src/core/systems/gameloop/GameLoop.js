@@ -2076,11 +2076,30 @@ export class GameLoop {
       const currentSpeed = this.inputManager.getCurrentSpeed();
       const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
       const nextPos = player.position.clone().add(velocity);
+      const playerSize = this.characterManager.getPlayerSize();
 
-      // Collision check against walls only
-      if (!this.collisionManager.willCollide(nextPos, this.characterManager.getPlayerSize())) {
+      // Try full movement first
+      if (!this.collisionManager.willCollide(nextPos, playerSize)) {
+        // Full movement works - apply both axes
         player.position.x = nextPos.x;
         player.position.z = nextPos.z;
+      } else {
+        // Full movement blocked - try sliding along each axis independently
+        // Try X-axis movement only
+        const nextPosX = new THREE.Vector3(nextPos.x, player.position.y, player.position.z);
+        const canMoveX = !this.collisionManager.willCollide(nextPosX, playerSize);
+        
+        // Try Z-axis movement only
+        const nextPosZ = new THREE.Vector3(player.position.x, player.position.y, nextPos.z);
+        const canMoveZ = !this.collisionManager.willCollide(nextPosZ, playerSize);
+        
+        // Apply movement along whichever axis is free (or both if both are free)
+        if (canMoveX) {
+          player.position.x = nextPos.x;
+        }
+        if (canMoveZ) {
+          player.position.z = nextPos.z;
+        }
       }
 
       // Track player movement for learning system
