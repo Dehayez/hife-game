@@ -680,21 +680,31 @@ export class GameLoop {
                 }
                 
                 // Apply damage per tick to remote player (server will sync)
-                if (mesh.userData && mesh.userData.health !== undefined) {
-                  mesh.userData.health = Math.max(0, mesh.userData.health - damagePerTick);
-                  
-                  // Show damage number for melee damage over time on remote player
-                  if (this.damageNumberManager) {
-                    this.damageNumberManager.showDamage(damagePerTick, mesh.position, 0xff8800);
-                  }
-                  
-                  // Send updated health to server for sync
-                  this.multiplayerManager.sendPlayerDamage({
-                    damage: damagePerTick,
-                    health: mesh.userData.health,
-                    maxHealth: mesh.userData.maxHealth || 100
-                  });
+                // Initialize health if not set (fallback to default values)
+                if (!mesh.userData) {
+                  mesh.userData = {};
                 }
+                if (mesh.userData.health === undefined) {
+                  mesh.userData.health = 100; // Default health
+                }
+                if (mesh.userData.maxHealth === undefined) {
+                  mesh.userData.maxHealth = 100; // Default max health
+                }
+                
+                // Apply damage
+                mesh.userData.health = Math.max(0, mesh.userData.health - damagePerTick);
+                
+                // Show damage number for melee damage over time on remote player
+                if (this.damageNumberManager) {
+                  this.damageNumberManager.showDamage(damagePerTick, mesh.position, 0xff8800);
+                }
+                
+                // Send updated health to server for sync
+                this.multiplayerManager.sendPlayerDamage({
+                  damage: damagePerTick,
+                  health: mesh.userData.health,
+                  maxHealth: mesh.userData.maxHealth
+                });
               } else {
                 // Remove from tracking if out of range
                 this.meleeAffectedEntities.delete(entityKey);
@@ -912,29 +922,40 @@ export class GameLoop {
             }
           } else if (poisonData.type === 'remote' && this.remotePlayerManager && this.multiplayerManager) {
             const mesh = entity;
+            // Initialize userData if not set
+            if (!mesh.userData) {
+              mesh.userData = {};
+            }
             // Update speed multiplier in remote player's userData (in case it changed)
-            if (mesh.userData && poisonData.speedMultiplier !== undefined) {
+            if (poisonData.speedMultiplier !== undefined) {
               mesh.userData.poisonSpeedMultiplier = poisonData.speedMultiplier;
             }
-            if (mesh.userData && mesh.userData.health !== undefined) {
-              mesh.userData.health = Math.max(0, mesh.userData.health - poisonData.damage);
-              
-              // Show poison damage number (purple color for poison)
-              if (this.damageNumberManager) {
-                this.damageNumberManager.showDamage(poisonData.damage, mesh.position, 0xaa00ff);
-              }
-              
-              // Send updated health to server for sync
-              this.multiplayerManager.sendPlayerDamage({
-                damage: poisonData.damage,
-                health: mesh.userData.health,
-                maxHealth: mesh.userData.maxHealth || 100
-              });
-              
-              // Remove if dead
-              if (mesh.userData.health <= 0) {
-                entitiesToRemove.push(entity);
-              }
+            // Initialize health if not set (fallback to default values)
+            if (mesh.userData.health === undefined) {
+              mesh.userData.health = 100; // Default health
+            }
+            if (mesh.userData.maxHealth === undefined) {
+              mesh.userData.maxHealth = 100; // Default max health
+            }
+            
+            // Apply poison damage
+            mesh.userData.health = Math.max(0, mesh.userData.health - poisonData.damage);
+            
+            // Show poison damage number (purple color for poison)
+            if (this.damageNumberManager) {
+              this.damageNumberManager.showDamage(poisonData.damage, mesh.position, 0xaa00ff);
+            }
+            
+            // Send updated health to server for sync
+            this.multiplayerManager.sendPlayerDamage({
+              damage: poisonData.damage,
+              health: mesh.userData.health,
+              maxHealth: mesh.userData.maxHealth
+            });
+            
+            // Remove if dead
+            if (mesh.userData.health <= 0) {
+              entitiesToRemove.push(entity);
             }
           }
         }
@@ -2634,25 +2655,35 @@ export class GameLoop {
             }
             
             // Apply immediate damage to remote player (server will sync)
-            if (mesh.userData && mesh.userData.health !== undefined) {
-              mesh.userData.health = Math.max(0, mesh.userData.health - initialDamage);
-              
-              // Show damage number for melee initial hit on remote player
-              if (this.damageNumberManager) {
-                this.damageNumberManager.showDamage(initialDamage, mesh.position, 0xff8800);
-              }
-              
-              // Send updated health to server for sync
-              this.multiplayerManager.sendPlayerDamage({
-                damage: initialDamage,
-                health: mesh.userData.health,
-                maxHealth: mesh.userData.maxHealth || 100
-              });
-              
-              // Track this remote player as affected for poison effect (if not dead)
-              if (mesh.userData.health > 0) {
-                this.meleeAffectedEntities.add(`remote_${playerId}`);
-              }
+            // Initialize health if not set (fallback to default values)
+            if (!mesh.userData) {
+              mesh.userData = {};
+            }
+            if (mesh.userData.health === undefined) {
+              mesh.userData.health = 100; // Default health
+            }
+            if (mesh.userData.maxHealth === undefined) {
+              mesh.userData.maxHealth = 100; // Default max health
+            }
+            
+            // Apply damage
+            mesh.userData.health = Math.max(0, mesh.userData.health - initialDamage);
+            
+            // Show damage number for melee initial hit on remote player
+            if (this.damageNumberManager) {
+              this.damageNumberManager.showDamage(initialDamage, mesh.position, 0xff8800);
+            }
+            
+            // Send updated health to server for sync
+            this.multiplayerManager.sendPlayerDamage({
+              damage: initialDamage,
+              health: mesh.userData.health,
+              maxHealth: mesh.userData.maxHealth
+            });
+            
+            // Track this remote player as affected for poison effect (if not dead)
+            if (mesh.userData.health > 0) {
+              this.meleeAffectedEntities.add(`remote_${playerId}`);
             }
           }
         }

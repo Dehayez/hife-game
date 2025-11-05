@@ -223,13 +223,27 @@ export class CombatHandler {
             0.3
           );
           
-          if (sightCheck.clear && mesh.userData && mesh.userData.health !== undefined) {
+          if (sightCheck.clear) {
+            // Initialize userData if not set
+            if (!mesh.userData) {
+              mesh.userData = {};
+            }
+            // Initialize health if not set (fallback to default values)
+            if (mesh.userData.health === undefined) {
+              mesh.userData.health = 100; // Default health
+            }
+            if (mesh.userData.maxHealth === undefined) {
+              mesh.userData.maxHealth = 100; // Default max health
+            }
+            
+            // Apply damage
             mesh.userData.health = Math.max(0, mesh.userData.health - meleeStats.initialDamage);
             
+            // Send damage to server
             this.gameLoop.multiplayerManager.sendPlayerDamage({
               damage: meleeStats.initialDamage,
               health: mesh.userData.health,
-              maxHealth: mesh.userData.maxHealth || 100
+              maxHealth: mesh.userData.maxHealth
             });
           }
         }
