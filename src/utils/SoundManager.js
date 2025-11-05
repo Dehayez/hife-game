@@ -1,5 +1,6 @@
 import { getSoundEffectsVolume, getBackgroundCinematicVolume } from './StorageUtils.js';
 import { tryLoadAudio, getAudioPath } from './AudioLoader.js';
+import { isSoundEnabled } from '../config/global/SoundConfig.js';
 
 export class SoundManager {
   constructor(customFootstepPath = null, customObstacleFootstepPath = null, customJumpPath = null, customObstacleJumpPath = null) {
@@ -336,6 +337,7 @@ export class SoundManager {
    */
   playJump(isObstacle = false) {
     if (!this.soundEnabled) return;
+    if (!isSoundEnabled('movement', 'jump')) return;
 
     // Always use the same jump audio for all jumps (ground and obstacle)
     if (this.jumpAudio) {
@@ -494,6 +496,8 @@ export class SoundManager {
    */
   playLanding(isObstacle = false) {
     if (!this.soundEnabled) return;
+    if (isObstacle && !isSoundEnabled('movement', 'landingObstacle')) return;
+    if (!isObstacle && !isSoundEnabled('movement', 'landingGround')) return;
 
     // For landing, we can reuse the footstep sounds but potentially with different volume
     // Or play a slightly different version. For now, we'll use footstep sounds but louder
@@ -619,6 +623,8 @@ export class SoundManager {
    */
   playFootstep(isObstacle = false) {
     if (!this.soundEnabled) return;
+    if (isObstacle && !isSoundEnabled('movement', 'footstepObstacle')) return;
+    if (!isObstacle && !isSoundEnabled('movement', 'footstepGround')) return;
 
     // Use obstacle-specific audio if available and on obstacle
     if (isObstacle && this.obstacleFootstepAudio) {
@@ -911,6 +917,10 @@ export class SoundManager {
       return;
     }
 
+    if (!isSoundEnabled('music', 'background')) {
+      return;
+    }
+
     // Note: AudioContext is not needed for HTML5 Audio elements (background music)
     // It's only used for procedural sounds via Web Audio API
 
@@ -994,6 +1004,7 @@ export class SoundManager {
    */
   playMortarExplosion(position = null) {
     if (!this.soundEnabled) return;
+    if (!isSoundEnabled('abilities', 'mortarExplosion')) return;
     if (!this._ensureAudioContext()) return;
 
     const now = this.audioContext.currentTime;
@@ -1062,6 +1073,7 @@ export class SoundManager {
    */
   playMortarLaunch() {
     if (!this.soundEnabled) return;
+    if (!isSoundEnabled('abilities', 'mortarLaunch')) return;
     if (!this._ensureAudioContext()) return;
 
     const now = this.audioContext.currentTime;
@@ -1111,6 +1123,7 @@ export class SoundManager {
    */
   playMortarArc() {
     if (!this.soundEnabled) return null;
+    if (!isSoundEnabled('abilities', 'mortarArc')) return null;
     if (!this._ensureAudioContext()) return null;
 
     const now = this.audioContext.currentTime;
@@ -1198,6 +1211,8 @@ export class SoundManager {
    * @param {Object|THREE.Vector3} position - Optional sound position for distance-based volume
    */
   playBoltShot(position = null) {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('abilities', 'boltShot')) return;
     const path = getAudioPath('abilities', 'bolt', 'bolt_shot');
     this._playSoundWithFallback(path, () => {
       this._playBoltShotProcedural(position);
@@ -1239,6 +1254,8 @@ export class SoundManager {
    * @param {Object|THREE.Vector3} position - Optional sound position for distance-based volume
    */
   playBoltHit(position = null) {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('abilities', 'boltHit')) return;
     const path = getAudioPath('abilities', 'bolt', 'bolt_hit');
     this._playSoundWithFallback(path, () => {
       this._playBoltHitProcedural(position);
@@ -1279,6 +1296,8 @@ export class SoundManager {
    * Play melee swing sound - tries custom sound first, falls back to procedural
    */
   playMeleeSwing() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('abilities', 'meleeSwing')) return;
     const path = getAudioPath('abilities', 'melee', 'melee_swing');
     this._playSoundWithFallback(path, () => {
       this._playMeleeSwingProcedural();
@@ -1315,6 +1334,8 @@ export class SoundManager {
    * Play melee hit sound - tries custom sound first, falls back to procedural
    */
   playMeleeHit() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('abilities', 'meleeHit')) return;
     const path = getAudioPath('abilities', 'melee', 'melee_hit');
     this._playSoundWithFallback(path, () => {
       this._playMeleeHitProcedural();
@@ -1352,6 +1373,8 @@ export class SoundManager {
    * Play character swap sound - tries custom sound first, falls back to procedural
    */
   playCharacterSwap() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('character', 'characterSwap')) return;
     const path = getAudioPath('core', 'character', 'character_swap');
     this._playSoundWithFallback(path, () => {
       this._playCharacterSwapProcedural();
@@ -1390,6 +1413,8 @@ export class SoundManager {
    * Play respawn sound - tries custom sound first, falls back to procedural
    */
   playRespawn() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('character', 'respawn')) return;
     const path = getAudioPath('core', 'character', 'respawn');
     this._playSoundWithFallback(path, () => {
       this._playRespawnProcedural();
@@ -1426,6 +1451,8 @@ export class SoundManager {
    * Play death sound - tries custom sound first, falls back to procedural
    */
   playDeath() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('character', 'death')) return;
     const path = getAudioPath('core', 'character', 'death');
     this._playSoundWithFallback(path, () => {
       this._playDeathProcedural();
@@ -1462,6 +1489,8 @@ export class SoundManager {
    * Play take damage sound - tries custom sound first, falls back to procedural
    */
   playTakeDamage() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('character', 'takeDamage')) return;
     const path = getAudioPath('core', 'character', 'take_damage');
     this._playSoundWithFallback(path, () => {
       this._playTakeDamageProcedural();

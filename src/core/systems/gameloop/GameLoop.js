@@ -9,6 +9,7 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getCharacterColor, getMeleeStats, getMortarStats, getBlastStats, getMultiProjectileStats } from '../abilities/functions/CharacterAbilityStats.js';
 import { setLastCharacter } from '../../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/functions/mortar/MortarArcPreview.js';
+import { checkSplashAreaCollision } from '../abilities/functions/mortar/SplashArea.js';
 import { VibrationManager } from '../../../utils/VibrationManager.js';
 import { getHealingVibrationInterval } from '../../../config/global/VibrationConfig.js';
 import { getVibrationIntensity } from '../../../utils/StorageUtils.js';
@@ -143,6 +144,8 @@ export class GameLoop {
     // Healing vibration throttle (to prevent too much vibration during continuous healing)
     this._lastHealVibrationTime = 0;
     this._healVibrationInterval = getHealingVibrationInterval(); // Vibrate interval from config
+    this._lastHealNumberTime = 0; // Throttle healing number display
+    this._accumulatedHealAmount = 0; // Accumulate heal amount for display
   }
   
   /**
@@ -629,6 +632,12 @@ export class GameLoop {
                 
                 // Apply damage per tick
                 const botDied = this.botManager.damageBot(bot, damagePerTick, 'local');
+                
+                // Show damage number for melee damage over time
+                if (this.damageNumberManager) {
+                  this.damageNumberManager.showDamage(damagePerTick, bot.position, 0xff8800);
+                }
+                
                 if (botDied) {
                   this.meleeAffectedEntities.delete(bot);
                   // Don't respawn immediately - death fade will handle it
@@ -673,6 +682,11 @@ export class GameLoop {
                 // Apply damage per tick to remote player (server will sync)
                 if (mesh.userData && mesh.userData.health !== undefined) {
                   mesh.userData.health = Math.max(0, mesh.userData.health - damagePerTick);
+                  
+                  // Show damage number for melee damage over time on remote player
+                  if (this.damageNumberManager) {
+                    this.damageNumberManager.showDamage(damagePerTick, mesh.position, 0xff8800);
+                  }
                   
                   // Send updated health to server for sync
                   this.multiplayerManager.sendPlayerDamage({
@@ -857,9 +871,44 @@ export class GameLoop {
               entity.userData.poisonSpeedMultiplier = poisonData.speedMultiplier;
             }
             const botDied = this.botManager.damageBot(entity, poisonData.damage, 'local');
+            
+            // Show poison damage number (purple color for poison)
+            if (this.damageNumberManager) {
+              this.damageNumberManager.showDamage(poisonData.damage, entity.position, 0xaa00ff);
+            }
+            
             if (botDied) {
               entitiesToRemove.push(entity);
               // Don't respawn immediately - death fade will handle it
+            }
+          } else if (poisonData.type === 'player') {
+            // Apply poison damage to local player
+            const isDead = this.characterManager.takeDamage(poisonData.damage);
+            const currentHealth = this.characterManager.getHealth();
+            const maxHealth = this.characterManager.getMaxHealth();
+            
+            // Update player userData for health bar
+            if (entity && entity.userData) {
+              entity.userData.health = currentHealth;
+              entity.userData.maxHealth = maxHealth;
+            }
+            
+            // Show poison damage number (purple color for poison)
+            if (this.damageNumberManager && entity) {
+              this.damageNumberManager.showDamage(poisonData.damage, entity.position, 0xaa00ff);
+            }
+            
+            // Send damage event to other players via multiplayer
+            if (this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+              this.multiplayerManager.sendPlayerDamage({
+                damage: poisonData.damage,
+                health: currentHealth,
+                maxHealth: maxHealth
+              });
+            }
+            
+            if (isDead) {
+              entitiesToRemove.push(entity);
             }
           } else if (poisonData.type === 'remote' && this.remotePlayerManager && this.multiplayerManager) {
             const mesh = entity;
@@ -869,6 +918,11 @@ export class GameLoop {
             }
             if (mesh.userData && mesh.userData.health !== undefined) {
               mesh.userData.health = Math.max(0, mesh.userData.health - poisonData.damage);
+              
+              // Show poison damage number (purple color for poison)
+              if (this.damageNumberManager) {
+                this.damageNumberManager.showDamage(poisonData.damage, mesh.position, 0xaa00ff);
+              }
               
               // Send updated health to server for sync
               this.multiplayerManager.sendPlayerDamage({
@@ -1852,6 +1906,47 @@ export class GameLoop {
 
       // Note: Splash will be created at target location when mortar hits ground
       // No need to create splash here - mortar continues to target
+      
+      // Apply poison damage for Lucy's mortar or extra damage for Herald's mortar
+      if (mortarCollision.projectile?.userData?.characterName === 'lucy') {
+        // Apply poison effect from Lucy's mortar splash
+        this._applyMortarPoison(player, mortarCollision.projectile.userData);
+      } else if (mortarCollision.projectile?.userData?.characterName === 'herald') {
+        // Herald's mortar splash does extra damage - already applied via areaDamage
+        // But we need to ensure it's applied when walking in splash
+      }
+    }
+    
+    // Check splash areas separately for ongoing damage (walking in splash)
+    if (this.projectileManager && this.projectileManager.splashAreas) {
+      for (const splashArea of this.projectileManager.splashAreas) {
+        const splashCollision = checkSplashAreaCollision(
+          splashArea,
+          player.position,
+          'local'
+        );
+        
+        if (splashCollision.hit) {
+          const mortarData = splashArea.userData;
+          const characterName = mortarData.characterName;
+          
+          // Apply splash area damage
+          this._applyDamageToPlayer(splashCollision.damage, player, mortarData.playerId);
+          
+          // Show damage number for splash area
+          if (this.damageNumberManager) {
+            this.damageNumberManager.showDamage(splashCollision.damage, player.position, 0xff6600);
+          }
+          
+          // Apply poison for Lucy's mortar or extra damage for Herald's mortar
+          if (characterName === 'lucy') {
+            // Apply poison effect from Lucy's mortar splash
+            this._applyMortarPoison(player, mortarData);
+          } else if (characterName === 'herald') {
+            // Herald's mortar does extra damage - already in areaDamage, but ensure it's applied
+          }
+        }
+      }
     }
     
     // Check projectile collisions with remote players
@@ -2189,6 +2284,40 @@ export class GameLoop {
    * @param {number} dt - Delta time
    * @private
    */
+  /**
+   * Apply poison effect from Lucy's mortar splash
+   * @param {THREE.Mesh} player - Player mesh
+   * @param {Object} mortarData - Mortar userData
+   * @private
+   */
+  _applyMortarPoison(player, mortarData) {
+    // Apply poison similar to melee poison
+    // Use Lucy's melee poison stats for consistency
+    const characterName = mortarData.characterName || 'lucy';
+    const meleeStats = getMeleeStats(characterName);
+    const poisonDamage = meleeStats.poisonDamage || 1;
+    const poisonTickInterval = meleeStats.poisonTickInterval || 0.5;
+    const poisonDuration = meleeStats.poisonDuration || 3.0;
+    const slowSpeedMultiplier = meleeStats.slowSpeedMultiplier || 0.6;
+    
+    // Apply poison to player
+    if (!this.poisonedEntities.has(player)) {
+      this.poisonedEntities.set(player, {
+        timeLeft: poisonDuration,
+        tickTimer: 0,
+        damage: poisonDamage,
+        tickInterval: poisonTickInterval,
+        speedMultiplier: slowSpeedMultiplier,
+        type: 'player'
+      });
+      
+      // Store speed multiplier in player's userData
+      if (player.userData) {
+        player.userData.poisonSpeedMultiplier = slowSpeedMultiplier;
+      }
+    }
+  }
+
   async _handleHeal(player, dt) {
     // Base heal rate per second
     const baseHealRate = 5; // HP per second
@@ -2211,7 +2340,27 @@ export class GameLoop {
     );
     
     if (newHealth > this.characterManager.getHealth()) {
+      const currentHealth = this.characterManager.getHealth();
+      const healAmount = newHealth - currentHealth;
       this.characterManager.setHealth(newHealth);
+      
+      // Accumulate heal amount for display
+      this._accumulatedHealAmount += healAmount;
+      
+      // Show healing number (green color for positive values)
+      if (this.damageNumberManager && this._accumulatedHealAmount > 0) {
+        // Show healing amount less frequently to avoid spam (every 0.2 seconds)
+        const now = performance.now() / 1000;
+        if (!this._lastHealNumberTime || now - this._lastHealNumberTime >= 0.2) {
+          // Show accumulated heal amount (round to 1 decimal for display)
+          const displayAmount = Math.round(this._accumulatedHealAmount * 10) / 10;
+          if (displayAmount > 0) {
+            this.damageNumberManager.showDamage(displayAmount, player.position, 0x00ff00);
+            this._accumulatedHealAmount = 0; // Reset accumulator
+          }
+          this._lastHealNumberTime = now;
+        }
+      }
       
       // Vibration for healing (throttled to prevent too much vibration)
       if (this.vibrationManager) {
@@ -2443,6 +2592,12 @@ export class GameLoop {
             
             // Apply immediate damage
             const botDied = this.botManager.damageBot(bot, initialDamage, 'local');
+            
+            // Show damage number for melee initial hit
+            if (this.damageNumberManager) {
+              this.damageNumberManager.showDamage(initialDamage, bot.position, 0xff8800);
+            }
+            
             if (!botDied) {
               // Track this bot as affected for poison effect
               this.meleeAffectedEntities.add(bot);
@@ -2481,6 +2636,11 @@ export class GameLoop {
             // Apply immediate damage to remote player (server will sync)
             if (mesh.userData && mesh.userData.health !== undefined) {
               mesh.userData.health = Math.max(0, mesh.userData.health - initialDamage);
+              
+              // Show damage number for melee initial hit on remote player
+              if (this.damageNumberManager) {
+                this.damageNumberManager.showDamage(initialDamage, mesh.position, 0xff8800);
+              }
               
               // Send updated health to server for sync
               this.multiplayerManager.sendPlayerDamage({
