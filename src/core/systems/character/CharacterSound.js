@@ -4,6 +4,8 @@
  * Handles character-specific sound loading with fallback to generic sounds.
  */
 
+import { getLoadingProgressManager } from '../../../utils/LoadingProgressManager.js';
+
 /**
  * Sound file extensions to try
  */
@@ -68,31 +70,52 @@ export async function loadCharacterSound(characterName, soundName) {
  * Load all character sounds
  * @param {string} characterName - Character name
  * @param {Object} soundManager - Sound manager instance
+ * @param {Function} onProgress - Optional progress callback
  * @returns {Promise<void>}
  */
-export async function loadAllCharacterSounds(characterName, soundManager) {
+export async function loadAllCharacterSounds(characterName, soundManager, onProgress = null) {
+  const progressManager = getLoadingProgressManager();
+  
+  // Total sounds to load
+  const totalSounds = 4;
+  let loadedCount = 0;
+  
+  const updateProgress = (soundName) => {
+    loadedCount++;
+    const task = `Loading ${characterName} sound: ${soundName}...`;
+    if (onProgress) {
+      onProgress(loadedCount, totalSounds, task);
+    } else {
+      progressManager.increment(task);
+    }
+  };
+  
   // Load footstep sound
   const footstepSound = await loadCharacterSound(characterName, 'footstep');
   if (footstepSound && soundManager) {
     soundManager.loadFootstepSound(footstepSound);
   }
+  updateProgress('footstep');
   
   // Load obstacle footstep sound
   const obstacleFootstepSound = await loadCharacterSound(characterName, 'footstep_obstacle');
   if (obstacleFootstepSound && soundManager) {
     soundManager.loadObstacleFootstepSound(obstacleFootstepSound);
   }
+  updateProgress('footstep_obstacle');
   
   // Load jump sound
   const jumpSound = await loadCharacterSound(characterName, 'jump');
   if (jumpSound && soundManager) {
     soundManager.loadJumpSound(jumpSound);
   }
+  updateProgress('jump');
   
   // Load obstacle jump sound
   const obstacleJumpSound = await loadCharacterSound(characterName, 'jump_obstacle');
   if (obstacleJumpSound && soundManager) {
     soundManager.loadObstacleJumpSound(obstacleJumpSound);
   }
+  updateProgress('jump_obstacle');
 }
 

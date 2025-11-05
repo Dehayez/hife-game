@@ -10,6 +10,7 @@ import { initializeManagers } from './core/ManagerInitializer.js';
 import { initializeUI } from './core/UIInitializer.js';
 import { getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
 import { GAME_CONSTANTS } from './config/global/GameConstants.js';
+import { getLoadingProgressManager } from './utils/LoadingProgressManager.js';
 
 // Get canvas element
 const canvas = document.getElementById('app-canvas');
@@ -17,11 +18,17 @@ if (!canvas) {
   throw new Error('Canvas element not found');
 }
 
+// Initialize progress manager
+const progressManager = getLoadingProgressManager();
+progressManager.setPercentage(0, 'Initializing game managers...');
+
 // Get initial configuration
 const config = getInitialConfig();
 
 // Initialize all managers
+progressManager.setPercentage(10, 'Setting up game systems...');
 const managers = initializeManagers(canvas, config.arenaName);
+progressManager.setPercentage(20, 'Managers initialized');
 
 // Initialize input mode from storage
 const savedInputMode = getLastInputMode();

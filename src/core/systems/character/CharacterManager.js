@@ -163,15 +163,16 @@ export class CharacterManager {
   /**
    * Load character animations and sounds
    * @param {string} name - Character name ('lucy' or 'herald')
+   * @param {Function} onProgress - Optional progress callback (step, total, task)
    */
-  async loadCharacter(name) {
+  async loadCharacter(name, onProgress = null) {
     this.characterName = name;
     
-    // Load animations
-    const loaded = await loadCharacterAnimations(name);
+    // Load animations with progress tracking
+    const loaded = await loadCharacterAnimations(name, onProgress);
     
-    // Load sounds
-    await loadAllCharacterSounds(name, this.soundManager);
+    // Load sounds with progress tracking
+    await loadAllCharacterSounds(name, this.soundManager, onProgress);
     
     this.animations = loaded;
     this.currentAnimKey = 'idle_front';

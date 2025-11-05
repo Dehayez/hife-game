@@ -11,6 +11,7 @@ import { GAME_CONSTANTS } from '../config/global/GameConstants.js';
 import { initializeManagers } from './ManagerInitializer.js';
 import { initializeUI } from './UIInitializer.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
+import { getLoadingProgressManager } from '../utils/LoadingProgressManager.js';
 
 /**
  * Get initial game configuration from URL params and localStorage
@@ -265,12 +266,42 @@ export async function initializeGame(managers, uiComponents, config) {
   const { botControl } = uiComponents;
   const { characterName, gameMode } = config;
   
-  const loadingScreen = document.getElementById('loading-screen');
+  const progressManager = getLoadingProgressManager();
+  
+  // Calculate total steps:
+  // 1. Initializing managers (handled in main.js, 0-20%)
+  // 2. Character animations (10 animations) - steps 1-10
+  // 3. Character sounds (4 sounds) - steps 11-14
+  // 4. Setting up game systems - step 15
+  // Total: 15 steps for character loading + setup
+  const totalSteps = 15;
+  progressManager.setTotalSteps(totalSteps);
+  
+  // Track animation and sound loading separately
+  let animationsComplete = false;
   
   try {
-    await characterManager.loadCharacter(characterName);
+    // Load character with progress tracking
+    progressManager.setProgress(0, 'Loading character assets...');
+    await characterManager.loadCharacter(characterName, (step, total, task) => {
+      // The callback receives relative steps from within animation/sound loading
+      // Animations: total=10, steps 1-10
+      // Sounds: total=4, steps 1-4 (happens after animations)
+      if (total === 10) {
+        // This is from animations - map to steps 1-10
+        animationsComplete = (step === total);
+        progressManager.setProgress(step, task);
+      } else if (total === 4 && animationsComplete) {
+        // This is from sounds - map to steps 11-14
+        progressManager.setProgress(10 + step, task);
+      } else if (total === 4 && !animationsComplete) {
+        // Sounds started before animations complete (shouldn't happen, but handle gracefully)
+        progressManager.setProgress(10 + step, task);
+      }
+    });
     
     // Set camera for health bar manager
+    progressManager.setProgress(14, 'Setting up game systems...');
     if (healthBarManager) {
       healthBarManager.setCamera(sceneManager.getCamera());
     }
@@ -291,7 +322,11 @@ export async function initializeGame(managers, uiComponents, config) {
       }
     }
     
+    progressManager.setProgress(15, 'Starting game...');
     gameLoop.start();
+    
+    // Small delay to show "Starting game..." message
+    await new Promise(resolve => setTimeout(resolve, 200));
   } finally {
     hideLoadingScreen();
   }

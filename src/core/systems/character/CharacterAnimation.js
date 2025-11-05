@@ -6,33 +6,75 @@
 
 import { loadAnimationSmart } from '../../../utils/TextureLoader.js';
 import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
+import { getLoadingProgressManager } from '../../../utils/LoadingProgressManager.js';
 
 /**
  * Load character animations
  * @param {string} characterName - Character name ('lucy' or 'herald')
+ * @param {Function} onProgress - Optional progress callback
  * @returns {Promise<Object>} Loaded animations object
  */
-export async function loadCharacterAnimations(characterName) {
+export async function loadCharacterAnimations(characterName, onProgress = null) {
   const baseSpritePath = `/assets/characters/${characterName}/`;
+  const progressManager = getLoadingProgressManager();
+  
+  // Total animations to load
+  const totalAnimations = 10;
+  let loadedCount = 0;
+  
+  const updateProgress = (animationName) => {
+    loadedCount++;
+    const task = `Loading ${characterName} animation: ${animationName}...`;
+    if (onProgress) {
+      onProgress(loadedCount, totalAnimations, task);
+    } else {
+      progressManager.increment(task);
+    }
+  };
   
   // Load base animations first
   const idle_front = await loadAnimationSmart(baseSpritePath + 'idle_front', 4, 1);
+  updateProgress('idle_front');
+  
   const idle_back = await loadAnimationSmart(baseSpritePath + 'idle_back', 4, 1);
+  updateProgress('idle_back');
+  
   const walk_front = await loadAnimationSmart(baseSpritePath + 'walk_front', 8, 4);
+  updateProgress('walk_front');
+  
   const walk_back = await loadAnimationSmart(baseSpritePath + 'walk_back', 8, 4);
+  updateProgress('walk_back');
   
   // Try to load new animations, fallback to idle if not found
+  const hit_front = await loadAnimationSmart(baseSpritePath + 'hit_front', 12, 1).catch(() => idle_front);
+  updateProgress('hit_front');
+  
+  const hit_back = await loadAnimationSmart(baseSpritePath + 'hit_back', 12, 1).catch(() => idle_back);
+  updateProgress('hit_back');
+  
+  const death_front = await loadAnimationSmart(baseSpritePath + 'death_front', 8, 1).catch(() => idle_front);
+  updateProgress('death_front');
+  
+  const death_back = await loadAnimationSmart(baseSpritePath + 'death_back', 8, 1).catch(() => idle_back);
+  updateProgress('death_back');
+  
+  const spawn_front = await loadAnimationSmart(baseSpritePath + 'spawn_front', 8, 1).catch(() => idle_front);
+  updateProgress('spawn_front');
+  
+  const spawn_back = await loadAnimationSmart(baseSpritePath + 'spawn_back', 8, 1).catch(() => idle_back);
+  updateProgress('spawn_back');
+  
   const loaded = {
     idle_front,
     idle_back,
     walk_front,
     walk_back,
-    hit_front: await loadAnimationSmart(baseSpritePath + 'hit_front', 12, 1).catch(() => idle_front),
-    hit_back: await loadAnimationSmart(baseSpritePath + 'hit_back', 12, 1).catch(() => idle_back),
-    death_front: await loadAnimationSmart(baseSpritePath + 'death_front', 8, 1).catch(() => idle_front),
-    death_back: await loadAnimationSmart(baseSpritePath + 'death_back', 8, 1).catch(() => idle_back),
-    spawn_front: await loadAnimationSmart(baseSpritePath + 'spawn_front', 8, 1).catch(() => idle_front),
-    spawn_back: await loadAnimationSmart(baseSpritePath + 'spawn_back', 8, 1).catch(() => idle_back)
+    hit_front,
+    hit_back,
+    death_front,
+    death_back,
+    spawn_front,
+    spawn_back
   };
   
   return loaded;
