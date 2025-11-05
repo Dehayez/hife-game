@@ -112,13 +112,13 @@ export function updateMortar(mortar, dt, collisionManager) {
   const newY = mortar.position.y + mortar.userData.velocityY * dt;
   const newZ = mortar.position.z + mortar.userData.velocityZ * dt;
   
-  // Get ground height at the mortar's current position
-  const currentGroundHeight = collisionManager 
-    ? collisionManager.getGroundHeight(mortar.position.x, mortar.position.z, mortar.userData.size)
-    : 0;
-  
-  // Calculate the bottom of the mortar sphere
+  // Calculate the bottom of the mortar sphere at new position
   const mortarBottom = newY - mortar.userData.size;
+  
+  // Get ground height at the mortar's NEW position (to prevent falling through map)
+  const currentGroundHeight = collisionManager 
+    ? collisionManager.getGroundHeight(newX, newZ, mortar.userData.size)
+    : 0;
   
   // Get target position (where user clicked)
   const targetX = mortar.userData.targetX;
@@ -137,11 +137,28 @@ export function updateMortar(mortar, dt, collisionManager) {
   const isMovingDownward = mortar.userData.velocityY < 0;
   const isNearTarget = distanceToTarget < MORTAR_ATTACK_CONFIG.physics.nearTargetDistance;
   
-  // Only explode if:
-  // 1. The bottom of the mortar has reached or passed the ground surface AT TARGET
-  // 2. AND we're moving downward (not still ascending)
-  // 3. AND we're close to the target position
-  // This ensures splash always happens at target location, even if mortar hit player mid-air
+  // First, check if mortar hits ground at CURRENT position (prevents falling through map)
+  // This is critical when launched from high in the sky (e.g., while levitating)
+  if (mortarBottom <= currentGroundHeight && isMovingDownward) {
+    // Hit ground at current position - return impact data for splash creation
+    // Use target position if we're near it, otherwise use current position
+    const impactX = isNearTarget ? targetX : newX;
+    const impactZ = isNearTarget ? targetZ : newZ;
+    const impactY = isNearTarget ? targetGroundHeight : currentGroundHeight;
+    
+    return {
+      shouldRemove: true,
+      impact: {
+        x: impactX,
+        y: impactY,
+        z: impactZ,
+        mortarData: mortar.userData
+      }
+    };
+  }
+  
+  // Also check if mortar has hit the ground at target position (for precision targeting)
+  // This ensures splash happens at target location when close to target
   if (mortarBottom <= targetGroundHeight && isMovingDownward && isNearTarget) {
     // Hit ground at target - return impact data for splash creation
     return {
