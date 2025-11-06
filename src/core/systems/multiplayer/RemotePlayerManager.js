@@ -252,65 +252,98 @@ export class RemotePlayerManager {
     // Update character name in userData
     mesh.userData.characterName = characterName;
     
-    // Clear current texture from material first
-    if (mesh.material && mesh.material.map) {
-      mesh.material.map = null;
-      mesh.material.needsUpdate = true;
-    }
+    // Store old texture and animations reference to keep it visible during swap
+    const oldTexture = mesh.material && mesh.material.map ? mesh.material.map : null;
+    const oldAnimations = remotePlayer.animations;
+    const lastFacing = remotePlayer.lastFacing || 'front';
     
-    // Dispose old textures to free memory
-    if (remotePlayer.animations) {
-      Object.values(remotePlayer.animations).forEach(anim => {
-        if (anim.mode === 'frames' && anim.textures) {
-          anim.textures.forEach(tex => {
-            if (tex && tex.dispose) tex.dispose();
-          });
-        } else if (anim.texture && anim.texture.dispose) {
-          anim.texture.dispose();
-        }
-      });
-    }
-    
-    // Reload animations for new character
+    // Load new animations FIRST (before clearing anything)
+    // This uses the texture cache, so it should be instant if already loaded
     const newAnimations = await loadCharacterAnimations(characterName);
     
-    // Wait for all textures to be fully loaded
-    await waitForAllAnimationsLoaded(newAnimations);
-    
+    // Update animations object immediately
     remotePlayer.animations = newAnimations;
     
-    // Set current animation with new animations
-    const currentAnimKey = remotePlayer.currentAnimKey || 'idle_front';
-    const previousAnimKey = remotePlayer.currentAnimKey;
-    setCharacterAnimation(
-      mesh,
-      currentAnimKey,
-      newAnimations,
-      previousAnimKey,
-      true
-    );
-    
-    // Force material update and ensure texture is set
-    if (mesh.material) {
-      const currentAnim = newAnimations[currentAnimKey];
-      if (currentAnim) {
-        const texture = currentAnim.mode === 'frames' ? currentAnim.textures[0] : currentAnim.texture;
-        if (texture) {
-          // Explicitly set the texture
-          mesh.material.map = texture;
-          mesh.material.needsUpdate = true;
-          
-          // Also update the texture itself
-          if (texture.needsUpdate !== undefined) {
-            texture.needsUpdate = true;
+    // Check if textures are already loaded (cached) - don't wait unnecessarily
+    // For cached textures, the image should already be complete
+    let texturesReady = true;
+    for (const key in newAnimations) {
+      if (newAnimations.hasOwnProperty(key)) {
+        const anim = newAnimations[key];
+        if (anim.mode === 'frames' && anim.textures) {
+          for (const tex of anim.textures) {
+            if (tex && tex.image && (!tex.image.complete || tex.image.naturalWidth === 0)) {
+              texturesReady = false;
+              break;
+            }
           }
-          
-          // Force a render update by marking the mesh as needing update
-          mesh.visible = false;
-          mesh.visible = true;
+        } else if (anim.texture && anim.texture.image && (!anim.texture.image.complete || anim.texture.image.naturalWidth === 0)) {
+          texturesReady = false;
         }
       }
+      if (!texturesReady) break;
     }
+    
+    // Only wait if textures aren't ready (not cached yet)
+    if (!texturesReady) {
+      await waitForAllAnimationsLoaded(newAnimations);
+    }
+    
+    // NOW set new texture and play spawn animation (seamless swap)
+    // Play spawn animation first (like local player does)
+    const spawnAnimKey = lastFacing === 'back' ? 'spawn_back' : 'spawn_front';
+    const idleAnimKey = lastFacing === 'back' ? 'idle_back' : 'idle_front';
+    
+    // Check if spawn animation exists (not a fallback to idle)
+    const spawnAnim = newAnimations[spawnAnimKey];
+    const idleAnim = newAnimations[idleAnimKey];
+    const hasSpawnAnim = spawnAnim && spawnAnim !== idleAnim;
+    
+    if (hasSpawnAnim) {
+      // Play spawn animation first
+      const previousAnimKey = remotePlayer.currentAnimKey;
+      setCharacterAnimation(
+        mesh,
+        spawnAnimKey,
+        newAnimations,
+        previousAnimKey,
+        true,
+        () => {
+          // When spawn animation completes, return to idle
+          remotePlayer.currentAnimKey = idleAnimKey;
+          setCharacterAnimation(
+            mesh,
+            idleAnimKey,
+            newAnimations,
+            spawnAnimKey,
+            true
+          );
+        }
+      );
+      remotePlayer.currentAnimKey = spawnAnimKey;
+    } else {
+      // No spawn animation, just set to idle immediately
+      const currentAnimKey = idleAnimKey;
+      const previousAnimKey = remotePlayer.currentAnimKey;
+      setCharacterAnimation(
+        mesh,
+        currentAnimKey,
+        newAnimations,
+        previousAnimKey,
+        true
+      );
+      remotePlayer.currentAnimKey = currentAnimKey;
+    }
+    
+    // Force render update
+    mesh.visible = false;
+    mesh.visible = true;
+    
+    // Note: We don't dispose old textures here because:
+    // 1. The texture cache is shared and manages texture lifecycle
+    // 2. Textures might be reused (e.g., if switching back to the same character)
+    // 3. Disposing textures that are in the cache would affect other uses
+    // The cache will handle texture cleanup when appropriate
   }
   
   /**
