@@ -289,6 +289,21 @@ export class RemotePlayerManager {
       await waitForAllAnimationsLoaded(newAnimations);
     }
     
+    // Spawn smoke particles for swap animation (like local player does)
+    if (this.particleManager) {
+      // Spawn lots of smoke particles quickly that follow the character
+      for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+          const pos = new THREE.Vector3(
+            mesh.position.x + (Math.random() - 0.5) * 0.5,
+            mesh.position.y,
+            mesh.position.z + (Math.random() - 0.5) * 0.5
+          );
+          this.particleManager.spawnSmokeParticle(pos, true); // true = follow character
+        }, i * 10); // Spread over 200ms
+      }
+    }
+    
     // NOW set new texture and play spawn animation (seamless swap)
     // Play spawn animation first (like local player does)
     const spawnAnimKey = lastFacing === 'back' ? 'spawn_back' : 'spawn_front';
