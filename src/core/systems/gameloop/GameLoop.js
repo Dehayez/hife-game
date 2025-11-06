@@ -2267,17 +2267,7 @@ export class GameLoop {
     // Trigger fast smoke particle burst
     const player = this.characterManager.getPlayer();
     if (player && this.characterManager.particleManager) {
-      // Spawn lots of smoke particles quickly that follow the character
-      for (let i = 0; i < 20; i++) {
-        setTimeout(() => {
-          const pos = new THREE.Vector3(
-            player.position.x + (Math.random() - 0.5) * 0.5,
-            player.position.y,
-            player.position.z + (Math.random() - 0.5) * 0.5
-          );
-          this.characterManager.particleManager.spawnSmokeParticle(pos, true); // true = follow character
-        }, i * 10); // Spread over 200ms
-      }
+      this.characterManager.particleManager.spawnCharacterSwapSmoke(player.position);
     }
     
     // Load the new character

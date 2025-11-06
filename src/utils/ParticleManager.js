@@ -37,6 +37,28 @@ export class ParticleManager {
   }
 
   /**
+   * Spawn character swap smoke particles (burst effect)
+   * @param {THREE.Vector3} position - Character position
+   * @param {number} particleCount - Number of particles to spawn (default: 20)
+   * @param {number} duration - Duration to spread particles over in ms (default: 200)
+   */
+  spawnCharacterSwapSmoke(position, particleCount = 20, duration = 200) {
+    if (!position) return;
+    
+    const interval = duration / particleCount;
+    for (let i = 0; i < particleCount; i++) {
+      setTimeout(() => {
+        const pos = new THREE.Vector3(
+          position.x + (Math.random() - 0.5) * 0.5,
+          position.y,
+          position.z + (Math.random() - 0.5) * 0.5
+        );
+        this.spawnSmokeParticle(pos, true); // true = follow character
+      }, i * interval);
+    }
+  }
+
+  /**
    * Spawn a smoke particle at position
    * @param {THREE.Vector3} position - Spawn position
    * @param {boolean} followCharacter - Whether particle should follow character position (for character changes)
