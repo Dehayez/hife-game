@@ -1999,6 +1999,13 @@ export class GameLoop {
           // Calculate damage (don't apply directly - damage comes from server)
           // But we can update visual feedback here
           // The actual damage sync happens via player-damage event
+          
+          // Show damage number for attacker (local player hitting remote player)
+          const shooterId = remoteCollision.projectile?.userData?.playerId;
+          if (shooterId === 'local' && this.damageNumberManager) {
+            // Show damage number at remote player position (attacker sees damage they dealt)
+            this.damageNumberManager.showDamage(remoteCollision.damage, mesh.position, 0xffaa00);
+          }
         }
         
         // Check mortar ground explosions for remote players
@@ -2011,6 +2018,35 @@ export class GameLoop {
         if (remoteMortarCollision.hit) {
           // Visual feedback for mortar hit on remote player
           // Actual damage sync happens via player-damage event
+          
+          // Show damage number for attacker (local player hitting remote player)
+          const shooterId = remoteMortarCollision.projectile?.userData?.playerId;
+          if (shooterId === 'local' && this.damageNumberManager) {
+            // Show damage number at remote player position (attacker sees damage they dealt)
+            this.damageNumberManager.showDamage(remoteMortarCollision.damage, mesh.position, 0xff6600);
+          }
+        }
+        
+        // Check splash areas for remote players (walking in splash)
+        if (this.projectileManager && this.projectileManager.splashAreas) {
+          for (const splashArea of this.projectileManager.splashAreas) {
+            const remoteSplashCollision = checkSplashAreaCollision(
+              splashArea,
+              mesh.position,
+              playerId
+            );
+            
+            if (remoteSplashCollision.hit) {
+              const mortarData = splashArea.userData;
+              
+              // Show damage number for attacker (local player hitting remote player with splash)
+              const shooterId = mortarData.playerId;
+              if (shooterId === 'local' && this.damageNumberManager) {
+                // Show damage number at remote player position (attacker sees damage they dealt)
+                this.damageNumberManager.showDamage(remoteSplashCollision.damage, mesh.position, 0xff6600);
+              }
+            }
+          }
         }
       }
     }
