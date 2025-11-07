@@ -29,6 +29,7 @@ import { HERALD_BOLT_ATTACK_CONFIG } from '../../../../config/abilities/characte
 import { HERALD_MORTAR_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/mortar/AttackConfig.js';
 import { HERALD_MELEE_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/melee/AttackConfig.js';
 import { HERALD_BLAST_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/blast/AttackConfig.js';
+import { HERALD_ROLL_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/roll/AttackConfig.js';
 
 /**
  * Deep merge function that applies multipliers or overrides
@@ -168,6 +169,14 @@ export function getBlastStats(characterName) {
     return HERALD_BLAST_ATTACK_CONFIG;
   }
   return null;
+}
+
+/**
+ * Get Herald roll stats (knockback while sprinting)
+ * @returns {Object} Roll knockback configuration
+ */
+export function getHeraldRollStats() {
+  return HERALD_ROLL_ATTACK_CONFIG;
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getCharacterColor, getMeleeStats, getMortarStats, getBlastStats, getMultiProjectileStats } from '../abilities/functions/CharacterAbilityStats.js';
+import { getCharacterColor, getMeleeStats, getMortarStats, getBlastStats, getMultiProjectileStats, getHeraldRollStats } from '../abilities/functions/CharacterAbilityStats.js';
 import { setLastCharacter } from '../../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/functions/mortar/MortarArcPreview.js';
 import { checkSplashAreaCollision } from '../abilities/functions/mortar/SplashArea.js';
@@ -102,6 +102,7 @@ export class GameLoop {
     this.meleeInitialDamage = null; // Initial damage on first hit (set during attack)
     this.meleeSlowSpeedMultiplier = null; // Speed multiplier when poisoned (set during attack)
     this.poisonedEntities = new Map(); // Track poisoned entities: Map<entity, {timeLeft, tickTimer, damage, tickInterval, speedMultiplier}>
+    this.heraldRollKnockCooldowns = new Map(); // Track last knockback time per entity during Herald roll
     
     // Callback to update character UI when character changes via controller
     this.characterUIUpdateCallback = null;
@@ -2345,6 +2346,10 @@ export class GameLoop {
       const isRunning = this.inputManager.isRunning();
       this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera(), isRunning);
       this.characterManager.updateSmokeSpawnTimer(dt);
+
+      if (this.characterManager.getCharacterName() === 'herald' && isRunning) {
+        this._applyHeraldRollKnockback(player, velocity);
+      }
     } else {
       // Before game starts, keep character idle
       this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera(), false);
@@ -2407,6 +2412,171 @@ export class GameLoop {
         this.characterUIUpdateCallback(newChar);
       }
     });
+  }
+
+  /**
+   * Apply knockback to nearby entities while Herald is rolling
+   * @param {THREE.Mesh} player - Player mesh
+  * @param {THREE.Vector3} velocity - Current frame movement delta
+   * @private
+   */
+  _applyHeraldRollKnockback(player, velocity) {
+    if (!player || !velocity) {
+      return;
+    }
+
+    // Require meaningful movement to avoid triggering while idle
+    if (velocity.lengthSq() <= 1e-6) {
+      return;
+    }
+
+    const rollStats = getHeraldRollStats();
+    if (!rollStats) {
+      return;
+    }
+
+    const playerSize = typeof this.characterManager.getPlayerSize === 'function'
+      ? this.characterManager.getPlayerSize()
+      : 0.5;
+
+    const radius = rollStats.radius !== undefined
+      ? rollStats.radius
+      : playerSize * (rollStats.radiusMultiplier || 1.0);
+
+    if (radius <= 0) {
+      return;
+    }
+
+    const horizontalVelocity = rollStats.horizontalVelocity ?? 10.0;
+    const verticalVelocity = rollStats.verticalVelocity ?? 0;
+    const cooldownMs = rollStats.cooldownMs ?? 300;
+    const minDistance = rollStats.minDistance ?? 0.05;
+
+    const radiusSq = radius * radius;
+    const minDistanceSq = minDistance * minDistance;
+    const now = performance.now();
+
+    this._cleanupHeraldRollCooldowns(now, cooldownMs);
+
+    const playerPos = player.position;
+    let registeredHit = false;
+
+    const applyKnockback = (key, dx, dz, applyVelocity) => {
+      const distanceSq = dx * dx + dz * dz;
+      if (distanceSq > radiusSq) {
+        return false;
+      }
+
+      if (this.heraldRollKnockCooldowns.has(key)) {
+        const lastHit = this.heraldRollKnockCooldowns.get(key);
+        if (lastHit && now - lastHit < cooldownMs) {
+          return false;
+        }
+      }
+
+      let distance = Math.sqrt(Math.max(distanceSq, minDistanceSq));
+      if (distance < minDistance) {
+        distance = minDistance;
+      }
+
+      const dirX = dx / distance;
+      const dirZ = dz / distance;
+
+      applyVelocity(dirX, dirZ);
+      this.heraldRollKnockCooldowns.set(key, now);
+      registeredHit = true;
+      return true;
+    };
+
+    // Knockback bots
+    if (this.botManager) {
+      const bots = this.botManager.getAllBots();
+      for (let i = 0; i < bots.length; i++) {
+        const bot = bots[i];
+        if (!bot || !bot.userData || bot.userData.health <= 0 || bot.userData.isDying) {
+          continue;
+        }
+
+        const dx = bot.position.x - playerPos.x;
+        const dz = bot.position.z - playerPos.z;
+        const key = bot.userData.id ? `bot_${bot.userData.id}` : `bot_${bot.uuid}`;
+
+        applyKnockback(key, dx, dz, (dirX, dirZ) => {
+          bot.userData.velocityX = dirX * horizontalVelocity;
+          bot.userData.velocityZ = dirZ * horizontalVelocity;
+          if (verticalVelocity > 0) {
+            const currentVelocityY = bot.userData.velocityY || 0;
+            bot.userData.velocityY = Math.max(currentVelocityY, verticalVelocity);
+          }
+          bot.userData.isKnockedBack = true;
+        });
+      }
+    }
+
+    // Knockback remote players (visual-only on local client)
+    if (this.remotePlayerManager && this.multiplayerManager && this.multiplayerManager.isInRoom()) {
+      const remotePlayers = this.remotePlayerManager.getRemotePlayers();
+      for (const [playerId, remotePlayer] of remotePlayers) {
+        if (!remotePlayer || !remotePlayer.mesh) {
+          continue;
+        }
+
+        const mesh = remotePlayer.mesh;
+        if (mesh.userData && mesh.userData.isDying) {
+          continue;
+        }
+
+        const dx = mesh.position.x - playerPos.x;
+        const dz = mesh.position.z - playerPos.z;
+        const key = `remote_${playerId}`;
+
+        applyKnockback(key, dx, dz, (dirX, dirZ) => {
+          remotePlayer.velocityX = dirX * horizontalVelocity;
+          remotePlayer.velocityZ = dirZ * horizontalVelocity;
+
+          if (!mesh.userData) {
+            mesh.userData = {};
+          }
+          if (!mesh.userData.characterData) {
+            mesh.userData.characterData = {};
+          }
+          if (verticalVelocity > 0) {
+            const currentVelocityY = mesh.userData.characterData.velocityY || 0;
+            mesh.userData.characterData.velocityY = Math.max(currentVelocityY, verticalVelocity);
+          }
+          mesh.userData.characterData.isKnockedBack = true;
+        });
+      }
+    }
+
+    if (registeredHit) {
+      if (this.vibrationManager) {
+        this.vibrationManager.medium();
+      }
+      const soundManager = this.characterManager.getSoundManager();
+      if (soundManager && typeof soundManager.playMeleeHit === 'function') {
+        soundManager.playMeleeHit();
+      }
+    }
+  }
+
+  /**
+   * Remove stale cooldown entries for Herald roll knockback
+   * @param {number} now - Current timestamp
+   * @param {number} cooldownMs - Cooldown duration in ms
+   * @private
+   */
+  _cleanupHeraldRollCooldowns(now, cooldownMs) {
+    if (!this.heraldRollKnockCooldowns) {
+      return;
+    }
+
+    const maxAge = Math.max(cooldownMs * 3, 1500);
+    for (const [key, timestamp] of this.heraldRollKnockCooldowns) {
+      if (!timestamp || now - timestamp > maxAge) {
+        this.heraldRollKnockCooldowns.delete(key);
+      }
+    }
   }
 
   /**
