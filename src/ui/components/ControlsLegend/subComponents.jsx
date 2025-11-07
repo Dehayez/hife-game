@@ -1,14 +1,5 @@
 import React from 'react';
-import {
-  XboxButtonA,
-  XboxButtonB,
-  XboxButtonX,
-  XboxButtonY,
-  XboxButtonLB,
-  XboxButtonLT,
-  XboxButtonRB,
-  XboxButtonRT
-} from '../XboxButton/index.jsx';
+import { CONTROLLER_BUTTON_CONFIG } from '../XboxButton/helpers.js';
 
 export function LegendGroup({ label, children, className = '' }) {
   return (
@@ -35,28 +26,26 @@ export function LegendKey({ children, className = '', ...props }) {
   );
 }
 
-const buttonComponents = {
-  A: XboxButtonA,
-  B: XboxButtonB,
-  X: XboxButtonX,
-  Y: XboxButtonY,
-  LB: XboxButtonLB,
-  LT: XboxButtonLT,
-  RB: XboxButtonRB,
-  RT: XboxButtonRT
-};
+export function ControllerButton({ button, controllerType = 'xbox', className = '' }) {
+  const config = CONTROLLER_BUTTON_CONFIG[controllerType] || CONTROLLER_BUTTON_CONFIG.xbox;
+  const buttonConfig = config.buttons[button];
 
-export function XboxButton({ label, button, className = '' }) {
-  const ButtonComponent = buttonComponents[button];
-  
-  if (!ButtonComponent) {
-    console.warn(`Unknown Xbox button: ${button}`);
+  if (!buttonConfig) {
+    console.warn(`Unknown controller button: ${button} for type ${controllerType}`);
     return null;
   }
-  
+
+  const legendClasses = [`ui__legend-key--controller`, `ui__legend-key--controller-${controllerType}`, `ui__legend-key--controller-${controllerType}-${button.toLowerCase()}`, className]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <LegendKey className={`ui__legend-key--xbox ui__legend-key--xbox-${button.toLowerCase()} ${className}`} title={`Xbox ${button}`}>
-      <ButtonComponent />
+    <LegendKey className={legendClasses} title={`${config.title} ${buttonConfig.title}`}>
+      <span className={`controller-button ${config.baseClass} ${config.baseClass}--${buttonConfig.modifier}`} aria-label={`${config.title} ${buttonConfig.title}`}>
+        <span className={`${config.labelClass} controller-button__label`}>
+          {buttonConfig.label}
+        </span>
+      </span>
     </LegendKey>
   );
 }

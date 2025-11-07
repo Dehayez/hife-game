@@ -5,11 +5,15 @@ import { ControllerControls } from './ControllerControls.jsx';
 export function ControlsLegend({ inputManager, gameModeManager }) {
   const [inputMode, setInputMode] = useState(() => inputManager?.getInputMode() || 'keyboard');
   const [gameMode, setGameMode] = useState(() => gameModeManager?.getMode() || 'free-play');
+  const [controllerType, setControllerType] = useState(() => inputManager?.getControllerType?.() || 'generic');
 
   useEffect(() => {
     const updateFromManagers = () => {
       if (inputManager) {
         setInputMode(inputManager.getInputMode());
+        if (typeof inputManager.getControllerType === 'function') {
+          setControllerType(inputManager.getControllerType() || 'generic');
+        }
       }
       if (gameModeManager) {
         setGameMode(gameModeManager.getMode());
@@ -31,7 +35,7 @@ export function ControlsLegend({ inputManager, gameModeManager }) {
     <div className="ui__legend-panel">
       <div className="ui__legend-content">
         {inputMode === 'controller' ? (
-          <ControllerControls isShootingMode={isShootingMode} />
+          <ControllerControls isShootingMode={isShootingMode} controllerType={controllerType} />
         ) : (
           <KeyboardControls isShootingMode={isShootingMode} />
         )}

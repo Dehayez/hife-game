@@ -110,6 +110,11 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   container.appendChild(levitateIndicator);
   mount.appendChild(container);
   
+  // Initial sync so labels match current input mode immediately
+  if (projectileManager && characterManager) {
+    updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill);
+  }
+  
   // Store references for updates
   return {
     container,

@@ -5,9 +5,8 @@
  * Consolidates all UI components into a single, toggleable menu
  */
 
-import { isXboxController, checkXboxController, updateFooterContent, updateHeaderVisibility, updateBumperIcons } from './functions.js';
+import { checkControllerType, updateFooterContent, updateHeaderVisibility, updateBumperIcons } from './functions.js';
 import { handleControllerInput, handleJoystickNavigation } from './navigation.js';
-import { createXboxButtonElement } from '../XboxButton/helpers.js';
 
 export class GameMenu {
   constructor(config) {
@@ -30,8 +29,9 @@ export class GameMenu {
     this.tabSections = {};
     this.activeSection = {};
     
-    // Xbox controller connection state
-    this.isXboxControllerConnected = false;
+    // Controller connection state
+    this.isControllerConnected = false;
+    this.controllerType = 'generic';
     
     // Create menu structure
     this.createMenu();
@@ -42,11 +42,11 @@ export class GameMenu {
     // Set up controller navigation
     this.setupControllerNavigation();
     
-    // Set up Xbox controller detection
-    this.setupXboxControllerDetection();
+    // Set up controller detection
+    this.setupControllerDetection();
     
-    // Initial check for Xbox controller
-    this.checkXboxController();
+    // Initial controller check
+    this.checkControllerType();
     
     // Initial check for header visibility based on input mode
     this.updateHeaderVisibility();
@@ -81,14 +81,10 @@ export class GameMenu {
     this.tabsContainer = document.createElement('div');
     this.tabsContainer.className = 'game-menu__tabs ui__game-menu-tabs';
     
-    // LB icon (left of Settings)
+    // LB/L1 icon (left of Settings)
     this.lbIcon = document.createElement('div');
     this.lbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--lb ui__game-menu-icon';
-    this.lbIcon.setAttribute('aria-label', 'Left Bumper');
-    const lbButton = createXboxButtonElement('LB');
-    if (lbButton) {
-      this.lbIcon.appendChild(lbButton);
-    }
+    this.lbIcon.setAttribute('aria-label', 'Left Shoulder');
     this.tabsContainer.appendChild(this.lbIcon);
     
     this.tabs = [
@@ -105,14 +101,10 @@ export class GameMenu {
       this.tabsContainer.appendChild(tabButton);
     });
     
-    // RB icon (right of Settings)
+    // RB/R1 icon (right of Settings)
     this.rbIcon = document.createElement('div');
     this.rbIcon.className = 'game-menu__bumper-icon game-menu__bumper-icon--rb ui__game-menu-icon';
-    this.rbIcon.setAttribute('aria-label', 'Right Bumper');
-    const rbButton = createXboxButtonElement('RB');
-    if (rbButton) {
-      this.rbIcon.appendChild(rbButton);
-    }
+    this.rbIcon.setAttribute('aria-label', 'Right Shoulder');
     this.tabsContainer.appendChild(this.rbIcon);
     
     this.container.appendChild(this.tabsContainer);
@@ -121,28 +113,20 @@ export class GameMenu {
     this.sectionsContainer = document.createElement('div');
     this.sectionsContainer.className = 'game-menu__sections ui__game-menu-sections';
     
-    // LT icon (left of sections)
+    // LT/L2 icon (left of sections)
     this.ltIcon = document.createElement('div');
     this.ltIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--lt ui__game-menu-icon';
     this.ltIcon.setAttribute('aria-label', 'Left Trigger');
-    const ltButton = createXboxButtonElement('LT');
-    if (ltButton) {
-      this.ltIcon.appendChild(ltButton);
-    }
     this.sectionsContainer.appendChild(this.ltIcon);
     
     this.sectionsList = document.createElement('div');
     this.sectionsList.className = 'game-menu__sections-list ui__game-menu-sections-list';
     this.sectionsContainer.appendChild(this.sectionsList);
     
-    // RT icon (right of sections)
+    // RT/R2 icon (right of sections)
     this.rtIcon = document.createElement('div');
     this.rtIcon.className = 'game-menu__trigger-icon game-menu__trigger-icon--rt ui__game-menu-icon';
     this.rtIcon.setAttribute('aria-label', 'Right Trigger');
-    const rtButton = createXboxButtonElement('RT');
-    if (rtButton) {
-      this.rtIcon.appendChild(rtButton);
-    }
     // Prevent clicks from triggering shooting
     this.rtIcon.addEventListener('click', (e) => {
       e.preventDefault();
@@ -195,6 +179,9 @@ export class GameMenu {
     
     // Create footer content based on input mode
     this.updateFooterContent();
+
+    // Initialize controller icons based on current state
+    this.updateBumperIcons();
     
     this.container.appendChild(this.footer);
     
@@ -206,7 +193,7 @@ export class GameMenu {
   }
   
   updateFooterContent() {
-    updateFooterContent(this.footer, this.inputManager);
+    updateFooterContent(this.footer, this.inputManager, this.controllerType);
   }
 
   setupEventListeners() {
@@ -247,25 +234,21 @@ export class GameMenu {
     this.startControllerPolling();
   }
 
-  _isXboxController(gamepad) {
-    return isXboxController(gamepad);
+  checkControllerType() {
+    checkControllerType(this.inputManager, this);
   }
 
-  checkXboxController() {
-    checkXboxController(this.inputManager, this);
-  }
-
-  setupXboxControllerDetection() {
+  setupControllerDetection() {
     window.addEventListener('gamepadconnected', () => {
-      setTimeout(() => this.checkXboxController(), 100);
+      setTimeout(() => this.checkControllerType(), 100);
     });
     
     window.addEventListener('gamepaddisconnected', () => {
-      setTimeout(() => this.checkXboxController(), 100);
+      setTimeout(() => this.checkControllerType(), 100);
     });
     
     this.controllerCheckInterval = setInterval(() => {
-      this.checkXboxController();
+      this.checkControllerType();
       this.updateHeaderVisibility();
     }, 1000);
   }

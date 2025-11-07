@@ -81,6 +81,10 @@ export class InputManager {
     this._lastRightJoystickMagnitude = 0; // Last valid magnitude
     this._rightJoystickInDeadZone = false; // Track when stick is in dead zone
     
+    // Controller type tracking
+    this.controllerType = 'generic';
+    this._simulatedControllerType = null;
+
     const stats = getMovementStats();
     this.moveSpeed = stats.moveSpeed;
     this.runSpeedMultiplier = stats.runSpeedMultiplier;
@@ -165,6 +169,14 @@ export class InputManager {
    */
   getInputMode() {
     return this.inputMode;
+  }
+
+  /**
+   * Get detected controller type
+   * @returns {string} Controller type ('xbox', 'playstation', 'generic')
+   */
+  getControllerType() {
+    return this._simulatedControllerType || this.controllerType;
   }
 
   /**
@@ -287,17 +299,43 @@ export class InputManager {
   }
 
   /**
-   * Detect if gamepad is an Xbox controller
+   * Detect controller type (xbox, playstation, generic)
    * @param {Object} gamepad - Gamepad object
-   * @returns {boolean} True if Xbox controller
+   * @returns {string} Controller type identifier
    * @private
    */
-  _isXboxController(gamepad) {
-    if (!gamepad) return false;
+  _getControllerType(gamepad) {
+    if (!gamepad || !gamepad.id) return 'generic';
     const id = gamepad.id.toLowerCase();
-    return id.includes('xbox') || 
-           id.includes('microsoft') ||
-           id.includes('045e'); // Microsoft vendor ID
+
+    if (id.includes('xbox') ||
+        id.includes('microsoft') ||
+        id.includes('045e') ||
+        id.includes('xinput')) {
+      return 'xbox';
+    }
+
+    if (id.includes('playstation') ||
+        id.includes('dualshock') ||
+        id.includes('dualsense') ||
+        id.includes('ps5') ||
+        id.includes('ps4') ||
+        id.includes('sony') ||
+        id.includes('054c') ||
+        id.includes('0ce6') ||
+        (id.includes('wireless controller') && id.includes('054c'))) {
+      return 'playstation';
+    }
+
+    return 'generic';
+  }
+
+  _isXboxController(gamepad) {
+    return this._getControllerType(gamepad) === 'xbox';
+  }
+
+  _isPlayStationController(gamepad) {
+    return this._getControllerType(gamepad) === 'playstation';
   }
 
   /**
@@ -307,8 +345,15 @@ export class InputManager {
    * @private
    */
   _showGamepadNotification(gamepad, connected) {
-    const isXbox = this._isXboxController(gamepad);
-    const controllerName = isXbox ? 'Xbox Controller' : gamepad.id || 'Gamepad';
+    const controllerType = this._getControllerType(gamepad);
+    let controllerName;
+    if (controllerType === 'xbox') {
+      controllerName = 'Xbox Controller';
+    } else if (controllerType === 'playstation') {
+      controllerName = 'PlayStation Controller';
+    } else {
+      controllerName = gamepad?.id || 'Gamepad';
+    }
     const message = connected 
       ? `🎮 ${controllerName} connected!`
       : `🎮 ${controllerName} disconnected`;
@@ -371,8 +416,8 @@ export class InputManager {
   _setupGamepadListeners() {
     window.addEventListener('gamepadconnected', (e) => {
       const gamepad = e.gamepad;
-      const isXbox = this._isXboxController(gamepad);
-      
+      this.controllerType = this._getControllerType(gamepad);
+
       this.gamepad = gamepad;
       this.gamepadConnected = true;
       
@@ -381,17 +426,17 @@ export class InputManager {
       
       // Notify callback about controller connection
       if (this._onControllerStatusChange) {
-        this._onControllerStatusChange(true);
+        this._onControllerStatusChange(true, this.controllerType);
       }
     });
 
     window.addEventListener('gamepaddisconnected', (e) => {
       const gamepad = e.gamepad;
-      const isXbox = this._isXboxController(gamepad);
       
       if (this.gamepad && this.gamepad.index === gamepad.index) {
         this.gamepad = null;
         this.gamepadConnected = false;
+        this.controllerType = 'generic';
         
         // Show visual notification
         this._showGamepadNotification(gamepad, false);
@@ -451,7 +496,7 @@ export class InputManager {
         
         // Notify callback about controller disconnection
         if (this._onControllerStatusChange) {
-          this._onControllerStatusChange(false);
+          this._onControllerStatusChange(false, this.controllerType);
         }
       }
     });
@@ -496,14 +541,14 @@ export class InputManager {
             const gamepad = gamepads[i];
             this.gamepad = gamepad;
             this.gamepadConnected = true;
-            const isXbox = this._isXboxController(gamepad);
+            this.controllerType = this._getControllerType(gamepad);
             
             // Show visual notification
             this._showGamepadNotification(gamepad, true);
             
             // Notify callback about controller connection
             if (this._onControllerStatusChange) {
-              this._onControllerStatusChange(true);
+              this._onControllerStatusChange(true, this.controllerType);
             }
             
             break;
@@ -531,14 +576,14 @@ export class InputManager {
             const gamepad = gamepads[i];
             this.gamepad = gamepad;
             this.gamepadConnected = true;
-            const isXbox = this._isXboxController(gamepad);
+            this.controllerType = this._getControllerType(gamepad);
             
             // Show visual notification
             this._showGamepadNotification(gamepad, true);
             
             // Notify callback about controller connection
             if (this._onControllerStatusChange) {
-              this._onControllerStatusChange(true);
+              this._onControllerStatusChange(true, this.controllerType);
             }
             
             return true;
@@ -672,6 +717,13 @@ export class InputManager {
       return;
     }
     
+    // If we're simulating a controller, skip real Gamepad polling
+    if (this._simulatedControllerType) {
+      this.controllerType = this._simulatedControllerType;
+      this.gamepadConnected = true;
+      return;
+    }
+
     // Check if Gamepad API is available
     if (!navigator.getGamepads) {
       return;
@@ -697,6 +749,7 @@ export class InputManager {
       // Gamepad API may not be accessible yet
       this.gamepad = null;
       this.gamepadConnected = false;
+      this.controllerType = 'generic';
       return;
     }
     
@@ -709,6 +762,7 @@ export class InputManager {
         if (gamepads[i]) {
           this.gamepad = gamepads[i];
           this.gamepadConnected = true;
+          this.controllerType = this._getControllerType(gamepads[i]);
           break;
         }
       }
@@ -717,12 +771,14 @@ export class InputManager {
       if (!this.gamepad) {
         this.gamepad = null;
         this.gamepadConnected = false;
+        this.controllerType = 'generic';
         return;
       }
     }
 
     // Update gamepad reference
     this.gamepad = gamepad;
+    this.controllerType = this._getControllerType(gamepad);
 
     // Always process scoreboard button even when inputs are blocked (needed to close scoreboard)
     // Scoreboard (Back/Select button 8) - toggle scoreboard

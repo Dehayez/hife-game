@@ -1,13 +1,16 @@
 import React from 'react';
-import { LegendGroup, LegendSection, LegendKeys, LegendKey, XboxButton } from './subComponents.jsx';
+import { LegendGroup, LegendSection, LegendKeys, LegendKey, ControllerButton } from './subComponents.jsx';
 
-export function ControllerControls({ isShootingMode }) {
+export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) {
+  const resolvedType = controllerType === 'generic' ? 'xbox' : controllerType;
+  const controllerLabel = resolvedType === 'playstation' ? 'PlayStation' : 'Xbox';
+
   return (
     <>
       <LegendSection>
         <LegendGroup label="Move:">
           <LegendKeys>
-            <LegendKey className="ui__legend-key--xbox" title="Xbox Left Analog Stick">
+            <LegendKey className="ui__legend-key--controller" title={`${controllerLabel} Left Stick`}>
               🎮 Left Stick
             </LegendKey>
           </LegendKeys>
@@ -17,19 +20,19 @@ export function ControllerControls({ isShootingMode }) {
       <LegendSection>
         <LegendGroup label="Run:">
           <LegendKeys>
-            <XboxButton button="LT" className="ui__legend-key--xbox-lt" />
+            <ControllerButton button="LT" controllerType={resolvedType} className="ui__legend-key--controller-lt" />
           </LegendKeys>
         </LegendGroup>
 
         <LegendGroup label="Jump:">
           <LegendKeys>
-            <XboxButton button="A" />
+            <ControllerButton button="A" controllerType={resolvedType} />
           </LegendKeys>
         </LegendGroup>
 
         <LegendGroup label="Levitate:">
           <LegendKeys>
-            <XboxButton button="A" />
+            <ControllerButton button="A" controllerType={resolvedType} />
             <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(hold)</span>
           </LegendKeys>
         </LegendGroup>
@@ -45,7 +48,7 @@ export function ControllerControls({ isShootingMode }) {
 
           <LegendGroup label="Aim:">
             <LegendKeys>
-              <LegendKey className="ui__legend-key--xbox" title="Xbox Right Analog Stick">
+              <LegendKey className="ui__legend-key--controller" title={`${controllerLabel} Right Stick`}>
                 🎮 Right Stick
               </LegendKey>
             </LegendKeys>
@@ -53,19 +56,19 @@ export function ControllerControls({ isShootingMode }) {
 
           <LegendGroup label="Bolt:">
             <LegendKeys>
-              <XboxButton button="RT" className="ui__legend-key--xbox-rt" />
+              <ControllerButton button="RT" controllerType={resolvedType} className="ui__legend-key--controller-rt" />
             </LegendKeys>
           </LegendGroup>
 
           <LegendGroup label="Mortar Hold:">
             <LegendKeys>
-              <XboxButton button="RB" className="ui__legend-key--xbox-rb" />
+              <ControllerButton button="RB" controllerType={resolvedType} className="ui__legend-key--controller-rb" />
             </LegendKeys>
           </LegendGroup>
 
           <LegendGroup label="Release:">
             <LegendKeys>
-              <XboxButton button="RT" className="ui__legend-key--xbox-rt" />
+              <ControllerButton button="RT" controllerType={resolvedType} className="ui__legend-key--controller-rt" />
             </LegendKeys>
           </LegendGroup>
 
@@ -80,20 +83,20 @@ export function ControllerControls({ isShootingMode }) {
       <LegendSection>
         <LegendGroup label="Swap:">
           <LegendKeys>
-            <XboxButton button="Y" className="ui__legend-key--xbox-y" />
+            <ControllerButton button="Y" controllerType={resolvedType} className="ui__legend-key--controller-y" />
           </LegendKeys>
         </LegendGroup>
 
         <LegendGroup label="Heal:">
           <LegendKeys>
-            <XboxButton button="X" className="ui__legend-key--xbox-x" />
+            <ControllerButton button="X" controllerType={resolvedType} className="ui__legend-key--controller-x" />
             <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(Hold)</span>
           </LegendKeys>
         </LegendGroup>
 
         <LegendGroup label="Melee:">
           <LegendKeys>
-            <XboxButton button="B" className="ui__legend-key--xbox-b" />
+            <ControllerButton button="B" controllerType={resolvedType} className="ui__legend-key--controller-b" />
           </LegendKeys>
         </LegendGroup>
       </LegendSection>

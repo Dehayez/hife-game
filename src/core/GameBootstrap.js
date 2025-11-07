@@ -111,7 +111,7 @@ export function setupGameLoopWrapper(gameLoop, managers, uiComponents) {
     const now = performance.now();
     originalTick();
     
-    // Handle Xbox Start button to toggle menu
+    // Handle controller Start/Options button to toggle menu
     const gamepads = navigator.getGamepads();
     if (gamepads && gamepads.length > 0) {
       const gamepad = gamepads[0];
@@ -215,6 +215,9 @@ export async function handleAutoJoinRoom(multiplayerManager, roomManager, roomCo
  */
 export function setupDebugUtilities(managers) {
   const { remotePlayerManager, inputManager } = managers;
+
+  // Expose managers for debugging
+  window.hifeManagers = managers;
   
   // Expose remotePlayerManager for debugging
   window.debugRemotePlayers = () => {
@@ -225,6 +228,43 @@ export function setupDebugUtilities(managers) {
   
   // Expose inputManager for gamepad debugging
   if (inputManager) {
+    window.hifeInputManager = inputManager;
+    window.setControllerSimulation = (type = 'xbox') => {
+      if (!inputManager) return null;
+      const normalized = (type || '').toString().toLowerCase();
+      const validTypes = ['xbox', 'playstation', 'generic'];
+      const controllerType = validTypes.includes(normalized) ? normalized : 'generic';
+
+      if (controllerType !== 'generic') {
+        inputManager._simulatedControllerType = controllerType;
+        inputManager.controllerType = controllerType;
+        inputManager.gamepadConnected = true;
+        inputManager.setInputMode('controller');
+        if (typeof inputManager._onControllerStatusChange === 'function') {
+          inputManager._onControllerStatusChange(true, controllerType);
+        }
+      } else {
+        inputManager._simulatedControllerType = null;
+        inputManager.controllerType = 'generic';
+        inputManager.gamepadConnected = false;
+        if (inputManager.getInputMode() === 'controller') {
+          inputManager.setInputMode('keyboard');
+        }
+        if (typeof inputManager._onControllerStatusChange === 'function') {
+          inputManager._onControllerStatusChange(false, 'generic');
+        }
+      }
+
+      const ui = window.hifeUI;
+      if (ui?.gameMenu) {
+        ui.gameMenu.checkControllerType?.();
+      }
+      ui?.controlsLegend?.update?.();
+      ui?.controlsLegendMenu?.update?.();
+
+      return controllerType;
+    };
+
     window.activateGamepad = () => {
       if (inputManager) {
         return inputManager.forceGamepadActivation();

@@ -3,7 +3,7 @@
  * 
  * Multiplayer scoreboard overlay component.
  * Displays player statistics including ID, kills, deaths, bots killed, etc.
- * Can be toggled with Tab key (PC) or Back/Select button (Xbox controller).
+ * Can be toggled with Tab key (PC) or Back/Select/Options button (controller).
  */
 
 import { calculateKDRatio, getAllPlayers, sortPlayers, createPlayerRow } from './functions.js';

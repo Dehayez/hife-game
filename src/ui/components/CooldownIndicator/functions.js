@@ -1,6 +1,20 @@
 import { getMeleeStats, getBlastStats, getMultiProjectileStats } from '../../../core/systems/abilities/functions/CharacterAbilityStats.js';
 import { getCharacterColorCss } from '../../../config/abilities/CharacterColors.js';
 import { getCharacterPhysicsStats } from '../../../config/character/PhysicsConfig.js';
+import { CONTROLLER_BUTTON_CONFIG } from '../XboxButton/helpers.js';
+
+function getControllerType(inputManager) {
+  if (!inputManager || typeof inputManager.getControllerType !== 'function') {
+    return 'generic';
+  }
+  return inputManager.getControllerType() || 'generic';
+}
+
+function getControllerLabel(button, controllerType) {
+  const config = CONTROLLER_BUTTON_CONFIG[controllerType] || CONTROLLER_BUTTON_CONFIG.xbox;
+  const buttonConfig = config.buttons[button];
+  return buttonConfig ? buttonConfig.label : button;
+}
 
 export function updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill) {
   if (!projectileManager || !characterManager) return;
@@ -11,6 +25,9 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   // Get input mode (default to keyboard if inputManager not available)
   const inputMode = inputManager ? inputManager.getInputMode() : 'keyboard';
   const isControllerMode = inputMode === 'controller';
+  const controllerTypeRaw = getControllerType(inputManager);
+  const controllerType = controllerTypeRaw === 'generic' ? 'xbox' : controllerTypeRaw;
+  const controllerLabel = (btn) => getControllerLabel(btn, controllerType);
   
   // Get character stats for cooldowns
   const stats = projectileManager.getCharacterStats(characterName);
@@ -24,26 +41,29 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   
   // Shot/Bolt label
   if (isControllerMode) {
-    shotLabel.innerHTML = isHerald ? 'Bolt <span class="ui__cooldown-key">(RT)</span>' : 'Shot <span class="ui__cooldown-key">(RT)</span>';
+    const label = controllerLabel('RT');
+    shotLabel.innerHTML = isHerald ? `Bolt <span class="ui__cooldown-key">(${label})</span>` : `Shot <span class="ui__cooldown-key">(${label})</span>`;
   } else {
     shotLabel.innerHTML = isHerald ? 'Bolt <span class="ui__cooldown-key">(LMB)</span>' : 'Shot <span class="ui__cooldown-key">(LMB)</span>';
   }
   
   // Mortar/Fireball label
   if (isControllerMode) {
-    mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RB)</span>' : 'Mortar <span class="ui__cooldown-key">(RB)</span>';
+    const label = controllerLabel('RB');
+    mortarLabel.innerHTML = isHerald ? `Fireball <span class="ui__cooldown-key">(${label})</span>` : `Mortar <span class="ui__cooldown-key">(${label})</span>`;
   } else {
     mortarLabel.innerHTML = isHerald ? 'Fireball <span class="ui__cooldown-key">(RMB)</span>' : 'Mortar <span class="ui__cooldown-key">(RMB)</span>';
   }
   
   // Melee/Special ability label
   if (isControllerMode) {
+    const meleeButtonLabel = controllerLabel('B');
     if (characterName === 'herald') {
-      meleeLabel.innerHTML = 'Blast <span class="ui__cooldown-key">(B)</span>';
+      meleeLabel.innerHTML = `Blast <span class="ui__cooldown-key">(${meleeButtonLabel})</span>`;
     } else if (characterName === 'lucy') {
-      meleeLabel.innerHTML = 'Multi-Projectile <span class="ui__cooldown-key">(B)</span>';
+      meleeLabel.innerHTML = `Multi-Projectile <span class="ui__cooldown-key">(${meleeButtonLabel})</span>`;
     } else {
-      meleeLabel.innerHTML = 'Melee <span class="ui__cooldown-key">(B)</span>';
+      meleeLabel.innerHTML = `Melee <span class="ui__cooldown-key">(${meleeButtonLabel})</span>`;
     }
   } else {
     if (characterName === 'herald') {
@@ -74,7 +94,8 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   // Update speed boost label based on input mode
   if (speedBoostLabel) {
     if (isControllerMode) {
-      speedBoostLabel.innerHTML = 'Speed Boost <span class="ui__cooldown-key">(LB)</span>';
+      const label = controllerLabel('LB');
+      speedBoostLabel.innerHTML = `Speed Boost <span class="ui__cooldown-key">(${label})</span>`;
     } else {
       speedBoostLabel.innerHTML = 'Speed Boost <span class="ui__cooldown-key">(E)</span>';
     }
@@ -145,7 +166,8 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   if (levitateFill && levitateLabel) {
     // Update levitate label based on input mode
     if (isControllerMode) {
-      levitateLabel.innerHTML = 'Levitate <span class="ui__cooldown-key">(Hold A)</span>';
+      const label = controllerLabel('A');
+      levitateLabel.innerHTML = `Levitate <span class="ui__cooldown-key">(Hold ${label})</span>`;
     } else {
       levitateLabel.innerHTML = 'Levitate <span class="ui__cooldown-key">(Hold Space)</span>';
     }

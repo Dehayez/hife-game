@@ -22,7 +22,7 @@ export function initBotControl({ mount, botManager, healthBarManager, arenaManag
   botCountDisplay.className = 'ui__bot-count';
   botCountDisplay.textContent = 'Bots: 0';
 
-  // Difficulty selector - custom button-based UI for Xbox controller support
+  // Difficulty selector - custom button-based UI for controller support
   const difficultyWrapper = document.createElement('div');
   difficultyWrapper.className = 'ui__bot-difficulty';
   

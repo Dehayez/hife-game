@@ -237,6 +237,9 @@ export function initializeUI(managers, config) {
         if (controlsLegend) {
           controlsLegend.update();
         }
+        if (controlsLegendMenu) {
+          controlsLegendMenu.update();
+        }
       }
     } else {
       const currentMode = inputManager.getInputMode();
@@ -245,6 +248,9 @@ export function initializeUI(managers, config) {
         setLastInputMode('keyboard');
         if (controlsLegend) {
           controlsLegend.update();
+        }
+        if (controlsLegendMenu) {
+          controlsLegendMenu.update();
         }
       }
     }
@@ -413,10 +419,11 @@ export function initializeUI(managers, config) {
     updateControlsLegendVisibility
   });
   
-  return {
+  const uiApi = {
     gameMenu,
     characterSwitcher,
     controlsLegend,
+    controlsLegendMenu,
     inputModeSwitcher,
     cooldownIndicator,
     roomManager,
@@ -426,6 +433,10 @@ export function initializeUI(managers, config) {
     isMenuOpen: () => isMenuOpen,
     setIsMenuOpen: (value) => { isMenuOpen = value; }
   };
+
+  window.hifeUI = uiApi;
+
+  return uiApi;
 }
 
 /**

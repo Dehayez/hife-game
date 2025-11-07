@@ -1,50 +1,78 @@
-import { createXboxButtonElement } from '../XboxButton/helpers.js';
+import { createControllerButton } from '../XboxButton/helpers.js';
 
-export function isXboxController(gamepad) {
-  if (!gamepad) return false;
+const GENERIC_TYPE = 'generic';
+
+function detectControllerType(gamepad) {
+  if (!gamepad || !gamepad.id) return GENERIC_TYPE;
   const id = gamepad.id.toLowerCase();
-  return id.includes('xbox') || 
-         id.includes('microsoft') ||
-         id.includes('045e'); // Microsoft vendor ID
+
+  if (id.includes('xbox') ||
+      id.includes('microsoft') ||
+      id.includes('045e') ||
+      id.includes('xinput')) {
+    return 'xbox';
+  }
+
+  if (id.includes('playstation') ||
+      id.includes('dualshock') ||
+      id.includes('dualsense') ||
+      id.includes('ps5') ||
+      id.includes('ps4') ||
+      id.includes('sony') ||
+      id.includes('054c') ||
+      id.includes('0ce6') ||
+      (id.includes('wireless controller') && id.includes('054c'))) {
+    return 'playstation';
+  }
+
+  return GENERIC_TYPE;
 }
 
-export function checkXboxController(inputManager, instance) {
-  // Check via InputManager if available
-  if (inputManager && inputManager.isGamepadConnected()) {
-    const gamepads = navigator.getGamepads();
-    if (gamepads && gamepads.length > 0) {
-      const gamepad = gamepads[0];
-      if (gamepad && isXboxController(gamepad)) {
-        instance.isXboxControllerConnected = true;
-        instance.updateBumperIcons();
-        return;
-      }
-    }
-  }
-  
-  // Fallback: check gamepads directly
+function getConnectedGamepads() {
   try {
     if (navigator.getGamepads) {
-      const gamepads = navigator.getGamepads();
-      if (gamepads && gamepads.length > 0) {
-        for (let i = 0; i < gamepads.length; i++) {
-          if (gamepads[i] && isXboxController(gamepads[i])) {
-            instance.isXboxControllerConnected = true;
-            instance.updateBumperIcons();
-            return;
-          }
-        }
-      }
+      return navigator.getGamepads() || [];
     }
   } catch (e) {
-    // Gamepad API may not be accessible
+    // Gamepad API may not be accessible yet
   }
-  
-  instance.isXboxControllerConnected = false;
-  instance.updateBumperIcons();
+  return [];
 }
 
-export function updateFooterContent(footer, inputManager) {
+export function checkControllerType(inputManager, instance) {
+  let controllerType = GENERIC_TYPE;
+  let controllerConnected = false;
+
+  if (inputManager && typeof inputManager.isGamepadConnected === 'function' && inputManager.isGamepadConnected()) {
+    controllerConnected = true;
+    if (typeof inputManager.getControllerType === 'function') {
+      controllerType = inputManager.getControllerType() || GENERIC_TYPE;
+    }
+  }
+
+  if (!controllerConnected) {
+    const gamepads = getConnectedGamepads();
+    for (const gamepad of gamepads) {
+      if (gamepad) {
+        controllerConnected = true;
+        controllerType = detectControllerType(gamepad);
+        if (controllerType !== GENERIC_TYPE) break;
+      }
+    }
+  }
+
+  const prevType = instance.controllerType;
+  const prevConnected = instance.isControllerConnected;
+
+  instance.isControllerConnected = controllerConnected;
+  instance.controllerType = controllerType;
+
+  if (prevType !== controllerType || prevConnected !== controllerConnected) {
+    instance.updateBumperIcons();
+  }
+}
+
+export function updateFooterContent(footer, inputManager, controllerType = 'xbox') {
   if (!footer) return;
   
   // Clear existing content
@@ -53,15 +81,16 @@ export function updateFooterContent(footer, inputManager) {
   // Check if input mode is controller
   const inputMode = inputManager?.getInputMode() || 'keyboard';
   const isController = inputMode === 'controller';
+  const resolvedType = controllerType === GENERIC_TYPE ? 'xbox' : controllerType;
   
   if (isController) {
-    // Xbox controller commands
+    // Controller commands (Back equivalent)
     const bButton = document.createElement('span');
-    bButton.className = 'game-menu__footer-button game-menu__footer-button--xbox-b';
-    
-    const xboxButtonElement = createXboxButtonElement('B');
-    if (xboxButtonElement) {
-      bButton.appendChild(xboxButtonElement);
+    bButton.className = 'game-menu__footer-button game-menu__footer-button--controller';
+
+    const buttonElement = createControllerButton('B', { controllerType: resolvedType });
+    if (buttonElement) {
+      bButton.appendChild(buttonElement);
     }
     
     const backLabel = document.createElement('span');
@@ -97,26 +126,43 @@ export function updateHeaderVisibility(header, inputManager) {
 }
 
 export function updateBumperIcons(instance) {
+  const inputMode = instance.inputManager?.getInputMode() || 'keyboard';
+  const resolvedType = instance.controllerType === GENERIC_TYPE ? 'xbox' : instance.controllerType;
+
   if (instance.lbIcon && instance.rbIcon) {
-    const inputMode = instance.inputManager?.getInputMode() || 'keyboard';
     if (inputMode === 'controller') {
       instance.lbIcon.style.display = 'flex';
       instance.rbIcon.style.display = 'flex';
+      instance.lbIcon.innerHTML = '';
+      instance.rbIcon.innerHTML = '';
+      const leftElement = createControllerButton('LB', { controllerType: resolvedType });
+      const rightElement = createControllerButton('RB', { controllerType: resolvedType });
+      if (leftElement) instance.lbIcon.appendChild(leftElement);
+      if (rightElement) instance.rbIcon.appendChild(rightElement);
     } else {
       instance.lbIcon.style.display = 'none';
       instance.rbIcon.style.display = 'none';
+      instance.lbIcon.innerHTML = '';
+      instance.rbIcon.innerHTML = '';
     }
   }
   
   // Update trigger icons visibility
   if (instance.ltIcon && instance.rtIcon) {
-    const inputMode = instance.inputManager?.getInputMode() || 'keyboard';
     if (inputMode === 'controller') {
       instance.ltIcon.style.display = 'flex';
       instance.rtIcon.style.display = 'flex';
+      instance.ltIcon.innerHTML = '';
+      instance.rtIcon.innerHTML = '';
+      const ltElement = createControllerButton('LT', { controllerType: resolvedType });
+      const rtElement = createControllerButton('RT', { controllerType: resolvedType });
+      if (ltElement) instance.ltIcon.appendChild(ltElement);
+      if (rtElement) instance.rtIcon.appendChild(rtElement);
     } else {
       instance.ltIcon.style.display = 'none';
       instance.rtIcon.style.display = 'none';
+      instance.ltIcon.innerHTML = '';
+      instance.rtIcon.innerHTML = '';
     }
   }
   
