@@ -186,7 +186,8 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
             playerId,
             characterName,
             data.targetX || null,
-            data.targetZ || null
+            data.targetZ || null,
+            { forceCreate: true }
           );
           
           // Set projectile ID from network data if provided

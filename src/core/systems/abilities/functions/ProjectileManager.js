@@ -115,7 +115,9 @@ export class ProjectileManager {
    * @param {number} targetZ - Optional target Z position for cursor following
    * @returns {THREE.Mesh|null} Created projectile mesh or null if on cooldown or out of bullets
    */
-  createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy', targetX = null, targetZ = null) {
+  createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy', targetX = null, targetZ = null, options = {}) {
+    const forceCreate = options.forceCreate === true;
+    
     // Get character-specific bolt stats
     const stats = getBoltStats(characterName);
     
@@ -128,7 +130,7 @@ export class ProjectileManager {
     }
     
     // Check if reloading is in progress - cannot shoot while reloading
-    if (!this.playerRechargeCooldowns.canAct(playerId)) {
+    if (!forceCreate && !this.playerRechargeCooldowns.canAct(playerId)) {
       // Still recharging - cannot shoot
       return null;
     }
@@ -142,7 +144,7 @@ export class ProjectileManager {
     }
     
     // Check cooldown for this specific character
-    if (!this.characterCooldowns.canAct(playerId)) return null;
+    if (!forceCreate && !this.characterCooldowns.canAct(playerId)) return null;
     
     // Check performance optimization level for trail lights
     const optLevel = this.performanceOptimizer.updateLevel(this.projectiles.length);
@@ -220,10 +222,13 @@ export class ProjectileManager {
     
     // If bullets depleted, start recharge cooldown
     // (reload check already passed above, so this is safe)
-    if (newBulletCount <= 0) {
+    if (!forceCreate && newBulletCount <= 0) {
       this.playerRechargeCooldowns.setCooldown(playerId, stats.rechargeCooldown);
       // Clear manual reload info if it exists (automatic reload takes over)
       this.playerReloadInfo.delete(playerId);
+    } else if (forceCreate && newBulletCount <= 0) {
+      // Clamp at zero for forced projectiles so counters don't go negative
+      this.playerBullets.set(playerId, 0);
     }
     
     // Apply speed boost multiplier if active (Lucy only)
