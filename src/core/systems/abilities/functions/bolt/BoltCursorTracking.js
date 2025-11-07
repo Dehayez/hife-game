@@ -8,7 +8,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { BOLT_ATTACK_CONFIG } from '../../../../../config/abilities/base/BoltAttackConfig.js';
 import { GENERAL_ABILITY_CONFIG } from '../../../../../config/abilities/base/MeleeAttackConfig.js';
-import { normalize2D, distance2D, dot2D } from '../utils/VectorUtils.js';
+import { normalize2D, distance2D } from '../utils/VectorUtils.js';
 
 /**
  * Track cursor/joystick target position
@@ -138,45 +138,9 @@ function getMouseTarget(camera, inputManager, playerPosition, projectile) {
   const cursorDirX = toCursorX / toCursorLength;
   const cursorDirZ = toCursorZ / toCursorLength;
   
-  // Calculate dot product to check if cursor is ahead along shooting direction
-  const dotProduct = dot2D(initialDirX, initialDirZ, cursorDirX, cursorDirZ);
-  
-  // If cursor is ahead (forward) along the shooting direction line, use it as target
-  if (dotProduct <= 0) {
-    return null;
-  }
-  
-  // Project cursor position onto the shooting direction line
-  const cursorProjDist = toCursorLength * dotProduct;
-  
-  // Calculate distance from player to projectile along shooting direction
-  const projectileFromPlayerX = projectile.position.x - playerPosition.x;
-  const projectileFromPlayerZ = projectile.position.z - playerPosition.z;
-  const projectileDistFromPlayer = distance2D(
-    playerPosition.x,
-    playerPosition.z,
-    projectile.position.x,
-    projectile.position.z
-  );
-  
-  // Project projectile position onto shooting direction line
-  if (projectileDistFromPlayer <= GENERAL_ABILITY_CONFIG.minDistance.projectileDistance) {
-    return null;
-  }
-  
-  const projDirX = projectileFromPlayerX / projectileDistFromPlayer;
-  const projDirZ = projectileFromPlayerZ / projectileDistFromPlayer;
-  const projDotProduct = dot2D(initialDirX, initialDirZ, projDirX, projDirZ);
-  const projectileProjDist = projectileDistFromPlayer * Math.max(0, projDotProduct);
-  
-  // If cursor projection is further along the shooting direction line than projectile, follow it
-  if (cursorProjDist > projectileProjDist) {
-    return {
-      x: intersect.x,
-      z: intersect.z
-    };
-  }
-  
-  return null;
+  return {
+    x: intersect.x,
+    z: intersect.z
+  };
 }
 
