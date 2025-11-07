@@ -314,6 +314,22 @@ export class GameLoop {
       this.learningManager.updateLearning();
     }
     
+    const heraldAbilitiesBlocked = this._isHeraldSprinting();
+    this.inputManager.setAbilityInputsBlocked(heraldAbilitiesBlocked);
+    if (heraldAbilitiesBlocked) {
+      if (this.mortarHoldActive) {
+        this._cancelMortarHold();
+      }
+      if (this.healingActive) {
+        this.healingActive = false;
+        this.inputManager.setHealingActive(false);
+      }
+      this.healHoldDuration = 0;
+      this.lastShootInput = false;
+      this.lastSpeedBoostInput = false;
+      this.lastMortarInput = false;
+    }
+    
     // Handle abilities (bolt, mortar, speed boost) in all game modes
     if (this.projectileManager) {
       // Set up cursor tracking for projectiles (update player position each frame)
@@ -380,10 +396,9 @@ export class GameLoop {
       this._handleCharacterSwap();
     }
     this.lastCharacterSwapInput = characterSwapInput;
-    
     // Handle sword swing (B button) - now used for special abilities
     const swordSwingInput = this.inputManager.isSwordSwingPressed();
-    if (swordSwingInput && !this.lastSwordSwingInput) {
+    if (!heraldAbilitiesBlocked && swordSwingInput && !this.lastSwordSwingInput) {
       // Check cooldown before allowing attack
       if (this.specialAbilityCooldownTimer <= 0) {
         const characterName = this.characterManager.getCharacterName();
@@ -426,7 +441,7 @@ export class GameLoop {
     }
     
     // Handle heal/reload (X button)
-    const healInput = this.inputManager.isHealPressed();
+    const healInput = heraldAbilitiesBlocked ? false : this.inputManager.isHealPressed();
 
     // Track heal button press/release to reset hold duration
     if (healInput && !this.lastHealInput) {
@@ -1018,38 +1033,54 @@ export class GameLoop {
       }
     }
     
+    const heraldAbilitiesBlocked = this._isHeraldSprinting();
+    
     // Handle shooting input (left mouse click / RT) - auto-fire on hold
     // Don't allow shooting when mortar hold is active (RT is used for mortar release)
     // Also prevent shooting immediately after releasing mortar (cooldown period)
-    if (!this.mortarHoldActive && this.mortarReleaseCooldown <= 0) {
-      const shootInput = this.inputManager.isShootPressed();
-      if (shootInput) {
-        this._handleShootingInput(player);
+    if (!heraldAbilitiesBlocked) {
+      if (!this.mortarHoldActive && this.mortarReleaseCooldown <= 0) {
+        const shootInput = this.inputManager.isShootPressed();
+        if (shootInput) {
+          this._handleShootingInput(player);
+        }
+        this.lastShootInput = shootInput;
+      } else {
+        // Clear shoot input when in mortar hold mode or during cooldown
+        this.lastShootInput = false;
       }
-      this.lastShootInput = shootInput;
     } else {
-      // Clear shoot input when in mortar hold mode or during cooldown
       this.lastShootInput = false;
     }
     
     // Handle speed boost input (LB button) - Lucy only
-    const speedBoostInput = this.inputManager.isSpeedBoostPressed();
-    if (speedBoostInput && !this.lastSpeedBoostInput) {
-      const characterName = this.characterManager.getCharacterName();
-      const playerId = 'local';
-      console.log('[SpeedBoost] Button pressed, activating for:', characterName);
-      const activated = this.projectileManager.activateSpeedBoost(playerId, characterName);
-      if (!activated) {
-        console.log('[SpeedBoost] Activation failed');
+    if (!heraldAbilitiesBlocked) {
+      const speedBoostInput = this.inputManager.isSpeedBoostPressed();
+      if (speedBoostInput && !this.lastSpeedBoostInput) {
+        const characterName = this.characterManager.getCharacterName();
+        const playerId = 'local';
+        console.log('[SpeedBoost] Button pressed, activating for:', characterName);
+        const activated = this.projectileManager.activateSpeedBoost(playerId, characterName);
+        if (!activated) {
+          console.log('[SpeedBoost] Activation failed');
+        }
       }
+      this.lastSpeedBoostInput = speedBoostInput;
+    } else {
+      this.lastSpeedBoostInput = false;
     }
-    this.lastSpeedBoostInput = speedBoostInput;
     
     // Handle mortar hold system (RB hold, LT preview, RT release)
-    this._handleMortarHoldSystem(player, dt);
+    if (!heraldAbilitiesBlocked) {
+      this._handleMortarHoldSystem(player, dt);
+    } else {
+      this.lastMortarHoldInput = false;
+      this.lastLeftTriggerInput = false;
+      this.lastRightTriggerInput = false;
+    }
     
     // Legacy mortar input (right mouse click) - only if not using gamepad hold system
-    if (!this.mortarHoldActive) {
+    if (!heraldAbilitiesBlocked && !this.mortarHoldActive) {
       const mortarInput = this.inputManager.isMortarPressed();
       if (mortarInput && !this.lastMortarInput) {
         // Only handle mouse click if not holding RB
@@ -1481,6 +1512,45 @@ export class GameLoop {
       this.sceneManager.getScene().remove(this.mortarHoldVisual);
       this.mortarHoldVisual = null;
     }
+  }
+  
+  /**
+   * Cancel active mortar hold state and clean up visuals
+   * @private
+   */
+  _cancelMortarHold() {
+    if (!this.mortarHoldActive) {
+      return;
+    }
+    
+    this.mortarHoldActive = false;
+    this.inputManager.setMortarHoldActive(false);
+    this._removeMortarHoldVisual();
+    
+    if (this.mortarArcPreview) {
+      removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+      this.mortarArcPreview = null;
+    }
+    
+    this.lastMortarHoldInput = false;
+    this.lastLeftTriggerInput = false;
+    this.lastRightTriggerInput = false;
+    this.lastMortarInput = false;
+  }
+  
+  /**
+   * Check if Herald is currently sprinting (abilities should be blocked)
+   * @returns {boolean} True if Herald is sprinting
+   * @private
+   */
+  _isHeraldSprinting() {
+    if (!this.characterManager || !this.inputManager) {
+      return false;
+    }
+    if (this.characterManager.getCharacterName() !== 'herald') {
+      return false;
+    }
+    return this.inputManager.isRunning();
   }
   
   /**

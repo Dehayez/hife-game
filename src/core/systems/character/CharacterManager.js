@@ -34,6 +34,8 @@ import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.
 import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../../../utils/DeathFadeUtils.js';
 import { createSpriteMesh } from '../../../utils/SpriteUtils.js';
 
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
 export class CharacterManager {
   /**
    * Create a new CharacterManager
@@ -82,6 +84,12 @@ export class CharacterManager {
     this.smokeSpawnTimer = 0;
     const smokeConfig = getRunningSmokeConfig();
     this.smokeSpawnInterval = smokeConfig.spawnInterval;
+    this.rollMesh = null;
+    this.rollRadius = Math.max(this.playerSize * 0.75, this.playerHeight * 0.4);
+    this._rollTempAxis = new THREE.Vector3();
+    this._rollTempDir = new THREE.Vector3();
+    this._rollTempQuat = new THREE.Quaternion();
+    this._isRollVisible = false;
     
     // Only setup player if scene is available
     if (this.scene) {
@@ -147,6 +155,7 @@ export class CharacterManager {
     };
     
     this.scene.add(this.player);
+    this._ensureRollingMesh();
   }
 
   /**
@@ -157,6 +166,9 @@ export class CharacterManager {
     this.scene = scene;
     if (!this.player) {
       this._setupPlayer();
+    } else if (this.scene && this.player.parent !== this.scene) {
+      this.scene.add(this.player);
+      this._ensureRollingMesh();
     }
   }
 
@@ -178,6 +190,9 @@ export class CharacterManager {
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
     this.setCurrentAnim(this.currentAnimKey, true);
+    this._ensureRollingMesh();
+    this._updateRollMeshAppearance();
+    this._resetRollingVisual();
     
     // Force immediate texture update to ensure character image changes right away
     if (this.player && this.player.material) {
@@ -221,7 +236,7 @@ export class CharacterManager {
       this.currentAnimKey,
       this.characterData.isGrounded,
       () => this.isOnBaseGround(),
-      this.soundManager,
+      this._shouldMuteFootsteps(isRunning) ? null : this.soundManager,
       dt,
       isRunning
     );
@@ -237,6 +252,8 @@ export class CharacterManager {
   updateMovement(input, velocity, camera, isRunning = false) {
     if (!this.player) return;
     
+    const soundManager = this._shouldMuteFootsteps(isRunning) ? null : this.soundManager;
+    
     const movementResult = updateCharacterMovement(
       this.player,
       camera,
@@ -248,7 +265,7 @@ export class CharacterManager {
       this.animations,
       this.currentAnimKey,
       this.lastFacing,
-      this.soundManager,
+      soundManager,
       this.particleManager,
       this.smokeSpawnTimer,
       isRunning
@@ -257,6 +274,7 @@ export class CharacterManager {
     this.currentAnimKey = movementResult.currentAnimKey;
     this.lastFacing = movementResult.lastFacing;
     this.smokeSpawnTimer = movementResult.smokeSpawnTimer;
+    this._updateRollingVisual(velocity, isRunning);
   }
 
   /**
@@ -620,6 +638,141 @@ export class CharacterManager {
     return this.currentAnimKey.includes('hit') || 
            this.currentAnimKey.includes('death') || 
            this.currentAnimKey.includes('spawn');
+  }
+
+  /**
+   * Ensure rolling mesh exists and is attached to the scene
+   * @private
+   */
+  _ensureRollingMesh() {
+    if (!this.scene) return;
+    
+    if (!this.rollMesh) {
+      const segments = 28;
+      const geometry = new THREE.SphereGeometry(this.rollRadius, segments, segments);
+      const material = this._createRollMaterial(getCharacterColorHex(this.characterName));
+      this.rollMesh = new THREE.Mesh(geometry, material);
+      this.rollMesh.castShadow = true;
+      this.rollMesh.receiveShadow = true;
+      this.rollMesh.visible = false;
+      this.scene.add(this.rollMesh);
+    } else if (this.rollMesh.parent !== this.scene) {
+      this.scene.add(this.rollMesh);
+    }
+    
+    this._updateRollMeshAppearance();
+  }
+
+  /**
+   * Create material for rolling mesh
+   * @param {number} colorHex - Color hex value
+   * @private
+   */
+  _createRollMaterial(colorHex) {
+    const color = new THREE.Color(colorHex);
+    const emissive = color.clone().multiplyScalar(0.2);
+    return new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.3,
+      roughness: 0.55,
+      emissive,
+      emissiveIntensity: 0.35
+    });
+  }
+
+  /**
+   * Update rolling mesh color to match current character
+   * @private
+   */
+  _updateRollMeshAppearance() {
+    if (!this.rollMesh || !this.rollMesh.material) return;
+    
+    const colorHex = getCharacterColorHex(this.characterName);
+    const color = new THREE.Color(colorHex);
+    this.rollMesh.material.color.copy(color);
+    if (this.rollMesh.material.emissive) {
+      const emissive = color.clone().multiplyScalar(0.2);
+      this.rollMesh.material.emissive.copy(emissive);
+    }
+  }
+
+  /**
+   * Reset rolling visual to default (sprite visible, ball hidden)
+   * @private
+   */
+  _resetRollingVisual() {
+    if (this.player) {
+      this.player.visible = true;
+    }
+    if (this.rollMesh) {
+      this.rollMesh.visible = false;
+      this.rollMesh.quaternion.identity();
+    }
+    this._isRollVisible = false;
+  }
+
+  /**
+   * Update rolling ball visibility and rotation
+   * @param {THREE.Vector3} velocity - Current frame movement delta
+   * @param {boolean} isRunning - Whether sprint is active
+   * @private
+   */
+  _updateRollingVisual(velocity, isRunning) {
+    if (!this.rollMesh || !this.player) return;
+    
+    const shouldRoll = isRunning &&
+                       this.characterName === 'herald' &&
+                       !this.isPlayingSpecialAnimation();
+    
+    if (!shouldRoll) {
+      if (this._isRollVisible) {
+        this._resetRollingVisual();
+      }
+      return;
+    }
+    
+    if (!this._isRollVisible) {
+      this._updateRollMeshAppearance();
+      this.player.visible = false;
+      this.rollMesh.visible = true;
+      this.rollMesh.quaternion.identity();
+      this._isRollVisible = true;
+    }
+    
+    const baseGroundY = this.player.position.y - this.playerHeight * 0.5;
+    const rollCenterY = baseGroundY + this.rollRadius;
+    this.rollMesh.position.set(
+      this.player.position.x,
+      rollCenterY,
+      this.player.position.z
+    );
+    
+    const moveDistance = velocity.length();
+    if (moveDistance <= 1e-6) {
+      return;
+    }
+    
+    this._rollTempDir.copy(velocity).normalize();
+    this._rollTempAxis.crossVectors(this._rollTempDir, WORLD_UP);
+    
+    if (this._rollTempAxis.lengthSq() <= 1e-8) {
+      return;
+    }
+    
+    this._rollTempAxis.normalize();
+    const angle = moveDistance / this.rollRadius;
+    this._rollTempQuat.setFromAxisAngle(this._rollTempAxis, angle);
+    this.rollMesh.quaternion.premultiply(this._rollTempQuat);
+  }
+
+  /**
+   * Determine if footstep audio should be muted for current state
+   * @param {boolean} isRunning - Whether sprint is active
+   * @returns {boolean} True when footsteps should be muted
+   * @private
+   */
+  _shouldMuteFootsteps(isRunning) {
+    return this.characterName === 'herald' && isRunning;
   }
 }
 

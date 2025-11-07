@@ -61,6 +61,7 @@ export class InputManager {
     this._loggingEnabled = true; // Enable detailed input logging
     this._lastInputLog = null; // Track last input to avoid spam
     this._inputLogThrottle = 200; // Throttle input logs (ms)
+    this.abilityInputsBlocked = false; // Block ability-related inputs when true
     
     // Left joystick direction for projectile control (separate from movement)
     this.projectileDirection = { x: 0, z: 0 };
@@ -256,6 +257,9 @@ export class InputManager {
       
       // Only process mouse input when in keyboard mode
       if (this.inputMode === 'keyboard') {
+        if (this.abilityInputsBlocked) {
+          return;
+        }
         if (e.button === 0) { // Left mouse button
           this.shootPressed = true;
           this.inputState.shoot = true;
@@ -951,9 +955,11 @@ export class InputManager {
     // Don't allow RT to fire bolts when mortar hold is active (RT is used for mortar release)
     const shootPressed = (gamepad.buttons[7] && gamepad.buttons[7].value > 0.5); // Right trigger only
     
-        // If mortar hold is active, prevent RT from firing bolts
-    // Always clear shoot state when mortar hold is active, regardless of RT state
-    if (this.mortarHoldActive) {
+    // If abilities are blocked, always clear shoot state
+    if (this.abilityInputsBlocked) {
+      this.shootPressed = false;
+      this.inputState.shoot = false;
+    } else if (this.mortarHoldActive) {
       // Force clear shoot state - RT is reserved for mortar release
       this.shootPressed = false;
       this.inputState.shoot = false;
@@ -974,7 +980,10 @@ export class InputManager {
     // Mortar Toggle (RB button 5) - press once to enter hold mode, press again to drop
     const mortarHoldPressed = gamepad.buttons[5] && gamepad.buttons[5].pressed; // Right bumper (RB) only
     
-    if (mortarHoldPressed && !this.mortarHoldPressed) {
+    if (this.abilityInputsBlocked) {
+      this.mortarHoldPressed = false;
+      this.inputState.mortar = false;
+    } else if (mortarHoldPressed && !this.mortarHoldPressed) {
       this.mortarHoldPressed = true;
       this.inputState.mortar = true; // Keep for compatibility
       if (this._loggingEnabled) {
@@ -991,7 +1000,9 @@ export class InputManager {
     // Left Trigger (LT) - button 6 for preview while holding mortar
     const leftTriggerPressed = gamepad.buttons[6] && gamepad.buttons[6].value > 0.5;
     
-    if (leftTriggerPressed !== this.leftTriggerPressed) {
+    if (this.abilityInputsBlocked) {
+      this.leftTriggerPressed = false;
+    } else if (leftTriggerPressed !== this.leftTriggerPressed) {
       this.leftTriggerPressed = leftTriggerPressed;
       if (this._loggingEnabled) {
         this._logInput('👁️ LEFT TRIGGER (Preview)', leftTriggerPressed ? 'pressed' : 'released', gamepad);
@@ -1001,7 +1012,9 @@ export class InputManager {
     // Right Trigger (RT) - button 7 for releasing mortar (already tracked for shoot)
     const rightTriggerPressed = gamepad.buttons[7] && gamepad.buttons[7].value > 0.5;
     
-    if (rightTriggerPressed !== this.rightTriggerPressed) {
+    if (this.abilityInputsBlocked) {
+      this.rightTriggerPressed = false;
+    } else if (rightTriggerPressed !== this.rightTriggerPressed) {
       this.rightTriggerPressed = rightTriggerPressed;
       if (this._loggingEnabled && this.mortarHoldPressed) {
         this._logInput('🚀 RIGHT TRIGGER (Release Mortar)', rightTriggerPressed ? 'pressed' : 'released', gamepad);
@@ -1025,7 +1038,10 @@ export class InputManager {
     // Heal (X button 2) - hold to heal
     const healPressed = gamepad.buttons[2] && gamepad.buttons[2].pressed; // X button only
     
-    if (healPressed !== this.healPressed) {
+    if (this.abilityInputsBlocked) {
+      this.healPressed = false;
+      this.inputState.heal = false;
+    } else if (healPressed !== this.healPressed) {
       this.healPressed = healPressed;
       this.inputState.heal = healPressed;
       if (healPressed && this._loggingEnabled) {
@@ -1038,7 +1054,10 @@ export class InputManager {
     // Sword Swing (B button 1) - 360 degree attack
     const swordSwingPressed = gamepad.buttons[1] && gamepad.buttons[1].pressed; // B button only
 
-    if (swordSwingPressed && !this.swordSwingPressed) {
+    if (this.abilityInputsBlocked) {
+      this.swordSwingPressed = false;
+      this.inputState.swordSwing = false;
+    } else if (swordSwingPressed && !this.swordSwingPressed) {
       this.swordSwingPressed = true;
       this.inputState.swordSwing = true;
       if (this._loggingEnabled) {
@@ -1052,7 +1071,10 @@ export class InputManager {
     // Speed Boost (LB button 4) - Attack speed boost for Lucy
     const speedBoostPressed = gamepad.buttons[4] && gamepad.buttons[4].pressed; // LB button only
 
-    if (speedBoostPressed && !this.speedBoostPressed) {
+    if (this.abilityInputsBlocked) {
+      this.speedBoostPressed = false;
+      this.inputState.speedBoost = false;
+    } else if (speedBoostPressed && !this.speedBoostPressed) {
       this.speedBoostPressed = true;
       this.inputState.speedBoost = true;
       if (this._loggingEnabled) {
@@ -1208,6 +1230,50 @@ export class InputManager {
   }
 
   /**
+   * Enable or disable ability-related inputs (shoot, abilities, etc.)
+   * @param {boolean} blocked - True to block ability inputs
+   */
+  setAbilityInputsBlocked(blocked) {
+    if (this.abilityInputsBlocked === blocked) {
+      return;
+    }
+    this.abilityInputsBlocked = blocked;
+    if (blocked) {
+      this._clearAbilityInputs();
+    }
+  }
+
+  /**
+   * Check if ability-related inputs are currently blocked
+   * @returns {boolean} True if ability inputs are blocked
+   */
+  areAbilityInputsBlocked() {
+    return this.abilityInputsBlocked;
+  }
+
+  /**
+   * Clear all ability-related input states
+   * @private
+   */
+  _clearAbilityInputs() {
+    this.shootPressed = false;
+    this.inputState.shoot = false;
+    this.mortarPressed = false;
+    this.inputState.mortar = false;
+    this.mortarHoldPressed = false;
+    this.mortarHoldActive = false;
+    this.leftTriggerPressed = false;
+    this.rightTriggerPressed = false;
+    this.healPressed = false;
+    this.inputState.heal = false;
+    this.healingActive = false;
+    this.swordSwingPressed = false;
+    this.inputState.swordSwing = false;
+    this.speedBoostPressed = false;
+    this.inputState.speedBoost = false;
+  }
+
+  /**
    * Manually trigger gamepad activation
    * Useful for debugging or forcing gamepad detection
    * @returns {boolean} True if a gamepad was found and activated
@@ -1269,12 +1335,22 @@ export class InputManager {
     
     // Heal (H key) - hold to heal
     if (keys.heal && keys.heal.includes(e.key)) {
+      if (this.abilityInputsBlocked) {
+        this.healPressed = false;
+        this.inputState.heal = false;
+        return;
+      }
       this.healPressed = pressed;
       this.inputState.heal = pressed;
     }
     
     // Sword Swing / Melee (F key) - press detection
     if (keys.swordSwing && keys.swordSwing.includes(e.key)) {
+      if (this.abilityInputsBlocked) {
+        this.swordSwingPressed = false;
+        this.inputState.swordSwing = false;
+        return;
+      }
       if (pressed && !this.swordSwingPressed) {
         this.swordSwingPressed = true;
         this.inputState.swordSwing = true;
@@ -1286,6 +1362,11 @@ export class InputManager {
     
     // Speed Boost (E key) - press detection
     if (keys.speedBoost && keys.speedBoost.includes(e.key)) {
+      if (this.abilityInputsBlocked) {
+        this.speedBoostPressed = false;
+        this.inputState.speedBoost = false;
+        return;
+      }
       if (pressed && !this.speedBoostPressed) {
         this.speedBoostPressed = true;
         this.inputState.speedBoost = true;
@@ -1376,6 +1457,9 @@ export class InputManager {
    * @returns {boolean} True if shoot button is pressed
    */
   isShootPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     // Don't allow shooting when mortar hold is active (RT is used for mortar release)
     if (this.mortarHoldActive) {
       return false;
@@ -1396,6 +1480,9 @@ export class InputManager {
    * @returns {boolean} True if mortar button is pressed
    */
   isMortarPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.inputState.mortar || this.mortarHoldPressed;
   }
   
@@ -1420,6 +1507,9 @@ export class InputManager {
    * @returns {boolean} True if RB is currently pressed
    */
   isMortarHoldPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.mortarHoldPressed;
   }
   
@@ -1428,6 +1518,9 @@ export class InputManager {
    * @returns {boolean} True if LT is pressed
    */
   isLeftTriggerPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.leftTriggerPressed;
   }
   
@@ -1436,6 +1529,9 @@ export class InputManager {
    * @returns {boolean} True if RT is pressed
    */
   isRightTriggerPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.rightTriggerPressed;
   }
 
@@ -1523,6 +1619,9 @@ export class InputManager {
    * @returns {boolean} True if heal button is pressed
    */
   isHealPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.inputState.heal;
   }
 
@@ -1531,6 +1630,9 @@ export class InputManager {
    * @returns {boolean} True if sword swing button is pressed
    */
   isSwordSwingPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.inputState.swordSwing;
   }
 
@@ -1547,6 +1649,9 @@ export class InputManager {
    * @returns {boolean} True if levitate key is pressed
    */
   isLevitatePressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.inputState.levitate;
   }
 
@@ -1563,6 +1668,9 @@ export class InputManager {
    * @returns {boolean} True if speed boost button is pressed
    */
   isSpeedBoostPressed() {
+    if (this.abilityInputsBlocked) {
+      return false;
+    }
     return this.inputState.speedBoost;
   }
 }
