@@ -145,6 +145,9 @@ export function initializeUI(managers, config) {
     value: characterName,
     onChange: async (val) => {
       await characterManager.loadCharacter(val);
+      if (inputManager && typeof inputManager.applyCharacterMovementStats === 'function') {
+        inputManager.applyCharacterMovementStats(val);
+      }
       setLastCharacter(val);
       
       if (multiplayerManager && multiplayerManager.isInRoom()) {

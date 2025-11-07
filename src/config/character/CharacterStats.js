@@ -16,6 +16,15 @@ import { getCharacterPhysicsStats } from './PhysicsConfig.js';
  * All stats related to player character behavior, health, movement, and physics.
  * Extends base entity stats with character-specific overrides.
  */
+const CHARACTER_MOVEMENT_OVERRIDES = {
+  lucy: {
+    runSpeedMultiplier: 1.7
+  },
+  herald: {
+    runSpeedMultiplier: 2.1
+  }
+};
+
 export const CHARACTER_STATS = {
   /**
    * Health Configuration (inherits from base entity stats)
@@ -30,7 +39,6 @@ export const CHARACTER_STATS = {
    */
   movement: {
     ...BASE_ENTITY_STATS.movement
-    // Character-specific movement overrides can be added here
   },
   
   /**
@@ -60,5 +68,20 @@ export function getCharacterMovementStats() {
  * @returns {Object} Physics configuration
  */
 export { getCharacterPhysicsStats };
+
+/**
+ * Get movement stats for a specific character
+ * @param {string} characterName - Character identifier
+ * @returns {Object} Movement configuration including overrides
+ */
+export function getCharacterMovementStatsFor(characterName) {
+  const baseMovement = getCharacterMovementStats();
+  const overrides = CHARACTER_MOVEMENT_OVERRIDES[characterName] || {};
+
+  return {
+    ...baseMovement,
+    ...overrides
+  };
+}
 
 

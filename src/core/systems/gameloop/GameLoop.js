@@ -2380,6 +2380,9 @@ export class GameLoop {
     this.characterManager.loadCharacter(newChar).then(() => {
       // Save to localStorage when character changes
       setLastCharacter(newChar);
+      if (this.inputManager && typeof this.inputManager.applyCharacterMovementStats === 'function') {
+        this.inputManager.applyCharacterMovementStats(newChar);
+      }
       
       // Reset bullets for new character
       if (this.projectileManager) {

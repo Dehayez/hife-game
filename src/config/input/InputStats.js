@@ -12,14 +12,6 @@
  */
 export const INPUT_STATS = {
   /**
-   * Movement Configuration
-   */
-  movement: {
-    moveSpeed: 4,              // Base movement speed (units per second)
-    runSpeedMultiplier: 1.7     // Speed multiplier when running (shift key)
-  },
-  
-  /**
    * Key Bindings Configuration
    */
   keys: {
@@ -42,14 +34,6 @@ export const INPUT_STATS = {
     speedBoost: ['e', 'E', 'KeyE']          // E - Speed Boost
   }
 };
-
-/**
- * Get movement stats
- * @returns {Object} Movement configuration
- */
-export function getMovementStats() {
-  return INPUT_STATS.movement;
-}
 
 /**
  * Get key bindings

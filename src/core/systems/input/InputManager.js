@@ -9,7 +9,9 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getMovementStats, getKeyBindings } from '../../../config/input/InputStats.js';
+import { getKeyBindings } from '../../../config/input/InputStats.js';
+import { getCharacterMovementStatsFor } from '../../../config/character/CharacterStats.js';
+import { GAME_CONSTANTS } from '../../../config/global/GameConstants.js';
 
 export class InputManager {
   /**
@@ -86,9 +88,8 @@ export class InputManager {
     this.controllerType = 'generic';
     this._simulatedControllerType = null;
 
-    const stats = getMovementStats();
-    this.moveSpeed = stats.moveSpeed;
-    this.runSpeedMultiplier = stats.runSpeedMultiplier;
+    const defaultCharacter = GAME_CONSTANTS?.DEFAULT_CHARACTER || 'lucy';
+    this.applyCharacterMovementStats(defaultCharacter);
     
     // Input mode: 'keyboard' or 'controller'
     this.inputMode = 'keyboard'; // Default to keyboard
@@ -162,6 +163,22 @@ export class InputManager {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Apply movement stats for the active character
+   * @param {string} characterName - Character identifier
+   */
+  applyCharacterMovementStats(characterName) {
+    const stats = getCharacterMovementStatsFor(characterName);
+    
+    if (typeof stats.moveSpeed === 'number') {
+      this.moveSpeed = stats.moveSpeed;
+    }
+    
+    if (typeof stats.runSpeedMultiplier === 'number') {
+      this.runSpeedMultiplier = stats.runSpeedMultiplier;
+    }
   }
 
   /**

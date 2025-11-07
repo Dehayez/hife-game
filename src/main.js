@@ -30,6 +30,10 @@ progressManager.setPercentage(10, 'Setting up game systems...');
 const managers = initializeManagers(canvas, config.arenaName);
 progressManager.setPercentage(20, 'Managers initialized');
 
+if (managers.inputManager && typeof managers.inputManager.applyCharacterMovementStats === 'function') {
+  managers.inputManager.applyCharacterMovementStats(config.characterName);
+}
+
 // Initialize input mode from storage
 const savedInputMode = getLastInputMode();
 const initialInputMode = savedInputMode || GAME_CONSTANTS.DEFAULT_INPUT_MODE;
