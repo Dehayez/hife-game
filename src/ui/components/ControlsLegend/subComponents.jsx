@@ -50,3 +50,25 @@ export function ControllerButton({ button, controllerType = 'xbox', className = 
   );
 }
 
+export function ControllerStick({ side = 'left', controllerLabel = 'Xbox', className = '' }) {
+  const normalizedSide = side === 'right' ? 'right' : 'left';
+  const stickName = normalizedSide === 'left' ? 'Left Stick' : 'Right Stick';
+  const label = `${controllerLabel} ${stickName}`;
+
+  return (
+    <LegendKey
+      className={`ui__legend-key--controller ${className}`.trim()}
+      title={label}
+      aria-label={label}
+    >
+      <span className={`ui__legend-stick ui__legend-stick--${normalizedSide}`} data-hand={normalizedSide === 'left' ? 'L' : 'R'}>
+        <span className="ui__legend-stick__ring">
+          <span className="ui__legend-stick__cap" />
+        </span>
+        <span className="ui__legend-stick__axis ui__legend-stick__axis--horizontal" />
+        <span className="ui__legend-stick__axis ui__legend-stick__axis--vertical" />
+      </span>
+    </LegendKey>
+  );
+}
+

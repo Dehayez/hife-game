@@ -1,5 +1,5 @@
 import React from 'react';
-import { LegendGroup, LegendSection, LegendKeys, LegendKey, ControllerButton } from './subComponents.jsx';
+import { LegendGroup, LegendSection, LegendKeys, LegendKey, ControllerButton, ControllerStick } from './subComponents.jsx';
 
 export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) {
   const resolvedType = controllerType === 'generic' ? 'xbox' : controllerType;
@@ -10,9 +10,7 @@ export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) 
       <LegendSection>
         <LegendGroup label="Move:">
           <LegendKeys>
-            <LegendKey className="ui__legend-key--controller" title={`${controllerLabel} Left Stick`}>
-              🎮 Left Stick
-            </LegendKey>
+            <ControllerStick side="left" controllerLabel={controllerLabel} />
           </LegendKeys>
         </LegendGroup>
       </LegendSection>
@@ -48,9 +46,7 @@ export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) 
 
           <LegendGroup label="Aim:">
             <LegendKeys>
-              <LegendKey className="ui__legend-key--controller" title={`${controllerLabel} Right Stick`}>
-                🎮 Right Stick
-              </LegendKey>
+              <ControllerStick side="right" controllerLabel={controllerLabel} />
             </LegendKeys>
           </LegendGroup>
 
