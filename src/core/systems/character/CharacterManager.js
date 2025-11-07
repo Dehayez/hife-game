@@ -63,7 +63,10 @@ export class CharacterManager {
       jumpCooldown: 0,
       health: getCharacterHealthStats().defaultHealth,
       maxHealth: getCharacterHealthStats().maxHealth,
-      hasDoubleJumped: false
+      hasDoubleJumped: false,
+      levitationCooldown: 0,
+      isLevitationActive: false,
+      levitationTimeRemaining: 0
     };
     
     // Sound manager
@@ -448,11 +451,26 @@ export class CharacterManager {
   }
 
   /**
+   * Get current levitation state
+   * @returns {{isActive: boolean, durationRemaining: number, cooldownRemaining: number}}
+   */
+  getLevitationState() {
+    const data = this.characterData || {};
+
+    return {
+      isActive: Boolean(data.isLevitationActive),
+      durationRemaining: Math.max(0, data.levitationTimeRemaining || 0),
+      cooldownRemaining: Math.max(0, data.levitationCooldown || 0)
+    };
+  }
+
+  /**
    * Get levitation cooldown
    * @returns {number} Current levitation cooldown
    */
   getLevitationCooldown() {
-    return this.characterData.levitationCooldown || 0;
+    const { cooldownRemaining } = this.getLevitationState();
+    return cooldownRemaining;
   }
 
   /**

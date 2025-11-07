@@ -37,28 +37,33 @@ export function updateCharacterPhysics(
     characterData.jumpCooldown -= dt;
   }
 
-  // Update levitation cooldown
-  if (characterData.levitationCooldown > 0) {
-    characterData.levitationCooldown -= dt;
-  }
-
-  // Apply gravity
+  // Apply gravity (gravity is always applied; levitation counteracts it)
   characterData.velocityY += physicsStats.gravity * dt;
   
-  // Apply levitation force if levitating and cooldown is ready
-  // Works both when going up and when going down (slows fall)
-  // Track previous levitation state to only start cooldown once per use
-  const wasLevitating = characterData.wasLevitating || false;
-  if (isLevitating && characterData.levitationCooldown <= 0) {
-    // Apply upward force regardless of direction (works when going up or down)
-    characterData.velocityY += physicsStats.levitationForce * dt;
-    // Start cooldown only when levitation first starts (not continuously)
-    if (!wasLevitating) {
-      characterData.levitationCooldown = physicsStats.levitationCooldownTime;
-    }
+  // Determine if player is actively trying to levitate this frame
+  const wantsLevitation = Boolean(isLevitating);
+  
+  // Handle levitation activation and duration tracking
+  const canStartLevitation = wantsLevitation && characterData.levitationCooldown <= 0 && !characterData.isLevitationActive;
+  if (canStartLevitation) {
+    characterData.isLevitationActive = true;
+    characterData.levitationTimeRemaining = physicsStats.levitationMaxDuration;
+    characterData.levitationCooldown = physicsStats.levitationCooldownTime;
   }
-  // Track levitation state for next frame
-  characterData.wasLevitating = isLevitating;
+  
+  const isCurrentlyLevitating = characterData.isLevitationActive && wantsLevitation && characterData.levitationTimeRemaining > 0;
+  
+  if (isCurrentlyLevitating) {
+    characterData.velocityY += physicsStats.levitationForce * dt;
+    characterData.levitationTimeRemaining = Math.max(0, characterData.levitationTimeRemaining - dt);
+  } else if (characterData.isLevitationActive) {
+    characterData.isLevitationActive = false;
+    characterData.levitationTimeRemaining = 0;
+  }
+  
+  if (characterData.levitationCooldown > 0) {
+    characterData.levitationCooldown = Math.max(0, characterData.levitationCooldown - dt);
+  }
 
   // Update vertical position
   player.position.y += characterData.velocityY * dt;
@@ -160,7 +165,8 @@ export function initializeCharacterPhysics(characterData) {
   characterData.wasGrounded = true;
   characterData.jumpCooldown = 0;
   characterData.levitationCooldown = 0;
-  characterData.wasLevitating = false;
+  characterData.isLevitationActive = false;
+  characterData.levitationTimeRemaining = 0;
   characterData.health = healthStats.defaultHealth;
   characterData.hasDoubleJumped = false;
 }
@@ -212,7 +218,8 @@ export function respawnCharacterPhysics(player, characterData, gameMode = null, 
   characterData.wasGrounded = true; // Prevent landing sound on respawn
   characterData.jumpCooldown = 0;
   characterData.levitationCooldown = 0;
-  characterData.wasLevitating = false;
+  characterData.isLevitationActive = false;
+  characterData.levitationTimeRemaining = 0;
   characterData.hasDoubleJumped = false;
   
   // Reset health

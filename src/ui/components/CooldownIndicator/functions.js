@@ -173,11 +173,25 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
     }
     
     const physicsStats = getCharacterPhysicsStats();
-    const levitationCooldown = characterManager.getLevitationCooldown();
-    const levitationMaxCooldown = physicsStats.levitationCooldownTime || 0.3;
-    const levitationPercent = levitationMaxCooldown > 0 ? Math.min(levitationCooldown / levitationMaxCooldown, 1.0) : 0;
-    levitateFill.style.width = `${(1 - levitationPercent) * 100}%`;
-    levitateFill.style.opacity = levitationPercent > 0 ? '0.6' : '1.0';
+    const levitationState = characterManager.getLevitationState
+      ? characterManager.getLevitationState()
+      : null;
+
+    const levitationMaxDuration = physicsStats.levitationMaxDuration || 0;
+    if (levitationState && levitationState.isActive && levitationMaxDuration > 0) {
+      const durationPercent = Math.min(levitationState.durationRemaining / levitationMaxDuration, 1.0);
+      levitateFill.style.width = `${durationPercent * 100}%`;
+      levitateFill.style.opacity = '1.0';
+    } else {
+      const levitationCooldown = levitationState
+        ? levitationState.cooldownRemaining
+        : characterManager.getLevitationCooldown();
+      const levitationMaxCooldown = physicsStats.levitationCooldownTime || 0.3;
+      const levitationPercent = levitationMaxCooldown > 0 ? Math.min(levitationCooldown / levitationMaxCooldown, 1.0) : 0;
+      levitateFill.style.width = `${(1 - levitationPercent) * 100}%`;
+      levitateFill.style.opacity = levitationPercent > 0 ? '0.6' : '1.0';
+    }
+
     levitateFill.style.background = characterColor;
   }
 }
