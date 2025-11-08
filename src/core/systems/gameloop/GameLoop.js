@@ -2373,51 +2373,121 @@ export class GameLoop {
       return;
     }
     
-    // Movement is allowed while holding mortar spell (can move and aim)
-    if (canMove) {
-      const currentSpeed = this.inputManager.getCurrentSpeed();
-      const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
-      const nextPos = player.position.clone().add(velocity);
-      const playerSize = this.characterManager.getPlayerSize();
-
-      // Try full movement first
-      if (!this.collisionManager.willCollide(nextPos, playerSize)) {
-        // Full movement works - apply both axes
-        player.position.x = nextPos.x;
-        player.position.z = nextPos.z;
-      } else {
-        // Full movement blocked - try sliding along each axis independently
-        // Try X-axis movement only
-        const nextPosX = new THREE.Vector3(nextPos.x, player.position.y, player.position.z);
-        const canMoveX = !this.collisionManager.willCollide(nextPosX, playerSize);
-        
-        // Try Z-axis movement only
-        const nextPosZ = new THREE.Vector3(player.position.x, player.position.y, nextPos.z);
-        const canMoveZ = !this.collisionManager.willCollide(nextPosZ, playerSize);
-        
-        // Apply movement along whichever axis is free (or both if both are free)
-        if (canMoveX) {
-          player.position.x = nextPos.x;
-        }
-        if (canMoveZ) {
-          player.position.z = nextPos.z;
-        }
-      }
-
-      // Track player movement for learning system
-      if (this.learningManager) {
-        const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
-        this.learningManager.trackPlayerMovement(playerPos, velocity);
+    // Handle player knockback velocity (from melee attacks, blast, etc.)
+    if (player.userData && player.userData.velocityX !== undefined && player.userData.velocityZ !== undefined) {
+      const meleeStats = getMeleeStats(this.characterManager.getCharacterName());
+      const velocityDecay = meleeStats.velocityDecay || 0.85;
+      
+      // Apply velocity decay
+      player.userData.velocityX *= velocityDecay;
+      player.userData.velocityZ *= velocityDecay;
+      
+      // Stop velocity if it's very small
+      if (Math.abs(player.userData.velocityX) < 0.1) player.userData.velocityX = 0;
+      if (Math.abs(player.userData.velocityZ) < 0.1) player.userData.velocityZ = 0;
+      
+      // Clear knockback flag if velocity is too low
+      if (player.userData.isKnockedBack && 
+          (Math.abs(player.userData.velocityX) < 0.1 && Math.abs(player.userData.velocityZ) < 0.1) &&
+          this.characterManager.characterData.isGrounded) {
+        player.userData.isKnockedBack = false;
       }
       
-      // Update character movement and animation
-      // isRunning() already checks mortarHoldActive internally, so we can use it directly
-      const isRunning = this.inputManager.isRunning();
-      this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera(), isRunning);
-      this.characterManager.updateSmokeSpawnTimer(dt);
+      // Apply knockback movement
+      const knockbackMoveX = (player.userData.velocityX || 0) * dt;
+      const knockbackMoveZ = (player.userData.velocityZ || 0) * dt;
+      
+      if (Math.abs(knockbackMoveX) > 0.001 || Math.abs(knockbackMoveZ) > 0.001) {
+        const playerSize = this.characterManager.getPlayerSize();
+        const knockbackPos = new THREE.Vector3(
+          player.position.x + knockbackMoveX,
+          player.position.y,
+          player.position.z + knockbackMoveZ
+        );
+        
+        // Check collision before applying knockback movement
+        if (!this.collisionManager.willCollide(knockbackPos, playerSize)) {
+          player.position.x += knockbackMoveX;
+          player.position.z += knockbackMoveZ;
+        } else {
+          // Try sliding along each axis independently
+          const knockbackPosX = new THREE.Vector3(
+            player.position.x + knockbackMoveX,
+            player.position.y,
+            player.position.z
+          );
+          const knockbackPosZ = new THREE.Vector3(
+            player.position.x,
+            player.position.y,
+            player.position.z + knockbackMoveZ
+          );
+          
+          if (!this.collisionManager.willCollide(knockbackPosX, playerSize)) {
+            player.position.x += knockbackMoveX;
+          }
+          if (!this.collisionManager.willCollide(knockbackPosZ, playerSize)) {
+            player.position.z += knockbackMoveZ;
+          }
+        }
+      }
+    }
+    
+    // Movement is allowed while holding mortar spell (can move and aim)
+    if (canMove) {
+      // Check if player is being knocked back - if so, reduce normal movement
+      const hasKnockback = player.userData && player.userData.isKnockedBack && 
+                          player.userData.velocityX !== undefined && player.userData.velocityZ !== undefined &&
+                          (Math.abs(player.userData.velocityX) > 0.1 || Math.abs(player.userData.velocityZ) > 0.1);
+      
+      if (!hasKnockback) {
+        const currentSpeed = this.inputManager.getCurrentSpeed();
+        const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
+        const nextPos = player.position.clone().add(velocity);
+        const playerSize = this.characterManager.getPlayerSize();
 
-      if (this.characterManager.getCharacterName() === 'herald' && isRunning) {
-        this._applyHeraldRollKnockback(player, velocity);
+        // Try full movement first
+        if (!this.collisionManager.willCollide(nextPos, playerSize)) {
+          // Full movement works - apply both axes
+          player.position.x = nextPos.x;
+          player.position.z = nextPos.z;
+        } else {
+          // Full movement blocked - try sliding along each axis independently
+          // Try X-axis movement only
+          const nextPosX = new THREE.Vector3(nextPos.x, player.position.y, player.position.z);
+          const canMoveX = !this.collisionManager.willCollide(nextPosX, playerSize);
+          
+          // Try Z-axis movement only
+          const nextPosZ = new THREE.Vector3(player.position.x, player.position.y, nextPos.z);
+          const canMoveZ = !this.collisionManager.willCollide(nextPosZ, playerSize);
+          
+          // Apply movement along whichever axis is free (or both if both are free)
+          if (canMoveX) {
+            player.position.x = nextPos.x;
+          }
+          if (canMoveZ) {
+            player.position.z = nextPos.z;
+          }
+        }
+
+        // Track player movement for learning system
+        if (this.learningManager) {
+          const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+          this.learningManager.trackPlayerMovement(playerPos, velocity);
+        }
+        
+        // Update character movement and animation
+        // isRunning() already checks mortarHoldActive internally, so we can use it directly
+        const isRunning = this.inputManager.isRunning();
+        this.characterManager.updateMovement(input, velocity, this.sceneManager.getCamera(), isRunning);
+        this.characterManager.updateSmokeSpawnTimer(dt);
+
+        if (this.characterManager.getCharacterName() === 'herald' && isRunning) {
+          this._applyHeraldRollKnockback(player, velocity);
+        }
+      } else {
+        // Player is being knocked back - still update animation but with reduced/no input
+        const isRunning = this.inputManager.isRunning();
+        this.characterManager.updateMovement(new THREE.Vector2(0, 0), new THREE.Vector3(0, 0, 0), this.sceneManager.getCamera(), isRunning);
       }
     } else {
       // Before game starts, keep character idle
@@ -2952,6 +3022,8 @@ export class GameLoop {
     const poisonTickInterval = meleeStats.poisonTickInterval;
     const poisonDuration = meleeStats.poisonDuration;
     const slowSpeedMultiplier = meleeStats.slowSpeedMultiplier;
+    const horizontalVelocity = meleeStats.horizontalVelocity || 8;
+    const verticalVelocity = meleeStats.verticalVelocity || 2;
     
     // Set cooldown timer
     this.meleeCooldownTimer = cooldown;
@@ -3057,6 +3129,27 @@ export class GameLoop {
               this.damageNumberManager.showDamage(initialDamage, bot.position, 0xff8800);
             }
             
+            // Apply knockback to bot
+            if (!botDied && distanceSq > 0.01) {
+              const distance = Math.sqrt(distanceSq);
+              const dirX = dx / distance;
+              const dirZ = dz / distance;
+              const distanceMultiplier = 1 - distance / radius;
+              
+              // Apply velocity to bot
+              bot.userData.velocityX = dirX * horizontalVelocity * distanceMultiplier;
+              bot.userData.velocityZ = dirZ * horizontalVelocity * distanceMultiplier;
+              bot.userData.velocityY = verticalVelocity;
+              bot.userData.isKnockedBack = true;
+              
+              // Track who pushed this bot (for arena fallout kills)
+              const botId = bot.userData.id || `bot_${bot.uuid}`;
+              this.pushedByTracker.set(botId, {
+                pusherId: 'local',
+                timestamp: performance.now()
+              });
+            }
+            
             if (!botDied) {
               // Track this bot as affected for poison effect
               this.meleeAffectedEntities.add(bot);
@@ -3110,6 +3203,31 @@ export class GameLoop {
             // Show damage number for melee initial hit on remote player
             if (this.damageNumberManager) {
               this.damageNumberManager.showDamage(initialDamage, mesh.position, 0xff8800);
+            }
+            
+            // Apply knockback to remote player
+            if (mesh.userData.health > 0 && distanceSq > 0.01) {
+              const distance = Math.sqrt(distanceSq);
+              const dirX = dx / distance;
+              const dirZ = dz / distance;
+              const distanceMultiplier = 1 - distance / radius;
+              
+              // Apply velocity to remote player
+              remotePlayer.velocityX = dirX * horizontalVelocity * distanceMultiplier;
+              remotePlayer.velocityZ = dirZ * horizontalVelocity * distanceMultiplier;
+              
+              // Initialize characterData if needed
+              if (!mesh.userData.characterData) {
+                mesh.userData.characterData = {};
+              }
+              mesh.userData.characterData.velocityY = verticalVelocity;
+              mesh.userData.characterData.isKnockedBack = true;
+              
+              // Track who pushed this remote player (for arena fallout kills)
+              this.pushedByTracker.set(`remote_${playerId}`, {
+                pusherId: 'local',
+                timestamp: performance.now()
+              });
             }
             
             // Send updated health to server for sync

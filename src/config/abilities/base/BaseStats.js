@@ -71,7 +71,10 @@ export const GLOBAL_BASE_STATS = {
     poisonDamage: 1,         // Base poison damage per tick (damage dealt after animation ends)
     poisonTickInterval: 0.5, // Base seconds between poison damage ticks (2 ticks/second)
     poisonDuration: 3.5,     // Base how long poison lasts in seconds (total poison duration)
-    slowSpeedMultiplier: 0.6 // Base speed multiplier when poisoned (0.6 = 60% speed = 40% slow)
+    slowSpeedMultiplier: 0.6, // Base speed multiplier when poisoned (0.6 = 60% speed = 40% slow)
+    horizontalVelocity: 8,    // Base horizontal knockback velocity (units per second)
+    verticalVelocity: 2,      // Base vertical knockback velocity (units per second)
+    velocityDecay: 0.85      // Base velocity decay per frame (0.85 = 15% reduction per frame)
   }
 };
 

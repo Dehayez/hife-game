@@ -583,6 +583,8 @@ function _useMeleeAbility(bot, userData, playerPosition, meleeStats, context) {
   
   const radius = meleeStats.range || 2.5;
   const initialDamage = meleeStats.initialDamage || meleeStats.damage || 5;
+  const horizontalVelocity = meleeStats.horizontalVelocity || 8;
+  const verticalVelocity = meleeStats.verticalVelocity || 2;
   const botPos = bot.position;
   const radiusSq = radius * radius;
   
@@ -595,6 +597,25 @@ function _useMeleeAbility(bot, userData, playerPosition, meleeStats, context) {
     // Damage player if available
     if (context.characterManager && context.player) {
       context.characterManager.takeDamage(initialDamage);
+      
+      // Apply knockback to player
+      if (distSq > 0.01 && context.player.userData) {
+        const distance = Math.sqrt(distSq);
+        const dirX = dx / distance;
+        const dirZ = dz / distance;
+        const distanceMultiplier = 1 - distance / radius;
+        
+        // Apply velocity to player (store in userData for GameLoop to process)
+        context.player.userData.velocityX = dirX * horizontalVelocity * distanceMultiplier;
+        context.player.userData.velocityZ = dirZ * horizontalVelocity * distanceMultiplier;
+        context.player.userData.isKnockedBack = true;
+        
+        // Apply vertical velocity to characterData (handled by CharacterPhysics)
+        if (context.characterManager && context.characterManager.characterData) {
+          const currentVelocityY = context.characterManager.characterData.velocityY || 0;
+          context.characterManager.characterData.velocityY = Math.max(currentVelocityY, verticalVelocity);
+        }
+      }
     }
     
     // Damage other bots in range
@@ -610,6 +631,19 @@ function _useMeleeAbility(bot, userData, playerPosition, meleeStats, context) {
         
         if (botDistSq <= radiusSq) {
           context.botManager.damageBot(otherBot, initialDamage, userData.id);
+          
+          // Apply knockback to other bot
+          if (botDistSq > 0.01) {
+            const botDistance = Math.sqrt(botDistSq);
+            const botDirX = botDx / botDistance;
+            const botDirZ = botDz / botDistance;
+            const botDistanceMultiplier = 1 - botDistance / radius;
+            
+            otherBot.userData.velocityX = botDirX * horizontalVelocity * botDistanceMultiplier;
+            otherBot.userData.velocityZ = botDirZ * horizontalVelocity * botDistanceMultiplier;
+            otherBot.userData.velocityY = verticalVelocity;
+            otherBot.userData.isKnockedBack = true;
+          }
         }
       }
     }

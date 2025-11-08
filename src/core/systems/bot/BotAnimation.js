@@ -92,7 +92,9 @@ export function updateBotAnimationFromMovement(bot, moveX, moveZ) {
   const userData = bot.userData;
   
   // Update animation based on movement
-  if (Math.abs(moveX) > 0.01 || Math.abs(moveZ) > 0.01) {
+  // Use a lower threshold to detect slow movements (e.g., when poisoned or moving tactically)
+  const movementThreshold = 0.001;
+  if (Math.abs(moveX) > movementThreshold || Math.abs(moveZ) > movementThreshold) {
     userData.lastFacing = moveZ < 0 ? 'back' : 'front';
     const animKey = userData.lastFacing === 'back' ? 'walk_back' : 'walk_front';
     setBotAnimation(bot, animKey);
