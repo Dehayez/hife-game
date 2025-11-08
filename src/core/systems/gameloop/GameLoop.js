@@ -13,6 +13,7 @@ import { checkSplashAreaCollision } from '../abilities/functions/mortar/SplashAr
 import { VibrationManager } from '../../../utils/VibrationManager.js';
 import { getHealingVibrationInterval } from '../../../config/global/VibrationConfig.js';
 import { getVibrationIntensity } from '../../../utils/StorageUtils.js';
+import { getRespawnStats } from '../../../config/collision/CollisionStats.js';
 
 export class GameLoop {
   /**
@@ -103,6 +104,7 @@ export class GameLoop {
     this.meleeSlowSpeedMultiplier = null; // Speed multiplier when poisoned (set during attack)
     this.poisonedEntities = new Map(); // Track poisoned entities: Map<entity, {timeLeft, tickTimer, damage, tickInterval, speedMultiplier}>
     this.heraldRollKnockCooldowns = new Map(); // Track last knockback time per entity during Herald roll
+    this.pushedByTracker = new Map(); // Track who pushed each entity: Map<entityId, {pusherId, timestamp}>
     
     // Callback to update character UI when character changes via controller
     this.characterUIUpdateCallback = null;
@@ -526,6 +528,9 @@ export class GameLoop {
     );
     
     if (shouldRespawn) {
+      // Check if player was pushed out by someone (blast or roll ability)
+      this._handleArenaFalloutKill('local');
+      
       // Reset overlay immediately before respawning
       this.collisionManager.resetRespawn();
       const currentMode = this.gameModeManager ? this.gameModeManager.getMode() : null;
@@ -538,6 +543,9 @@ export class GameLoop {
       }
       
       this.characterManager.respawn(currentMode, this.collisionManager);
+      
+      // Clear push tracking for local player
+      this.pushedByTracker.delete('local');
       
       // Vibration for respawn
       if (this.vibrationManager) {
@@ -578,6 +586,9 @@ export class GameLoop {
       }
       
       this.characterManager.respawn(currentMode, this.collisionManager);
+      
+      // Clear push tracking for local player
+      this.pushedByTracker.delete('local');
       
       // Update userData after respawn
       const player = this.characterManager.getPlayer();
@@ -1124,8 +1135,22 @@ export class GameLoop {
     
     // Update bots (only in shooting mode)
     if (mode === 'shooting' && this.botManager) {
+      // Check for bots falling out before updating
+      const bots = this.botManager.getAllBots();
+      const respawnStats = getRespawnStats();
+      
+      for (const bot of bots) {
+        if (bot && bot.userData && bot.position.y < respawnStats.fallThreshold) {
+          const botId = bot.userData.id || `bot_${bot.uuid}`;
+          this._handleArenaFalloutKill(`bot_${botId}`);
+        }
+      }
+      
       this.botManager.update(dt, player.position, this.sceneManager.getCamera());
     }
+    
+    // Clean up stale push tracking entries periodically
+    this._cleanupPushTracking(10000);
     
     // Update health bars (only in shooting mode)
     if (mode === 'shooting' && this.healthBarManager) {
@@ -2558,6 +2583,12 @@ export class GameLoop {
             bot.userData.velocityY = Math.max(currentVelocityY, verticalVelocity);
           }
           bot.userData.isKnockedBack = true;
+          
+          // Track who pushed this bot (for arena fallout kills)
+          this.pushedByTracker.set(key, {
+            pusherId: 'local',
+            timestamp: performance.now()
+          });
         });
       }
     }
@@ -2594,6 +2625,12 @@ export class GameLoop {
             mesh.userData.characterData.velocityY = Math.max(currentVelocityY, verticalVelocity);
           }
           mesh.userData.characterData.isKnockedBack = true;
+          
+          // Track who pushed this remote player (for arena fallout kills)
+          this.pushedByTracker.set(key, {
+            pusherId: 'local',
+            timestamp: performance.now()
+          });
         });
       }
     }
@@ -2605,6 +2642,70 @@ export class GameLoop {
       const soundManager = this.characterManager.getSoundManager();
       if (soundManager && typeof soundManager.playMeleeHit === 'function') {
         soundManager.playMeleeHit();
+      }
+    }
+  }
+
+  /**
+   * Handle arena fallout kill - award kill to pusher when entity falls out
+   * @param {string} entityId - Entity ID ('local', 'bot_<id>', or 'remote_<id>')
+   * @private
+   */
+  _handleArenaFalloutKill(entityId) {
+    if (!this.pushedByTracker || !entityId) return;
+    
+    const pushInfo = this.pushedByTracker.get(entityId);
+    if (!pushInfo) return;
+    
+    const now = performance.now();
+    const timeSincePush = now - pushInfo.timestamp;
+    const maxTimeWindow = 5000; // 5 seconds - if they fall out within this time, count as kill
+    
+    // Only count as kill if they fell out within reasonable time after being pushed
+    if (timeSincePush <= maxTimeWindow && pushInfo.pusherId === 'local') {
+      // Award kill to local player
+      if (this.gameModeManager && this.gameModeManager.modeState) {
+        this.gameModeManager.modeState.kills++;
+      }
+      
+      // Trigger kill streak feedback
+      if (this.killStreakManager) {
+        const currentTime = performance.now() / 1000;
+        this.killStreakManager.registerKill(currentTime);
+      }
+      
+      // Update bot kills if entity is a bot
+      if (entityId.startsWith('bot_')) {
+        const botId = entityId.replace('bot_', '');
+        if (this.botManager) {
+          const bots = this.botManager.getAllBots();
+          for (const bot of bots) {
+            if (bot.userData && (bot.userData.id === botId || `bot_${bot.uuid}` === entityId)) {
+              // Find the bot that killed this bot (if any)
+              // For now, just track that local player got the kill
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Clean up tracking entry
+    this.pushedByTracker.delete(entityId);
+  }
+
+  /**
+   * Clean up stale push tracking entries
+   * @param {number} maxAge - Maximum age in milliseconds
+   * @private
+   */
+  _cleanupPushTracking(maxAge = 10000) {
+    if (!this.pushedByTracker) return;
+    
+    const now = performance.now();
+    for (const [entityId, pushInfo] of this.pushedByTracker) {
+      if (!pushInfo || now - pushInfo.timestamp > maxAge) {
+        this.pushedByTracker.delete(entityId);
       }
     }
   }
@@ -3127,6 +3228,13 @@ export class GameLoop {
           
           // Mark as knocked back for bounce physics
           bot.userData.isKnockedBack = true;
+          
+          // Track who pushed this bot (for arena fallout kills)
+          const botId = bot.userData.id || `bot_${bot.uuid}`;
+          this.pushedByTracker.set(botId, {
+            pusherId: 'local',
+            timestamp: performance.now()
+          });
         }
       }
     }
@@ -3165,6 +3273,12 @@ export class GameLoop {
             mesh.userData.characterData.velocityY = verticalVelocity;
             mesh.userData.characterData.isKnockedBack = true; // Mark as knocked back for bounce physics
           }
+          
+          // Track who pushed this remote player (for arena fallout kills)
+          this.pushedByTracker.set(`remote_${playerId}`, {
+            pusherId: 'local',
+            timestamp: performance.now()
+          });
         }
       }
     }
