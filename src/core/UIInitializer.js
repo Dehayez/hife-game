@@ -279,55 +279,72 @@ export function initializeUI(managers, config) {
     characterManager: characterManager
   });
   
+  // Declare gameModeSwitcher variable so it can be captured in closure
+  let gameModeSwitcher;
+  
+  // Helper function to switch game mode and handle all side effects
+  const switchGameMode = (mode, updateUI = true) => {
+    if (gameModeManager.getMode() === mode) {
+      return; // Already in this mode
+    }
+    
+    gameModeManager.setMode(mode);
+    setLastGameMode(mode);
+    
+    // Update UI switcher if requested
+    if (updateUI && gameModeSwitcher) {
+      gameModeSwitcher.setValue(mode);
+    }
+    
+    if (controlsLegend) {
+      controlsLegend.update();
+    }
+    
+    if (mode !== 'shooting' && projectileManager) {
+      projectileManager.clearAll();
+    }
+    
+    if (mode !== 'shooting' && multiplayerManager.isInRoom()) {
+      multiplayerManager.leaveRoom();
+      
+      const url = new URL(window.location);
+      url.searchParams.delete('room');
+      window.history.pushState({}, '', url);
+    }
+    
+    // Cooldown indicator is now shown in all game modes
+    
+    if (mode === 'shooting') {
+      if (healthBarManager && characterManager.getPlayer()) {
+        const player = characterManager.getPlayer();
+        const existingBar = healthBarManager.healthBars.get(player);
+        if (!existingBar) {
+          player.userData.health = characterManager.getHealth();
+          player.userData.maxHealth = characterManager.getMaxHealth();
+          healthBarManager.createHealthBar(player, true);
+        }
+      }
+      
+      updateMenuForMode(mode, gameMenu);
+    } else {
+      if (botManager) {
+        botManager.clearAll();
+      }
+      if (healthBarManager) {
+        healthBarManager.clearAll();
+      }
+      
+      updateMenuForMode(mode, gameMenu);
+    }
+  };
+  
   // Initialize game mode switcher
-  initGameModeSwitcher({
+  gameModeSwitcher = initGameModeSwitcher({
     mount: gameModeMount,
     options: gameModeManager.getAllModes(),
     value: gameMode,
     onChange: (mode) => {
-      gameModeManager.setMode(mode);
-      setLastGameMode(mode);
-      
-      if (controlsLegend) {
-        controlsLegend.update();
-      }
-      
-      if (mode !== 'shooting' && projectileManager) {
-        projectileManager.clearAll();
-      }
-      
-      if (mode !== 'shooting' && multiplayerManager.isInRoom()) {
-        multiplayerManager.leaveRoom();
-        
-        const url = new URL(window.location);
-        url.searchParams.delete('room');
-        window.history.pushState({}, '', url);
-      }
-      
-      // Cooldown indicator is now shown in all game modes
-      
-      if (mode === 'shooting') {
-        if (healthBarManager && characterManager.getPlayer()) {
-          const player = characterManager.getPlayer();
-          const existingBar = healthBarManager.healthBars.get(player);
-          if (!existingBar) {
-            player.userData.health = characterManager.getHealth();
-            player.userData.maxHealth = characterManager.getMaxHealth();
-            healthBarManager.createHealthBar(player, true);
-          }
-        }
-        
-        updateMenuForMode(mode, gameMenu);
-      } else {
-        if (botManager) {
-          botManager.clearAll();
-        }
-        if (healthBarManager) {
-          healthBarManager.clearAll();
-        }
-        
-        updateMenuForMode(mode, gameMenu);
-      }
+      switchGameMode(mode, false); // Don't update UI switcher since onChange already handles it
     },
     gameModeManager: gameModeManager
   });
@@ -410,7 +427,9 @@ export function initializeUI(managers, config) {
     healthBarManager: healthBarManager,
     arenaManager: arenaManager,
     sceneManager: sceneManager,
-    inputManager: inputManager
+    inputManager: inputManager,
+    gameModeManager: gameModeManager,
+    switchGameMode: switchGameMode
   });
   
   // Initialize learning feedback

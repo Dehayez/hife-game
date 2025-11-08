@@ -2,7 +2,7 @@ import { getMaxBots, spawnBot, updateBotCount, saveBotCount, restoreSavedBots as
 import { getAvailableDifficulties, BOT_DIFFICULTY } from '../../../config/bot/BotDifficultyConfig.js';
 import { getLastBotDifficulty, setLastBotDifficulty } from '../../../utils/StorageUtils.js';
 
-export function initBotControl({ mount, botManager, healthBarManager, arenaManager, sceneManager, learningManager, inputManager }) {
+export function initBotControl({ mount, botManager, healthBarManager, arenaManager, sceneManager, learningManager, inputManager, gameModeManager, switchGameMode }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'ui__bot-control';
 
@@ -173,6 +173,11 @@ export function initBotControl({ mount, botManager, healthBarManager, arenaManag
   async function handleAddBot() {
     if (!botManager) return;
 
+    // Switch to shooting mode (Mystic Battle) when adding bots
+    if (switchGameMode && gameModeManager && gameModeManager.getMode() !== 'shooting') {
+      switchGameMode('shooting', true);
+    }
+
     const currentCount = botManager.getBots().length;
     const maxBots = getMaxBots(arenaManager);
 
@@ -192,6 +197,11 @@ export function initBotControl({ mount, botManager, healthBarManager, arenaManag
 
   function handleRemoveBot() {
     if (!botManager) return;
+
+    // Switch to shooting mode (Mystic Battle) when removing bots
+    if (switchGameMode && gameModeManager && gameModeManager.getMode() !== 'shooting') {
+      switchGameMode('shooting', true);
+    }
 
     const bots = botManager.getAllBots();
     if (bots.length > 0) {
