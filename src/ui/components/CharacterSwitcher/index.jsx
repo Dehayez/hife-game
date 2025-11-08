@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getCharacterColorValues } from '../../../config/abilities/CharacterColors.js';
 import { toTitleCase } from './functions.js';
 
-export function CharacterSwitcher({ options, value, onChange }) {
+export const CharacterSwitcher = React.memo(function CharacterSwitcher({ options, value, onChange }) {
   const [selectedValue, setSelectedValue] = useState(value);
 
   useEffect(() => {
     setSelectedValue(value);
   }, [value]);
 
-  const handleSelect = (name) => {
+  const handleSelect = useCallback((name) => {
     setSelectedValue(name);
     onChange(name);
-  };
+  }, [onChange]);
 
   // Memoize character options to prevent unnecessary re-renders
   const characterButtons = useMemo(() => {
@@ -51,12 +51,12 @@ export function CharacterSwitcher({ options, value, onChange }) {
         </button>
       );
     });
-  }, [options, selectedValue]);
+  }, [options, selectedValue, handleSelect]);
 
   return (
     <div className="ui__choices">
       {characterButtons}
     </div>
   );
-}
+});
 

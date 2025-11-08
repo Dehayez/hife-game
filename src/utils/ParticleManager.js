@@ -26,6 +26,12 @@ export class ParticleManager {
     
     const stats = getRunningSmokeConfig();
     this.maxParticles = stats.maxParticles;
+    
+    // Reusable Vector3 objects to reduce allocations
+    this._tempVec3 = new THREE.Vector3();
+    this._tempVec3_2 = new THREE.Vector3();
+    this._tempVec3_3 = new THREE.Vector3();
+    this._tempVec3_4 = new THREE.Vector3();
   }
 
   /**
@@ -46,9 +52,11 @@ export class ParticleManager {
     if (!position) return;
     
     const interval = duration / particleCount;
+    // Reuse Vector3 to reduce allocations
+    const pos = new THREE.Vector3();
     for (let i = 0; i < particleCount; i++) {
       setTimeout(() => {
-        const pos = new THREE.Vector3(
+        pos.set(
           position.x + (Math.random() - 0.5) * 0.5,
           position.y,
           position.z + (Math.random() - 0.5) * 0.5
@@ -175,8 +183,10 @@ export class ParticleManager {
       }
       // Update position (skip velocity for sword swing particles - they follow character instead)
       else if (!data.followCharacter) {
-        // Calculate next position
-        const nextPos = particle.position.clone().add(data.velocity.clone().multiplyScalar(dt));
+        // Calculate next position using reusable Vector3
+        this._tempVec3.copy(data.velocity).multiplyScalar(dt);
+        this._tempVec3.add(particle.position);
+        const nextPos = this._tempVec3;
         
         // Check collision for impact particles (particles that should bounce)
         if (data.isImpactParticle && this.collisionManager) {
@@ -192,23 +202,23 @@ export class ParticleManager {
             // Simple reflection: reflect velocity vector based on collision direction
             // We'll reflect based on which axis has the collision
             
-            // Try to determine collision normal by checking each axis separately
-            const currentPos = particle.position.clone();
-            currentPos.y = groundY;
+            // Try to determine collision normal by checking each axis separately using reusable vectors
+            this._tempVec3_2.copy(particle.position);
+            this._tempVec3_2.y = groundY;
             
-            const testX = new THREE.Vector3(nextPos.x, groundY, currentPos.z);
-            const testZ = new THREE.Vector3(currentPos.x, groundY, nextPos.z);
+            this._tempVec3_3.set(nextPos.x, groundY, this._tempVec3_2.z);
+            this._tempVec3_4.set(this._tempVec3_2.x, groundY, nextPos.z);
             
             let reflectionApplied = false;
             
             // Check X-axis collision
-            if (this.collisionManager.willCollide(testX, particleSize)) {
+            if (this.collisionManager.willCollide(this._tempVec3_3, particleSize)) {
               data.velocity.x *= -0.5; // Reflect X velocity with damping
               reflectionApplied = true;
             }
             
             // Check Z-axis collision
-            if (this.collisionManager.willCollide(testZ, particleSize)) {
+            if (this.collisionManager.willCollide(this._tempVec3_4, particleSize)) {
               data.velocity.z *= -0.5; // Reflect Z velocity with damping
               reflectionApplied = true;
             }
@@ -222,14 +232,16 @@ export class ParticleManager {
           }
         }
         
-        // Move particle if no collision
-        particle.position.add(data.velocity.clone().multiplyScalar(dt));
+        // Move particle if no collision using reusable vector
+        this._tempVec3.copy(data.velocity).multiplyScalar(dt);
+        particle.position.add(this._tempVec3);
         
         // Slow down over time (drag effect)
         data.velocity.multiplyScalar(stats.dragFactor);
       } else {
         // For sword swing particles, apply velocity but they'll also follow character
-        particle.position.add(data.velocity.clone().multiplyScalar(dt));
+        this._tempVec3.copy(data.velocity).multiplyScalar(dt);
+        particle.position.add(this._tempVec3);
         
         // Slow down over time (drag effect) - less drag for sword swing
         data.velocity.multiplyScalar(0.95); // Slower drag for sword swing
@@ -258,12 +270,12 @@ export class ParticleManager {
   billboardToCamera(camera) {
     if (!camera || this.smokeParticles.length === 0) return;
     
-    const cameraWorldPos = new THREE.Vector3();
-    camera.getWorldPosition(cameraWorldPos);
+    // Reuse Vector3 to reduce allocations
+    camera.getWorldPosition(this._tempVec3);
     
     for (const particle of this.smokeParticles) {
       // Make particle face camera by looking at camera position
-      particle.lookAt(cameraWorldPos);
+      particle.lookAt(this._tempVec3);
     }
   }
 
@@ -426,10 +438,11 @@ export class ParticleManager {
   updateFollowingParticles(characterPosition, lastCharacterPosition) {
     if (!lastCharacterPosition) return;
     
-    // Calculate character movement delta
-    const deltaX = characterPosition.x - lastCharacterPosition.x;
-    const deltaY = characterPosition.y - lastCharacterPosition.y;
-    const deltaZ = characterPosition.z - lastCharacterPosition.z;
+    // Calculate character movement delta using reusable vector
+    this._tempVec3.subVectors(characterPosition, lastCharacterPosition);
+    const deltaX = this._tempVec3.x;
+    const deltaY = this._tempVec3.y;
+    const deltaZ = this._tempVec3.z;
     
     // Update all particles that follow character (smoke and sword swing particles)
     for (const particle of this.smokeParticles) {
@@ -441,7 +454,7 @@ export class ParticleManager {
         
         // Update stored base position if available
         if (particle.userData.basePosition) {
-          particle.userData.basePosition.add(new THREE.Vector3(deltaX, deltaY, deltaZ));
+          particle.userData.basePosition.add(this._tempVec3);
         }
       }
     }
