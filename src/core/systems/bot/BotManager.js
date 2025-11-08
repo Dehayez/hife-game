@@ -13,7 +13,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getBotHealthStats, getBotMovementStats, BOT_STATS } from '../../../config/bot/BotStats.js';
-import { initializeBotAI, updateDirectionChangeTimer, calculateBotMovement, updateBotShooting } from './BotAI.js';
+import { initializeBotAI, updateDirectionChangeTimer, calculateBotMovement, updateBotAbilities } from './BotAI.js';
 import { loadBotAnimations, setBotAnimation, updateBotAnimation, updateBotAnimationFromMovement, billboardBotToCamera } from './BotAnimation.js';
 import { initializeBotPhysics, updateBotPhysics } from './BotPhysics.js';
 import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.js';
@@ -266,8 +266,9 @@ export class BotManager {
       // Billboard to camera
       billboardBotToCamera(bot, camera);
 
-      // Update shooting with learning manager
-      updateBotShooting(bot, userData, playerPosition, this.projectileManager, dt, this.learningManager);
+      // Update abilities (shooting, mortar, melee) with learning manager
+      // Note: gameLoop is passed for melee attacks, but melee might need special handling
+      updateBotAbilities(bot, userData, playerPosition, this.projectileManager, dt, this.learningManager, null);
     }
   }
 

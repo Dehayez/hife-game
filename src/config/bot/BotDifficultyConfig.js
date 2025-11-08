@@ -36,7 +36,15 @@ export const DIFFICULTY_CONFIG = {
     movementIntelligence: 0.2,    // Basic movement
     patternRetention: 1,          // Forget quickly
     shootIntervalMultiplier: 1.5, // Slower shooting
-    followDistanceMultiplier: 0.8 // Shorter follow distance
+    followDistanceMultiplier: 0.8, // Shorter follow distance
+    burstPauseMin: 3.0,          // Minimum pause between bursts (seconds)
+    burstPauseMax: 6.0,          // Maximum pause between bursts (seconds)
+    idleChance: 0.4,             // Chance to enter idle state (40%)
+    idleDurationMin: 1.5,        // Minimum idle duration (seconds)
+    idleDurationMax: 3.5,        // Maximum idle duration (seconds)
+    movementPauseChance: 0.3,     // Chance to pause movement (30%)
+    movementPauseMin: 0.8,       // Minimum movement pause (seconds)
+    movementPauseMax: 2.0        // Maximum movement pause (seconds)
   },
   [BOT_DIFFICULTY.BEGINNER]: {
     name: 'Beginner',
@@ -47,7 +55,15 @@ export const DIFFICULTY_CONFIG = {
     movementIntelligence: 0.4,    // Some movement intelligence
     patternRetention: 2,          // Remember for 2 sessions
     shootIntervalMultiplier: 1.2, // Slightly slower shooting
-    followDistanceMultiplier: 0.9 // Slightly shorter follow distance
+    followDistanceMultiplier: 0.9, // Slightly shorter follow distance
+    burstPauseMin: 2.0,          // Minimum pause between bursts (seconds)
+    burstPauseMax: 4.5,          // Maximum pause between bursts (seconds)
+    idleChance: 0.3,             // Chance to enter idle state (30%)
+    idleDurationMin: 1.0,        // Minimum idle duration (seconds)
+    idleDurationMax: 2.5,        // Maximum idle duration (seconds)
+    movementPauseChance: 0.25,    // Chance to pause movement (25%)
+    movementPauseMin: 0.6,       // Minimum movement pause (seconds)
+    movementPauseMax: 1.8        // Maximum movement pause (seconds)
   },
   [BOT_DIFFICULTY.MIDWAY]: {
     name: 'Midway',
@@ -58,7 +74,15 @@ export const DIFFICULTY_CONFIG = {
     movementIntelligence: 0.7,    // Good movement intelligence
     patternRetention: 5,          // Remember for 5 sessions
     shootIntervalMultiplier: 1.0, // Normal shooting
-    followDistanceMultiplier: 1.0  // Normal follow distance
+    followDistanceMultiplier: 1.0, // Normal follow distance
+    burstPauseMin: 1.5,          // Minimum pause between bursts (seconds)
+    burstPauseMax: 3.0,          // Maximum pause between bursts (seconds)
+    idleChance: 0.2,             // Chance to enter idle state (20%)
+    idleDurationMin: 0.8,        // Minimum idle duration (seconds)
+    idleDurationMax: 2.0,        // Maximum idle duration (seconds)
+    movementPauseChance: 0.15,    // Chance to pause movement (15%)
+    movementPauseMin: 0.4,       // Minimum movement pause (seconds)
+    movementPauseMax: 1.2        // Maximum movement pause (seconds)
   },
   [BOT_DIFFICULTY.VETERAN]: {
     name: 'Veteran',
@@ -69,7 +93,15 @@ export const DIFFICULTY_CONFIG = {
     movementIntelligence: 0.9,    // Excellent movement intelligence
     patternRetention: 10,         // Remember for 10 sessions
     shootIntervalMultiplier: 0.8, // Faster shooting
-    followDistanceMultiplier: 1.2 // Longer follow distance
+    followDistanceMultiplier: 1.2, // Longer follow distance
+    burstPauseMin: 1.0,          // Minimum pause between bursts (seconds)
+    burstPauseMax: 2.5,          // Maximum pause between bursts (seconds)
+    idleChance: 0.1,             // Chance to enter idle state (10%)
+    idleDurationMin: 0.5,        // Minimum idle duration (seconds)
+    idleDurationMax: 1.5,        // Maximum idle duration (seconds)
+    movementPauseChance: 0.1,     // Chance to pause movement (10%)
+    movementPauseMin: 0.3,       // Minimum movement pause (seconds)
+    movementPauseMax: 1.0        // Maximum movement pause (seconds)
   }
 };
 
