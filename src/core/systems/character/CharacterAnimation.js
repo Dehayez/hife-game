@@ -91,7 +91,7 @@ export async function loadCharacterAnimations(characterName, onProgress = null) 
  * @returns {string} New animation key
  */
 export function setCharacterAnimation(player, key, animations, currentAnimKey, force = false, onComplete = null) {
-  if (!animations) return currentAnimKey;
+  if (!animations || !player || !player.material) return currentAnimKey;
   if (!force && currentAnimKey === key) return currentAnimKey;
   
   const anim = animations[key];
@@ -103,17 +103,47 @@ export function setCharacterAnimation(player, key, animations, currentAnimKey, f
   anim.onComplete = onComplete; // Store callback for one-shot animations
   
   const spriteMat = player.material;
-  const texture = anim.mode === 'frames' ? anim.textures[0] : anim.texture;
-  spriteMat.map = texture;
+  const texture = anim.mode === 'frames' ? (anim.textures && anim.textures[0]) : anim.texture;
   
-  if (anim.mode === 'sheet') {
-    anim.texture.offset.x = 0;
-  }
-  spriteMat.needsUpdate = true;
-  
-  // Force immediate texture update
+  // Ensure texture exists and is ready before setting
   if (texture) {
+    // Check if texture image is loaded
+    const isTextureReady = texture.image && 
+                           texture.image.complete && 
+                           texture.image.naturalWidth > 0;
+    
+    // Set texture even if not fully loaded (it will display when ready)
+    spriteMat.map = texture;
+    
+    if (anim.mode === 'sheet' && anim.texture) {
+      anim.texture.offset.x = 0;
+      anim.texture.needsUpdate = true;
+    }
+    
+    // Ensure material properties are set correctly
+    spriteMat.transparent = true;
+    spriteMat.alphaTest = 0.1;
+    
+    // Force immediate updates
+    spriteMat.needsUpdate = true;
     texture.needsUpdate = true;
+    
+    // If texture isn't ready yet, wait for it to load
+    if (!isTextureReady && texture.image) {
+      const onImageLoad = () => {
+        texture.needsUpdate = true;
+        spriteMat.needsUpdate = true;
+      };
+      
+      // Add load listener if image exists but isn't complete
+      if (texture.image.addEventListener) {
+        texture.image.addEventListener('load', onImageLoad, { once: true });
+        texture.image.addEventListener('error', onImageLoad, { once: true });
+      }
+    }
+    
+    // Note: Don't force visibility here - let the caller control visibility
+    // (e.g., Herald sprite should be hidden when sprinting)
   }
   
   return key;
@@ -214,12 +244,16 @@ export function updateCharacterAnimation(
     if (anim.mode === 'sheet') {
       const u = anim.frameIndex / anim.frameCount;
       anim.texture.offset.x = u;
+      anim.texture.needsUpdate = true;
     } else if (anim.mode === 'frames') {
       const nextTex = anim.textures[anim.frameIndex];
       const spriteMat = player.material;
       if (spriteMat.map !== nextTex) {
         spriteMat.map = nextTex;
         spriteMat.needsUpdate = true;
+        if (nextTex) {
+          nextTex.needsUpdate = true;
+        }
       }
     }
   }
@@ -241,6 +275,7 @@ export function updateCharacterAnimation(
  * @param {Object} particleManager - Particle manager for smoke effects
  * @param {number} smokeSpawnTimer - Current smoke spawn timer
  * @param {boolean} isRunning - Whether character is running
+ * @param {string} characterName - Character name ('lucy' or 'herald')
  * @returns {Object} Updated state with currentAnimKey, lastFacing, smokeSpawnTimer, shouldPlayFootstep
  */
 export function updateCharacterMovement(
@@ -257,7 +292,8 @@ export function updateCharacterMovement(
   soundManager,
   particleManager,
   smokeSpawnTimer,
-  isRunning = false
+  isRunning = false,
+  characterName = 'lucy'
 ) {
   // Billboard the sprite to camera around Y only
   const camYaw = camera.rotation.y;
@@ -304,18 +340,32 @@ export function updateCharacterMovement(
         currentAnimKey
       );
     } else {
-      // Use walk animation when grounded and moving
-      const newAnimKey = newLastFacing === 'back' ? 'walk_back' : 'walk_front';
-      newCurrentAnimKey = setCharacterAnimation(player, newAnimKey, animations, currentAnimKey);
+      // For Herald when sprinting, use idle animation instead of walk (sprite is hidden, ball is shown)
+      // For other characters or when not sprinting, use walk animation
+      const shouldUseWalkAnimation = !(characterName === 'herald' && isRunning);
       
-      // Play footstep sound immediately when starting to move
-      const nowWalking = newCurrentAnimKey === 'walk_front' || newCurrentAnimKey === 'walk_back';
-      if (wasIdle && nowWalking && isGrounded) {
-        const isObstacle = !isOnBaseGround();
-        shouldPlayFootstep = true;
-        if (soundManager) {
-          soundManager.playFootstep(isObstacle);
+      if (shouldUseWalkAnimation) {
+        // Use walk animation when grounded and moving
+        const newAnimKey = newLastFacing === 'back' ? 'walk_back' : 'walk_front';
+        newCurrentAnimKey = setCharacterAnimation(player, newAnimKey, animations, currentAnimKey);
+        
+        // Play footstep sound immediately when starting to move
+        const nowWalking = newCurrentAnimKey === 'walk_front' || newCurrentAnimKey === 'walk_back';
+        if (wasIdle && nowWalking && isGrounded) {
+          const isObstacle = !isOnBaseGround();
+          shouldPlayFootstep = true;
+          if (soundManager) {
+            soundManager.playFootstep(isObstacle);
+          }
         }
+      } else {
+        // Herald sprinting: use idle animation (sprite hidden, ball visible)
+        newCurrentAnimKey = setCharacterAnimation(
+          player,
+          newLastFacing === 'back' ? 'idle_back' : 'idle_front',
+          animations,
+          currentAnimKey
+        );
       }
       
       // Spawn smoke particles when running and grounded

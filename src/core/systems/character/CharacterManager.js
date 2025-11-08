@@ -224,6 +224,12 @@ export class CharacterManager {
     );
     
     this.currentAnimKey = newKey;
+    
+    // Force texture update to ensure it displays
+    if (this.player.material && this.player.material.map) {
+      this.player.material.map.needsUpdate = true;
+      this.player.material.needsUpdate = true;
+    }
   }
 
   /**
@@ -233,6 +239,15 @@ export class CharacterManager {
    */
   updateAnimation(dt, isRunning = false) {
     if (!this.animations || !this.player) return;
+    
+    // Don't update walk animations when Herald is sprinting (sprite is hidden, ball is shown)
+    const isHeraldSprinting = this.characterName === 'herald' && isRunning && !this.isPlayingSpecialAnimation();
+    const isWalkAnim = this.currentAnimKey === 'walk_front' || this.currentAnimKey === 'walk_back';
+    
+    if (isHeraldSprinting && isWalkAnim) {
+      // Don't update walk animation frames when sprinting - sprite is hidden anyway
+      return;
+    }
     
     updateCharacterAnimation(
       this.player,
@@ -256,6 +271,15 @@ export class CharacterManager {
   updateMovement(input, velocity, camera, isRunning = false) {
     if (!this.player) return;
     
+    // For Herald sprinting, hide sprite immediately before updating animations
+    const isHeraldSprinting = this.characterName === 'herald' && isRunning && !this.isPlayingSpecialAnimation();
+    if (isHeraldSprinting && this.player.visible) {
+      this.player.visible = false;
+      if (this.rollMesh) {
+        this.rollMesh.visible = true;
+      }
+    }
+    
     const soundManager = this._shouldMuteFootsteps(isRunning) ? null : this.soundManager;
     
     const movementResult = updateCharacterMovement(
@@ -272,7 +296,8 @@ export class CharacterManager {
       soundManager,
       this.particleManager,
       this.smokeSpawnTimer,
-      isRunning
+      isRunning,
+      this.characterName
     );
     
     this.currentAnimKey = movementResult.currentAnimKey;
@@ -425,14 +450,37 @@ export class CharacterManager {
       this.player.userData.maxHealth = this.characterData.maxHealth;
     }
     
+    // Ensure player is visible
+    this.player.visible = true;
+    
     // Reset opacity and scale
     if (this.player.material) {
       this.player.material.opacity = 1.0;
+      this.player.material.transparent = true;
+      
+      // Ensure material has proper properties
+      this.player.material.needsUpdate = true;
     }
     this.player.scale.set(1, 1, 1);
     
-    // Play spawn animation
+    // Reset animation state to ensure proper texture loading
+    if (this.animations) {
+      // Ensure we have a valid current animation key, fallback to idle_front if needed
+      if (!this.currentAnimKey || !this.animations[this.currentAnimKey]) {
+        this.currentAnimKey = 'idle_front';
+      }
+    }
+    
+    // Play spawn animation (this will ensure texture is set properly)
+    // This must be called after all other setup to ensure texture is loaded
     this.playSpawnAnimation();
+    
+    // Force texture update after spawn animation is set
+    // This ensures the texture is displayed even if it was cached
+    if (this.player.material && this.player.material.map) {
+      this.player.material.map.needsUpdate = true;
+      this.player.material.needsUpdate = true;
+    }
   }
 
   /**
@@ -616,7 +664,13 @@ export class CharacterManager {
    * Play spawn animation
    */
   playSpawnAnimation() {
-    if (!this.animations || !this.player) return;
+    if (!this.animations || !this.player) {
+      // If animations aren't loaded yet, ensure we at least have a material
+      if (this.player && this.player.material) {
+        this.player.material.needsUpdate = true;
+      }
+      return;
+    }
     
     const animKey = this.lastFacing === 'back' ? 'spawn_back' : 'spawn_front';
     const idleKey = this.lastFacing === 'back' ? 'idle_back' : 'idle_front';
@@ -630,6 +684,12 @@ export class CharacterManager {
       // Spawn animation doesn't exist, just set to idle immediately
       this.currentAnimKey = idleKey;
       this.setCurrentAnim(this.currentAnimKey, true);
+      
+      // Force texture update to ensure it displays
+      if (this.player.material && this.player.material.map) {
+        this.player.material.map.needsUpdate = true;
+        this.player.material.needsUpdate = true;
+      }
       return;
     }
     
@@ -643,10 +703,22 @@ export class CharacterManager {
         // When spawn animation completes, return to idle
         this.currentAnimKey = idleKey;
         this.setCurrentAnim(this.currentAnimKey, true);
+        
+        // Force texture update after animation completes
+        if (this.player.material && this.player.material.map) {
+          this.player.material.map.needsUpdate = true;
+          this.player.material.needsUpdate = true;
+        }
       }
     );
     
     this.currentAnimKey = newKey;
+    
+    // Force texture update immediately after setting spawn animation
+    if (this.player.material && this.player.material.map) {
+      this.player.material.map.needsUpdate = true;
+      this.player.material.needsUpdate = true;
+    }
   }
 
   /**
@@ -750,12 +822,21 @@ export class CharacterManager {
       return;
     }
     
+    // Ensure sprite is hidden and ball is visible when rolling
     if (!this._isRollVisible) {
       this._updateRollMeshAppearance();
       this.player.visible = false;
       this.rollMesh.visible = true;
       this.rollMesh.quaternion.identity();
       this._isRollVisible = true;
+    } else {
+      // Keep sprite hidden throughout sprint (in case something else tries to show it)
+      if (this.player.visible) {
+        this.player.visible = false;
+      }
+      if (!this.rollMesh.visible) {
+        this.rollMesh.visible = true;
+      }
     }
     
     const baseGroundY = this.player.position.y - this.playerHeight * 0.5;
