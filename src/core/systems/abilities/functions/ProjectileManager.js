@@ -117,143 +117,83 @@ export class ProjectileManager {
    */
   createProjectile(startX, startY, startZ, directionX, directionZ, playerId = 'local', characterName = 'lucy', targetX = null, targetZ = null, options = {}) {
     const forceCreate = options.forceCreate === true;
-    
-    // Get character-specific bolt stats
     const stats = getBoltStats(characterName);
-    
-    // Track character name for this player
     this.playerCharacterNames.set(playerId, characterName);
     
-    // Initialize bullets if not set
     if (!this.playerBullets.has(playerId)) {
       this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
     }
     
-    // Check if reloading is in progress - cannot shoot while reloading
-    if (!forceCreate && !this.playerRechargeCooldowns.canAct(playerId)) {
-      // Still recharging - cannot shoot
+    if (!forceCreate && (!this.playerRechargeCooldowns.canAct(playerId) || !this.characterCooldowns.canAct(playerId))) {
       return null;
     }
     
-    // Check if player has bullets available
     let currentBullets = this.playerBullets.get(playerId) || 0;
     if (currentBullets <= 0) {
-      // Recharge should be complete at this point (checked above), refill bullets
       currentBullets = Math.floor(stats.maxBullets);
       this.playerBullets.set(playerId, currentBullets);
     }
     
-    // Check cooldown for this specific character
-    if (!forceCreate && !this.characterCooldowns.canAct(playerId)) return null;
-    
-    // Check performance optimization level for trail lights
-    const optLevel = this.performanceOptimizer.updateLevel(this.projectiles.length);
-    const enableTrailLights = this.performanceOptimizer.shouldEnableTrailLights();
-    
-    // Create projectile using Bolt module
-    const projectile = createBolt(
-      this.scene,
-      startX,
-      startY,
-      startZ,
-      directionX,
-      directionZ,
-      playerId,
-      characterName,
-      targetX,
-      targetZ,
-      this.particleManager,
-      enableTrailLights // Pass trail light enable flag
-    );
-    
+    const enableTrailLights = this.performanceOptimizer.updateLevel(this.projectiles.length) && this.performanceOptimizer.shouldEnableTrailLights();
+    const projectile = createBolt(this.scene, startX, startY, startZ, directionX, directionZ, playerId, characterName, targetX, targetZ, this.particleManager, enableTrailLights);
     if (!projectile) return null;
     
-    // Disable or reduce trail light intensity if performance optimization requires it
-    if (projectile.userData.trailLight && !enableTrailLights) {
-      // Disable trail light completely
-      projectile.userData.trailLight.visible = false;
-      projectile.userData.trailLight.intensity = 0;
-    } else if (projectile.userData.trailLight) {
-      // Reduce intensity if needed
-      const intensityMultiplier = this.performanceOptimizer.getTrailLightIntensity();
-      projectile.userData.trailLight.intensity *= intensityMultiplier;
+    if (projectile.userData.trailLight) {
+      if (!enableTrailLights) {
+        projectile.userData.trailLight.visible = false;
+        projectile.userData.trailLight.intensity = 0;
+      } else {
+        projectile.userData.trailLight.intensity *= this.performanceOptimizer.getTrailLightIntensity();
+      }
     }
     
-    // Register with instanced renderer if enabled
     if (this.useInstancedRendering && this.instancedRenderer) {
       const projectileId = `projectile_${Date.now()}_${Math.random()}`;
       projectile.userData.instanceId = projectileId;
-      
-      // Get character color from projectile userData (stored by createBolt)
-      const characterColor = projectile.userData.characterColor || getCharacterColor(characterName);
-      
       const instanceData = this.instancedRenderer.addProjectile(
         projectileId,
         { x: startX, y: startY, z: startZ },
-        characterColor,
+        projectile.userData.characterColor || getCharacterColor(characterName),
         characterName
       );
-      
       if (instanceData) {
         projectile.userData.instanceData = instanceData;
-        // Hide the individual mesh since it's rendered via InstancedMesh
-        // Keep mesh in scene for collision detection, but make it invisible
         projectile.visible = false;
       }
     }
     
-    // Play bolt shot sound with position-based volume
     if (this.soundManager) {
-      const soundPosition = { x: startX, y: startY, z: startZ };
-      this.soundManager.playBoltShot(soundPosition);
+      this.soundManager.playBoltShot({ x: startX, y: startY, z: startZ });
     }
     
-    // Add to projectiles array
     this.projectiles.push(projectile);
-    
-    // Track projectile by ID for multiplayer synchronization
     if (projectile.userData.projectileId) {
       this.projectilesById.set(projectile.userData.projectileId, projectile);
     }
     
-    // Consume a bullet
     const newBulletCount = currentBullets - 1;
     this.playerBullets.set(playerId, newBulletCount);
-    
-    // If bullets depleted, start recharge cooldown
-    // (reload check already passed above, so this is safe)
     if (!forceCreate && newBulletCount <= 0) {
       this.playerRechargeCooldowns.setCooldown(playerId, stats.rechargeCooldown);
-      // Clear manual reload info if it exists (automatic reload takes over)
       this.playerReloadInfo.delete(playerId);
     } else if (forceCreate && newBulletCount <= 0) {
-      // Clamp at zero for forced projectiles so counters don't go negative
       this.playerBullets.set(playerId, 0);
     }
     
-    // Apply speed boost multiplier if active (Lucy only)
     let cooldown = stats.cooldown;
     const speedBoostInfo = this.playerSpeedBoostActive.get(playerId);
     if (speedBoostInfo && stats.speedBoost) {
-      // Check if speed boost is still active (verify with current time)
       const currentTime = Date.now() / 1000;
       const isStillActive = speedBoostInfo.active && currentTime < speedBoostInfo.endTime;
-      
       if (isStillActive) {
-        // Apply speed boost multiplier (reduces cooldown = faster shooting)
-        const originalCooldown = cooldown;
         cooldown *= stats.speedBoost.cooldownMultiplier;
-        // Removed console.log for performance - too many logs when shooting rapidly
       } else if (speedBoostInfo.active && currentTime >= speedBoostInfo.endTime) {
-        // Speed boost just expired - update state
         speedBoostInfo.active = false;
         console.log('[SpeedBoost] Expired');
       }
     }
     
-    // Set cooldown for this specific character/player
     this.characterCooldowns.setCooldown(playerId, cooldown);
-    
     return projectile;
   }
 
@@ -269,43 +209,20 @@ export class ProjectileManager {
    * @returns {THREE.Mesh|null} Created mortar mesh or null if on cooldown
    */
   createMortar(startX, startY, startZ, targetX, targetZ, playerId = 'local', characterName = 'lucy') {
-    // Get character-specific mortar stats
     const stats = getMortarStats(characterName);
-    
-    // Validate stats
     if (!stats || typeof stats.cooldown !== 'number' || stats.cooldown <= 0) {
       console.error('Invalid mortar stats or cooldown:', stats);
       return null;
     }
     
-    // Check mortar cooldown for this specific character
-    if (!this.mortarCharacterCooldowns.canAct(playerId)) {
-      return null;
-    }
+    if (!this.mortarCharacterCooldowns.canAct(playerId)) return null;
     
-    // Create mortar using Mortar module
-    const mortar = createMortar(
-      this.scene,
-      startX,
-      startY,
-      startZ,
-      targetX,
-      targetZ,
-      playerId,
-      characterName,
-      this.particleManager
-    );
-    
+    const mortar = createMortar(this.scene, startX, startY, startZ, targetX, targetZ, playerId, characterName, this.particleManager);
     if (!mortar) return null;
     
-    // Add to mortars array
     this.mortars.push(mortar);
-    
-    // Set mortar cooldown for this specific character/player
-    // Note: cooldown is in seconds (e.g., 2.5 for Lucy, 3.5 for Herald)
-    const cooldownValue = stats.cooldown;
-    if (typeof cooldownValue === 'number' && cooldownValue > 0 && isFinite(cooldownValue)) {
-      this.mortarCharacterCooldowns.setCooldown(playerId, cooldownValue);
+    if (typeof stats.cooldown === 'number' && stats.cooldown > 0 && isFinite(stats.cooldown)) {
+      this.mortarCharacterCooldowns.setCooldown(playerId, stats.cooldown);
     }
     
     return mortar;
@@ -337,78 +254,49 @@ export class ProjectileManager {
    * @param {number} dt - Delta time in seconds
    */
   update(dt) {
-    // Validate dt before updating cooldowns
     if (typeof dt !== 'number' || isNaN(dt) || dt <= 0 || !isFinite(dt)) {
-      // Invalid dt - use safe default and continue with other updates
-      // This prevents cooldowns from getting stuck if dt is invalid
-      dt = 0.016; // Default to ~60fps frame time
+      dt = 0.016;
     }
     
-    // Update bolt cooldowns
     this.characterCooldowns.update(dt);
-    
-    // Update mortar cooldowns
     this.mortarCharacterCooldowns.update(dt);
-    
-    // Update melee cooldowns
     this.meleeCharacterCooldowns.update(dt);
-    
-    // Update recharge cooldowns
     this.playerRechargeCooldowns.update(dt);
-    
-    // Update speed boost cooldowns
     this.playerSpeedBoostCooldowns.update(dt);
     
-    // Update speed boost active states (check if duration expired)
-    const currentTime = Date.now() / 1000; // Convert to seconds
+    const currentTime = Date.now() / 1000;
     for (const [playerId, speedBoostInfo] of this.playerSpeedBoostActive.entries()) {
-      if (speedBoostInfo && speedBoostInfo.active) {
-        if (currentTime >= speedBoostInfo.endTime) {
-          // Speed boost expired - start cooldown now
-          speedBoostInfo.active = false;
-          
-          // Get character name from playerCharacterNames map to get cooldown value
-          const characterName = this.playerCharacterNames.get(playerId);
-          if (characterName) {
-            try {
-              const stats = getBoltStats(characterName);
-              if (stats.speedBoost) {
-                this.playerSpeedBoostCooldowns.setCooldown(playerId, stats.speedBoost.cooldown);
-                console.log('[SpeedBoost] Expired, starting cooldown:', stats.speedBoost.cooldown);
-              }
-            } catch (error) {
-              console.warn('[SpeedBoost] Could not set cooldown on expiry:', error);
+      if (speedBoostInfo?.active && currentTime >= speedBoostInfo.endTime) {
+        speedBoostInfo.active = false;
+        const characterName = this.playerCharacterNames.get(playerId);
+        if (characterName) {
+          try {
+            const stats = getBoltStats(characterName);
+            if (stats.speedBoost) {
+              this.playerSpeedBoostCooldowns.setCooldown(playerId, stats.speedBoost.cooldown);
+              console.log('[SpeedBoost] Expired, starting cooldown:', stats.speedBoost.cooldown);
             }
+          } catch (error) {
+            console.warn('[SpeedBoost] Could not set cooldown on expiry:', error);
           }
         }
       }
     }
     
-    // Handle bullet recharge when cooldown completes
     for (const [playerId, characterName] of this.playerCharacterNames.entries()) {
       const currentBullets = this.playerBullets.get(playerId) || 0;
       if (this.playerRechargeCooldowns.canAct(playerId)) {
-        // Recharge complete - check if this was a manual reload or automatic
         if (this.playerReloadInfo.has(playerId)) {
-          // Manual reload - refill to target bullets
-          const reloadInfo = this.playerReloadInfo.get(playerId);
-          this.playerBullets.set(playerId, reloadInfo.targetBullets);
+          this.playerBullets.set(playerId, this.playerReloadInfo.get(playerId).targetBullets);
           this.playerReloadInfo.delete(playerId);
         } else if (currentBullets <= 0) {
-          // Automatic reload (at 0 bullets) - refill to max
-          const stats = getBoltStats(characterName);
-          this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+          this.playerBullets.set(playerId, Math.floor(getBoltStats(characterName).maxBullets));
         }
       }
     }
     
-    // Update mortars and check for ground impact
     this.updateMortars(dt);
-    
-    // Update splash areas
     this.updateSplashAreas(dt);
-    
-    // Update regular projectiles
     this.updateProjectiles(dt);
   }
 
@@ -794,53 +682,25 @@ export class ProjectileManager {
    */
   updateRemoteProjectilePosition(projectileId, x, y, z, velocityX, velocityZ) {
     const projectile = this.projectilesById.get(projectileId);
-    if (!projectile) {
-      return;
-    }
+    if (!projectile) return;
     
-    // ALWAYS update velocity - this is critical for cursor following
-    // The owner's velocity reflects their cursor following behavior (curved path)
-    // By syncing velocity, the remote projectile will follow the same curved path
     projectile.userData.velocityX = velocityX;
     projectile.userData.velocityZ = velocityZ;
-    
-    // Store synced position and time for drift correction
-    projectile.userData.lastSyncedPosition.x = x;
-    projectile.userData.lastSyncedPosition.y = y;
-    projectile.userData.lastSyncedPosition.z = z;
+    projectile.userData.lastSyncedPosition = { x, y, z };
     projectile.userData.lastSyncTime = Date.now();
     
-    // Calculate position difference to check if we need to correct drift
     const dx = x - projectile.position.x;
     const dy = y - projectile.position.y;
     const dz = z - projectile.position.z;
     const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     
-    // Only correct position if drift is significant (more than 0.3 units)
-    // This allows the projectile to move smoothly using the synced velocity
-    // while preventing major desync
     if (distance > 0.3) {
-      // Snap to synced position if too far off (prevents major desync)
-      projectile.position.x = x;
-      projectile.position.y = y;
-      projectile.position.z = z;
-      
-      // Update trail light position if it exists
-      if (projectile.userData.trailLight) {
-        projectile.userData.trailLight.position.set(x, y, z);
-      }
-      
-      // Update instanced renderer if enabled
+      projectile.position.set(x, y, z);
+      projectile.userData.trailLight?.position.set(x, y, z);
       if (this.useInstancedRendering && this.instancedRenderer && projectile.userData.instanceId) {
-        this.instancedRenderer.updateProjectile(
-          projectile.userData.instanceId,
-          { x, y, z }
-        );
+        this.instancedRenderer.updateProjectile(projectile.userData.instanceId, { x, y, z });
       }
     }
-    // Otherwise, let the projectile continue moving with the synced velocity
-    // The normal update loop will handle the movement, and the synced velocity
-    // will make it follow the same curved path as the owner's projectile
   }
 
   /**
@@ -848,61 +708,28 @@ export class ProjectileManager {
    * @param {THREE.Mesh} mortar - Mortar mesh
    */
   removeMortar(mortar) {
-    // Stop arc sound if playing
-    if (mortar.userData && mortar.userData.arcSound) {
+    if (mortar.userData?.arcSound) {
       mortar.userData.arcSound.stop();
       mortar.userData.arcSound = null;
     }
-    
     removeMortarMesh(mortar, this.scene, this.particleManager);
-    
-    // Remove from array
     const index = this.mortars.indexOf(mortar);
-    if (index > -1) {
-      this.mortars.splice(index, 1);
-    }
+    if (index > -1) this.mortars.splice(index, 1);
   }
 
-  /**
-   * Remove a splash area from the scene
-   * @param {THREE.Object3D} splashArea - Splash area container
-   */
   removeSplashArea(splashArea) {
     removeSplashAreaFromScene(splashArea, this.scene);
-    
-    // Remove from array
     const index = this.splashAreas.indexOf(splashArea);
-    if (index > -1) {
-      this.splashAreas.splice(index, 1);
-    }
+    if (index > -1) this.splashAreas.splice(index, 1);
   }
 
-  /**
-   * Clear all projectiles, mortars, and splash areas
-   * Used when mode changes or game resets
-   */
   clearAll() {
-    // Remove all projectiles
-    for (const projectile of [...this.projectiles]) {
-      this.removeProjectile(projectile);
-    }
-    
-    // Remove all mortars
-    for (const mortar of [...this.mortars]) {
-      this.removeMortar(mortar);
-    }
-    
-    // Remove all splash areas
-    for (const splashArea of [...this.splashAreas]) {
-      this.removeSplashArea(splashArea);
-    }
-    
-    // Clear instanced renderer if enabled
+    [...this.projectiles].forEach(p => this.removeProjectile(p));
+    [...this.mortars].forEach(m => this.removeMortar(m));
+    [...this.splashAreas].forEach(s => this.removeSplashArea(s));
     if (this.useInstancedRendering && this.instancedRenderer) {
       this.instancedRenderer.clear();
     }
-    
-    // Clear arrays and ID tracking
     this.projectiles = [];
     this.mortars = [];
     this.splashAreas = [];
@@ -988,37 +815,22 @@ export class ProjectileManager {
    * @param {string} playerId - Player ID (defaults to 'local')
    */
   setCharacter(characterName, playerId = 'local') {
-    // Reset all cooldowns when character changes
     this.characterCooldowns.clear();
     this.mortarCharacterCooldowns.clear();
     this.meleeCharacterCooldowns.clear();
     this.playerRechargeCooldowns.clear();
-    
-    // Clear reload info
     this.playerReloadInfo.delete(playerId);
-    
-    // Reset bullets for new character
     const stats = getBoltStats(characterName);
     this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
     this.playerCharacterNames.set(playerId, characterName);
   }
   
-  /**
-   * Reset all cooldowns for all abilities (shot, mortar, melee)
-   * Called on death/respawn to ensure all abilities are ready
-   * @param {string} playerId - Player ID (defaults to 'local')
-   * @param {string} characterName - Character name (optional, used to refill bullets)
-   */
   resetAllCooldowns(playerId = 'local', characterName = null) {
     this.characterCooldowns.clear();
     this.mortarCharacterCooldowns.clear();
     this.meleeCharacterCooldowns.clear();
     this.playerRechargeCooldowns.clear();
-    
-    // Clear reload info
     this.playerReloadInfo.delete(playerId);
-    
-    // Refill bullets if character name provided
     if (characterName) {
       const stats = getBoltStats(characterName);
       this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
@@ -1043,23 +855,14 @@ export class ProjectileManager {
    * @param {number} cooldown - Cooldown value in seconds
    */
   setSpecialAbilityCooldown(playerId, cooldown) {
-    // Store special ability cooldown per player
     if (!this.specialAbilityCooldowns) {
       this.specialAbilityCooldowns = new Map();
     }
     this.specialAbilityCooldowns.set(playerId, cooldown);
   }
 
-  /**
-   * Get special ability cooldown for a player
-   * @param {string} playerId - Player ID ('local' or player identifier)
-   * @returns {number} Cooldown value in seconds
-   */
   getSpecialAbilityCooldown(playerId) {
-    if (!this.specialAbilityCooldowns) {
-      return 0;
-    }
-    return this.specialAbilityCooldowns.get(playerId) || 0;
+    return this.specialAbilityCooldowns?.get(playerId) || 0;
   }
 
   /**
@@ -1085,35 +888,22 @@ export class ProjectileManager {
     const maxBullets = Math.floor(stats.maxBullets);
     const currentBullets = this.playerBullets.get(playerId) || maxBullets;
     
-    // If already full, don't reload
-    if (currentBullets >= maxBullets) {
-      return false; // Already full
+    if (currentBullets >= maxBullets || !this.playerRechargeCooldowns.canAct(playerId)) {
+      return false;
     }
     
-    // If already recharging, don't start another reload
-    if (!this.playerRechargeCooldowns.canAct(playerId)) {
-      return false; // Already recharging
-    }
-    
-    // Calculate how many bullets are missing
-    const missingBullets = maxBullets - currentBullets;
-    const missingBulletPercent = missingBullets / maxBullets;
-    
-    // Calculate proportional recharge time based on missing bullets
+    const missingBulletPercent = (maxBullets - currentBullets) / maxBullets;
     const proportionalRechargeTime = stats.rechargeCooldown * missingBulletPercent;
     
-    // Store reload info for progress tracking
     this.playerReloadInfo.set(playerId, {
       startBullets: currentBullets,
       targetBullets: maxBullets,
-      proportionalRechargeTime: proportionalRechargeTime
+      proportionalRechargeTime
     });
     
-    // Start reload with proportional time
     this.playerRechargeCooldowns.setCooldown(playerId, proportionalRechargeTime);
     this.playerCharacterNames.set(playerId, characterName);
-    
-    return true; // Reload started
+    return true;
   }
 
   /**
@@ -1124,43 +914,31 @@ export class ProjectileManager {
    */
   activateSpeedBoost(playerId, characterName) {
     const stats = getBoltStats(characterName);
-    
-    // Check if speed boost config exists
     if (!stats.speedBoost) {
       console.log('[SpeedBoost] No speedBoost config in stats:', stats);
       return false;
     }
     
-    // Check if already on cooldown
     if (!this.playerSpeedBoostCooldowns.canAct(playerId)) {
-      const cooldown = this.playerSpeedBoostCooldowns.getCooldown(playerId);
-      console.log('[SpeedBoost] On cooldown:', cooldown);
-      return false; // On cooldown
+      console.log('[SpeedBoost] On cooldown:', this.playerSpeedBoostCooldowns.getCooldown(playerId));
+      return false;
     }
     
-    // Check if already active
     const speedBoostInfo = this.playerSpeedBoostActive.get(playerId);
-    if (speedBoostInfo && speedBoostInfo.active) {
+    if (speedBoostInfo?.active) {
       console.log('[SpeedBoost] Already active');
-      return false; // Already active
+      return false;
     }
     
-    // Activate speed boost
-    const currentTime = Date.now() / 1000; // Convert to seconds
-    const endTime = currentTime + stats.speedBoost.duration;
-    
+    const currentTime = Date.now() / 1000;
     this.playerSpeedBoostActive.set(playerId, {
       active: true,
-      endTime: endTime
+      endTime: currentTime + stats.speedBoost.duration
     });
     
-    // Ensure characterName is stored for cooldown calculation when speedboost expires
     this.playerCharacterNames.set(playerId, characterName);
-    
-    // Don't set cooldown here - it will be set when speedboost expires
-    
     console.log('[SpeedBoost] Activated! Duration:', stats.speedBoost.duration, 'Cooldown:', stats.speedBoost.cooldown);
-    return true; // Speed boost activated
+    return true;
   }
 
   /**

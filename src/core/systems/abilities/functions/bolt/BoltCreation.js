@@ -30,107 +30,65 @@ import { normalize2D } from '../utils/VectorUtils.js';
  * @returns {THREE.Mesh|null} Created projectile mesh or null if invalid direction
  */
 export function createBolt(scene, startX, startY, startZ, directionX, directionZ, playerId, characterName, targetX = null, targetZ = null, particleManager = null, enableTrailLight = true) {
-  // Get character-specific bolt stats
   const stats = getBoltStats(characterName);
   const characterColor = getCharacterColor(characterName);
-  
-  // Normalize direction vector
   const normalized = normalize2D(directionX, directionZ, GENERAL_ABILITY_CONFIG.minDistance.directionLength);
   if (!normalized) return null;
   
   const { x: normX, z: normZ } = normalized;
-
-  // Create projectile geometry and material
-  // Use material cache to share materials by color (reduces memory and draw calls)
+  const startPos = new THREE.Vector3(startX, startY, startZ);
   const geometry = createSphereGeometry(stats.size, BOLT_ATTACK_CONFIG.visual.geometrySegments);
-  const materialCache = getMaterialCache();
-  const material = materialCache.getMaterial(characterColor);
+  const material = getMaterialCache().getMaterial(characterColor);
+  const projectile = createProjectileMesh({ geometry, material, position: startPos, castShadow: true });
   
-  const projectile = createProjectileMesh({
-    geometry,
-    material,
-    position: new THREE.Vector3(startX, startY, startZ),
-    castShadow: true
-  });
+  const trailLight = enableTrailLight ? createTrailLight({
+    color: characterColor,
+    intensity: BOLT_ATTACK_CONFIG.trailLight.intensity,
+    range: BOLT_ATTACK_CONFIG.trailLight.range,
+    position: startPos
+  }) : null;
+  if (trailLight) scene.add(trailLight);
   
-  // Add trail effect - point light with character color (only if enabled)
-  let trailLight = null;
-  if (enableTrailLight) {
-    trailLight = createTrailLight({
-      color: characterColor,
-      intensity: BOLT_ATTACK_CONFIG.trailLight.intensity,
-      range: BOLT_ATTACK_CONFIG.trailLight.range,
-      position: new THREE.Vector3(startX, startY, startZ)
-    });
-    scene.add(trailLight);
-  }
-  
-  // Calculate initial speed based on acceleration/deceleration pattern
   const baseSpeed = stats.projectileSpeed;
-  const minSpeed = (stats.minSpeed !== undefined ? stats.minSpeed : 1.0) * baseSpeed;
-  const maxSpeed = (stats.maxSpeed !== undefined ? stats.maxSpeed : 1.0) * baseSpeed;
+  const minSpeed = (stats.minSpeed ?? 1.0) * baseSpeed;
+  const maxSpeed = (stats.maxSpeed ?? 1.0) * baseSpeed;
+  const isHerald = characterName === 'herald';
+  const startSpeed = isHerald ? minSpeed : maxSpeed;
+  const endSpeed = isHerald ? maxSpeed * BOLT_ATTACK_CONFIG.physics.heraldAccelerationMultiplier : minSpeed;
   
-  // Herald: start slow (minSpeed) and continuously accelerate (no max cap)
-  // Lucy: start fast (maxSpeed) and decelerate to slow (minSpeed)
-  const startSpeed = characterName === 'herald' ? minSpeed : maxSpeed;
-  // For Herald, endSpeed can exceed maxSpeed to keep accelerating
-  const endSpeed = characterName === 'herald' 
-    ? maxSpeed * BOLT_ATTACK_CONFIG.physics.heraldAccelerationMultiplier 
-    : minSpeed;
+  const ambientParticles = particleManager ? particleManager.spawnProjectileAmbientParticles(
+    startPos, characterColor, stats.size, 6, characterName, 'bolt'
+  ) : [];
   
-  // Create ambient particles around projectile if particle manager available
-  let ambientParticles = [];
-  if (particleManager) {
-    const startPos = new THREE.Vector3(startX, startY, startZ);
-    ambientParticles = particleManager.spawnProjectileAmbientParticles(
-      startPos,
-      characterColor,
-      stats.size,
-      6, // Default number (will be overridden by config)
-      characterName, // Pass character name for config
-      'bolt' // Pass ability name for config
-    );
-  }
-  
-  // Generate unique projectile ID for multiplayer synchronization
-  const projectileId = `projectile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  // Store projectile data with character-specific stats
   projectile.userData = {
     type: 'projectile',
-    projectileId: projectileId, // Unique ID for multiplayer synchronization
-    playerId: playerId,
-    characterName: characterName,
-    characterColor: characterColor, // Store character color for impact effects
-    baseSpeed: baseSpeed, // Base speed for reference
-    startSpeed: startSpeed, // Starting speed
-    endSpeed: endSpeed, // Ending speed
-    currentMaxSpeed: startSpeed, // Track maximum speed achieved (can only increase)
+    projectileId: `projectile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    playerId,
+    characterName,
+    characterColor,
+    baseSpeed,
+    startSpeed,
+    endSpeed,
+    currentMaxSpeed: startSpeed,
     velocityX: normX * startSpeed,
     velocityZ: normZ * startSpeed,
     lifetime: 0,
     maxLifetime: stats.lifetime,
-    trailLight: trailLight,
+    trailLight,
     damage: stats.damage,
     size: stats.size,
-    hasHit: false, // Flag to track if projectile has hit something
-    targetX: targetX, // Target X position for cursor following
-    targetZ: targetZ, // Target Z position for cursor following
-    cursorFollowStrength: stats.cursorFollowStrength || 0, // How much to follow cursor
-    initialDirX: normX, // Initial shooting direction X
-    initialDirZ: normZ, // Initial shooting direction Z
-    shooterY: startY, // Store shooter's Y position (bot or player) to follow their height
-    particleManager: particleManager, // Store particle manager for trail particles
-    ambientParticles: ambientParticles, // Store ambient particle references (for cleanup)
-    lastSyncedPosition: { x: startX, y: startY, z: startZ }, // Store last synced position for remote projectiles
-    syncTime: 0 // Time since last sync (for periodic syncing)
+    hasHit: false,
+    targetX,
+    targetZ,
+    cursorFollowStrength: stats.cursorFollowStrength || 0,
+    initialDirX: normX,
+    initialDirZ: normZ,
+    shooterY: startY,
+    particleManager,
+    ambientParticles,
+    lastSyncedPosition: { x: startX, y: startY, z: startZ },
+    syncTime: 0
   };
-  
-  // Note: When using instanced rendering, the mesh is kept for logic/collision
-  // but the visual rendering is handled by InstancedMesh. The mesh should not
-  // be added to the scene when instanced rendering is active.
-  // The ProjectileManager will handle adding/removing based on rendering mode.
-  // For now, we add it to the scene - ProjectileManager will handle visibility
   
   scene.add(projectile);
   return projectile;
