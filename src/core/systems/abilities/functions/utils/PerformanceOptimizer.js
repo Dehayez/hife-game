@@ -18,10 +18,10 @@ export class PerformanceOptimizer {
   constructor() {
     // Thresholds for different optimization levels
     this.thresholds = {
-      low: 20,      // < 20 projectiles: full quality
-      medium: 50,   // 20-50 projectiles: reduced quality
-      high: 100,    // 50-100 projectiles: medium quality
-      extreme: 200  // > 100 projectiles: minimal quality
+      low: 15,      // < 15 projectiles: full quality (reduced from 20)
+      medium: 30,   // 15-30 projectiles: reduced quality (reduced from 50)
+      high: 60,     // 30-60 projectiles: medium quality (reduced from 100)
+      extreme: 100  // > 60 projectiles: minimal quality (reduced from 200)
     };
     
     // Current optimization level
@@ -55,8 +55,8 @@ export class PerformanceOptimizer {
    * @returns {boolean} True if trail lights should be enabled
    */
   shouldEnableTrailLights() {
-    // Disable trail lights when many projectiles are active
-    return this.currentLevel === 'low' || this.currentLevel === 'medium';
+    // Trail lights completely disabled for performance
+    return false;
   }
 
   /**
@@ -66,9 +66,9 @@ export class PerformanceOptimizer {
   getTrailLightIntensity() {
     switch (this.currentLevel) {
       case 'low': return 1.0;
-      case 'medium': return 0.7;
-      case 'high': return 0.4;
-      case 'extreme': return 0.2;
+      case 'medium': return 0.5;  // Reduced from 0.7
+      case 'high': return 0.25;   // Reduced from 0.4
+      case 'extreme': return 0.1; // Reduced from 0.2
       default: return 1.0;
     }
   }

@@ -14,8 +14,8 @@ export const BOLT_ATTACK_CONFIG = {
   
   // Trail Light Settings
   trailLight: {
-    intensity: 7,                   // Trail light intensity
-    range: 4,                         // Trail light range (distance)
+    intensity: 4,                   // Trail light intensity (reduced from 7 for better performance)
+    range: 3,                         // Trail light range (reduced from 4 for better performance)
   },
   
   // Physics & Behavior

@@ -56,42 +56,39 @@ export function updateBolt(projectile, dt, collisionManager, camera = null, inpu
       projectile.userData.trailSpawnTimer = 0;
     }
     
-    // Spawn trail particles periodically (check config for interval)
+    // Get trail config once (avoid duplicate lookups)
     const trailConfig = getProjectileParticleConfig(
       projectile.userData.characterName || 'lucy',
       'bolt',
       'trail'
     );
     const trailSpawnInterval = trailConfig.spawnInterval !== undefined ? trailConfig.spawnInterval : 0.03;
+    const minVelocity = trailConfig.minVelocity !== undefined ? trailConfig.minVelocity : 0.1;
     
     projectile.userData.trailSpawnTimer += dt;
     
     if (projectile.userData.trailSpawnTimer >= trailSpawnInterval) {
       projectile.userData.trailSpawnTimer = 0;
       
-      // Calculate velocity vector
-      const velocity = new THREE.Vector3(
+      // Calculate velocity vector (reuse cached vector if available)
+      if (!projectile.userData._cachedVelocity) {
+        projectile.userData._cachedVelocity = new THREE.Vector3();
+      }
+      projectile.userData._cachedVelocity.set(
         projectile.userData.velocityX,
         0,
         projectile.userData.velocityZ
       );
       
-      // Only spawn if moving fast enough (check config for min velocity)
-      const trailConfig = getProjectileParticleConfig(
-        projectile.userData.characterName || 'lucy',
-        'bolt',
-        'trail'
-      );
-      const minVelocity = trailConfig.minVelocity !== undefined ? trailConfig.minVelocity : 0.1;
-      
-      if (velocity.length() > minVelocity) {
+      // Only spawn if moving fast enough
+      if (projectile.userData._cachedVelocity.length() > minVelocity) {
         projectile.userData.particleManager.spawnProjectileTrailParticle(
           projectile.position.clone(),
-          velocity,
+          projectile.userData._cachedVelocity,
           projectile.userData.characterColor,
           projectile.userData.size,
-          projectile.userData.characterName || 'lucy', // Pass character name for config
-          'bolt' // Pass ability name for config
+          projectile.userData.characterName || 'lucy',
+          'bolt'
         );
       }
     }

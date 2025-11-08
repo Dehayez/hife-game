@@ -54,9 +54,10 @@ export function createMortar(scene, startX, startY, startZ, targetX, targetZ, pl
   const mortar = createMortarMesh(stats, characterColor, config);
   mortar.position.copy(startPos);
   
-  // Create trail light using base implementation
-  const trailLight = createMortarTrailLight(characterColor, startPos, config);
-  scene.add(trailLight);
+  // Create trail light using base implementation (disabled for performance)
+  const trailLight = null; // Trail lights disabled for performance
+  // const trailLight = createMortarTrailLight(characterColor, startPos, config);
+  // scene.add(trailLight);
   
   // Create userData using base implementation
   mortar.userData = createMortarUserData(

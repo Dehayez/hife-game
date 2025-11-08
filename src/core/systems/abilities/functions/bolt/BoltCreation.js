@@ -41,13 +41,8 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
   const material = getMaterialCache().getMaterial(characterColor);
   const projectile = createProjectileMesh({ geometry, material, position: startPos, castShadow: true });
   
-  const trailLight = enableTrailLight ? createTrailLight({
-    color: characterColor,
-    intensity: BOLT_ATTACK_CONFIG.trailLight.intensity,
-    range: BOLT_ATTACK_CONFIG.trailLight.range,
-    position: startPos
-  }) : null;
-  if (trailLight) scene.add(trailLight);
+  const trailLight = null; // Trail lights disabled for performance
+  // if (trailLight) scene.add(trailLight);
   
   const baseSpeed = stats.projectileSpeed;
   const minSpeed = (stats.minSpeed ?? 1.0) * baseSpeed;

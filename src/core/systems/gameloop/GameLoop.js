@@ -147,6 +147,16 @@ export class GameLoop {
     this._healVibrationInterval = getHealingVibrationInterval(); // Vibrate interval from config
     this._lastHealNumberTime = 0; // Throttle healing number display
     this._accumulatedHealAmount = 0; // Accumulate heal amount for display
+    
+    // Cached objects for performance optimization (reuse instead of creating new ones)
+    this._cachedRaycaster = new THREE.Raycaster();
+    this._cachedMouse = new THREE.Vector2();
+    this._cachedPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this._cachedIntersect = new THREE.Vector3();
+    this._cachedCameraDir = new THREE.Vector3();
+    this._cachedCameraForward = new THREE.Vector3();
+    this._cachedCameraRight = new THREE.Vector3();
+    this._cachedUpVector = new THREE.Vector3(0, 1, 0);
   }
   
   /**
@@ -1150,23 +1160,19 @@ export class GameLoop {
     
     // In keyboard mode, use mouse position for aiming
     if (inputMode === 'keyboard') {
-      // Convert mouse position to world coordinates using raycaster
+      // Convert mouse position to world coordinates using cached raycaster
       const mousePos = this.inputManager.getMousePosition();
-      const raycaster = new THREE.Raycaster();
-      const mouse = new THREE.Vector2();
-      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      this._cachedMouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+      this._cachedMouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
       
-      raycaster.setFromCamera(mouse, camera);
+      this._cachedRaycaster.setFromCamera(this._cachedMouse, camera);
       
-      // Intersect with ground plane at y = 0
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersect = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, intersect);
+      // Intersect with ground plane at y = 0 (reuse cached plane and intersect)
+      this._cachedRaycaster.ray.intersectPlane(this._cachedPlane, this._cachedIntersect);
       
       // Calculate direction from player to mouse cursor position
-      const toCursorX = intersect.x - playerPos.x;
-      const toCursorZ = intersect.z - playerPos.z;
+      const toCursorX = this._cachedIntersect.x - playerPos.x;
+      const toCursorZ = this._cachedIntersect.z - playerPos.z;
       const toCursorLength = Math.sqrt(toCursorX * toCursorX + toCursorZ * toCursorZ);
       
       if (toCursorLength > 0.01) {
@@ -1175,21 +1181,20 @@ export class GameLoop {
         directionZ = toCursorZ / toCursorLength;
         
         // Set target for cursor following
-        targetX = intersect.x;
-        targetZ = intersect.z;
+        targetX = this._cachedIntersect.x;
+        targetZ = this._cachedIntersect.z;
       } else {
-        // Fallback to character facing direction if cursor is too close
+        // Fallback to character facing direction if cursor is too close (reuse cached vectors)
         const lastFacing = this.characterManager.getLastFacing();
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
-        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        camera.getWorldDirection(this._cachedCameraDir);
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
         
         if (lastFacing === 'back') {
-          directionX = cameraForward.x;
-          directionZ = cameraForward.z;
+          directionX = this._cachedCameraForward.x;
+          directionZ = this._cachedCameraForward.z;
         } else {
-          directionX = -cameraForward.x;
-          directionZ = -cameraForward.z;
+          directionX = -this._cachedCameraForward.x;
+          directionZ = -this._cachedCameraForward.z;
         }
         
         targetX = null;
@@ -1203,23 +1208,21 @@ export class GameLoop {
       // Prioritize right joystick for aiming only when actively pushed (smooth 360-degree aiming in world space)
       if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
         // Use camera-relative direction: convert joystick input to world space using camera orientation
-        // This matches how mouse aiming works and accounts for camera angle
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
+        // This matches how mouse aiming works and accounts for camera angle (reuse cached vectors)
+        camera.getWorldDirection(this._cachedCameraDir);
         
         // Create a right vector perpendicular to camera direction (in XZ plane)
-        const cameraRight = new THREE.Vector3();
-        cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+        this._cachedCameraRight.crossVectors(this._cachedCameraDir, this._cachedUpVector).normalize();
         
         // Create a forward vector in XZ plane (project camera direction onto ground)
-        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
         
         // Map joystick input to camera-relative direction
         // Right stick X = right/left relative to camera view
         // Right stick Z (from joystick Y) = up/down relative to camera view
         // Note: Invert Z because gamepad Y is negative when pushed up
-        directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
-        directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+        directionX = (this._cachedCameraRight.x * rightJoystickDir.x) + (this._cachedCameraForward.x * -rightJoystickDir.z);
+        directionZ = (this._cachedCameraRight.z * rightJoystickDir.x) + (this._cachedCameraForward.z * -rightJoystickDir.z);
         
         // Normalize direction
         const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
@@ -1233,25 +1236,24 @@ export class GameLoop {
         targetX = playerPos.x + directionX * targetDistance;
         targetZ = playerPos.z + directionZ * targetDistance;
       } else {
-        // Use character facing direction when right joystick is not active
+        // Use character facing direction when right joystick is not active (reuse cached vectors)
         const lastFacing = this.characterManager.getLastFacing();
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
+        camera.getWorldDirection(this._cachedCameraDir);
         
         // Project camera direction onto ground plane (XZ plane)
-        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
         
         // Shoot in the direction the character is looking
         // If character is facing 'back' (towards camera, negative Z), shoot backward (towards camera)
         // If character is facing 'front' (away from camera, positive Z), shoot forward (away from camera)
         if (lastFacing === 'back') {
           // Shoot in back direction (same as camera forward, which is negative Z relative to camera)
-          directionX = cameraForward.x;
-          directionZ = cameraForward.z;
+          directionX = this._cachedCameraForward.x;
+          directionZ = this._cachedCameraForward.z;
         } else {
           // Shoot in front direction (opposite of camera forward, which is positive Z relative to camera)
-          directionX = -cameraForward.x;
-          directionZ = -cameraForward.z;
+          directionX = -this._cachedCameraForward.x;
+          directionZ = -this._cachedCameraForward.z;
         }
         
         // Normalize direction
