@@ -48,7 +48,8 @@ export function updateCharacterPhysics(
   if (canStartLevitation) {
     characterData.isLevitationActive = true;
     characterData.levitationTimeRemaining = physicsStats.levitationMaxDuration;
-    characterData.levitationCooldown = physicsStats.levitationCooldownTime;
+    // Track initial duration to calculate cooldown based on usage
+    characterData.levitationInitialDuration = physicsStats.levitationMaxDuration;
   }
   
   const isCurrentlyLevitating = characterData.isLevitationActive && wantsLevitation && characterData.levitationTimeRemaining > 0;
@@ -57,8 +58,17 @@ export function updateCharacterPhysics(
     characterData.velocityY += physicsStats.levitationForce * dt;
     characterData.levitationTimeRemaining = Math.max(0, characterData.levitationTimeRemaining - dt);
   } else if (characterData.isLevitationActive) {
+    // Levitation ended - calculate cooldown based on how much time was used
+    const initialDuration = characterData.levitationInitialDuration || physicsStats.levitationMaxDuration;
+    const usedTime = initialDuration - characterData.levitationTimeRemaining;
+    const usageRatio = initialDuration > 0 ? usedTime / initialDuration : 1;
+    
+    // Set cooldown proportional to usage (more usage = longer cooldown)
+    characterData.levitationCooldown = usageRatio * physicsStats.levitationCooldownTime;
+    
     characterData.isLevitationActive = false;
     characterData.levitationTimeRemaining = 0;
+    characterData.levitationInitialDuration = 0;
   }
   
   if (characterData.levitationCooldown > 0) {
@@ -167,6 +177,7 @@ export function initializeCharacterPhysics(characterData) {
   characterData.levitationCooldown = 0;
   characterData.isLevitationActive = false;
   characterData.levitationTimeRemaining = 0;
+  characterData.levitationInitialDuration = 0;
   characterData.health = healthStats.defaultHealth;
   characterData.hasDoubleJumped = false;
 }
@@ -220,6 +231,7 @@ export function respawnCharacterPhysics(player, characterData, gameMode = null, 
   characterData.levitationCooldown = 0;
   characterData.isLevitationActive = false;
   characterData.levitationTimeRemaining = 0;
+  characterData.levitationInitialDuration = 0;
   characterData.hasDoubleJumped = false;
   
   // Reset health

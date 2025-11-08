@@ -29,7 +29,7 @@ export const CHARACTER_PHYSICS_CONFIG = {
    */
   levitationForce: 30,          // Upward force when levitating (reduces gravity effect)
   levitationMaxDuration: 1.5,     // Maximum sustained levitation time per use (seconds)
-  levitationCooldownTime: 12    // Seconds before levitation can be used again after duration is reached
+  levitationCooldownTime: 10    // Seconds before levitation can be used again after duration is reached
 };
 
 /**

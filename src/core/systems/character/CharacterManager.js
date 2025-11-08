@@ -66,7 +66,8 @@ export class CharacterManager {
       hasDoubleJumped: false,
       levitationCooldown: 0,
       isLevitationActive: false,
-      levitationTimeRemaining: 0
+      levitationTimeRemaining: 0,
+      levitationInitialDuration: 0
     };
     
     // Sound manager
