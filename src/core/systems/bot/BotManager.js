@@ -105,6 +105,22 @@ export class BotManager {
   }
 
   /**
+   * Set the character manager (for player damage)
+   * @param {Object} characterManager - Character manager instance
+   */
+  setCharacterManager(characterManager) {
+    this.characterManager = characterManager;
+  }
+
+  /**
+   * Set the player mesh (for bot abilities that target player)
+   * @param {THREE.Mesh} player - Player mesh
+   */
+  setPlayer(player) {
+    this.player = player;
+  }
+
+  /**
    * Create a new bot
    * @param {string} botId - Unique bot identifier
    * @param {string} characterName - Character name ('lucy' or 'herald')
@@ -266,9 +282,15 @@ export class BotManager {
       // Billboard to camera
       billboardBotToCamera(bot, camera);
 
-      // Update abilities (shooting, mortar, melee) with learning manager
-      // Note: gameLoop is passed for melee attacks, but melee might need special handling
-      updateBotAbilities(bot, userData, playerPosition, this.projectileManager, dt, this.learningManager, null);
+      // Update abilities (shooting, mortar, melee, blast, multiProjectile) with learning manager
+      const context = {
+        botManager: this,
+        scene: this.scene,
+        player: this.player,
+        characterManager: this.characterManager,
+        particleManager: this.particleManager
+      };
+      updateBotAbilities(bot, userData, playerPosition, this.projectileManager, dt, this.learningManager, context);
     }
   }
 

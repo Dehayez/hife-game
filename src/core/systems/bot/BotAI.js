@@ -8,6 +8,8 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getBotAIStats, getBotMovementStats } from '../../../config/bot/BotStats.js';
 import { getDifficultyConfig } from '../../../config/bot/BotDifficultyConfig.js';
+import { getMeleeStats, getBlastStats, getMultiProjectileStats } from '../abilities/functions/CharacterAbilityStats.js';
+import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.js';
 
 /**
  * Update bot AI direction change timer
@@ -247,18 +249,18 @@ export function calculateBotMovement(bot, userData, playerPosition, dt, collisio
 }
 
 /**
- * Update bot abilities (shooting, mortar, melee)
+ * Update bot abilities (shooting, mortar, melee, blast, multiProjectile)
  * @param {Object} bot - Bot mesh
  * @param {Object} userData - Bot userData object
  * @param {THREE.Vector3|null} playerPosition - Player position or null
  * @param {Object} projectileManager - Projectile manager
  * @param {number} dt - Delta time in seconds
  * @param {Object} learningManager - Optional learning manager for adaptive AI
- * @param {Object} gameLoop - Optional game loop for melee attacks
- * @returns {Object} Result with ability used: {shot: boolean, usedMortar: boolean, usedMelee: boolean}
+ * @param {Object} context - Optional context object with {botManager, scene, player, characterManager, particleManager}
+ * @returns {Object} Result with ability used: {shot: boolean, usedMortar: boolean, usedMelee: boolean, usedBlast: boolean, usedMultiProjectile: boolean}
  */
-export function updateBotAbilities(bot, userData, playerPosition, projectileManager, dt, learningManager = null, gameLoop = null) {
-  const result = { shot: false, usedMortar: false, usedMelee: false };
+export function updateBotAbilities(bot, userData, playerPosition, projectileManager, dt, learningManager = null, context = null) {
+  const result = { shot: false, usedMortar: false, usedMelee: false, usedBlast: false, usedMultiProjectile: false };
   
   if (!projectileManager || !playerPosition) {
     return result;
@@ -280,12 +282,14 @@ export function updateBotAbilities(bot, userData, playerPosition, projectileMana
     userData.lastAbilityTime = 0;
     userData.mortarCooldown = 0;
     userData.meleeCooldown = 0;
+    userData.specialAbilityCooldown = 0; // For blast/multiProjectile
     userData.abilitySelectionTimer = 0;
   }
   
   // Update cooldowns
   userData.mortarCooldown = Math.max(0, userData.mortarCooldown - dt);
   userData.meleeCooldown = Math.max(0, userData.meleeCooldown - dt);
+  userData.specialAbilityCooldown = Math.max(0, userData.specialAbilityCooldown - dt);
   userData.abilitySelectionTimer += dt;
   
   // Handle idle state (bot stops all abilities)
@@ -312,12 +316,53 @@ export function updateBotAbilities(bot, userData, playerPosition, projectileMana
   const mortarRange = aiStats.shootRange * 1.5; // Mortar has longer range
   const boltRange = aiStats.shootRange;
   
+  // Check for special abilities (blast for Herald, multiProjectile for Lucy)
+  if (userData.specialAbilityCooldown <= 0) {
+    if (characterName === 'herald') {
+      const blastStats = getBlastStats(characterName);
+      if (blastStats && dist <= blastStats.radius * 1.2) {
+        // Use blast when player is within range (20% chance per check)
+        if (Math.random() < 0.2) {
+          const blastResult = _useBlastAbility(bot, userData, playerPosition, blastStats, context);
+          if (blastResult) {
+            userData.specialAbilityCooldown = blastStats.cooldown;
+            userData.lastAbilityTime = Date.now() / 1000;
+            result.usedBlast = true;
+            return result;
+          }
+        }
+      }
+    } else if (characterName === 'lucy') {
+      const multiProjectileStats = getMultiProjectileStats(characterName);
+      if (multiProjectileStats && dist <= boltRange * 1.5) {
+        // Use multiProjectile when player is within range (15% chance per check)
+        if (Math.random() < 0.15) {
+          const multiResult = _useMultiProjectileAbility(bot, userData, playerPosition, multiProjectileStats, projectileManager, characterName);
+          if (multiResult) {
+            userData.specialAbilityCooldown = multiProjectileStats.cooldown;
+            userData.lastAbilityTime = Date.now() / 1000;
+            result.usedMultiProjectile = true;
+            return result;
+          }
+        }
+      }
+    }
+  }
+  
+  // Check melee range (close combat)
+  if (dist <= meleeRange && userData.meleeCooldown <= 0) {
+    const meleeResult = _useMeleeAbility(bot, userData, playerPosition, meleeStats, context);
+    if (meleeResult) {
+      userData.meleeCooldown = meleeStats.cooldown || 1.5;
+      userData.lastAbilityTime = Date.now() / 1000;
+      result.usedMelee = true;
+      return result;
+    }
+  }
+  
   // Select ability based on distance and cooldowns (every 1-2 seconds)
   if (userData.abilitySelectionTimer > (1.0 + Math.random())) {
     userData.abilitySelectionTimer = 0;
-    
-    // Check melee range (close combat) - melee will be handled separately if needed
-    // For now, bots will prefer to use mortar/bolt at close range
     
     // Check mortar range (medium-long range)
     if (dist > meleeRange && dist <= mortarRange && userData.mortarCooldown <= 0 && projectileManager.canShootMortar(userData.id)) {
@@ -519,6 +564,208 @@ export function initializeBotAI(userData, startX, startZ, difficulty = 'beginner
   userData.lastAbilityTime = 0;
   userData.mortarCooldown = 0;
   userData.meleeCooldown = 0;
+  userData.specialAbilityCooldown = 0;
   userData.abilitySelectionTimer = 0;
+}
+
+/**
+ * Use melee ability (damage nearby entities)
+ * @param {Object} bot - Bot mesh
+ * @param {Object} userData - Bot userData object
+ * @param {THREE.Vector3} playerPosition - Player position
+ * @param {Object} meleeStats - Melee stats
+ * @param {Object} context - Context with {botManager, scene, player, characterManager}
+ * @returns {boolean} True if melee was used
+ * @private
+ */
+function _useMeleeAbility(bot, userData, playerPosition, meleeStats, context) {
+  if (!context || !meleeStats) return false;
+  
+  const radius = meleeStats.range || 2.5;
+  const initialDamage = meleeStats.initialDamage || meleeStats.damage || 5;
+  const botPos = bot.position;
+  const radiusSq = radius * radius;
+  
+  // Check if player is in range
+  const dx = playerPosition.x - botPos.x;
+  const dz = playerPosition.z - botPos.z;
+  const distSq = dx * dx + dz * dz;
+  
+  if (distSq <= radiusSq) {
+    // Damage player if available
+    if (context.characterManager && context.player) {
+      context.characterManager.takeDamage(initialDamage);
+    }
+    
+    // Damage other bots in range
+    if (context.botManager) {
+      const bots = context.botManager.getAllBots();
+      for (let i = 0; i < bots.length; i++) {
+        const otherBot = bots[i];
+        if (otherBot === bot || !otherBot.userData) continue;
+        
+        const botDx = otherBot.position.x - botPos.x;
+        const botDz = otherBot.position.z - botPos.z;
+        const botDistSq = botDx * botDx + botDz * botDz;
+        
+        if (botDistSq <= radiusSq) {
+          context.botManager.damageBot(otherBot, initialDamage, userData.id);
+        }
+      }
+    }
+    
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Use blast ability (Herald only - knockback nearby entities)
+ * @param {Object} bot - Bot mesh
+ * @param {Object} userData - Bot userData object
+ * @param {THREE.Vector3} playerPosition - Player position
+ * @param {Object} blastStats - Blast stats
+ * @param {Object} context - Context with {botManager, scene, player}
+ * @returns {boolean} True if blast was used
+ * @private
+ */
+function _useBlastAbility(bot, userData, playerPosition, blastStats, context) {
+  if (!context || !blastStats) return false;
+  
+  const radius = blastStats.radius;
+  const horizontalVelocity = blastStats.horizontalVelocity;
+  const verticalVelocity = blastStats.verticalVelocity;
+  const botPos = bot.position;
+  const radiusSq = radius * radius;
+  const minDistanceSq = 0.01;
+  
+  // Apply knockback to player
+  if (context.player && context.player.userData) {
+    const dx = playerPosition.x - botPos.x;
+    const dz = playerPosition.z - botPos.z;
+    const distSq = dx * dx + dz * dz;
+    
+    if (distSq <= radiusSq && distSq > minDistanceSq) {
+      const distance = Math.sqrt(distSq);
+      const dirX = dx / distance;
+      const dirZ = dz / distance;
+      const distanceMultiplier = 1 - distance / radius;
+      
+      // Apply velocity to player (if player has velocity properties)
+      if (context.player.userData.velocityX !== undefined) {
+        context.player.userData.velocityX = dirX * horizontalVelocity * distanceMultiplier;
+        context.player.userData.velocityZ = dirZ * horizontalVelocity * distanceMultiplier;
+        context.player.userData.velocityY = verticalVelocity;
+        context.player.userData.isKnockedBack = true;
+      }
+    }
+  }
+  
+  // Apply knockback to other bots
+  if (context.botManager) {
+    const bots = context.botManager.getAllBots();
+    for (let i = 0; i < bots.length; i++) {
+      const otherBot = bots[i];
+      if (otherBot === bot || !otherBot.userData) continue;
+      
+      const botDx = otherBot.position.x - botPos.x;
+      const botDz = otherBot.position.z - botPos.z;
+      const botDistSq = botDx * botDx + botDz * botDz;
+      
+      if (botDistSq <= radiusSq && botDistSq > minDistanceSq) {
+        const distance = Math.sqrt(botDistSq);
+        const dirX = botDx / distance;
+        const dirZ = botDz / distance;
+        const distanceMultiplier = 1 - distance / radius;
+        
+        otherBot.userData.velocityX = dirX * horizontalVelocity * distanceMultiplier;
+        otherBot.userData.velocityZ = dirZ * horizontalVelocity * distanceMultiplier;
+        otherBot.userData.velocityY = verticalVelocity;
+        otherBot.userData.isKnockedBack = true;
+      }
+    }
+  }
+  
+  // Create visual effect if scene is available
+  if (context.scene) {
+    const segments = 32;
+    const geometry = new THREE.RingGeometry(0, radius, segments);
+    const characterColor = getCharacterColorHex('herald');
+    const material = new THREE.MeshBasicMaterial({
+      color: characterColor,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide
+    });
+    
+    const circle = new THREE.Mesh(geometry, material);
+    circle.rotation.x = -Math.PI / 2;
+    circle.position.set(botPos.x, botPos.y + 0.2, botPos.z);
+    context.scene.add(circle);
+    
+    // Remove circle after animation
+    setTimeout(() => {
+      if (circle.parent) {
+        context.scene.remove(circle);
+        circle.geometry.dispose();
+        circle.material.dispose();
+      }
+    }, blastStats.animationDuration * 1000);
+  }
+  
+  return true;
+}
+
+/**
+ * Use multiProjectile ability (Lucy only - shoot projectiles in all directions)
+ * @param {Object} bot - Bot mesh
+ * @param {Object} userData - Bot userData object
+ * @param {THREE.Vector3} playerPosition - Player position
+ * @param {Object} multiProjectileStats - MultiProjectile stats
+ * @param {Object} projectileManager - Projectile manager
+ * @param {string} characterName - Character name
+ * @returns {boolean} True if multiProjectile was used
+ * @private
+ */
+function _useMultiProjectileAbility(bot, userData, playerPosition, multiProjectileStats, projectileManager, characterName) {
+  if (!multiProjectileStats || !projectileManager) return false;
+  
+  const projectileCount = multiProjectileStats.projectileCount || 8;
+  const projectileSpeed = multiProjectileStats.projectileSpeed;
+  const damage = multiProjectileStats.damage;
+  const botPos = bot.position;
+  
+  // Shoot projectiles in all directions
+  for (let i = 0; i < projectileCount; i++) {
+    const angle = (i / projectileCount) * Math.PI * 2;
+    const directionX = Math.cos(angle);
+    const directionZ = Math.sin(angle);
+    
+    const offsetX = directionX * 0.5;
+    const offsetZ = directionZ * 0.5;
+    
+    const projectile = projectileManager.createProjectile(
+      botPos.x + offsetX,
+      botPos.y,
+      botPos.z + offsetZ,
+      directionX,
+      directionZ,
+      userData.id,
+      characterName
+    );
+    
+    // Override projectile speed and damage if needed
+    if (projectile && projectile.userData) {
+      if (projectileSpeed) {
+        projectile.userData.customSpeed = projectileSpeed;
+      }
+      if (damage) {
+        projectile.userData.damage = damage;
+      }
+    }
+  }
+  
+  return true;
 }
 

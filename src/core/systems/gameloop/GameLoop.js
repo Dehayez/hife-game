@@ -182,6 +182,14 @@ export class GameLoop {
   setScreenFlashManager(screenFlashManager) {
     this.screenFlashManager = screenFlashManager;
   }
+
+  /**
+   * Set kill streak manager
+   * @param {Object} killStreakManager - Kill streak manager instance
+   */
+  setKillStreakManager(killStreakManager) {
+    this.killStreakManager = killStreakManager;
+  }
   
   /**
    * Set scene manager for shake effects
@@ -668,7 +676,14 @@ export class GameLoop {
                 }
                 
                 // Apply damage per tick
+                const wasAlive = bot.userData.health > 0;
                 const botDied = this.botManager.damageBot(bot, damagePerTick, 'local');
+                
+                // Trigger kill feedback immediately when bot dies (local player kill)
+                if (botDied && wasAlive && this.killStreakManager) {
+                  const currentTime = performance.now() / 1000; // Convert to seconds
+                  this.killStreakManager.registerKill(currentTime);
+                }
                 
                 // Show damage number for melee damage over time
                 if (this.damageNumberManager) {
@@ -1135,6 +1150,11 @@ export class GameLoop {
         const maxHealth = this.characterManager.getMaxHealth();
         this.screenFlashManager.updateHealth(currentHealth, maxHealth);
       }
+    }
+    
+    if (this.killStreakManager) {
+      const currentTime = performance.now() / 1000; // Convert to seconds
+      this.killStreakManager.update(dt, currentTime);
     }
   }
 
@@ -2145,7 +2165,14 @@ export class GameLoop {
         if (botCollision.hit) {
           // Get killer playerId from projectile
           const killerId = botCollision.projectile?.userData?.playerId || 'local';
+          const wasAlive = bot.userData.health > 0;
           const botDied = this.botManager.damageBot(bot, botCollision.damage, killerId);
+          
+          // Trigger kill feedback immediately when bot dies (local player kill)
+          if (botDied && wasAlive && killerId === 'local' && this.killStreakManager) {
+            const currentTime = performance.now() / 1000; // Convert to seconds
+            this.killStreakManager.registerKill(currentTime);
+          }
           
           // Vibration for hitting an enemy with projectile
           if (killerId === 'local' && this.vibrationManager) {
@@ -2170,7 +2197,14 @@ export class GameLoop {
         if (botMortarCollision.hit) {
           // Get killer playerId from mortar
           const killerId = botMortarCollision.projectile?.userData?.playerId || 'local';
+          const wasAlive = bot.userData.health > 0;
           const botDied = this.botManager.damageBot(bot, botMortarCollision.damage, killerId);
+          
+          // Trigger kill feedback immediately when bot dies (local player kill)
+          if (botDied && wasAlive && killerId === 'local' && this.killStreakManager) {
+            const currentTime = performance.now() / 1000; // Convert to seconds
+            this.killStreakManager.registerKill(currentTime);
+          }
           
           // Show damage number for bot (mortar damage is usually higher)
           if (this.damageNumberManager) {
@@ -2908,7 +2942,14 @@ export class GameLoop {
             }
             
             // Apply immediate damage
+            const wasAlive = bot.userData.health > 0;
             const botDied = this.botManager.damageBot(bot, initialDamage, 'local');
+            
+            // Trigger kill feedback immediately when bot dies (local player kill)
+            if (botDied && wasAlive && this.killStreakManager) {
+              const currentTime = performance.now() / 1000; // Convert to seconds
+              this.killStreakManager.registerKill(currentTime);
+            }
             
             // Show damage number for melee initial hit
             if (this.damageNumberManager) {

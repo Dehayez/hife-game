@@ -26,6 +26,7 @@ import { ArenaManager } from './systems/arena/ArenaManager.js';
 import { ScreenShakeManager } from '../utils/ScreenShakeManager.js';
 import { DamageNumberManager } from '../utils/DamageNumberManager.js';
 import { ScreenFlashManager } from '../utils/ScreenFlashManager.js';
+import { KillStreakManager } from '../utils/KillStreakManager.js';
 import { Scoreboard } from '../ui/components/Scoreboard/index.js';
 import { spawnRemotePlayerWithHealthBar, removeRemotePlayer, sendPlayerState, handleRemotePlayerStateUpdate } from './MultiplayerHelpers.js';
 import { getLastBotDifficulty } from '../utils/StorageUtils.js';
@@ -90,6 +91,10 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   // Connect bot manager to projectile manager
   projectileManager.setBotManager(botManager);
   
+  // Set character manager and player for bot abilities
+  botManager.setCharacterManager(characterManager);
+  botManager.setPlayer(characterManager.getPlayer());
+  
   // Connect sound manager to projectile manager (for mortar explosion sounds)
   const soundManager = characterManager.getSoundManager();
   if (soundManager) {
@@ -107,6 +112,7 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   const damageNumberManager = new DamageNumberManager(sceneManager.getScene(), sceneManager.getCamera());
   const screenFlashManager = new ScreenFlashManager();
   screenFlashManager.init();
+  const killStreakManager = new KillStreakManager();
   
   // Initialize multiplayer manager with callbacks
   // Note: Callbacks are created inline to capture managers in closure
@@ -300,6 +306,7 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   gameLoop.setScreenShakeManager(screenShakeManager);
   gameLoop.setDamageNumberManager(damageNumberManager);
   gameLoop.setScreenFlashManager(screenFlashManager);
+  gameLoop.setKillStreakManager(killStreakManager);
   gameLoop.setSceneManagerForShake(sceneManager);
   
   // Connect screen shake manager to scene manager
@@ -347,6 +354,7 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     screenShakeManager,
     damageNumberManager,
     screenFlashManager,
+    killStreakManager,
     multiplayerManager,
     gameLoop,
     scoreboard
