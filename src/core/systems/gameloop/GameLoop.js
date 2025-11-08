@@ -1352,23 +1352,31 @@ export class GameLoop {
       const characterName = this.characterManager.getCharacterName();
       const playerId = 'local';
       
-      // Check cooldown status
-      const cooldownInfo = this.projectileManager.getMortarCooldownInfo(playerId, characterName);
-      const isOnCooldown = !cooldownInfo.canShoot;
-      
-      this.mortarHoldVisual.position.set(
-        player.position.x,
-        player.position.y + 0.5,
-        player.position.z
-      );
-      
-      // Update visual based on cooldown status
-      this._updateMortarHoldVisualAnimation(dt, isOnCooldown, cooldownInfo.percentage);
-      
-      // Update cooldown ring if it exists
+      // Check if character color has changed (character was switched)
       const visual = this.mortarHoldVisual.children[0];
-      if (visual && visual.userData.cooldownRing) {
-        this._updateCooldownRing(dt, isOnCooldown, cooldownInfo.percentage);
+      const currentCharacterColor = this._getCharacterColorForParticles(characterName);
+      if (visual && visual.userData.characterColor !== currentCharacterColor) {
+        // Character changed - recreate visual with new color
+        this._createMortarHoldVisual(player);
+      } else {
+        // Normal update - character hasn't changed
+        // Check cooldown status
+        const cooldownInfo = this.projectileManager.getMortarCooldownInfo(playerId, characterName);
+        const isOnCooldown = !cooldownInfo.canShoot;
+        
+        this.mortarHoldVisual.position.set(
+          player.position.x,
+          player.position.y + 0.5,
+          player.position.z
+        );
+        
+        // Update visual based on cooldown status
+        this._updateMortarHoldVisualAnimation(dt, isOnCooldown, cooldownInfo.percentage);
+        
+        // Update cooldown ring if it exists
+        if (visual && visual.userData.cooldownRing) {
+          this._updateCooldownRing(dt, isOnCooldown, cooldownInfo.percentage);
+        }
       }
     }
     
@@ -2412,6 +2420,11 @@ export class GameLoop {
       // Update UI to reflect the character change
       if (this.characterUIUpdateCallback) {
         this.characterUIUpdateCallback(newChar);
+      }
+      
+      // Update mortar hold visual if active (recreate with new character color)
+      if (this.mortarHoldActive && this.mortarHoldVisual && player) {
+        this._createMortarHoldVisual(player);
       }
     });
   }

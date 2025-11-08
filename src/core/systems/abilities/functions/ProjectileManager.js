@@ -810,18 +810,26 @@ export class ProjectileManager {
   }
 
   /**
-   * Reset all cooldowns when character changes
+   * Update character when character changes
+   * Cooldowns are preserved across character switches
    * @param {string} characterName - Character name
    * @param {string} playerId - Player ID (defaults to 'local')
    */
   setCharacter(characterName, playerId = 'local') {
-    this.characterCooldowns.clear();
-    this.mortarCharacterCooldowns.clear();
-    this.meleeCharacterCooldowns.clear();
-    this.playerRechargeCooldowns.clear();
+    // Don't clear cooldowns - they should persist across character switches
+    // this.characterCooldowns.clear();
+    // this.mortarCharacterCooldowns.clear();
+    // this.meleeCharacterCooldowns.clear();
+    // this.playerRechargeCooldowns.clear();
+    
+    // Clear reload info since bullets are reset
     this.playerReloadInfo.delete(playerId);
+    
+    // Reset bullets for new character (different characters may have different max bullets)
     const stats = getBoltStats(characterName);
     this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
+    
+    // Update character name
     this.playerCharacterNames.set(playerId, characterName);
   }
   
