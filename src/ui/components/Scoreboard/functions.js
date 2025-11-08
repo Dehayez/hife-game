@@ -5,6 +5,10 @@ export function calculateKDRatio(kills, deaths) {
   return (kills / deaths).toFixed(2);
 }
 
+export function calculateScore(kills) {
+  return (kills || 0) * 100;
+}
+
 export function getAllPlayers(multiplayerManager, botManager, playerStats) {
   const allPlayers = [];
 
@@ -73,19 +77,24 @@ export function getAllPlayers(multiplayerManager, botManager, playerStats) {
   return allPlayers;
 }
 
-export function sortPlayers(allPlayers, calculateKDRatioFn) {
+export function sortPlayers(allPlayers, calculateKDRatioFn, calculateScoreFn) {
   return allPlayers.sort((a, b) => {
+    const aScore = calculateScoreFn(a.stats.kills || 0);
+    const bScore = calculateScoreFn(b.stats.kills || 0);
+    
+    // Sort by score first (descending)
+    if (aScore !== bScore) {
+      return bScore - aScore;
+    }
+    
+    // If scores are equal, sort by K/D ratio
     const aKD = calculateKDRatioFn(a.stats.kills, a.stats.deaths);
     const bKD = calculateKDRatioFn(b.stats.kills, b.stats.deaths);
-    
-    if (a.stats.kills !== b.stats.kills) {
-      return b.stats.kills - a.stats.kills;
-    }
     return parseFloat(bKD) - parseFloat(aKD);
   });
 }
 
-export function createPlayerRow(playerId, stats, calculateKDRatioFn) {
+export function createPlayerRow(playerId, stats, calculateKDRatioFn, calculateScoreFn) {
   const row = document.createElement('tr');
   row.className = 'scoreboard__row';
   if (stats.isLocal) {
@@ -104,6 +113,12 @@ export function createPlayerRow(playerId, stats, calculateKDRatioFn) {
   }
   playerCell.appendChild(playerIdSpan);
   row.appendChild(playerCell);
+  
+  // Score
+  const scoreCell = document.createElement('td');
+  scoreCell.className = 'scoreboard__cell scoreboard__cell--score';
+  scoreCell.textContent = calculateScoreFn(stats.kills || 0);
+  row.appendChild(scoreCell);
   
   // Kills
   const killsCell = document.createElement('td');

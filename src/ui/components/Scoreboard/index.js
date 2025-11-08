@@ -2,11 +2,11 @@
  * Scoreboard.js
  * 
  * Multiplayer scoreboard overlay component.
- * Displays player statistics including ID, kills, deaths, bots killed, etc.
+ * Displays player statistics including ID, score, kills, deaths, K/D ratio, etc.
  * Can be toggled with Tab key (PC) or Back/Select/Options button (controller).
  */
 
-import { calculateKDRatio, getAllPlayers, sortPlayers, createPlayerRow } from './functions.js';
+import { calculateKDRatio, calculateScore, getAllPlayers, sortPlayers, createPlayerRow } from './functions.js';
 
 export class Scoreboard {
   /**
@@ -69,6 +69,7 @@ export class Scoreboard {
     
     const headers = [
       { text: 'Player', className: 'scoreboard__col-player' },
+      { text: 'Score', className: 'scoreboard__col-score' },
       { text: 'Kills', className: 'scoreboard__col-kills' },
       { text: 'Deaths', className: 'scoreboard__col-deaths' },
       { text: 'K/D', className: 'scoreboard__col-kd' }
@@ -177,12 +178,12 @@ export class Scoreboard {
     // Get all players
     const allPlayers = getAllPlayers(this.multiplayerManager, this.botManager, this.playerStats);
     
-    // Sort players by kills (descending), then by K/D ratio
-    const sortedPlayers = sortPlayers(allPlayers, calculateKDRatio);
+    // Sort players by score (descending), then by K/D ratio
+    const sortedPlayers = sortPlayers(allPlayers, calculateKDRatio, calculateScore);
     
     // Create rows for each player
     sortedPlayers.forEach(({ playerId, stats }) => {
-      const row = createPlayerRow(playerId, stats, calculateKDRatio);
+      const row = createPlayerRow(playerId, stats, calculateKDRatio, calculateScore);
       this.tbody.appendChild(row);
     });
     
@@ -192,7 +193,7 @@ export class Scoreboard {
       emptyRow.className = 'scoreboard__row scoreboard__row--empty';
       const emptyCell = document.createElement('td');
       emptyCell.className = 'scoreboard__cell';
-      emptyCell.colSpan = 4;
+      emptyCell.colSpan = 5;
       emptyCell.textContent = 'No players';
       emptyRow.appendChild(emptyCell);
       this.tbody.appendChild(emptyRow);

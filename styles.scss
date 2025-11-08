@@ -1481,13 +1481,18 @@ html, body {
   }
 
   &__col-player {
-    width: 40%;
+    width: 35%;
+  }
+
+  &__col-score {
+    width: 15%;
+    text-align: center !important;
   }
 
   &__col-kills,
   &__col-deaths,
   &__col-kd {
-    width: 20%;
+    width: 16.67%;
     text-align: center !important;
   }
 
@@ -1529,6 +1534,7 @@ html, body {
       font-weight: 600;
     }
 
+    &--score,
     &--kills,
     &--deaths,
     &--kd {
