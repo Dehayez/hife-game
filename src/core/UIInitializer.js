@@ -16,6 +16,7 @@ import { initBotControl } from '../ui/components/BotControl/index.js';
 import { initLearningFeedback } from '../ui/components/LearningFeedback/index.js';
 import { initCooldownIndicator } from '../ui/components/CooldownIndicator/index.js';
 import { initConnectionStatus } from '../ui/components/ConnectionStatus/index.js';
+import { initMinimap } from '../ui/components/Minimap/index.js';
 import { initInputModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
 import { getParam } from '../utils/UrlUtils.js';
 import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode, getSoundEffectsVolume, setSoundEffectsVolume, getBackgroundCinematicVolume, setBackgroundCinematicVolume, getVibrationIntensity, setVibrationIntensity, getControlsLegendVisible, setControlsLegendVisible } from '../utils/StorageUtils.js';
@@ -57,6 +58,7 @@ export function initializeUI(managers, config) {
   const learningFeedbackMount = document.getElementById('learning-feedback') || document.body;
   const cooldownMount = document.getElementById('cooldown-indicator') || document.body;
   const connectionStatusMount = document.getElementById('connection-status') || document.body;
+  const minimapMount = document.getElementById('minimap') || document.body;
   const legendMount = document.getElementById('controls-legend') || document.body;
   const legendWrapperMount = document.getElementById('controls-legend-wrapper') || document.body;
   const inputModeMount = document.getElementById('input-mode-switcher') || document.body;
@@ -103,6 +105,17 @@ export function initializeUI(managers, config) {
   initConnectionStatus({
     mount: connectionStatusMount,
     multiplayerManager: multiplayerManager
+  });
+  
+  // Initialize minimap
+  const minimap = initMinimap({
+    mount: minimapMount,
+    sceneManager: sceneManager,
+    characterManager: characterManager,
+    remotePlayerManager: managers.remotePlayerManager,
+    botManager: botManager,
+    projectileManager: projectileManager,
+    arenaManager: arenaManager
   });
   
   // Initialize Game Menu
@@ -432,6 +445,7 @@ export function initializeUI(managers, config) {
     roomManager,
     botControl,
     learningFeedback,
+    minimap,
     scoreboard: managers.scoreboard,
     isMenuOpen: () => isMenuOpen,
     setIsMenuOpen: (value) => { isMenuOpen = value; }

@@ -732,6 +732,35 @@ html, body { height: 100%; margin: 0; }
   white-space: nowrap;
 }
 
+/* Minimap */
+.ui__minimap {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  padding: 8px;
+  pointer-events: auto;
+  opacity: 0.9;
+  z-index: 1000;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.ui__minimap.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ui__minimap-canvas {
+  display: block;
+  width: 200px;
+  height: 200px;
+  image-rendering: pixelated;
+}
+
 /* Menu toggle button */
 .menu-toggle {
   position: fixed;
