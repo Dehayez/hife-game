@@ -41,6 +41,7 @@ export function initializeUI(managers, config) {
     learningManager,
     healthBarManager,
     sceneManager,
+    collisionManager,
     gameLoop
   } = managers;
   
@@ -115,7 +116,8 @@ export function initializeUI(managers, config) {
     remotePlayerManager: managers.remotePlayerManager,
     botManager: botManager,
     projectileManager: projectileManager,
-    arenaManager: arenaManager
+    arenaManager: arenaManager,
+    collisionManager: collisionManager
   });
   
   // Initialize Game Menu

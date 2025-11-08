@@ -27,8 +27,9 @@ export function initializeMinimap(sceneManager, arenaManager) {
  * @param {Object} botManager - Bot manager instance
  * @param {Object} projectileManager - Projectile manager instance
  * @param {Object} arenaManager - Arena manager instance
+ * @param {Object} collisionManager - Collision manager instance
  */
-export function updateMinimap(ctx, width, height, state, sceneManager, characterManager, remotePlayerManager, botManager, projectileManager, arenaManager) {
+export function updateMinimap(ctx, width, height, state, sceneManager, characterManager, remotePlayerManager, botManager, projectileManager, arenaManager, collisionManager) {
   // Clear canvas
   ctx.clearRect(0, 0, width, height);
   
@@ -53,6 +54,14 @@ export function updateMinimap(ctx, width, height, state, sceneManager, character
     arenaSize * scale
   );
   
+  // Helper function to convert world position to minimap coordinates
+  const worldToMap = (x, z) => {
+    return {
+      x: offsetX + x * scale, // Horizontally rotated (mirrored)
+      y: offsetY + z * scale // Invert Z because canvas Y is down
+    };
+  };
+  
   // Draw grid lines (optional, for better orientation)
   ctx.strokeStyle = '#2a4a3a';
   ctx.lineWidth = 1;
@@ -71,13 +80,46 @@ export function updateMinimap(ctx, width, height, state, sceneManager, character
     ctx.stroke();
   }
   
-  // Helper function to convert world position to minimap coordinates
-  const worldToMap = (x, z) => {
-    return {
-      x: offsetX + x * scale, // Horizontally rotated (mirrored)
-      y: offsetY + z * scale // Invert Z because canvas Y is down
-    };
-  };
+  // Draw walls/obstacles
+  if (collisionManager && collisionManager.walls) {
+    ctx.fillStyle = '#666666'; // Grey color for walls
+    ctx.strokeStyle = '#444444';
+    ctx.lineWidth = 1;
+    
+    for (const wall of collisionManager.walls) {
+      if (wall && wall.position && wall.geometry) {
+        // Get wall dimensions from geometry
+        const wallSize = wall.geometry.parameters;
+        const wallWidth = wallSize.width || wallSize.w || 0.4;
+        const wallHeight = wallSize.depth || wallSize.h || 0.4;
+        
+        // Get wall position
+        const wallX = wall.position.x;
+        const wallZ = wall.position.z;
+        
+        // Convert to minimap coordinates
+        const mapPos = worldToMap(wallX, wallZ);
+        const mapWidth = wallWidth * scale;
+        const mapHeight = wallHeight * scale;
+        
+        // Draw wall rectangle
+        ctx.fillRect(
+          mapPos.x - mapWidth / 2,
+          mapPos.y - mapHeight / 2,
+          mapWidth,
+          mapHeight
+        );
+        
+        // Draw wall border
+        ctx.strokeRect(
+          mapPos.x - mapWidth / 2,
+          mapPos.y - mapHeight / 2,
+          mapWidth,
+          mapHeight
+        );
+      }
+    }
+  }
   
   // Draw local player
   if (characterManager && characterManager.getPlayer) {

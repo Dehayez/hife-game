@@ -7,7 +7,7 @@
 
 import { updateMinimap, initializeMinimap } from './functions.js';
 
-export function initMinimap({ mount, sceneManager, characterManager, remotePlayerManager, botManager, projectileManager, arenaManager }) {
+export function initMinimap({ mount, sceneManager, characterManager, remotePlayerManager, botManager, projectileManager, arenaManager, collisionManager }) {
   const wrapper = document.createElement('div');
   wrapper.className = 'ui__minimap';
   
@@ -45,7 +45,8 @@ export function initMinimap({ mount, sceneManager, characterManager, remotePlaye
         remotePlayerManager,
         botManager,
         projectileManager,
-        arenaManager
+        arenaManager,
+        collisionManager
       );
       
       animationFrameId = requestAnimationFrame(update);
@@ -107,7 +108,8 @@ export function initMinimap({ mount, sceneManager, characterManager, remotePlaye
           remotePlayerManager,
           botManager,
           projectileManager,
-          arenaManager
+          arenaManager,
+          collisionManager
         );
       }
     }
