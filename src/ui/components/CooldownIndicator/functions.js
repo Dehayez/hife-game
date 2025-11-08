@@ -112,12 +112,12 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
         // Show duration progress (drains from full to empty as time expires)
         speedBoostFill.style.width = `${(1 - speedBoostInfo.percentage) * 100}%`;
         speedBoostFill.style.opacity = '1.0';
-        speedBoostFill.style.background = '#FFD700'; // Gold when active
+        speedBoostFill.style.background = characterColor; // Character color when active
       } else {
         // Show cooldown progress (fills from empty to full as cooldown completes)
         speedBoostFill.style.width = `${(1 - speedBoostInfo.percentage) * 100}%`;
         speedBoostFill.style.opacity = speedBoostInfo.percentage > 0 ? '0.6' : '1.0';
-        speedBoostFill.style.background = characterColor;
+        speedBoostFill.style.background = characterColor; // Character color for cooldown
       }
     } else {
       // Hide speed boost indicator for characters without speed boost
