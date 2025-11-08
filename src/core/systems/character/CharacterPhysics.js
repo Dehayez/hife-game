@@ -50,12 +50,23 @@ export function updateCharacterPhysics(
     characterData.levitationTimeRemaining = physicsStats.levitationMaxDuration;
     // Track initial duration to calculate cooldown based on usage
     characterData.levitationInitialDuration = physicsStats.levitationMaxDuration;
+    // Reset ramp-up timer when starting levitation
+    characterData.levitationRampUpTime = 0;
   }
   
   const isCurrentlyLevitating = characterData.isLevitationActive && wantsLevitation && characterData.levitationTimeRemaining > 0;
   
   if (isCurrentlyLevitating) {
-    characterData.velocityY += physicsStats.levitationForce * dt;
+    // Update ramp-up timer
+    characterData.levitationRampUpTime += dt;
+    
+    // Calculate ramp-up multiplier (0 to 1 over ramp-up duration)
+    const rampUpDuration = physicsStats.levitationRampUpDuration || 0.25;
+    const rampUpProgress = Math.min(1, characterData.levitationRampUpTime / rampUpDuration);
+    
+    // Apply levitation force with gradual ramp-up
+    const currentLevitationForce = physicsStats.levitationForce * rampUpProgress;
+    characterData.velocityY += currentLevitationForce * dt;
     characterData.levitationTimeRemaining = Math.max(0, characterData.levitationTimeRemaining - dt);
   } else if (characterData.isLevitationActive) {
     // Levitation ended - calculate cooldown based on how much time was used
@@ -69,6 +80,7 @@ export function updateCharacterPhysics(
     characterData.isLevitationActive = false;
     characterData.levitationTimeRemaining = 0;
     characterData.levitationInitialDuration = 0;
+    characterData.levitationRampUpTime = 0;
   }
   
   if (characterData.levitationCooldown > 0) {
@@ -178,6 +190,7 @@ export function initializeCharacterPhysics(characterData) {
   characterData.isLevitationActive = false;
   characterData.levitationTimeRemaining = 0;
   characterData.levitationInitialDuration = 0;
+  characterData.levitationRampUpTime = 0;
   characterData.health = healthStats.defaultHealth;
   characterData.hasDoubleJumped = false;
 }
@@ -232,6 +245,7 @@ export function respawnCharacterPhysics(player, characterData, gameMode = null, 
   characterData.isLevitationActive = false;
   characterData.levitationTimeRemaining = 0;
   characterData.levitationInitialDuration = 0;
+  characterData.levitationRampUpTime = 0;
   characterData.hasDoubleJumped = false;
   
   // Reset health
