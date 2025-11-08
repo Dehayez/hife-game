@@ -9,7 +9,7 @@ export class KillStreakManager {
   constructor() {
     this.killStreaks = [];
     this.lastKillTime = 0;
-    this.streakWindow = 5.0; // Time window in seconds for kill streaks
+    this.streakWindow = 6.0; // Time window in seconds for kill streaks
     this.currentStreak = 0;
     this.container = null;
   }
@@ -30,8 +30,9 @@ export class KillStreakManager {
     this.container.style.zIndex = '10000'; // Above other UI elements
     this.container.style.display = 'flex';
     this.container.style.flexDirection = 'column';
-    this.container.style.justifyContent = 'center';
+    this.container.style.justifyContent = 'flex-start';
     this.container.style.alignItems = 'center';
+    this.container.style.paddingTop = '80px';
     
     document.body.appendChild(this.container);
   }
@@ -78,8 +79,8 @@ export class KillStreakManager {
     const color = this._getStreakColor(streak);
     
     element.textContent = text;
-    element.style.position = 'absolute';
-    element.style.fontSize = streak === 1 ? '72px' : streak === 2 ? '80px' : streak >= 3 ? '88px' : '96px';
+    element.style.position = 'relative';
+    element.style.fontSize = streak === 1 ? '32px' : streak === 2 ? '36px' : streak >= 3 ? '40px' : '44px';
     element.style.fontWeight = '900';
     element.style.color = color;
     element.style.textShadow = `
