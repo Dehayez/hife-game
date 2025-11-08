@@ -750,6 +750,10 @@ export class CharacterManager {
   _resetRollingVisual() {
     if (this.player) {
       this.player.visible = true;
+      // Clear rolling flag so animation system can manage visibility normally
+      if (this.player.userData) {
+        this.player.userData.isRolling = false;
+      }
     }
     if (this.rollMesh) {
       this.rollMesh.visible = false;
@@ -781,6 +785,10 @@ export class CharacterManager {
     if (!this._isRollVisible) {
       this._updateRollMeshAppearance();
       this.player.visible = false;
+      // Mark in userData that we're rolling so animation system doesn't force visibility
+      if (this.player.userData) {
+        this.player.userData.isRolling = true;
+      }
       this.rollMesh.visible = true;
       this.rollMesh.quaternion.identity();
       this._isRollVisible = true;

@@ -120,8 +120,10 @@ export function setCharacterAnimation(player, key, animations, currentAnimKey, f
     // Force immediate texture update
     texture.needsUpdate = true;
     
-    // Ensure player is visible when setting animation
-    if (player.visible === false) {
+    // Ensure player is visible when setting animation, but respect rolling state
+    // Don't force visibility if Herald is rolling (ball form)
+    const isRolling = player.userData && player.userData.isRolling === true;
+    if (player.visible === false && !isRolling) {
       player.visible = true;
     }
   }
