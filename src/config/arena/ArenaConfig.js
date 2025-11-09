@@ -14,12 +14,14 @@ export const ARENA_CONFIG = {
   'standard': {
     label: 'Forest Plaza (20x20)',
     size: 20,
-    description: 'A cozy forest clearing perfect for quick matches'
+    description: 'A cozy forest clearing perfect for quick matches',
+    image: '/assets/arenas/forest-plaza.png'
   },
   'large': {
     label: 'Ancient Grove (40x40)',
     size: 40,
-    description: 'A vast ancient forest for epic battles'
+    description: 'A vast ancient forest for epic battles',
+    image: '/assets/arenas/ancient-grove.png'
   }
 };
 
@@ -34,12 +36,13 @@ export function getArenaConfig(arenaKey) {
 
 /**
  * Get all available arenas
- * @returns {Array<Object>} Array of arena objects with value and label
+ * @returns {Array<Object>} Array of arena objects with value, label, and image
  */
 export function getAllArenas() {
   return Object.entries(ARENA_CONFIG).map(([value, config]) => ({
     value,
-    label: config.label
+    label: config.label,
+    image: config.image
   }));
 }
 

@@ -1,3 +1,20 @@
+/**
+ * Get arena image path
+ * @param {string} arenaKey - Arena key ('standard' or 'large')
+ * @returns {string|null} Image path or null if not found
+ */
+export function getArenaImage(arenaKey) {
+  if (!arenaKey) return null;
+  
+  // Map arena keys to image filenames
+  const imageMap = {
+    'standard': '/assets/arenas/forest-plaza.png',
+    'large': '/assets/arenas/ancient-grove.png'
+  };
+  
+  return imageMap[arenaKey] || null;
+}
+
 export function createChoice(arena, initialValue, selectValue, onChange) {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -5,7 +22,16 @@ export function createChoice(arena, initialValue, selectValue, onChange) {
   btn.setAttribute('aria-pressed', String(arena.value === initialValue));
   btn.dataset.value = arena.value;
 
-  // Use caption for text-only choices (similar to character switcher)
+  // Set background image if available
+  const arenaImage = arena.image || getArenaImage(arena.value);
+  if (arenaImage) {
+    btn.style.backgroundImage = `url("${arenaImage}")`;
+    btn.style.backgroundSize = 'cover';
+    btn.style.backgroundPosition = 'center';
+    btn.style.backgroundRepeat = 'no-repeat';
+  }
+
+  // Use caption for text overlay
   const caption = document.createElement('span');
   caption.className = 'ui__choice-caption';
   caption.textContent = arena.label;

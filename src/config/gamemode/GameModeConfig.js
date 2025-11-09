@@ -14,27 +14,32 @@ export const GAME_MODE_CONFIG = {
   'free-play': {
     name: 'Forest Wander',
     description: 'Explore the magical forest freely',
-    enabled: true
+    enabled: true,
+    image: '/assets/gamemodes/free-play.png'
   },
   'time-trial': {
     name: 'Crystal Shrine',
     description: 'Activate mystical shrines before time runs out',
-    enabled: true
+    enabled: true,
+    image: '/assets/gamemodes/time-trial.png'
   },
   'collection': {
     name: 'Gem Gathering',
     description: 'Collect enchanted crystals scattered throughout',
-    enabled: true
+    enabled: true,
+    image: '/assets/gamemodes/collection.png'
   },
   'survival': {
     name: 'Shadow Escape',
     description: 'Survive the cursed thorns as long as possible',
-    enabled: true
+    enabled: true,
+    image: '/assets/gamemodes/survival.png'
   },
   'shooting': {
     name: 'Mystic Battle',
     description: 'Invite players and battle with magical projectiles',
-    enabled: true
+    enabled: true,
+    image: '/assets/gamemodes/shooting.png'
   }
 };
 
