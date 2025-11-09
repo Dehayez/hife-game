@@ -16,7 +16,7 @@ export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) 
       </LegendSection>
 
       <LegendSection>
-        <LegendGroup label="Run:">
+        <LegendGroup label="Sprint:">
           <LegendKeys>
             <ControllerButton button="LT" controllerType={resolvedType} className="ui__legend-key--controller-lt" />
           </LegendKeys>
@@ -28,7 +28,7 @@ export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) 
           </LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Levitate:">
+        <LegendGroup label="Fly:">
           <LegendKeys>
             <ControllerButton button="A" controllerType={resolvedType} />
             <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(hold)</span>
@@ -90,9 +90,27 @@ export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) 
           </LegendKeys>
         </LegendGroup>
 
+        <LegendGroup label="Recharge:">
+          <LegendKeys>
+            <ControllerButton button="X" controllerType={resolvedType} className="ui__legend-key--controller-x" />
+          </LegendKeys>
+        </LegendGroup>
+
         <LegendGroup label="Melee:">
           <LegendKeys>
             <ControllerButton button="B" controllerType={resolvedType} className="ui__legend-key--controller-b" />
+          </LegendKeys>
+        </LegendGroup>
+
+        <LegendGroup label="Open Menu:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">Start</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+
+        <LegendGroup label="Scoreboard:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">Back</LegendKey>
           </LegendKeys>
         </LegendGroup>
       </LegendSection>

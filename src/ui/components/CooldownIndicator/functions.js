@@ -16,7 +16,7 @@ function getControllerLabel(button, controllerType) {
   return buttonConfig ? buttonConfig.label : button;
 }
 
-export function updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill) {
+export function updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, flyLabel, shotFill, mortarFill, meleeFill, speedBoostFill, flyFill) {
   if (!projectileManager || !characterManager) return;
   
   const characterName = characterManager.getCharacterName();
@@ -162,37 +162,37 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   meleeFill.style.opacity = meleePercent > 0 ? '0.6' : '1.0';
   meleeFill.style.background = characterColor;
   
-  // Update levitation cooldown
-  if (levitateFill && levitateLabel) {
-    // Update levitate label based on input mode
+  // Update fly cooldown
+  if (flyFill && flyLabel) {
+    // Update fly label based on input mode
     if (isControllerMode) {
       const label = controllerLabel('A');
-      levitateLabel.innerHTML = `Levitate <span class="ui__cooldown-key">(Hold ${label})</span>`;
+      flyLabel.innerHTML = `Fly <span class="ui__cooldown-key">(Hold ${label})</span>`;
     } else {
-      levitateLabel.innerHTML = 'Levitate <span class="ui__cooldown-key">(Hold Space)</span>';
+      flyLabel.innerHTML = 'Fly <span class="ui__cooldown-key">(Hold Space)</span>';
     }
     
     const physicsStats = getCharacterPhysicsStats();
-    const levitationState = characterManager.getLevitationState
-      ? characterManager.getLevitationState()
+    const flyState = characterManager.getFlyState
+      ? characterManager.getFlyState()
       : null;
 
-    const levitationMaxDuration = physicsStats.levitationMaxDuration || 0;
-    if (levitationState && levitationState.isActive && levitationMaxDuration > 0) {
-      const durationPercent = Math.min(levitationState.durationRemaining / levitationMaxDuration, 1.0);
-      levitateFill.style.width = `${durationPercent * 100}%`;
-      levitateFill.style.opacity = '1.0';
+    const flyMaxDuration = physicsStats.flyMaxDuration || 0;
+    if (flyState && flyState.isActive && flyMaxDuration > 0) {
+      const durationPercent = Math.min(flyState.durationRemaining / flyMaxDuration, 1.0);
+      flyFill.style.width = `${durationPercent * 100}%`;
+      flyFill.style.opacity = '1.0';
     } else {
-      const levitationCooldown = levitationState
-        ? levitationState.cooldownRemaining
-        : characterManager.getLevitationCooldown();
-      const levitationMaxCooldown = physicsStats.levitationCooldownTime || 0.3;
-      const levitationPercent = levitationMaxCooldown > 0 ? Math.min(levitationCooldown / levitationMaxCooldown, 1.0) : 0;
-      levitateFill.style.width = `${(1 - levitationPercent) * 100}%`;
-      levitateFill.style.opacity = levitationPercent > 0 ? '0.6' : '1.0';
+      const flyCooldown = flyState
+        ? flyState.cooldownRemaining
+        : characterManager.getFlyCooldown();
+      const flyMaxCooldown = physicsStats.flyCooldownTime || 0.3;
+      const flyPercent = flyMaxCooldown > 0 ? Math.min(flyCooldown / flyMaxCooldown, 1.0) : 0;
+      flyFill.style.width = `${(1 - flyPercent) * 100}%`;
+      flyFill.style.opacity = flyPercent > 0 ? '0.6' : '1.0';
     }
 
-    levitateFill.style.background = characterColor;
+    flyFill.style.background = characterColor;
   }
 }
 

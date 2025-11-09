@@ -16,7 +16,7 @@ import { getCharacterMovementStats, getCharacterHealthStats } from '../../../con
  * @param {Object} soundManager - Sound manager for landing sounds
  * @param {Function} isOnBaseGround - Function to check if on base ground
  * @param {number} dt - Delta time in seconds
- * @param {boolean} isLevitating - Whether character is levitating
+ * @param {boolean} isFlying - Whether character is flying
  */
 export function updateCharacterPhysics(
   player,
@@ -26,7 +26,7 @@ export function updateCharacterPhysics(
   soundManager,
   isOnBaseGround,
   dt,
-  isLevitating = false
+  isFlying = false
 ) {
   const physicsStats = getCharacterPhysicsStats();
   const movementStats = getCharacterMovementStats();
@@ -37,54 +37,54 @@ export function updateCharacterPhysics(
     characterData.jumpCooldown -= dt;
   }
 
-  // Apply gravity (gravity is always applied; levitation counteracts it)
+  // Apply gravity (gravity is always applied; fly counteracts it)
   characterData.velocityY += physicsStats.gravity * dt;
   
-  // Determine if player is actively trying to levitate this frame
-  const wantsLevitation = Boolean(isLevitating);
+  // Determine if player is actively trying to fly this frame
+  const wantsFly = Boolean(isFlying);
   
-  // Handle levitation activation and duration tracking
-  const canStartLevitation = wantsLevitation && characterData.levitationCooldown <= 0 && !characterData.isLevitationActive;
-  if (canStartLevitation) {
-    characterData.isLevitationActive = true;
-    characterData.levitationTimeRemaining = physicsStats.levitationMaxDuration;
+  // Handle fly activation and duration tracking
+  const canStartFly = wantsFly && characterData.flyCooldown <= 0 && !characterData.isFlyActive;
+  if (canStartFly) {
+    characterData.isFlyActive = true;
+    characterData.flyTimeRemaining = physicsStats.flyMaxDuration;
     // Track initial duration to calculate cooldown based on usage
-    characterData.levitationInitialDuration = physicsStats.levitationMaxDuration;
-    // Reset ramp-up timer when starting levitation
-    characterData.levitationRampUpTime = 0;
+    characterData.flyInitialDuration = physicsStats.flyMaxDuration;
+    // Reset ramp-up timer when starting fly
+    characterData.flyRampUpTime = 0;
   }
   
-  const isCurrentlyLevitating = characterData.isLevitationActive && wantsLevitation && characterData.levitationTimeRemaining > 0;
+  const isCurrentlyFlying = characterData.isFlyActive && wantsFly && characterData.flyTimeRemaining > 0;
   
-  if (isCurrentlyLevitating) {
+  if (isCurrentlyFlying) {
     // Update ramp-up timer
-    characterData.levitationRampUpTime += dt;
+    characterData.flyRampUpTime += dt;
     
     // Calculate ramp-up multiplier (0 to 1 over ramp-up duration)
-    const rampUpDuration = physicsStats.levitationRampUpDuration || 0.25;
-    const rampUpProgress = Math.min(1, characterData.levitationRampUpTime / rampUpDuration);
+    const rampUpDuration = physicsStats.flyRampUpDuration || 0.25;
+    const rampUpProgress = Math.min(1, characterData.flyRampUpTime / rampUpDuration);
     
-    // Apply levitation force with gradual ramp-up
-    const currentLevitationForce = physicsStats.levitationForce * rampUpProgress;
-    characterData.velocityY += currentLevitationForce * dt;
-    characterData.levitationTimeRemaining = Math.max(0, characterData.levitationTimeRemaining - dt);
-  } else if (characterData.isLevitationActive) {
-    // Levitation ended - calculate cooldown based on how much time was used
-    const initialDuration = characterData.levitationInitialDuration || physicsStats.levitationMaxDuration;
-    const usedTime = initialDuration - characterData.levitationTimeRemaining;
+    // Apply fly force with gradual ramp-up
+    const currentFlyForce = physicsStats.flyForce * rampUpProgress;
+    characterData.velocityY += currentFlyForce * dt;
+    characterData.flyTimeRemaining = Math.max(0, characterData.flyTimeRemaining - dt);
+  } else if (characterData.isFlyActive) {
+    // Fly ended - calculate cooldown based on how much time was used
+    const initialDuration = characterData.flyInitialDuration || physicsStats.flyMaxDuration;
+    const usedTime = initialDuration - characterData.flyTimeRemaining;
     const usageRatio = initialDuration > 0 ? usedTime / initialDuration : 1;
     
     // Set cooldown proportional to usage (more usage = longer cooldown)
-    characterData.levitationCooldown = usageRatio * physicsStats.levitationCooldownTime;
+    characterData.flyCooldown = usageRatio * physicsStats.flyCooldownTime;
     
-    characterData.isLevitationActive = false;
-    characterData.levitationTimeRemaining = 0;
-    characterData.levitationInitialDuration = 0;
-    characterData.levitationRampUpTime = 0;
+    characterData.isFlyActive = false;
+    characterData.flyTimeRemaining = 0;
+    characterData.flyInitialDuration = 0;
+    characterData.flyRampUpTime = 0;
   }
   
-  if (characterData.levitationCooldown > 0) {
-    characterData.levitationCooldown = Math.max(0, characterData.levitationCooldown - dt);
+  if (characterData.flyCooldown > 0) {
+    characterData.flyCooldown = Math.max(0, characterData.flyCooldown - dt);
   }
 
   // Update vertical position
@@ -186,11 +186,11 @@ export function initializeCharacterPhysics(characterData) {
   characterData.isGrounded = true;
   characterData.wasGrounded = true;
   characterData.jumpCooldown = 0;
-  characterData.levitationCooldown = 0;
-  characterData.isLevitationActive = false;
-  characterData.levitationTimeRemaining = 0;
-  characterData.levitationInitialDuration = 0;
-  characterData.levitationRampUpTime = 0;
+  characterData.flyCooldown = 0;
+  characterData.isFlyActive = false;
+  characterData.flyTimeRemaining = 0;
+  characterData.flyInitialDuration = 0;
+  characterData.flyRampUpTime = 0;
   characterData.health = healthStats.defaultHealth;
   characterData.hasDoubleJumped = false;
 }
@@ -241,11 +241,11 @@ export function respawnCharacterPhysics(player, characterData, gameMode = null, 
   characterData.isGrounded = true;
   characterData.wasGrounded = true; // Prevent landing sound on respawn
   characterData.jumpCooldown = 0;
-  characterData.levitationCooldown = 0;
-  characterData.isLevitationActive = false;
-  characterData.levitationTimeRemaining = 0;
-  characterData.levitationInitialDuration = 0;
-  characterData.levitationRampUpTime = 0;
+  characterData.flyCooldown = 0;
+  characterData.isFlyActive = false;
+  characterData.flyTimeRemaining = 0;
+  characterData.flyInitialDuration = 0;
+  characterData.flyRampUpTime = 0;
   characterData.hasDoubleJumped = false;
   
   // Reset health

@@ -64,11 +64,11 @@ export class CharacterManager {
       health: getCharacterHealthStats().defaultHealth,
       maxHealth: getCharacterHealthStats().maxHealth,
       hasDoubleJumped: false,
-      levitationCooldown: 0,
-      isLevitationActive: false,
-      levitationTimeRemaining: 0,
-      levitationInitialDuration: 0,
-      levitationRampUpTime: 0
+      flyCooldown: 0,
+      isFlyActive: false,
+      flyTimeRemaining: 0,
+      flyInitialDuration: 0,
+      flyRampUpTime: 0
     };
     
     // Sound manager
@@ -480,25 +480,25 @@ export class CharacterManager {
   }
 
   /**
-   * Get current levitation state
+   * Get current fly state
    * @returns {{isActive: boolean, durationRemaining: number, cooldownRemaining: number}}
    */
-  getLevitationState() {
+  getFlyState() {
     const data = this.characterData || {};
 
     return {
-      isActive: Boolean(data.isLevitationActive),
-      durationRemaining: Math.max(0, data.levitationTimeRemaining || 0),
-      cooldownRemaining: Math.max(0, data.levitationCooldown || 0)
+      isActive: Boolean(data.isFlyActive),
+      durationRemaining: Math.max(0, data.flyTimeRemaining || 0),
+      cooldownRemaining: Math.max(0, data.flyCooldown || 0)
     };
   }
 
   /**
-   * Get levitation cooldown
-   * @returns {number} Current levitation cooldown
+   * Get fly cooldown
+   * @returns {number} Current fly cooldown
    */
-  getLevitationCooldown() {
-    const { cooldownRemaining } = this.getLevitationState();
+  getFlyCooldown() {
+    const { cooldownRemaining } = this.getFlyState();
     return cooldownRemaining;
   }
 

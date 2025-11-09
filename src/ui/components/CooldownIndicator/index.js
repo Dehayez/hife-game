@@ -8,12 +8,12 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
     mortarFill: null,
     meleeFill: null,
     speedBoostFill: null,
-    levitateFill: null,
+    flyFill: null,
     shotBar: null,
     mortarBar: null,
     meleeBar: null,
     speedBoostBar: null,
-    levitateBar: null,
+    flyBar: null,
     update: function() {},
     show: function() {},
     hide: function() {}
@@ -88,31 +88,31 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   meleeIndicator.appendChild(meleeLabel);
   meleeIndicator.appendChild(meleeBar);
   
-  // Levitate cooldown
-  const levitateIndicator = document.createElement('div');
-  levitateIndicator.className = 'ui__cooldown-item';
-  const levitateLabel = document.createElement('div');
-  levitateLabel.className = 'ui__cooldown-label';
-  levitateLabel.innerHTML = 'Levitate <span class="ui__cooldown-key">(Hold A/Space)</span>';
-  const levitateBar = document.createElement('div');
-  levitateBar.className = 'ui__cooldown-bar';
-  const levitateFill = document.createElement('div');
-  levitateFill.className = 'ui__cooldown-fill';
-  levitateFill.style.width = '100%';
-  levitateBar.appendChild(levitateFill);
-  levitateIndicator.appendChild(levitateLabel);
-  levitateIndicator.appendChild(levitateBar);
+  // Fly cooldown
+  const flyIndicator = document.createElement('div');
+  flyIndicator.className = 'ui__cooldown-item';
+  const flyLabel = document.createElement('div');
+  flyLabel.className = 'ui__cooldown-label';
+  flyLabel.innerHTML = 'Fly <span class="ui__cooldown-key">(Hold A/Space)</span>';
+  const flyBar = document.createElement('div');
+  flyBar.className = 'ui__cooldown-bar';
+  const flyFill = document.createElement('div');
+  flyFill.className = 'ui__cooldown-fill';
+  flyFill.style.width = '100%';
+  flyBar.appendChild(flyFill);
+  flyIndicator.appendChild(flyLabel);
+  flyIndicator.appendChild(flyBar);
   
   container.appendChild(shotIndicator);
   container.appendChild(speedBoostIndicator);
   container.appendChild(mortarIndicator);
   container.appendChild(meleeIndicator);
-  container.appendChild(levitateIndicator);
+  container.appendChild(flyIndicator);
   mount.appendChild(container);
   
   // Initial sync so labels match current input mode immediately
   if (projectileManager && characterManager) {
-    updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill);
+    updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, flyLabel, shotFill, mortarFill, meleeFill, speedBoostFill, flyFill);
   }
   
   // Store references for updates
@@ -122,14 +122,14 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
     mortarFill,
     meleeFill,
     speedBoostFill,
-    levitateFill,
+    flyFill,
     shotBar,
     mortarBar,
     meleeBar,
     speedBoostBar,
-    levitateBar,
+    flyBar,
     update: function() {
-      updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, levitateLabel, shotFill, mortarFill, meleeFill, speedBoostFill, levitateFill);
+      updateCooldowns(projectileManager, characterManager, inputManager, shotLabel, mortarLabel, meleeLabel, speedBoostLabel, flyLabel, shotFill, mortarFill, meleeFill, speedBoostFill, flyFill);
     },
     show: function() {
       container.style.display = 'block';

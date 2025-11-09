@@ -1,11 +1,11 @@
 /**
  * PhysicsConfig.js
  * 
- * Physics configuration for character movement, jumping, and levitation.
+ * Physics configuration for character movement, jumping, and fly.
  * 
  * This file contains all physics-related settings including:
  * - Gravity and jump mechanics
- * - Levitation force and cooldown
+ * - Fly force and cooldown
  * - Jump cooldown timing
  */
 
@@ -25,12 +25,12 @@ export const CHARACTER_PHYSICS_CONFIG = {
   jumpCooldownTime: 0.6,     // Seconds between jumps (prevents rapid jumping)
   
   /**
-   * Levitation Configuration
+   * Fly Configuration
    */
-  levitationForce: 30,          // Upward force when levitating (reduces gravity effect)
-  levitationMaxDuration: 1.5,     // Maximum sustained levitation time per use (seconds)
-  levitationCooldownTime: 1,   // Seconds before levitation can be used again after duration is reached
-  levitationRampUpDuration: 0.25  // Time in seconds to ramp up from 0 to full levitation force (smooth start)
+  flyForce: 30,          // Upward force when flying (reduces gravity effect)
+  flyMaxDuration: 1.5,     // Maximum sustained fly time per use (seconds)
+  flyCooldownTime: 1,   // Seconds before fly can be used again after duration is reached
+  flyRampUpDuration: 0.25  // Time in seconds to ramp up from 0 to full fly force (smooth start)
 };
 
 /**

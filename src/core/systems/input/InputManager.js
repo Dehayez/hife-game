@@ -31,7 +31,7 @@ export class InputManager {
       heal: false,
       swordSwing: false,
       doubleJump: false,
-      levitate: false,
+      fly: false,
       speedBoost: false
     };
     
@@ -147,7 +147,7 @@ export class InputManager {
         this.inputState.down = false;
         this.inputState.left = false;
         this.inputState.right = false;
-        this.inputState.levitate = false;
+        this.inputState.fly = false;
       }
       
       // Clear ability states when switching modes to prevent stuck states
@@ -480,7 +480,7 @@ export class InputManager {
         this.inputState.heal = false;
         this.inputState.swordSwing = false;
         this.inputState.doubleJump = false;
-        this.inputState.levitate = false;
+        this.inputState.fly = false;
         this.inputState.speedBoost = false;
         
         // Reset mortar hold state
@@ -637,7 +637,7 @@ export class InputManager {
       this.inputState.shift = false;
       this.inputState.shoot = false;
       this.inputState.mortar = false;
-      this.inputState.levitate = false;
+      this.inputState.fly = false;
       this.inputState.characterSwap = false;
       this.inputState.heal = false;
       this.inputState.swordSwing = false;
@@ -677,18 +677,18 @@ export class InputManager {
   }
 
   /**
-   * Process jump and levitation input (works for both keyboard and controller modes)
-   * Separates jump (press) from levitate (hold)
+   * Process jump and fly input (works for both keyboard and controller modes)
+   * Separates jump (press) from fly (hold)
    */
-  _processJumpAndLevitation() {
+  _processJumpAndFly() {
     // For keyboard mode, process Spacebar
     if (this.inputMode === 'keyboard') {
       const keyboardJumpButton = this._keyboardJumpButtonPressed;
       const isKeyboardJustPressed = keyboardJumpButton && !this._previousKeyboardJumpState;
       
-      // Update levitation state (hold down = levitate)
+      // Update fly state (hold down = fly)
       const isHoldingKeyboard = keyboardJumpButton && this._previousKeyboardJumpState;
-      this.inputState.levitate = isHoldingKeyboard;
+      this.inputState.fly = isHoldingKeyboard;
       
       // Jump only triggers on initial press, not on hold
       const now = Date.now();
@@ -727,9 +727,9 @@ export class InputManager {
    * @param {number} dt - Delta time in seconds (optional, defaults to ~0.016 for 60fps)
    */
   updateGamepad(dt = 0.016) {
-    // Process jump/levitation for keyboard mode
+    // Process jump/fly for keyboard mode
     if (this.inputMode === 'keyboard') {
-      this._processJumpAndLevitation();
+      this._processJumpAndFly();
       return;
     }
     
@@ -902,20 +902,20 @@ export class InputManager {
       this.inputState.down = false;
     }
 
-    // Jump and Levitation (A button 0 / Spacebar) - separate press (jump) from hold (levitate)
+    // Jump and Fly (A button 0 / Spacebar) - separate press (jump) from hold (fly)
     const gamepadJumpButton = gamepad.buttons[0] && gamepad.buttons[0].pressed; // A button
     const keyboardJumpButton = this._keyboardJumpButtonPressed; // Spacebar from keyboard
     
-    // Detect press vs hold: jump only on initial press, levitate on hold
+    // Detect press vs hold: jump only on initial press, fly on hold
     const isGamepadJustPressed = gamepadJumpButton && !this._previousJumpButtonState;
     const isKeyboardJustPressed = keyboardJumpButton && !this._previousKeyboardJumpState;
     const isJumpPress = isGamepadJustPressed || isKeyboardJustPressed;
     
-    // Update levitation state (hold down = levitate)
-    // Levitate when button is currently held AND was also held in previous frame (meaning it's being held, not just pressed)
+    // Update fly state (hold down = fly)
+    // Fly when button is currently held AND was also held in previous frame (meaning it's being held, not just pressed)
     const isHoldingGamepad = gamepadJumpButton && this._previousJumpButtonState;
     const isHoldingKeyboard = keyboardJumpButton && this._previousKeyboardJumpState;
-    this.inputState.levitate = isHoldingGamepad || isHoldingKeyboard;
+    this.inputState.fly = isHoldingGamepad || isHoldingKeyboard;
     
     // Detect double jump: track press timing
     const now = Date.now();
@@ -1662,14 +1662,14 @@ export class InputManager {
   }
 
   /**
-   * Check if levitate key is pressed
-   * @returns {boolean} True if levitate key is pressed
+   * Check if fly key is pressed
+   * @returns {boolean} True if fly key is pressed
    */
-  isLevitatePressed() {
+  isFlyPressed() {
     if (this.abilityInputsBlocked) {
       return false;
     }
-    return this.inputState.levitate;
+    return this.inputState.fly;
   }
 
   /**

@@ -400,8 +400,8 @@ export class GameLoop {
     }
     
     // Update jump physics
-    const isLevitating = this.inputManager.isLevitatePressed();
-    this.characterManager.updateJumpPhysics(dt, this.collisionManager, isLevitating);
+    const isFlying = this.inputManager.isFlyPressed();
+    this.characterManager.updateJumpPhysics(dt, this.collisionManager, isFlying);
     
     // Detect landing and add vibration
     const isGrounded = this.characterManager.characterData && this.characterManager.characterData.isGrounded;

@@ -24,7 +24,7 @@ export function KeyboardControls({ isShootingMode }) {
       </LegendSection>
 
       <LegendSection>
-        <LegendGroup label="Run:">
+        <LegendGroup label="Sprint:">
           <LegendKeys>
             <LegendKey className="ui__legend-key--shift" dangerouslySetInnerHTML={{ __html: '⇧ Shift' }} />
           </LegendKeys>
@@ -36,7 +36,7 @@ export function KeyboardControls({ isShootingMode }) {
           </LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Levitate:">
+        <LegendGroup label="Fly:">
           <LegendKeys variant="jump">
             <LegendKey className="ui__legend-key--space">Space</LegendKey>
             <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(hold)</span>
@@ -86,6 +86,12 @@ export function KeyboardControls({ isShootingMode }) {
           </LegendKeys>
         </LegendGroup>
 
+        <LegendGroup label="Recharge:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">H</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+
         <LegendGroup label="Melee:">
           <LegendKeys>
             <LegendKey className="ui__legend-key--char">F</LegendKey>
@@ -95,6 +101,18 @@ export function KeyboardControls({ isShootingMode }) {
         <LegendGroup label="Speed Boost:">
           <LegendKeys>
             <LegendKey className="ui__legend-key--char">E</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+
+        <LegendGroup label="Open Menu:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">ESC</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+
+        <LegendGroup label="Scoreboard:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">Tab</LegendKey>
           </LegendKeys>
         </LegendGroup>
       </LegendSection>
