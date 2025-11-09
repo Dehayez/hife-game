@@ -30,7 +30,9 @@ export const CHARACTER_PHYSICS_CONFIG = {
   flyForce: 30,          // Upward force when flying (reduces gravity effect)
   flyMaxDuration: 1.5,     // Maximum sustained fly time per use (seconds)
   flyCooldownTime: 1,   // Seconds before fly can be used again after duration is reached
-  flyRampUpDuration: 0.25  // Time in seconds to ramp up from 0 to full fly force (smooth start)
+  flyRampUpDuration: 0.25,  // Time in seconds to ramp up from 0 to full fly force (smooth start)
+  flyFallGravityMultiplier: 0.25,  // Gravity multiplier when falling after fly ends (0.25 = 25% gravity - slower fall)
+  flyFallGravityDuration: 0.5  // Duration in seconds to apply reduced gravity after fly ends
 };
 
 /**

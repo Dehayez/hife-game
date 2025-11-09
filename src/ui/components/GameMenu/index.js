@@ -68,6 +68,11 @@ export class GameMenu {
     this.header = document.createElement('div');
     this.header.className = 'game-menu__header ui__game-menu-header';
     
+    const title = document.createElement('h2');
+    title.className = 'game-menu__title ui__game-menu-title';
+    title.textContent = 'Menu';
+    this.header.appendChild(title);
+    
     const closeButton = document.createElement('button');
     closeButton.className = 'game-menu__close ui__game-menu-close';
     closeButton.innerHTML = '✕';
@@ -516,7 +521,24 @@ export class GameMenu {
       const button = document.createElement('button');
       button.className = 'game-menu__section-button ui__game-menu-section-button';
       button.dataset.section = section.id;
-      button.textContent = section.title;
+      
+      // Create button content with icon and text
+      const buttonContent = document.createElement('span');
+      buttonContent.className = 'game-menu__section-button-content';
+      
+      if (section.icon) {
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'game-menu__section-button-icon';
+        iconSpan.textContent = section.icon;
+        buttonContent.appendChild(iconSpan);
+      }
+      
+      const textSpan = document.createElement('span');
+      textSpan.className = 'game-menu__section-button-text';
+      textSpan.textContent = section.title;
+      buttonContent.appendChild(textSpan);
+      
+      button.appendChild(buttonContent);
       button.addEventListener('click', () => this.switchSection(section.id));
       
       const isActive = this.activeSection[this.activeTab] === section.id;
@@ -556,7 +578,7 @@ export class GameMenu {
           focusable[0].focus();
           this.highlightElement(focusable[0]);
         }
-      }, 100);
+      }, 50);
       this.controllerNavigation.currentSectionIndex = 0;
       
       if (this.config.onMenuOpen) {
@@ -648,6 +670,7 @@ export class GameMenu {
     this.tabSections[tabId].push({
       id: sectionId,
       title: sectionConfig.title || sectionId,
+      icon: sectionConfig.icon || null,
       element: section
     });
     

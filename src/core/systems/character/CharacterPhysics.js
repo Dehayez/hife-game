@@ -38,7 +38,13 @@ export function updateCharacterPhysics(
   }
 
   // Apply gravity (gravity is always applied; fly counteracts it)
-  characterData.velocityY += physicsStats.gravity * dt;
+  // Use reduced gravity if falling after fly ends
+  let gravityMultiplier = 1.0;
+  if (characterData.flyFallGravityTimer > 0) {
+    gravityMultiplier = physicsStats.flyFallGravityMultiplier || 0.5;
+    characterData.flyFallGravityTimer = Math.max(0, characterData.flyFallGravityTimer - dt);
+  }
+  characterData.velocityY += physicsStats.gravity * gravityMultiplier * dt;
   
   // Determine if player is actively trying to fly this frame
   const wantsFly = Boolean(isFlying);
@@ -76,6 +82,9 @@ export function updateCharacterPhysics(
     
     // Set cooldown proportional to usage (more usage = longer cooldown)
     characterData.flyCooldown = usageRatio * physicsStats.flyCooldownTime;
+    
+    // Start reduced gravity timer when fly ends
+    characterData.flyFallGravityTimer = physicsStats.flyFallGravityDuration || 0.5;
     
     characterData.isFlyActive = false;
     characterData.flyTimeRemaining = 0;
@@ -126,6 +135,8 @@ export function updateCharacterPhysics(
     characterData.isGrounded = true;
     // Reset double jump flag when landing
     characterData.hasDoubleJumped = false;
+    // Reset fly fall gravity timer when landing
+    characterData.flyFallGravityTimer = 0;
     
     // Play landing sound if we just landed (transitioned from not grounded to grounded)
     if (!wasGrounded && soundManager) {
@@ -191,6 +202,7 @@ export function initializeCharacterPhysics(characterData) {
   characterData.flyTimeRemaining = 0;
   characterData.flyInitialDuration = 0;
   characterData.flyRampUpTime = 0;
+  characterData.flyFallGravityTimer = 0;
   characterData.health = healthStats.defaultHealth;
   characterData.hasDoubleJumped = false;
 }
@@ -246,6 +258,7 @@ export function respawnCharacterPhysics(player, characterData, gameMode = null, 
   characterData.flyTimeRemaining = 0;
   characterData.flyInitialDuration = 0;
   characterData.flyRampUpTime = 0;
+  characterData.flyFallGravityTimer = 0;
   characterData.hasDoubleJumped = false;
   
   // Reset health

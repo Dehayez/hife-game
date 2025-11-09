@@ -4,7 +4,7 @@
  */
 export const HERALD_MORTAR_ATTACK_CONFIG = {
   areaDamage: 0.625,        // 62.5% of base (5 area damage) - Lower area damage
-  cooldown: 1.167,          // 116.7% of base (3.5s) - Slower cooldown
+  cooldown: 2.0,            // 200% of base (6.0s) - Much longer cooldown
   arcHeight: 1.143,         // 114.3% of base (4.0 height) - Higher arc
   splashRadius: 1.111,     // 111.1% of base (1.0 radius) - Larger splash
   fireDuration: 1.143,      // 114.3% of base (2.0s) - Longer fire duration

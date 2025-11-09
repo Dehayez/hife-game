@@ -68,7 +68,8 @@ export class CharacterManager {
       isFlyActive: false,
       flyTimeRemaining: 0,
       flyInitialDuration: 0,
-      flyRampUpTime: 0
+      flyRampUpTime: 0,
+      flyFallGravityTimer: 0
     };
     
     // Sound manager

@@ -134,14 +134,14 @@ export const VIBRATION_CONFIG = {
    * Healing Vibration Throttle Settings
    */
   healing: {
-    vibrationInterval: 0.2  // seconds between vibrations during continuous healing
+    vibrationInterval: 0.0001  // seconds between vibrations during continuous healing
   },
 
   /**
    * Vibration Intensity/Volume Multiplier
    * Applied to all vibration magnitudes (0.0 to 1.0)
    */
-  defaultIntensity: 1.0  // Default intensity multiplier
+  defaultIntensity: 0.001  // Default intensity multiplier (-12dB reduction, significantly reduced)
 };
 
 /**

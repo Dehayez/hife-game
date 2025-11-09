@@ -10,11 +10,11 @@ export const GAME_CONSTANTS = {
   SYNC_INTERVAL: 66, // Position sync interval in milliseconds (~15 times per second for ultra-smooth multiplayer with less jitter)
   ANIMATION_UPDATE_THROTTLE: 16, // Max update interval for animations in milliseconds
   STALE_PLAYER_CLEANUP: 5000, // Cleanup stale players every 5 seconds
-  AUTO_JOIN_DELAY: 100, // Delay before attempting auto-join in milliseconds
-  AUTO_JOIN_RETRY_DELAY: 1000, // Retry delay for auto-join in milliseconds
-  INITIAL_STATE_SEND_DELAY: 50, // Delay before sending initial state in milliseconds
-  INITIAL_STATE_REQUEST_DELAY: 200, // Delay before requesting existing players in milliseconds
-  LOADING_SCREEN_REMOVE_DELAY: 300, // Delay before removing loading screen in milliseconds
+  AUTO_JOIN_DELAY: 50, // Delay before attempting auto-join in milliseconds
+  AUTO_JOIN_RETRY_DELAY: 500, // Retry delay for auto-join in milliseconds
+  INITIAL_STATE_SEND_DELAY: 30, // Delay before sending initial state in milliseconds
+  INITIAL_STATE_REQUEST_DELAY: 100, // Delay before requesting existing players in milliseconds
+  LOADING_SCREEN_REMOVE_DELAY: 200, // Delay before removing loading screen in milliseconds
   
   // UI constants
   LOADING_TRANSITION_DURATION: 300, // Loading screen transition duration in milliseconds

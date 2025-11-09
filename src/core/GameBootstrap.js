@@ -373,7 +373,7 @@ export async function initializeGame(managers, uiComponents, config) {
     gameLoop.start();
     
     // Small delay to show "Starting game..." message
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 100));
   } finally {
     hideLoadingScreen();
   }

@@ -474,7 +474,7 @@ export class GameModeManager {
             if (this.onModeChangeCallback) {
               this.onModeChangeCallback();
             }
-          }, 1500);
+          }, 800);
         }
       }
     }

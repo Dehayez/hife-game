@@ -242,6 +242,40 @@ export class VibrationManager {
   }
 
   /**
+   * Mortar explosion vibration scaled by distance
+   * @param {number} distance - Distance from player to explosion (in game units)
+   * @param {number} maxDistance - Maximum distance for vibration (default: 8)
+   */
+  mortarExplosionDistance(distance, maxDistance = 8) {
+    const config = getMechanicVibration('mortarExplosion');
+    
+    // Clamp distance to maxDistance
+    const clampedDistance = Math.min(distance, maxDistance);
+    
+    // Calculate intensity based on distance
+    // Closer = stronger (1.0), further = weaker (0.0)
+    // Use a very aggressive exponential falloff for quiet distant vibrations
+    // Formula: intensity = 1 - (distance/maxDistance)^5.0
+    // Higher power = much steeper falloff = very quiet when far away
+    const normalizedDistance = clampedDistance / maxDistance;
+    const intensity = 1.0 - Math.pow(normalizedDistance, 5.0);
+    
+    // Minimum intensity threshold (don't vibrate if too far)
+    // Higher threshold means vibrations stop much earlier
+    const minIntensity = 0.3;
+    if (intensity < minIntensity) {
+      return; // Too far, no vibration
+    }
+    
+    // Scale vibration magnitudes by distance intensity
+    // This ensures far explosions have very quiet vibration
+    const strongMagnitude = config.strongMagnitude * intensity;
+    const weakMagnitude = config.weakMagnitude * intensity;
+    
+    this.vibrate(strongMagnitude, weakMagnitude, config.duration);
+  }
+
+  /**
    * Take damage vibration
    * @param {number} damage - Damage amount (for scaling intensity)
    */

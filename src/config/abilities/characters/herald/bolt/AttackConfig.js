@@ -4,7 +4,7 @@
  */
 export const HERALD_BOLT_ATTACK_CONFIG = {
   damage: 1.75,             // 175% of base (35 damage) - Much higher damage
-  cooldown: 2.0,            // 200% of base (0.8s) - Slower than Lucy
+  cooldown: 2.5,            // 250% of base (1.0s) - Slower fire rate
   projectileSpeed: 1,     // 90% of base (9 units/s) - Slightly slower (final speed)
   minSpeed: 0.3,            // 30% of base speed (start very slow)
   maxSpeed: 4,            // 120% of base speed (accelerate to fast)

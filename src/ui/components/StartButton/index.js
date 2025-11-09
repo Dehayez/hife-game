@@ -6,7 +6,7 @@ export class StartButton {
     this.button = null;
     this.isCounting = false;
     this.isCountdownComplete = false;
-    this.countdown = 3;
+    this.countdown = 2;
     this.button = createButton();
     this.button.addEventListener('click', () => {
       this.startCountdown();
@@ -24,7 +24,7 @@ export class StartButton {
       this.button.textContent = 'Start';
       this.button.classList.remove('is-counting');
     }
-    this.countdown = 3;
+    this.countdown = 2;
     this.isCounting = false;
     this.isCountdownComplete = false;
   }
@@ -55,7 +55,7 @@ export class StartButton {
           if (this.onStart) {
             this.onStart();
           }
-        }, 500);
+        }, 300);
       }
     }, 1000);
   }

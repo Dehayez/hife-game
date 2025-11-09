@@ -101,7 +101,7 @@ export const COLLISION_STATS = {
    * Respawn System Configuration
    */
   respawn: {
-    respawnTime: 3,            // Respawn countdown in seconds
+    respawnTime: 2,            // Respawn countdown in seconds
     fallThreshold: -5,         // Y position threshold for falling outside
     checkInterval: 0.1         // How often to check for falling (seconds)
   },

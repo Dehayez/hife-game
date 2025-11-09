@@ -150,6 +150,9 @@ export class GameLoop {
     this._lastHealNumberTime = 0; // Throttle healing number display
     this._accumulatedHealAmount = 0; // Accumulate heal amount for display
     
+    // Track previous splash area count for distance-based mortar explosion vibration
+    this._previousSplashAreaCount = 0;
+    
     // Cached objects for performance optimization (reuse instead of creating new ones)
     this._cachedRaycaster = new THREE.Raycaster();
     this._cachedMouse = new THREE.Vector2();
@@ -1059,8 +1062,40 @@ export class GameLoop {
    * @private
    */
   _handleShootingMode(dt, player, mode = 'free-play') {
+    // Track splash areas before update for distance-based vibration
+    const previousSplashCount = this.projectileManager && this.projectileManager.splashAreas 
+      ? this.projectileManager.splashAreas.length 
+      : 0;
+    
     // Update projectiles
     this.projectileManager.update(dt);
+    
+    // Check for new splash areas and trigger distance-based vibration
+    if (this.projectileManager && this.projectileManager.splashAreas && this.vibrationManager && player) {
+      const currentSplashCount = this.projectileManager.splashAreas.length;
+      
+      // If new splash areas were added, trigger vibration for each
+      if (currentSplashCount > previousSplashCount) {
+        const playerPos = player.position;
+        
+        // Check each new splash area
+        for (let i = previousSplashCount; i < currentSplashCount; i++) {
+          const splashArea = this.projectileManager.splashAreas[i];
+          if (splashArea && splashArea.position) {
+            // Use the actual THREE.Object3D position (more reliable than userData.position)
+            const splashPos = splashArea.position;
+            
+            // Calculate horizontal distance from player to explosion (ignore Y axis)
+            const dx = splashPos.x - playerPos.x;
+            const dz = splashPos.z - playerPos.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+            
+            // Trigger distance-based vibration
+            this.vibrationManager.mortarExplosionDistance(distance);
+          }
+        }
+      }
+    }
     
     // Update mortar release cooldown timer
     if (this.mortarReleaseCooldown > 0) {
@@ -2055,10 +2090,9 @@ export class GameLoop {
     if (mortarCollision.hit) {
       const shooterId = mortarCollision.projectile?.userData?.playerId;
       
-      // Vibration for mortar explosion (in addition to damage vibration)
-      if (this.vibrationManager) {
-        this.vibrationManager.mortarExplosion();
-      }
+      // Note: Distance-based vibration is now handled in _handleShootingMode
+      // when new splash areas are created. This ensures vibration happens for
+      // all explosions, not just when player is hit.
       
       // Shake will be applied in _applyDamageToPlayer based on actual damage
       this._applyDamageToPlayer(mortarCollision.damage, player, shooterId);
