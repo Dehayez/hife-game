@@ -660,8 +660,23 @@ export class InputManager {
       this._previousKeyboardJumpState = false;
       this._gamepadJumpState = false;
     } else {
+      // When unblocking (menu closing), check if B button is currently pressed
+      // If so, mark it as already pressed to prevent menu-close B press from triggering melee attack
+      let bButtonPressed = false;
+      try {
+        const gamepads = navigator.getGamepads();
+        if (gamepads && gamepads.length > 0) {
+          const gamepad = gamepads[this.gamepad ? this.gamepad.index : 0] || gamepads[0];
+          if (gamepad && gamepad.buttons && gamepad.buttons[1]) {
+            bButtonPressed = gamepad.buttons[1].pressed;
+          }
+        }
+      } catch (e) {
+        // Gamepad API may not be accessible
+      }
+      
       // Clear pressed state tracking when unblocking to prevent button presses from leaking through
-      this.swordSwingPressed = false;
+      this.swordSwingPressed = bButtonPressed ? true : false; // If B is pressed, mark as already pressed so it won't trigger as new press
       this.shootPressed = false;
       this.mortarPressed = false;
       this.mortarHoldPressed = false;
@@ -673,6 +688,9 @@ export class InputManager {
       this._previousJumpButtonState = false;
       this._previousKeyboardJumpState = false;
       this._gamepadJumpState = false;
+      
+      // Ensure sword swing action state is cleared even if button is marked as pressed
+      this.inputState.swordSwing = false;
     }
   }
 
