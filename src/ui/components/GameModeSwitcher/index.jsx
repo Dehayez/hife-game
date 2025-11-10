@@ -19,7 +19,7 @@ export const GameModeSwitcher = React.memo(function GameModeSwitcher({ options, 
       const modeImage = getModeImage(mode, gameModeManager);
       const modeName = getModeName(mode, gameModeManager);
       const buttonStyle = modeImage ? {
-        backgroundImage: `url(${modeImage})`,
+        backgroundImage: `url("${encodeURI(modeImage)}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'

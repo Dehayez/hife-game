@@ -9,7 +9,7 @@ export function getArenaImage(arenaKey) {
   // Map arena keys to image filenames
   const imageMap = {
     'standard': '/assets/arenas/forest-plaza.png',
-    'large': '/assets/arenas/ancient-grove.png'
+    'large': '/assets/arenas/ancient grove.png'
   };
   
   return imageMap[arenaKey] || null;
@@ -25,7 +25,9 @@ export function createChoice(arena, initialValue, selectValue, onChange) {
   // Set background image if available
   const arenaImage = arena.image || getArenaImage(arena.value);
   if (arenaImage) {
-    btn.style.backgroundImage = `url("${arenaImage}")`;
+    // Encode URL to handle spaces and special characters
+    const encodedImage = encodeURI(arenaImage);
+    btn.style.backgroundImage = `url("${encodedImage}")`;
     btn.style.backgroundSize = 'cover';
     btn.style.backgroundPosition = 'center';
     btn.style.backgroundRepeat = 'no-repeat';

@@ -21,7 +21,7 @@ export const ARENA_CONFIG = {
     label: 'Ancient Grove (40x40)',
     size: 40,
     description: 'A vast ancient forest for epic battles',
-    image: '/assets/arenas/ancient-grove.png'
+    image: '/assets/arenas/ancient grove.png'
   }
 };
 
