@@ -524,7 +524,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Game Mode Display Section
   const modeDisplaySection = gameMenu.addSection('settings', {
     title: 'Current Game Mode',
-    icon: '🎮',
     className: 'game-menu__section--mode-display'
   });
   if (modeDisplaySection && modeDisplayMount) {
@@ -538,7 +537,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Game Mode Section
   const gameModeSection = gameMenu.addSection('settings', {
     title: 'Game Mode',
-    icon: '⚙️',
     className: 'game-menu__section--game-mode'
   });
   if (gameModeSection && gameModeMount) {
@@ -552,7 +550,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Arena Selection Section
   const arenaSection = gameMenu.addSection('settings', {
     title: 'Arena',
-    icon: '🏟️',
     className: 'game-menu__section--arena'
   });
   if (arenaSection && arenaMount) {
@@ -566,7 +563,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Controls Legend Section
   const legendSection = gameMenu.addSection('settings', {
     title: 'Controls',
-    icon: '🎯',
     className: 'game-menu__section--controls-legend'
   });
   if (legendSection && legendMount) {
@@ -610,7 +606,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Input Mode Section
   const inputModeSection = gameMenu.addSection('settings', {
     title: 'Input Mode',
-    icon: '⌨️',
     className: 'game-menu__section--input-mode'
   });
   if (inputModeSection && inputModeMount) {
@@ -624,7 +619,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Audio Settings Section
   const audioSettingsSection = gameMenu.addSection('settings', {
     title: 'Audio Settings',
-    icon: '🔊',
     className: 'game-menu__section--audio-settings'
   });
   if (audioSettingsSection && characterManager) {
@@ -767,7 +761,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Room Manager Section
   const roomSection = gameMenu.addSection('multiplayer', {
     title: 'Multiplayer Room',
-    icon: '🌐',
     className: 'game-menu__section--room-manager'
   });
   if (roomSection && roomMount.firstChild) {
@@ -782,7 +775,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Bot Control Section
   const botSection = gameMenu.addSection('multiplayer', {
     title: 'Bot Control',
-    icon: '🤖',
     className: 'game-menu__section--bot-control'
   });
   if (botSection && botControlMount.firstChild) {
@@ -800,7 +792,6 @@ function buildMenuStructure(gameMenu, mounts) {
   // Learning Feedback Section
   const learningSection = gameMenu.addSection('multiplayer', {
     title: 'Bot Learning Progress',
-    icon: '📊',
     className: 'game-menu__section--learning-feedback'
   });
   if (learningSection && learningFeedbackMount.firstChild) {

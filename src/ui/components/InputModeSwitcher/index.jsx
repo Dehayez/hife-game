@@ -42,8 +42,7 @@ export const InputModeSwitcher = React.memo(function InputModeSwitcher({ options
           }}
           style={isDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
         >
-          <span className="ui__choice-icon" style={{ fontSize: '24px', display: 'block', lineHeight: '1' }}>
-            {mode === 'keyboard' ? '⌨️' : '🎮'}
+          <span className="ui__choice-icon" style={{ fontSize: '24px', display: 'none', lineHeight: '1' }}>
           </span>
           <span className="ui__choice-caption">{getModeDisplayName(mode)}</span>
         </button>
