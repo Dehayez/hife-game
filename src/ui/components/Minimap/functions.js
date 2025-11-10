@@ -28,8 +28,9 @@ export function initializeMinimap(sceneManager, arenaManager) {
  * @param {Object} projectileManager - Projectile manager instance
  * @param {Object} arenaManager - Arena manager instance
  * @param {Object} collisionManager - Collision manager instance
+ * @param {Object} entityManager - Entity manager instance
  */
-export function updateMinimap(ctx, width, height, state, sceneManager, characterManager, remotePlayerManager, botManager, projectileManager, arenaManager, collisionManager) {
+export function updateMinimap(ctx, width, height, state, sceneManager, characterManager, remotePlayerManager, botManager, projectileManager, arenaManager, collisionManager, entityManager) {
   // Clear canvas
   ctx.clearRect(0, 0, width, height);
   
@@ -207,6 +208,59 @@ export function updateMinimap(ctx, width, height, state, sceneManager, character
           ctx.beginPath();
           ctx.arc(mapPos.x, mapPos.y, 2.5, 0, Math.PI * 2);
           ctx.fill();
+        }
+      }
+    }
+  }
+  
+  // Draw gems (collectibles)
+  if (entityManager && entityManager.collectibles) {
+    const collectibles = entityManager.collectibles;
+    if (Array.isArray(collectibles)) {
+      for (const gem of collectibles) {
+        if (gem && gem.position && !gem.userData.collected) {
+          const mapPos = worldToMap(gem.position.x, gem.position.z);
+          ctx.fillStyle = '#cc4444'; // Red gem color
+          ctx.beginPath();
+          ctx.arc(mapPos.x, mapPos.y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+  
+  // Draw shadows (hazards)
+  if (entityManager && entityManager.hazards) {
+    const hazards = entityManager.hazards;
+    if (Array.isArray(hazards)) {
+      for (const hazard of hazards) {
+        if (hazard && hazard.position && hazard.userData.active) {
+          const mapPos = worldToMap(hazard.position.x, hazard.position.z);
+          ctx.fillStyle = '#4a2a4a'; // Dark purple/black for shadows
+          ctx.beginPath();
+          ctx.arc(mapPos.x, mapPos.y, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+  
+  // Draw pillars (checkpoints)
+  if (entityManager && entityManager.checkpoints) {
+    const checkpoints = entityManager.checkpoints;
+    if (Array.isArray(checkpoints)) {
+      for (const checkpoint of checkpoints) {
+        if (checkpoint && checkpoint.position) {
+          const mapPos = worldToMap(checkpoint.position.x, checkpoint.position.z);
+          // Use different color based on activation status
+          ctx.fillStyle = checkpoint.userData.activated ? '#88ccff' : '#6a8a9a'; // Light blue if activated, grey-blue if not
+          ctx.beginPath();
+          ctx.arc(mapPos.x, mapPos.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+          // Draw border for pillars
+          ctx.strokeStyle = checkpoint.userData.activated ? '#44aaff' : '#4a6a7a';
+          ctx.lineWidth = 1;
+          ctx.stroke();
         }
       }
     }

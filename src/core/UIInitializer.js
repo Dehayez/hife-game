@@ -117,7 +117,8 @@ export function initializeUI(managers, config) {
     botManager: botManager,
     projectileManager: projectileManager,
     arenaManager: arenaManager,
-    collisionManager: collisionManager
+    collisionManager: collisionManager,
+    entityManager: managers.entityManager
   });
   
   // Initialize Game Menu
