@@ -47,13 +47,17 @@ export function createCollectible(scene, x, z, id) {
   };
   
   // Add magical glow effect with point light
+  // Optimized: Reduced range and intensity for better performance with many gems
+  // PointLights are expensive, so we use a smaller range and lower intensity
   const glowLight = new THREE.PointLight(
     color, 
-    stats.lightIntensity, 
-    stats.lightRange
+    stats.lightIntensity * 0.7, // Reduced intensity for performance
+    stats.lightRange * 0.6      // Reduced range (from 5 to 3) for better performance
   );
   glowLight.position.set(x, stats.height, z);
   glowLight.decay = stats.lightDecay; // Linear decay for better spread
+  // Disable shadow casting for lights to improve performance
+  glowLight.castShadow = false;
   mesh.userData.glowLight = glowLight;
   scene.add(glowLight);
   

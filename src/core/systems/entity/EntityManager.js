@@ -282,6 +282,9 @@ export class EntityManager {
    * @param {boolean} canMove - Whether entities can move
    */
   updateAnims(dt, canMove = true) {
+    // Cache performance.now() once per frame to avoid multiple calls
+    const currentTime = performance.now();
+    
     // Update confetti effects
     const confettiToRemove = [];
     for (let i = 0; i < this.confettiEffects.length; i++) {
@@ -318,8 +321,8 @@ export class EntityManager {
       
       if (item.userData.collected) continue;
       
-      // Update collectible animation
-      updateCollectibleAnimation(item, dt);
+      // Update collectible animation with cached time
+      updateCollectibleAnimation(item, dt, null, currentTime);
     }
     
     // Remove faded out items
@@ -342,9 +345,9 @@ export class EntityManager {
       updateHazard(hazard, dt, this.collisionManager, this.arenaSize);
     }
 
-    // Update checkpoints
+    // Update checkpoints with cached time
     for (const checkpoint of this.checkpoints) {
-      updateCheckpointAnimation(checkpoint, dt);
+      updateCheckpointAnimation(checkpoint, dt, currentTime);
     }
   }
 
