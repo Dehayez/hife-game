@@ -15,10 +15,10 @@ export const ENTITY_STATS = {
    * Collectible (Gem) Configuration
    */
   collectible: {
-    size: 0.18,               // Gem size (OctahedronGeometry radius)
-    height: 1.2,               // Gem height above ground
+    size: .18,               // Gem size (OctahedronGeometry radius)
+    height: .3,               // Gem height above ground
     color: 0xcc4444,          // Red gem color
-    emissiveIntensity: 0.7,   // Glow intensity
+    emissiveIntensity: 10,   // Glow intensity
     metalness: 0.6,           // Material metalness
     roughness: 0.2,           // Material roughness
     opacity: 0.9,             // Material opacity

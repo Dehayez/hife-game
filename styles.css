@@ -939,7 +939,6 @@ html, body { height: 100%; margin: 0; }
   align-items: center;
   justify-content: space-between;
   padding: 28px 36px 20px;
-  border-bottom: 2px solid rgba(255, 200, 150, 0.2);
   background: linear-gradient(180deg, 
     rgba(255, 200, 150, 0.1) 0%, 
     rgba(255, 200, 150, 0.05) 50%,
@@ -1376,7 +1375,6 @@ html, body { height: 100%; margin: 0; }
   gap: 12px;
   padding: 20px 36px;
   min-height: 68px;
-  border-top: 2px solid rgba(255, 200, 150, 0.2);
   background: linear-gradient(0deg, 
     rgba(255, 200, 150, 0.1) 0%, 
     rgba(255, 200, 150, 0.05) 50%,

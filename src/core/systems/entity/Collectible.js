@@ -42,7 +42,8 @@ export function createCollectible(scene, x, z, id) {
     id, 
     collected: false, 
     originalColor: color,
-    fadingOut: false
+    fadingOut: false,
+    baseHeight: stats.height
   };
   
   // Add magical glow effect with point light

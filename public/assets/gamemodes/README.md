@@ -25,3 +25,4 @@ Place the following images in this directory:
 - Images are displayed above the mode name in the game mode selector
 - Images use `object-fit: cover` to maintain aspect ratio
 
+

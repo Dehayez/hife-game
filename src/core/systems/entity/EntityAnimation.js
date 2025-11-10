@@ -10,15 +10,18 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
  * Update collectible animation
  * @param {THREE.Mesh} item - Collectible mesh
  * @param {number} dt - Delta time in seconds
- * @param {number} baseHeight - Base height position
+ * @param {number} baseHeight - Base height position (optional, uses item.userData.baseHeight if not provided)
  */
-export function updateCollectibleAnimation(item, dt, baseHeight = 1.2) {
+export function updateCollectibleAnimation(item, dt, baseHeight = null) {
   if (item.userData.collected || item.userData.fadingOut) return;
+  
+  // Use stored baseHeight from userData, or fallback to provided/default
+  const height = baseHeight !== null ? baseHeight : (item.userData.baseHeight ?? 0.8);
   
   // Rotate and float with magical animation
   item.rotation.y += dt * 3;
   item.rotation.x += dt * 1.5;
-  item.position.y = baseHeight + Math.sin(performance.now() * 0.003 + item.position.x) * 0.15;
+  item.position.y = height + Math.sin(performance.now() * 0.003 + item.position.x) * 0.15;
   
   // Update glow light position
   if (item.userData.glowLight) {
