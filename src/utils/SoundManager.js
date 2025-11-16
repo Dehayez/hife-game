@@ -1236,12 +1236,79 @@ export class SoundManager {
   }
 
   /**
-   * Play mortar explosion sound - procedural deep explosion sound
+   * Play mortar explosion sound - tries custom sound first, falls back to procedural
    * @param {Object|THREE.Vector3} position - Optional sound position for distance-based volume
+   * @param {string} characterName - Optional character name for character-specific mortar explosion sound
    */
-  playMortarExplosion(position = null) {
+  async playMortarExplosion(position = null, characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'mortarExplosion')) return;
+    
+    // Try character-specific sound first (in characters folder, consistent with other character sounds)
+    if (characterName) {
+      // Try characters folder first: /assets/characters/{characterName}/mortar_explosion.wav
+      const characterSoundPath = `/assets/characters/${characterName}/mortar_explosion`;
+      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      }
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      }
+      
+      if (characterAudio) {
+        try {
+          characterAudio.currentTime = 0;
+          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+          characterAudio.volume = adjustedVolume;
+          await characterAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+      
+      // Also try abilities folder: /assets/audio/abilities/{characterName}/mortar_explosion.wav
+      const characterAbilitiesPath = getAudioPath('abilities', 'mortar', 'mortar_explosion', characterName);
+      const characterAbilitiesAudio = await tryLoadAudio(characterAbilitiesPath);
+      if (characterAbilitiesAudio) {
+        try {
+          characterAbilitiesAudio.currentTime = 0;
+          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+          characterAbilitiesAudio.volume = adjustedVolume;
+          await characterAbilitiesAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+    }
+    
+    // Fall back to generic mortar explosion sound
+    const genericPath = getAudioPath('abilities', 'mortar', 'mortar_explosion');
+    const genericAudio = await tryLoadAudio(genericPath);
+    if (genericAudio) {
+      try {
+        genericAudio.currentTime = 0;
+        const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+        genericAudio.volume = adjustedVolume;
+        await genericAudio.play();
+        return;
+      } catch (error) {
+        // Play failed, continue to procedural fallback
+      }
+    }
+    
+    // Final fallback to procedural sound
+    this._playMortarExplosionProcedural(position);
+  }
+
+  /**
+   * Procedural mortar explosion sound
+   * @param {Object|THREE.Vector3} position - Optional sound position for distance-based volume
+   */
+  _playMortarExplosionProcedural(position = null) {
+    if (!this.soundEnabled) return;
     if (!this._ensureAudioContext()) return;
 
     const now = this.audioContext.currentTime;

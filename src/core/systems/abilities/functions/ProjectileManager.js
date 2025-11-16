@@ -590,7 +590,8 @@ export class ProjectileManager {
     // Play mortar explosion sound with position-based volume
     if (this.soundManager) {
       const explosionPosition = { x: x, y: y, z: z };
-      this.soundManager.playMortarExplosion(explosionPosition);
+      const characterName = mortarData?.characterName || null;
+      this.soundManager.playMortarExplosion(explosionPosition, characterName);
     }
   }
 
