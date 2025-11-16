@@ -1471,7 +1471,12 @@ export class SoundManager {
       if (characterAudio) {
         try {
           characterAudio.currentTime = 0;
-          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+          let volumeMultiplier = 1.0;
+          // Make Lucy's bolt sound quieter
+          if (characterName === 'lucy') {
+            volumeMultiplier = 0.6; // 60% volume for Lucy
+          }
+          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume * volumeMultiplier, position);
           characterAudio.volume = adjustedVolume;
           await characterAudio.play();
           return;
@@ -1486,7 +1491,12 @@ export class SoundManager {
       if (characterAbilitiesAudio) {
         try {
           characterAbilitiesAudio.currentTime = 0;
-          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+          let volumeMultiplier = 1.0;
+          // Make Lucy's bolt sound quieter
+          if (characterName === 'lucy') {
+            volumeMultiplier = 0.6; // 60% volume for Lucy
+          }
+          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume * volumeMultiplier, position);
           characterAbilitiesAudio.volume = adjustedVolume;
           await characterAbilitiesAudio.play();
           return;
@@ -1502,7 +1512,12 @@ export class SoundManager {
     if (genericAudio) {
       try {
         genericAudio.currentTime = 0;
-        const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+        // Apply Lucy volume reduction even for generic sound if Lucy is shooting
+        let volumeMultiplier = 1.0;
+        if (characterName === 'lucy') {
+          volumeMultiplier = 0.6; // 60% volume for Lucy
+        }
+        const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume * volumeMultiplier, position);
         genericAudio.volume = adjustedVolume;
         await genericAudio.play();
         return;
@@ -1512,19 +1527,26 @@ export class SoundManager {
     }
     
     // Final fallback to procedural sound
-    this._playBoltShotProcedural(position);
+    // Pass characterName to procedural sound so it can also apply volume reduction
+    this._playBoltShotProcedural(position, characterName);
   }
 
   /**
    * Procedural bolt shot sound
    * @param {Object|THREE.Vector3} position - Optional sound position for distance-based volume
+   * @param {string} characterName - Optional character name for volume adjustment
    */
-  _playBoltShotProcedural(position = null) {
+  _playBoltShotProcedural(position = null, characterName = null) {
     if (!this.soundEnabled) return;
     if (!this._ensureAudioContext()) return;
 
     const now = this.audioContext.currentTime;
-    const baseVolume = this.soundEffectsVolume * 0.5;
+    let volumeMultiplier = 1.0;
+    // Make Lucy's bolt sound quieter
+    if (characterName === 'lucy') {
+      volumeMultiplier = 0.6; // 60% volume for Lucy
+    }
+    const baseVolume = this.soundEffectsVolume * 0.5 * volumeMultiplier;
     const adjustedVolume = this._getAdjustedVolume(baseVolume, position);
     
     const oscillator = this.audioContext.createOscillator();
