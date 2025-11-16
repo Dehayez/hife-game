@@ -68,7 +68,7 @@ export async function loadAllCharacterSounds(characterName, soundManager, onProg
   
   const updateProgress = (soundName) => {
     loadedCount++;
-    const task = `Loading sound: ${soundName}...`;
+    const task = `Loading ${characterName} sound: ${soundName}...`;
     if (onProgress) {
       onProgress(loadedCount, totalSounds, task);
     } else {
@@ -123,7 +123,6 @@ export async function loadAllCharacterSounds(characterName, soundManager, onProg
  */
 async function preloadAbilitySounds(characterName, onProgress = null) {
   const normalizedCharacterName = characterName.toLowerCase();
-  const progressManager = getLoadingProgressManager();
   
   // List of ability sounds to preload
   const abilitySounds = [
@@ -176,24 +175,7 @@ async function preloadAbilitySounds(characterName, onProgress = null) {
   ];
   
   // Preload each ability sound (try all paths until one succeeds)
-  let abilitySoundCount = 0;
-  for (let i = 0; i < abilitySounds.length; i++) {
-    const sound = abilitySounds[i];
-    abilitySoundCount++;
-    const task = `Loading sound: ${sound.name}...`;
-    
-    // Update progress message
-    if (onProgress) {
-      // Update message and step for ability sounds (relative step 1-5, total 5)
-      onProgress(abilitySoundCount, 5, task);
-    } else {
-      // Update text and progress
-      if (progressManager.textElement) {
-        progressManager.textElement.textContent = task;
-      }
-      progressManager.setProgress(15 + abilitySoundCount, task);
-    }
-    
+  for (const sound of abilitySounds) {
     let loaded = false;
     
     // Try each path for this sound

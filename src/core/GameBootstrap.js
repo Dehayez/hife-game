@@ -12,7 +12,6 @@ import { initializeManagers } from './ManagerInitializer.js';
 import { initializeUI } from './UIInitializer.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 import { getLoadingProgressManager } from '../utils/LoadingProgressManager.js';
-import { preloadEssentialCharacterAnimations } from './systems/character/CharacterAnimation.js';
 
 /**
  * Get initial game configuration from URL params and localStorage
@@ -319,16 +318,14 @@ export async function initializeGame(managers, uiComponents, config) {
   // Calculate total steps:
   // 1. Initializing managers (handled in main.js, 0-20%)
   // 2. Character animations (10 animations) - steps 1-10
-  // 3. Character sounds (5 sounds: footstep, obstacle_footstep, jump, obstacle_jump, fly) - steps 11-15
-  // 4. Ability sounds preloading (5 sounds: bolt_shot, mortar_launch, mortar_explosion, melee_swing, melee_hit) - steps 16-20
-  // 5. Setting up game systems - step 21
-  // Total: 21 steps for character loading + setup
-  const totalSteps = 21;
+  // 3. Character sounds (4 sounds) - steps 11-14
+  // 4. Setting up game systems - step 15
+  // Total: 15 steps for character loading + setup
+  const totalSteps = 15;
   progressManager.setTotalSteps(totalSteps);
   
   // Track animation and sound loading separately
   let animationsComplete = false;
-  let mainSoundsComplete = false;
   
   try {
     // Load character with progress tracking
@@ -336,38 +333,22 @@ export async function initializeGame(managers, uiComponents, config) {
     await characterManager.loadCharacter(characterName, (step, total, task) => {
       // The callback receives relative steps from within animation/sound loading
       // Animations: total=10, steps 1-10
-      // Main sounds: total=5, steps 11-15 (happens after animations)
-      // Ability sounds: total=5, steps 16-20 (happens after main sounds)
+      // Sounds: total=4, steps 1-4 (happens after animations)
       if (total === 10) {
         // This is from animations - map to steps 1-10
         animationsComplete = (step === total);
         progressManager.setProgress(step, task);
-      } else if (total === 5 && animationsComplete && !mainSoundsComplete) {
-        // This is from main sounds - map to steps 11-15
-        mainSoundsComplete = (step === total);
+      } else if (total === 4 && animationsComplete) {
+        // This is from sounds - map to steps 11-14
         progressManager.setProgress(10 + step, task);
-      } else if (total === 5 && !animationsComplete) {
+      } else if (total === 4 && !animationsComplete) {
         // Sounds started before animations complete (shouldn't happen, but handle gracefully)
-        mainSoundsComplete = (step === total);
         progressManager.setProgress(10 + step, task);
-      } else if (total === 5 && step > 0 && step <= 5 && mainSoundsComplete && animationsComplete) {
-        // This is from ability sound preloading - map to steps 16-20
-        progressManager.setProgress(15 + step, task);
       }
     });
     
-    // Preload other character's essential sprites in background for instant switching
-    const otherCharacter = GAME_CONSTANTS.AVAILABLE_CHARACTERS.find(char => char !== characterName);
-    if (otherCharacter) {
-      // Preload only essential animations (idle and walk) - these are guaranteed to exist
-      // This prevents trying to load optional animations that might not exist
-      preloadEssentialCharacterAnimations(otherCharacter).catch(() => {
-        // Silently fail if preload fails - not critical
-      });
-    }
-    
     // Set camera for health bar manager
-    progressManager.setProgress(20, 'Setting up game systems...');
+    progressManager.setProgress(14, 'Setting up game systems...');
     if (healthBarManager) {
       healthBarManager.setCamera(sceneManager.getCamera());
     }
@@ -388,7 +369,7 @@ export async function initializeGame(managers, uiComponents, config) {
       }
     }
     
-    progressManager.setProgress(21, 'Starting game...');
+    progressManager.setProgress(15, 'Starting game...');
     gameLoop.start();
     
     // Small delay to show "Starting game..." message
