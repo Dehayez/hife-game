@@ -2745,7 +2745,8 @@ export class GameLoop {
       }
       const soundManager = this.characterManager.getSoundManager();
       if (soundManager && typeof soundManager.playMeleeHit === 'function') {
-        soundManager.playMeleeHit();
+        const characterName = this.characterManager.getCharacterName();
+        soundManager.playMeleeHit(characterName);
       }
     }
   }
@@ -3037,14 +3038,14 @@ export class GameLoop {
       this.vibrationManager.swordSwing();
     }
     
+    // Get character-specific melee stats
+    const characterName = this.characterManager.getCharacterName();
+    
     // Play melee swing sound
     const soundManager = this.characterManager.getSoundManager();
     if (soundManager) {
-      soundManager.playMeleeSwing();
+      soundManager.playMeleeSwing(characterName);
     }
-    
-    // Get character-specific melee stats
-    const characterName = this.characterManager.getCharacterName();
     const meleeStats = getMeleeStats(characterName);
     const radius = meleeStats.range;
     const initialDamage = meleeStats.initialDamage;
@@ -3143,7 +3144,8 @@ export class GameLoop {
             if (!hitSoundPlayed) {
               const soundManager = this.characterManager.getSoundManager();
               if (soundManager) {
-                soundManager.playMeleeHit();
+                const characterName = this.characterManager.getCharacterName();
+                soundManager.playMeleeHit(characterName);
                 hitSoundPlayed = true;
               }
             }
@@ -3214,7 +3216,8 @@ export class GameLoop {
             if (!hitSoundPlayed) {
               const soundManager = this.characterManager.getSoundManager();
               if (soundManager) {
-                soundManager.playMeleeHit();
+                const characterName = this.characterManager.getCharacterName();
+                soundManager.playMeleeHit(characterName);
                 hitSoundPlayed = true;
               }
             }
@@ -3295,14 +3298,15 @@ export class GameLoop {
     }
     
     // Play blast sound
+    const characterName = this.characterManager.getCharacterName();
     const soundManager = this.characterManager.getSoundManager();
     if (soundManager) {
       // Try to play custom blast sound, fallback to melee swing
-      soundManager.playMeleeSwing();
+      soundManager.playMeleeSwing(characterName);
     }
     
-    // Get blast stats
-    const blastStats = getBlastStats('herald');
+    // Get blast stats (Herald's ability)
+    const blastStats = getBlastStats(characterName);
     if (!blastStats) return;
     
     const radius = blastStats.radius;
@@ -3448,14 +3452,15 @@ export class GameLoop {
     }
     
     // Play multi-projectile sound
+    const characterName = this.characterManager.getCharacterName();
     const soundManager = this.characterManager.getSoundManager();
     if (soundManager) {
       // Try to play custom sound, fallback to melee swing
-      soundManager.playMeleeSwing();
+      soundManager.playMeleeSwing(characterName);
     }
     
-    // Get multi-projectile stats
-    const multiProjectileStats = getMultiProjectileStats('lucy');
+    // Get multi-projectile stats (Lucy's ability)
+    const multiProjectileStats = getMultiProjectileStats(characterName);
     if (!multiProjectileStats) return;
     
     const projectileCount = multiProjectileStats.projectileCount;

@@ -1679,14 +1679,79 @@ export class SoundManager {
 
   /**
    * Play melee swing sound - tries custom sound first, falls back to procedural
+   * @param {string} characterName - Optional character name for character-specific melee swing sound
    */
-  playMeleeSwing() {
+  async playMeleeSwing(characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'meleeSwing')) return;
-    const path = getAudioPath('abilities', 'melee', 'melee_swing');
-    this._playSoundWithFallback(path, () => {
-      this._playMeleeSwingProcedural();
-    });
+    
+    // Try character-specific sound first (in characters folder, consistent with other character sounds)
+    if (characterName) {
+      // Try characters folder first: /assets/characters/{characterName}/melee_swing.wav
+      const characterSoundPath = `/assets/characters/${characterName}/melee_swing`;
+      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      }
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      }
+      // Also try just "melee.wav" as a fallback
+      if (!characterAudio) {
+        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+        characterAudio = await tryLoadAudio(`${simpleMeleePath}.wav`);
+      }
+      if (!characterAudio) {
+        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+        characterAudio = await tryLoadAudio(`${simpleMeleePath}.mp3`);
+      }
+      if (!characterAudio) {
+        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+        characterAudio = await tryLoadAudio(`${simpleMeleePath}.ogg`);
+      }
+      
+      if (characterAudio) {
+        try {
+          characterAudio.currentTime = 0;
+          characterAudio.volume = this.soundEffectsVolume;
+          await characterAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+      
+      // Also try abilities folder: /assets/audio/abilities/{characterName}/melee_swing.wav
+      const characterAbilitiesPath = getAudioPath('abilities', 'melee', 'melee_swing', characterName);
+      const characterAbilitiesAudio = await tryLoadAudio(characterAbilitiesPath);
+      if (characterAbilitiesAudio) {
+        try {
+          characterAbilitiesAudio.currentTime = 0;
+          characterAbilitiesAudio.volume = this.soundEffectsVolume;
+          await characterAbilitiesAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+    }
+    
+    // Fall back to generic melee swing sound
+    const genericPath = getAudioPath('abilities', 'melee', 'melee_swing');
+    const genericAudio = await tryLoadAudio(genericPath);
+    if (genericAudio) {
+      try {
+        genericAudio.currentTime = 0;
+        genericAudio.volume = this.soundEffectsVolume;
+        await genericAudio.play();
+        return;
+      } catch (error) {
+        // Play failed, continue to procedural fallback
+      }
+    }
+    
+    // Final fallback to procedural sound
+    this._playMeleeSwingProcedural();
   }
 
   /**
@@ -1717,14 +1782,79 @@ export class SoundManager {
 
   /**
    * Play melee hit sound - tries custom sound first, falls back to procedural
+   * @param {string} characterName - Optional character name for character-specific melee hit sound
    */
-  playMeleeHit() {
+  async playMeleeHit(characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'meleeHit')) return;
-    const path = getAudioPath('abilities', 'melee', 'melee_hit');
-    this._playSoundWithFallback(path, () => {
-      this._playMeleeHitProcedural();
-    });
+    
+    // Try character-specific sound first (in characters folder, consistent with other character sounds)
+    if (characterName) {
+      // Try characters folder first: /assets/characters/{characterName}/melee_hit.wav
+      const characterSoundPath = `/assets/characters/${characterName}/melee_hit`;
+      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      }
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      }
+      // Also try just "melee.wav" as a fallback
+      if (!characterAudio) {
+        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+        characterAudio = await tryLoadAudio(`${simpleMeleePath}.wav`);
+      }
+      if (!characterAudio) {
+        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+        characterAudio = await tryLoadAudio(`${simpleMeleePath}.mp3`);
+      }
+      if (!characterAudio) {
+        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+        characterAudio = await tryLoadAudio(`${simpleMeleePath}.ogg`);
+      }
+      
+      if (characterAudio) {
+        try {
+          characterAudio.currentTime = 0;
+          characterAudio.volume = this.soundEffectsVolume;
+          await characterAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+      
+      // Also try abilities folder: /assets/audio/abilities/{characterName}/melee_hit.wav
+      const characterAbilitiesPath = getAudioPath('abilities', 'melee', 'melee_hit', characterName);
+      const characterAbilitiesAudio = await tryLoadAudio(characterAbilitiesPath);
+      if (characterAbilitiesAudio) {
+        try {
+          characterAbilitiesAudio.currentTime = 0;
+          characterAbilitiesAudio.volume = this.soundEffectsVolume;
+          await characterAbilitiesAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+    }
+    
+    // Fall back to generic melee hit sound
+    const genericPath = getAudioPath('abilities', 'melee', 'melee_hit');
+    const genericAudio = await tryLoadAudio(genericPath);
+    if (genericAudio) {
+      try {
+        genericAudio.currentTime = 0;
+        genericAudio.volume = this.soundEffectsVolume;
+        await genericAudio.play();
+        return;
+      } catch (error) {
+        // Play failed, continue to procedural fallback
+      }
+    }
+    
+    // Final fallback to procedural sound
+    this._playMeleeHitProcedural();
   }
 
   /**
