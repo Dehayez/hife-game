@@ -22,6 +22,7 @@ import {
   updateCharacterAnimation,
   updateCharacterMovement 
 } from './CharacterAnimation.js';
+import { waitForTexturesLoaded } from '../../../utils/TextureLoader.js';
 import { 
   updateCharacterPhysics, 
   characterJump, 
@@ -195,6 +196,12 @@ export class CharacterManager {
     this.animations = loaded;
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
+    
+    // Ensure idle_front texture is fully loaded before setting animation for instant sprite change
+    if (loaded.idle_front) {
+      await waitForTexturesLoaded(loaded.idle_front);
+    }
+    
     this.setCurrentAnim(this.currentAnimKey, true);
     this._ensureRollingMesh();
     this._updateRollMeshAppearance();

@@ -12,6 +12,7 @@ import { initializeManagers } from './ManagerInitializer.js';
 import { initializeUI } from './UIInitializer.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 import { getLoadingProgressManager } from '../utils/LoadingProgressManager.js';
+import { loadCharacterAnimations } from '../systems/character/CharacterAnimation.js';
 
 /**
  * Get initial game configuration from URL params and localStorage
@@ -354,6 +355,15 @@ export async function initializeGame(managers, uiComponents, config) {
         progressManager.setProgress(15 + step, task);
       }
     });
+    
+    // Preload other character's sprites in background for instant switching
+    const otherCharacter = GAME_CONSTANTS.AVAILABLE_CHARACTERS.find(char => char !== characterName);
+    if (otherCharacter) {
+      // Preload other character's sprites silently (no progress updates)
+      loadCharacterAnimations(otherCharacter).catch(() => {
+        // Silently fail if preload fails - not critical
+      });
+    }
     
     // Set camera for health bar manager
     progressManager.setProgress(20, 'Setting up game systems...');
