@@ -2039,7 +2039,10 @@ export class GameLoop {
       if (soundManager) {
         // Play launch sound with character name
         const characterName = this.characterManager.getCharacterName();
-        soundManager.playMortarLaunch(characterName);
+        // Call async function and handle errors silently (fire-and-forget)
+        soundManager.playMortarLaunch(characterName).catch(() => {
+          // Silently handle any errors (sound will fall back to procedural)
+        });
         
         // Arc sound disabled - no longer playing continuous whoosh during flight
       }

@@ -116,6 +116,22 @@ export function updateSplashArea(splashArea, dt) {
   
   splashArea.userData.lifetime += dt;
   
+  // Update sound pitch slowdown for Herald's looping mortar splash sound
+  // Slow down the sound as the splash area shrinks (lifetime approaches duration)
+  if (splashArea.userData.explosionSound && splashArea.userData.explosionSound.audio) {
+    const remainingTime = splashArea.userData.duration - splashArea.userData.lifetime;
+    const lifetimeRatio = splashArea.userData.lifetime / splashArea.userData.duration;
+    
+    // Start slowing down in the last 40% of the duration
+    // Pitch goes from 1.0 (normal) to 0.3 (very slow) as area shrinks
+    if (lifetimeRatio > 0.6) {
+      const slowdownProgress = (lifetimeRatio - 0.6) / 0.4; // 0 to 1 as we approach end
+      const minPlaybackRate = 0.3; // Slow down to 30% speed
+      const playbackRate = 1.0 - (slowdownProgress * (1.0 - minPlaybackRate));
+      splashArea.userData.explosionSound.audio.playbackRate = Math.max(minPlaybackRate, playbackRate);
+    }
+  }
+  
   // Update animation phases
   updateSplashAnimation(splashArea, dt);
   

@@ -77,12 +77,25 @@ export async function tryLoadAudio(path) {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         resolve(null); // Timeout - file probably doesn't exist
-      }, 1000);
+      }, 3000); // Increased timeout to 3 seconds for larger files
       
-      audio.addEventListener('canplaythrough', () => {
+      // Use loadeddata for faster response (doesn't need full file loaded)
+      audio.addEventListener('loadeddata', () => {
         clearTimeout(timeout);
         // Cache the loaded audio
         audioCache.set(path, audio);
+        // Return a clone for independent playback
+        const audioClone = audio.cloneNode();
+        resolve(audioClone);
+      }, { once: true });
+      
+      // Also listen for canplaythrough as backup
+      audio.addEventListener('canplaythrough', () => {
+        clearTimeout(timeout);
+        // Cache the loaded audio
+        if (!audioCache.has(path)) {
+          audioCache.set(path, audio);
+        }
         // Return a clone for independent playback
         const audioClone = audio.cloneNode();
         resolve(audioClone);

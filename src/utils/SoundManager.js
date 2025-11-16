@@ -1237,17 +1237,24 @@ export class SoundManager {
 
   /**
    * Play mortar explosion sound - tries custom sound first, falls back to procedural
+   * For Herald, the sound loops until stopped
    * @param {Object|THREE.Vector3} position - Optional sound position for distance-based volume
    * @param {string} characterName - Optional character name for character-specific mortar explosion sound
+   * @returns {Object|null} Sound control object with stop() method for Herald, null for others
    */
   async playMortarExplosion(position = null, characterName = null) {
-    if (!this.soundEnabled) return;
-    if (!isSoundEnabled('abilities', 'mortarExplosion')) return;
+    if (!this.soundEnabled) return null;
+    if (!isSoundEnabled('abilities', 'mortarExplosion')) return null;
+    
+    const isHerald = characterName && characterName.toLowerCase() === 'herald';
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {
-      // Try characters folder first: /assets/characters/{characterName}/mortar_explosion.wav
-      const characterSoundPath = `/assets/characters/${characterName}/mortar_explosion`;
+      // Try characters folder first: /assets/characters/{characterName}/mortar_explosion.wav or mortar_splash.wav
+      const normalizedCharacterName = characterName.toLowerCase();
+      
+      // Try mortar_explosion first
+      let characterSoundPath = `/assets/characters/${normalizedCharacterName}/mortar_explosion`;
       let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
       if (!characterAudio) {
         characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
@@ -1256,28 +1263,76 @@ export class SoundManager {
         characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
       }
       
+      // If not found, try mortar_splash as alternative name
+      if (!characterAudio) {
+        characterSoundPath = `/assets/characters/${normalizedCharacterName}/mortar_splash`;
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
+        if (!characterAudio) {
+          characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+        }
+        if (!characterAudio) {
+          characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+        }
+      }
+      
       if (characterAudio) {
         try {
           characterAudio.currentTime = 0;
           const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
           characterAudio.volume = adjustedVolume;
-          await characterAudio.play();
-          return;
+          
+          // For Herald, loop the sound
+          if (isHerald) {
+            characterAudio.loop = true;
+            await characterAudio.play();
+            // Return control object to stop the sound later
+            return {
+              audio: characterAudio,
+              stop: () => {
+                if (characterAudio) {
+                  characterAudio.pause();
+                  characterAudio.currentTime = 0;
+                  characterAudio.loop = false;
+                }
+              }
+            };
+          } else {
+            // For other characters, play once
+            await characterAudio.play();
+            return null;
+          }
         } catch (error) {
           // Play failed, continue to fallback
         }
       }
       
       // Also try abilities folder: /assets/audio/abilities/{characterName}/mortar_explosion.wav
-      const characterAbilitiesPath = getAudioPath('abilities', 'mortar', 'mortar_explosion', characterName);
+      const characterAbilitiesPath = getAudioPath('abilities', 'mortar', 'mortar_explosion', normalizedCharacterName);
       const characterAbilitiesAudio = await tryLoadAudio(characterAbilitiesPath);
       if (characterAbilitiesAudio) {
         try {
           characterAbilitiesAudio.currentTime = 0;
           const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
           characterAbilitiesAudio.volume = adjustedVolume;
-          await characterAbilitiesAudio.play();
-          return;
+          
+          // For Herald, loop the sound
+          if (isHerald) {
+            characterAbilitiesAudio.loop = true;
+            await characterAbilitiesAudio.play();
+            return {
+              audio: characterAbilitiesAudio,
+              stop: () => {
+                if (characterAbilitiesAudio) {
+                  characterAbilitiesAudio.pause();
+                  characterAbilitiesAudio.currentTime = 0;
+                  characterAbilitiesAudio.loop = false;
+                }
+              }
+            };
+          } else {
+            await characterAbilitiesAudio.play();
+            return null;
+          }
         } catch (error) {
           // Play failed, continue to fallback
         }
@@ -1292,15 +1347,33 @@ export class SoundManager {
         genericAudio.currentTime = 0;
         const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
         genericAudio.volume = adjustedVolume;
-        await genericAudio.play();
-        return;
+        
+        // For Herald, loop the sound
+        if (isHerald) {
+          genericAudio.loop = true;
+          await genericAudio.play();
+          return {
+            audio: genericAudio,
+            stop: () => {
+              if (genericAudio) {
+                genericAudio.pause();
+                genericAudio.currentTime = 0;
+                genericAudio.loop = false;
+              }
+            }
+          };
+        } else {
+          await genericAudio.play();
+          return null;
+        }
       } catch (error) {
         // Play failed, continue to procedural fallback
       }
     }
     
-    // Final fallback to procedural sound
+    // Final fallback to procedural sound (doesn't loop)
     this._playMortarExplosionProcedural(position);
+    return null;
   }
 
   /**
@@ -1382,9 +1455,12 @@ export class SoundManager {
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {
+      // Ensure character name is lowercase
+      const normalizedCharacterName = characterName.toLowerCase();
       // Try characters folder first: /assets/characters/{characterName}/mortar_launch.wav
-      const characterSoundPath = `/assets/characters/${characterName}/mortar_launch`;
-      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
+      const characterSoundPath = `/assets/characters/${normalizedCharacterName}/mortar_launch`;
+      const wavPath = `${characterSoundPath}.wav`;
+      let characterAudio = await tryLoadAudio(wavPath);
       if (!characterAudio) {
         characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
       }
@@ -1404,7 +1480,7 @@ export class SoundManager {
       }
       
       // Also try abilities folder: /assets/audio/abilities/{characterName}/mortar_launch.wav
-      const characterAbilitiesPath = getAudioPath('abilities', 'mortar', 'mortar_launch', characterName);
+      const characterAbilitiesPath = getAudioPath('abilities', 'mortar', 'mortar_launch', normalizedCharacterName);
       const characterAbilitiesAudio = await tryLoadAudio(characterAbilitiesPath);
       if (characterAbilitiesAudio) {
         try {

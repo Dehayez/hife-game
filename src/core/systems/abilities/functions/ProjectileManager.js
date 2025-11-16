@@ -591,7 +591,14 @@ export class ProjectileManager {
     if (this.soundManager) {
       const explosionPosition = { x: x, y: y, z: z };
       const characterName = mortarData?.characterName || null;
-      this.soundManager.playMortarExplosion(explosionPosition, characterName);
+      // For Herald, the sound loops and we need to store it to stop later
+      this.soundManager.playMortarExplosion(explosionPosition, characterName).then((soundControl) => {
+        if (soundControl && splashArea.userData) {
+          splashArea.userData.explosionSound = soundControl; // Store sound control to stop when splash area is removed
+        }
+      }).catch(() => {
+        // Silently handle errors
+      });
     }
   }
 
@@ -719,6 +726,12 @@ export class ProjectileManager {
   }
 
   removeSplashArea(splashArea) {
+    // Stop explosion sound if it's looping (Herald's mortar splash)
+    if (splashArea.userData && splashArea.userData.explosionSound && splashArea.userData.explosionSound.stop) {
+      splashArea.userData.explosionSound.stop();
+      splashArea.userData.explosionSound = null;
+    }
+    
     removeSplashAreaFromScene(splashArea, this.scene);
     const index = this.splashAreas.indexOf(splashArea);
     if (index > -1) this.splashAreas.splice(index, 1);
