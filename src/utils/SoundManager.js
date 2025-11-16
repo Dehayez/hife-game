@@ -15,6 +15,8 @@ export class SoundManager {
     this.obstacleFootstepAudio = null;
     this.jumpAudio = null;
     this.obstacleJumpAudio = null;
+    this.flyAudio = null;
+    this.currentFlySound = null; // Track currently playing fly sound to stop it
     this.backgroundMusic = null;
     this.backgroundMusicPath = null;
     this.backgroundMusicVolume = 0.2; // Background music volume (0-1), typically lower than sound effects - will be loaded from storage via initFromStorage
@@ -345,6 +347,58 @@ export class SoundManager {
     await this._loadCustomObstacleJump(path);
   }
 
+  async _loadCustomFly(path) {
+    // Clear existing audio if loading new one
+    this.flyAudio = null;
+    
+    if (!path) return;
+    
+    try {
+      // Use AudioLoader which handles caching
+      this.flyAudio = await tryLoadAudio(path);
+      if (!this.flyAudio) {
+        // Fallback to loadCustomAudio if tryLoadAudio fails
+        this.flyAudio = loadCustomAudio(path, this.soundEffectsVolume);
+      } else {
+        this.flyAudio.volume = this.soundEffectsVolume;
+      }
+      
+      if (this.flyAudio) {
+        // Handle loading errors gracefully
+        this.flyAudio.addEventListener('error', (e) => {
+          this.flyAudio = null;
+          this._flyReady = false;
+        });
+        
+        // Mark as ready when loaded
+        this.flyAudio.addEventListener('canplaythrough', () => {
+          this._flyReady = true;
+        }, { once: true });
+        
+        this.flyAudio.addEventListener('loadeddata', () => {
+          this._flyReady = true;
+        }, { once: true });
+        
+        // Initialize ready state
+        this._flyReady = false;
+        
+        // Try to load immediately if not already loaded
+        if (this.flyAudio.readyState === 0) {
+          this.flyAudio.load();
+        } else {
+          this._flyReady = true;
+        }
+      }
+    } catch (error) {
+      this.flyAudio = null;
+      this._flyReady = false;
+    }
+  }
+
+  async loadFlySound(path) {
+    await this._loadCustomFly(path);
+  }
+
   /**
    * Initialize volumes from storage
    */
@@ -541,6 +595,119 @@ export class SoundManager {
 
       clickOsc.start(now);
       clickOsc.stop(now + 0.05);
+    }
+  }
+
+  /**
+   * Play fly sound when starting to fly
+   */
+  playFly() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('movement', 'fly')) return;
+
+    // Stop any currently playing fly sound first
+    this.stopFly();
+
+    if (this.flyAudio) {
+      try {
+        // Check if audio is ready to play (readyState >= HAVE_FUTURE_DATA = 2)
+        const isReady = this.flyAudio.readyState >= 2 || this._flyReady;
+        
+        if (isReady) {
+          // Clone the audio to allow overlapping playback
+          const audioClone = this.flyAudio.cloneNode();
+          audioClone.volume = this.soundEffectsVolume;
+          audioClone.currentTime = 0;
+          
+          // Track the currently playing sound so we can stop it later
+          this.currentFlySound = audioClone;
+          
+          // Try to play
+          const playPromise = audioClone.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                // Successfully started playing fly sound
+                return;
+              })
+              .catch(err => {
+                // Auto-play may be blocked or audio failed to load
+                this.currentFlySound = null;
+              });
+            return;
+          } else {
+            // Play started synchronously (older browsers)
+            return;
+          }
+        } else {
+          // Audio not ready yet, try to load
+          if (this.flyAudio.readyState === 0) {
+            // Not loaded at all, trigger load
+            this.flyAudio.load();
+          }
+        }
+      } catch (err) {
+        // Error playing fly sound
+        this.currentFlySound = null;
+      }
+    }
+
+    // Fallback to procedural fly sound
+    if (!this._ensureAudioContext()) return;
+
+    const now = this.audioContext.currentTime;
+    
+    // Create a whoosh/ascending sound for flying
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    // Ascending whoosh sound
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(150, now);
+    oscillator.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(this.soundEffectsVolume * 0.4, now + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.15);
+
+    // Add a subtle high-frequency lift sound
+    const liftOsc = this.audioContext.createOscillator();
+    const liftGain = this.audioContext.createGain();
+
+    liftOsc.connect(liftGain);
+    liftGain.connect(this.audioContext.destination);
+
+    liftOsc.type = 'sine';
+    liftOsc.frequency.setValueAtTime(300, now);
+    liftOsc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+
+    liftGain.gain.setValueAtTime(0, now);
+    liftGain.gain.linearRampToValueAtTime(this.soundEffectsVolume * 0.2, now + 0.005);
+    liftGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+    liftOsc.start(now);
+    liftOsc.stop(now + 0.1);
+  }
+
+  /**
+   * Stop currently playing fly sound
+   */
+  stopFly() {
+    if (this.currentFlySound) {
+      try {
+        this.currentFlySound.pause();
+        this.currentFlySound.currentTime = 0;
+        this.currentFlySound = null;
+      } catch (err) {
+        // Error stopping fly sound
+        this.currentFlySound = null;
+      }
     }
   }
 
@@ -892,6 +1059,9 @@ export class SoundManager {
     }
     if (this.obstacleJumpAudio) {
       this.obstacleJumpAudio.volume = this.soundEffectsVolume;
+    }
+    if (this.flyAudio) {
+      this.flyAudio.volume = this.soundEffectsVolume;
     }
   }
 

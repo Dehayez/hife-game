@@ -63,7 +63,7 @@ export async function loadAllCharacterSounds(characterName, soundManager, onProg
   const progressManager = getLoadingProgressManager();
   
   // Total sounds to load
-  const totalSounds = 4;
+  const totalSounds = 5;
   let loadedCount = 0;
   
   const updateProgress = (soundName) => {
@@ -103,5 +103,12 @@ export async function loadAllCharacterSounds(characterName, soundManager, onProg
     await soundManager.loadObstacleJumpSound(obstacleJumpSound);
   }
   updateProgress('jump_obstacle');
+  
+  // Load fly sound
+  const flySound = await loadCharacterSound(characterName, 'fly');
+  if (flySound && soundManager) {
+    await soundManager.loadFlySound(flySound);
+  }
+  updateProgress('fly');
 }
 

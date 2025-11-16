@@ -20,6 +20,7 @@ export const SOUND_CONFIG = {
     jump: true,                  // Jump sound
     landingGround: true,         // Ground landing sound
     landingObstacle: true,       // Obstacle/platform landing sound
+    fly: true,                   // Fly sound
   },
 
   /**

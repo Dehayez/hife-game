@@ -58,6 +58,11 @@ export function updateCharacterPhysics(
     characterData.flyInitialDuration = physicsStats.flyMaxDuration;
     // Reset ramp-up timer when starting fly
     characterData.flyRampUpTime = 0;
+    
+    // Play fly sound when starting to fly
+    if (soundManager) {
+      soundManager.playFly();
+    }
   }
   
   const isCurrentlyFlying = characterData.isFlyActive && wantsFly && characterData.flyTimeRemaining > 0;
@@ -90,9 +95,15 @@ export function updateCharacterPhysics(
     characterData.flyTimeRemaining = 0;
     characterData.flyInitialDuration = 0;
     characterData.flyRampUpTime = 0;
+    
+    // Stop fly sound when fly ends
+    if (soundManager) {
+      soundManager.stopFly();
+    }
   }
   
-  if (characterData.flyCooldown > 0) {
+  // Only recharge cooldown when grounded (on base ground or obstacle)
+  if (characterData.flyCooldown > 0 && characterData.isGrounded) {
     characterData.flyCooldown = Math.max(0, characterData.flyCooldown - dt);
   }
 
@@ -142,6 +153,8 @@ export function updateCharacterPhysics(
     if (!wasGrounded && soundManager) {
       const isObstacle = !isOnBaseGround();
       soundManager.playLanding(isObstacle);
+      // Stop fly sound when landing
+      soundManager.stopFly();
     }
   } else {
     characterData.isGrounded = false;
