@@ -23,6 +23,22 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
     return;
   }
   
+  // Check for custom speed override (used by melee projectiles, multi-projectile, etc.)
+  if (projectile.userData.customSpeed !== undefined && projectile.userData.customSpeed !== null) {
+    const currentVelocityX = projectile.userData.velocityX;
+    const currentVelocityZ = projectile.userData.velocityZ;
+    const currentVelocityLength = calculateSpeed2D(currentVelocityX, currentVelocityZ);
+    
+    // Normalize direction and apply custom speed
+    if (currentVelocityLength > 0.001) {
+      const dirX = currentVelocityX / currentVelocityLength;
+      const dirZ = currentVelocityZ / currentVelocityLength;
+      projectile.userData.velocityX = dirX * projectile.userData.customSpeed;
+      projectile.userData.velocityZ = dirZ * projectile.userData.customSpeed;
+    }
+    return;
+  }
+  
   let targetSpeed;
   
   // Get character-specific joystick speed multiplier config

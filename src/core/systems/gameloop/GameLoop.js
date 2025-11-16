@@ -7,6 +7,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getCharacterColor, getMeleeStats, getMortarStats, getBlastStats, getMultiProjectileStats, getHeraldRollStats } from '../abilities/functions/CharacterAbilityStats.js';
+import { LUCY_MELEE_ATTACK_CONFIG } from '../../../config/abilities/characters/lucy/melee/AttackConfig.js';
 import { setLastCharacter } from '../../../utils/StorageUtils.js';
 import { createMortarArcPreview, updateMortarArcPreview, removeMortarArcPreview } from '../abilities/functions/mortar/MortarArcPreview.js';
 import { checkSplashAreaCollision } from '../abilities/functions/mortar/SplashArea.js';
@@ -423,18 +424,22 @@ export class GameLoop {
     // Handle sword swing (B button) - now used for special abilities
     const swordSwingInput = this.inputManager.isSwordSwingPressed();
     if (!heraldAbilitiesBlocked && swordSwingInput && !this.lastSwordSwingInput) {
-      // Check cooldown before allowing attack
-      if (this.specialAbilityCooldownTimer <= 0) {
-        const characterName = this.characterManager.getCharacterName();
-        if (characterName === 'herald') {
+      const characterName = this.characterManager.getCharacterName();
+      if (characterName === 'herald') {
+        // Check special ability cooldown for Herald's blast
+        if (this.specialAbilityCooldownTimer <= 0) {
           this._handleHeraldBlast(player);
-        } else if (characterName === 'lucy') {
-          this._handleLucyMultiProjectile(player);
-        } else {
-          // Fallback to melee for other characters
-          if (this.meleeCooldownTimer <= 0) {
-            this._handleSwordSwing(player);
-          }
+        }
+      } else if (characterName === 'lucy') {
+        // Lucy's melee attack fires projectiles in 360-degree pattern
+        // Use melee cooldown instead of special ability cooldown
+        if (this.meleeCooldownTimer <= 0) {
+          this._handleSwordSwing(player);
+        }
+      } else {
+        // Fallback to melee for other characters
+        if (this.meleeCooldownTimer <= 0) {
+          this._handleSwordSwing(player);
         }
       }
     }
@@ -3112,6 +3117,68 @@ export class GameLoop {
     if (this.characterManager.particleManager) {
       const playerPos = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
       this.characterManager.particleManager.spawnSwordSwingParticles(playerPos, characterColor, radius, animationDuration);
+    }
+    
+    // Fire projectiles in 360-degree pattern for Lucy's melee
+    // Check for projectileCount property (use config directly if not in merged stats)
+    const projectileCount = characterName === 'lucy' 
+      ? (meleeStats.projectileCount || LUCY_MELEE_ATTACK_CONFIG.projectileCount || 16)
+      : 0;
+    
+    if (characterName === 'lucy' && projectileCount && projectileCount > 0) {
+      const projectileSpeed = meleeStats.projectileSpeed || LUCY_MELEE_ATTACK_CONFIG.projectileSpeed || 6;
+      const projectileDamage = meleeStats.projectileDamage || LUCY_MELEE_ATTACK_CONFIG.projectileDamage || 8;
+      const playerPos = player.position;
+      const playerHeight = playerPos.y;
+      
+      // Debug: Log projectile creation
+      console.log('[Lucy Melee] Firing', projectileCount, 'projectiles at speed', projectileSpeed);
+      
+      for (let i = 0; i < projectileCount; i++) {
+        // Calculate angle for this projectile (360 degrees evenly distributed)
+        const angle = (i / projectileCount) * Math.PI * 2;
+        
+        // Calculate direction vector
+        const directionX = Math.cos(angle);
+        const directionZ = Math.sin(angle);
+        
+        // Spawn position slightly offset from character
+        const offsetX = directionX * 0.5;
+        const offsetZ = directionZ * 0.5;
+        
+        // Create projectile (forceCreate bypasses cooldown for multiple projectiles)
+        if (this.projectileManager) {
+          const playerId = 'local';
+          const projectile = this.projectileManager.createProjectile(
+            playerPos.x + offsetX,
+            playerHeight,
+            playerPos.z + offsetZ,
+            directionX,
+            directionZ,
+            playerId,
+            characterName,
+            null,
+            null,
+            { forceCreate: true }
+          );
+          
+          // Override projectile speed and damage if needed
+          if (projectile && projectile.userData) {
+            projectile.userData.customSpeed = projectileSpeed;
+            projectile.userData.damage = projectileDamage;
+            // Set initial velocity immediately with custom speed
+            const currentSpeed = Math.sqrt(
+              projectile.userData.velocityX * projectile.userData.velocityX +
+              projectile.userData.velocityZ * projectile.userData.velocityZ
+            );
+            if (currentSpeed > 0.001) {
+              const speedRatio = projectileSpeed / currentSpeed;
+              projectile.userData.velocityX *= speedRatio;
+              projectile.userData.velocityZ *= speedRatio;
+            }
+          }
+        }
+      }
     }
     
     // Start sword swing animation tracking
