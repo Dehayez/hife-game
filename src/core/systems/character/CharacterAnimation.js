@@ -91,6 +91,35 @@ export async function loadCharacterAnimations(characterName, onProgress = null) 
 }
 
 /**
+ * Preload essential character animations for instant switching
+ * Only loads core animations that are guaranteed to exist
+ * @param {string} characterName - Character name ('lucy' or 'herald')
+ * @returns {Promise<void>}
+ */
+export async function preloadEssentialCharacterAnimations(characterName) {
+  const baseSpritePath = `/assets/characters/${characterName}/`;
+  
+  try {
+    // Only preload essential animations: idle and walk (front and back)
+    // These are guaranteed to exist for all characters
+    const idle_front = await loadAnimationSmart(baseSpritePath + 'idle_front', 4, 1);
+    await waitForTexturesLoaded(idle_front);
+    
+    const idle_back = await loadAnimationSmart(baseSpritePath + 'idle_back', 4, 1);
+    await waitForTexturesLoaded(idle_back);
+    
+    const walk_front = await loadAnimationSmart(baseSpritePath + 'walk_front', 8, 4);
+    await waitForTexturesLoaded(walk_front);
+    
+    const walk_back = await loadAnimationSmart(baseSpritePath + 'walk_back', 8, 4);
+    await waitForTexturesLoaded(walk_back);
+  } catch (error) {
+    // Silently fail - preloading is optional and shouldn't break the game
+    console.debug(`Failed to preload essential animations for ${characterName}:`, error);
+  }
+}
+
+/**
  * Set character animation
  * @param {THREE.Mesh} player - Player mesh
  * @param {string} key - Animation key

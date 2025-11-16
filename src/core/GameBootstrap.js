@@ -12,7 +12,7 @@ import { initializeManagers } from './ManagerInitializer.js';
 import { initializeUI } from './UIInitializer.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 import { getLoadingProgressManager } from '../utils/LoadingProgressManager.js';
-import { loadCharacterAnimations } from '../systems/character/CharacterAnimation.js';
+import { preloadEssentialCharacterAnimations } from './systems/character/CharacterAnimation.js';
 
 /**
  * Get initial game configuration from URL params and localStorage
@@ -356,11 +356,12 @@ export async function initializeGame(managers, uiComponents, config) {
       }
     });
     
-    // Preload other character's sprites in background for instant switching
+    // Preload other character's essential sprites in background for instant switching
     const otherCharacter = GAME_CONSTANTS.AVAILABLE_CHARACTERS.find(char => char !== characterName);
     if (otherCharacter) {
-      // Preload other character's sprites silently (no progress updates)
-      loadCharacterAnimations(otherCharacter).catch(() => {
+      // Preload only essential animations (idle and walk) - these are guaranteed to exist
+      // This prevents trying to load optional animations that might not exist
+      preloadEssentialCharacterAnimations(otherCharacter).catch(() => {
         // Silently fail if preload fails - not critical
       });
     }
