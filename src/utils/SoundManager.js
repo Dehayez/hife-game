@@ -1373,11 +1373,74 @@ export class SoundManager {
 
 
   /**
-   * Play mortar launch sound - whoosh when mortar is fired
+   * Play mortar launch sound - tries custom sound first, falls back to procedural
+   * @param {string} characterName - Optional character name for character-specific mortar launch sound
    */
-  playMortarLaunch() {
+  async playMortarLaunch(characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'mortarLaunch')) return;
+    
+    // Try character-specific sound first (in characters folder, consistent with other character sounds)
+    if (characterName) {
+      // Try characters folder first: /assets/characters/{characterName}/mortar_launch.wav
+      const characterSoundPath = `/assets/characters/${characterName}/mortar_launch`;
+      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      }
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      }
+      
+      if (characterAudio) {
+        try {
+          characterAudio.currentTime = 0;
+          characterAudio.volume = this.soundEffectsVolume;
+          await characterAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+      
+      // Also try abilities folder: /assets/audio/abilities/{characterName}/mortar_launch.wav
+      const characterAbilitiesPath = getAudioPath('abilities', 'mortar', 'mortar_launch', characterName);
+      const characterAbilitiesAudio = await tryLoadAudio(characterAbilitiesPath);
+      if (characterAbilitiesAudio) {
+        try {
+          characterAbilitiesAudio.currentTime = 0;
+          characterAbilitiesAudio.volume = this.soundEffectsVolume;
+          await characterAbilitiesAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+    }
+    
+    // Fall back to generic mortar launch sound
+    const genericPath = getAudioPath('abilities', 'mortar', 'mortar_launch');
+    const genericAudio = await tryLoadAudio(genericPath);
+    if (genericAudio) {
+      try {
+        genericAudio.currentTime = 0;
+        genericAudio.volume = this.soundEffectsVolume;
+        await genericAudio.play();
+        return;
+      } catch (error) {
+        // Play failed, continue to procedural fallback
+      }
+    }
+    
+    // Final fallback to procedural sound
+    this._playMortarLaunchProcedural();
+  }
+
+  /**
+   * Procedural mortar launch sound
+   */
+  _playMortarLaunchProcedural() {
+    if (!this.soundEnabled) return;
     if (!this._ensureAudioContext()) return;
 
     const now = this.audioContext.currentTime;
@@ -1423,45 +1486,12 @@ export class SoundManager {
 
   /**
    * Play mortar arc sound - continuous whoosh during flight
-   * @returns {Object} Audio context nodes for continuous playing/stopping
+   * DISABLED: Returns null to disable arc sound
+   * @returns {Object|null} Audio context nodes for continuous playing/stopping (always null now)
    */
   playMortarArc() {
-    if (!this.soundEnabled) return null;
-    if (!isSoundEnabled('abilities', 'mortarArc')) return null;
-    if (!this._ensureAudioContext()) return null;
-
-    const now = this.audioContext.currentTime;
-
-    // Continuous whoosh during flight
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
-
-    // Medium frequency whoosh
-    oscillator.type = 'sawtooth';
-    oscillator.frequency.setValueAtTime(150, now);
-
-    // Start volume
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(this.soundEffectsVolume * 0.3, now + 0.05);
-
-    oscillator.start(now);
-
-    return {
-      oscillator: oscillator,
-      gainNode: gainNode,
-      stop: () => {
-        const stopTime = this.audioContext.currentTime;
-        gainNode.gain.cancelScheduledValues(stopTime);
-        gainNode.gain.setValueAtTime(gainNode.gain.value, stopTime);
-        gainNode.gain.linearRampToValueAtTime(0, stopTime + 0.1);
-        setTimeout(() => {
-          oscillator.stop();
-        }, 100);
-      }
-    };
+    // Arc sound disabled - return null immediately
+    return null;
   }
 
   /**

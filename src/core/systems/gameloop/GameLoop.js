@@ -2033,18 +2033,15 @@ export class GameLoop {
       this.vibrationManager.mortar();
     }
     
-    // Play launch sound and start arc sound
+    // Play launch sound (arc sound disabled)
     if (mortar) {
       const soundManager = this.characterManager.getSoundManager();
       if (soundManager) {
-        // Play launch sound
-        soundManager.playMortarLaunch();
+        // Play launch sound with character name
+        const characterName = this.characterManager.getCharacterName();
+        soundManager.playMortarLaunch(characterName);
         
-        // Start arc sound (continuous whoosh during flight)
-        const arcSound = soundManager.playMortarArc();
-        if (arcSound && mortar.userData) {
-          mortar.userData.arcSound = arcSound; // Store for cleanup when mortar hits ground
-        }
+        // Arc sound disabled - no longer playing continuous whoosh during flight
       }
     }
     
