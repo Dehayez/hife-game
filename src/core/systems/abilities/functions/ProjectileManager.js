@@ -163,7 +163,7 @@ export class ProjectileManager {
     }
     
     if (this.soundManager) {
-      this.soundManager.playBoltShot({ x: startX, y: startY, z: startZ });
+      this.soundManager.playBoltShot({ x: startX, y: startY, z: startZ }, characterName);
     }
     
     this.projectiles.push(projectile);

@@ -1450,14 +1450,69 @@ export class SoundManager {
   /**
    * Play bolt shot sound - tries custom sound first, falls back to procedural
    * @param {Object|THREE.Vector3} position - Optional sound position for distance-based volume
+   * @param {string} characterName - Optional character name for character-specific bolt sound
    */
-  playBoltShot(position = null) {
+  async playBoltShot(position = null, characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'boltShot')) return;
-    const path = getAudioPath('abilities', 'bolt', 'bolt_shot');
-    this._playSoundWithFallback(path, () => {
-      this._playBoltShotProcedural(position);
-    }, position);
+    
+    // Try character-specific sound first (in characters folder, consistent with other character sounds)
+    if (characterName) {
+      // Try characters folder first: /assets/characters/{characterName}/bolt_shot.wav
+      const characterSoundPath = `/assets/characters/${characterName}/bolt_shot`;
+      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      }
+      if (!characterAudio) {
+        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      }
+      
+      if (characterAudio) {
+        try {
+          characterAudio.currentTime = 0;
+          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+          characterAudio.volume = adjustedVolume;
+          await characterAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+      
+      // Also try abilities folder: /assets/audio/abilities/{characterName}/bolt_shot.wav
+      const characterAbilitiesPath = getAudioPath('abilities', 'bolt', 'bolt_shot', characterName);
+      const characterAbilitiesAudio = await tryLoadAudio(characterAbilitiesPath);
+      if (characterAbilitiesAudio) {
+        try {
+          characterAbilitiesAudio.currentTime = 0;
+          const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+          characterAbilitiesAudio.volume = adjustedVolume;
+          await characterAbilitiesAudio.play();
+          return;
+        } catch (error) {
+          // Play failed, continue to fallback
+        }
+      }
+    }
+    
+    // Fall back to generic bolt sound
+    const genericPath = getAudioPath('abilities', 'bolt', 'bolt_shot');
+    const genericAudio = await tryLoadAudio(genericPath);
+    if (genericAudio) {
+      try {
+        genericAudio.currentTime = 0;
+        const adjustedVolume = this._getAdjustedVolume(this.soundEffectsVolume, position);
+        genericAudio.volume = adjustedVolume;
+        await genericAudio.play();
+        return;
+      } catch (error) {
+        // Play failed, continue to procedural fallback
+      }
+    }
+    
+    // Final fallback to procedural sound
+    this._playBoltShotProcedural(position);
   }
 
   /**
