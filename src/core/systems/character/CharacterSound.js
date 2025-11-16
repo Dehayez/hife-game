@@ -5,7 +5,7 @@
  */
 
 import { getLoadingProgressManager } from '../../../utils/LoadingProgressManager.js';
-import { tryLoadAudio } from '../../../utils/AudioLoader.js';
+import { tryLoadAudio, getAudioPath } from '../../../utils/AudioLoader.js';
 
 /**
  * Sound file extensions to try
@@ -110,5 +110,112 @@ export async function loadAllCharacterSounds(characterName, soundManager, onProg
     await soundManager.loadFlySound(flySound);
   }
   updateProgress('fly');
+  
+  // Preload ability sounds to prevent delay on first use
+  await preloadAbilitySounds(characterName, onProgress);
+}
+
+/**
+ * Preload all ability sounds for a character to prevent delay on first use
+ * @param {string} characterName - Character name
+ * @param {Function} onProgress - Optional progress callback
+ * @returns {Promise<void>}
+ */
+async function preloadAbilitySounds(characterName, onProgress = null) {
+  const normalizedCharacterName = characterName.toLowerCase();
+  
+  // List of ability sounds to preload
+  const abilitySounds = [
+    {
+      name: 'bolt_shot',
+      paths: [
+        // Character-specific paths (without extension)
+        `/assets/characters/${normalizedCharacterName}/bolt_shot`,
+        // Abilities folder paths (getAudioPath returns .wav, so we'll try other extensions too)
+        getAudioPath('abilities', 'bolt', 'bolt_shot', normalizedCharacterName),
+        // Generic fallback
+        getAudioPath('abilities', 'bolt', 'bolt_shot')
+      ]
+    },
+    {
+      name: 'mortar_launch',
+      paths: [
+        `/assets/characters/${normalizedCharacterName}/mortar_launch`,
+        getAudioPath('abilities', 'mortar', 'mortar_launch', normalizedCharacterName),
+        getAudioPath('abilities', 'mortar', 'mortar_launch')
+      ]
+    },
+    {
+      name: 'mortar_explosion',
+      paths: [
+        `/assets/characters/${normalizedCharacterName}/mortar_explosion`,
+        `/assets/characters/${normalizedCharacterName}/mortar_splash`,
+        getAudioPath('abilities', 'mortar', 'mortar_explosion', normalizedCharacterName),
+        getAudioPath('abilities', 'mortar', 'mortar_explosion')
+      ]
+    },
+    {
+      name: 'melee_swing',
+      paths: [
+        `/assets/characters/${normalizedCharacterName}/melee_swing`,
+        `/assets/characters/${normalizedCharacterName}/melee`,
+        getAudioPath('abilities', 'melee', 'melee_swing', normalizedCharacterName),
+        getAudioPath('abilities', 'melee', 'melee_swing')
+      ]
+    },
+    {
+      name: 'melee_hit',
+      paths: [
+        `/assets/characters/${normalizedCharacterName}/melee_hit`,
+        `/assets/characters/${normalizedCharacterName}/melee`,
+        getAudioPath('abilities', 'melee', 'melee_hit', normalizedCharacterName),
+        getAudioPath('abilities', 'melee', 'melee_hit')
+      ]
+    }
+  ];
+  
+  // Preload each ability sound (try all paths until one succeeds)
+  for (const sound of abilitySounds) {
+    let loaded = false;
+    
+    // Try each path for this sound
+    for (const basePath of sound.paths) {
+      if (loaded) break;
+      
+      // If path already has extension, try it directly
+      if (basePath.includes('.wav') || basePath.includes('.mp3') || basePath.includes('.ogg')) {
+        const audio = await tryLoadAudio(basePath);
+        if (audio) {
+          loaded = true;
+          break;
+        }
+        // Also try other extensions for paths from getAudioPath (which returns .wav)
+        if (basePath.endsWith('.wav')) {
+          const mp3Path = basePath.replace('.wav', '.mp3');
+          const oggPath = basePath.replace('.wav', '.ogg');
+          const mp3Audio = await tryLoadAudio(mp3Path);
+          if (mp3Audio) {
+            loaded = true;
+            break;
+          }
+          const oggAudio = await tryLoadAudio(oggPath);
+          if (oggAudio) {
+            loaded = true;
+            break;
+          }
+        }
+      } else {
+        // Path without extension, try all extensions
+        for (const ext of SOUND_EXTENSIONS) {
+          const path = `${basePath}.${ext}`;
+          const audio = await tryLoadAudio(path);
+          if (audio) {
+            loaded = true;
+            break; // Found the sound, move to next ability sound
+          }
+        }
+      }
+    }
+  }
 }
 
