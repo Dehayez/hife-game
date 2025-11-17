@@ -32,37 +32,87 @@ export async function loadCharacterAnimations(characterName, onProgress = null) 
     }
   };
   
-  // Load base animations first
-  const idle_front = await loadAnimationSmart(baseSpritePath + 'idle_front', 4, 1);
-  updateProgress('idle_front');
+  // Load base animations first (declare outside try blocks for fallback access)
+  let idle_front, idle_back, walk_front, walk_back;
   
-  const idle_back = await loadAnimationSmart(baseSpritePath + 'idle_back', 4, 1);
-  updateProgress('idle_back');
+  try {
+    idle_front = await loadAnimationSmart(baseSpritePath + 'idle_front', 4, 1);
+    updateProgress('idle_front');
+  } catch (error) {
+    throw error; // Critical animation, fail fast
+  }
   
-  const walk_front = await loadAnimationSmart(baseSpritePath + 'walk_front', 8, 4);
-  updateProgress('walk_front');
+  try {
+    idle_back = await loadAnimationSmart(baseSpritePath + 'idle_back', 4, 1);
+    updateProgress('idle_back');
+  } catch (error) {
+    throw error; // Critical animation, fail fast
+  }
   
-  const walk_back = await loadAnimationSmart(baseSpritePath + 'walk_back', 8, 4);
-  updateProgress('walk_back');
+  try {
+    walk_front = await loadAnimationSmart(baseSpritePath + 'walk_front', 8, 4);
+    updateProgress('walk_front');
+  } catch (error) {
+    throw error; // Critical animation, fail fast
+  }
+  
+  try {
+    walk_back = await loadAnimationSmart(baseSpritePath + 'walk_back', 8, 4);
+    updateProgress('walk_back');
+  } catch (error) {
+    throw error; // Critical animation, fail fast
+  }
   
   // Try to load new animations, fallback to idle if not found
-  const hit_front = await loadAnimationSmart(baseSpritePath + 'hit_front', 12, 1).catch(() => idle_front);
-  updateProgress('hit_front');
+  let hit_front, hit_back, death_front, death_back, spawn_front, spawn_back;
   
-  const hit_back = await loadAnimationSmart(baseSpritePath + 'hit_back', 12, 1).catch(() => idle_back);
-  updateProgress('hit_back');
+  try {
+    hit_front = await loadAnimationSmart(baseSpritePath + 'hit_front', 12, 1);
+    updateProgress('hit_front');
+  } catch (error) {
+    hit_front = idle_front;
+    updateProgress('hit_front');
+  }
   
-  const death_front = await loadAnimationSmart(baseSpritePath + 'death_front', 8, 1).catch(() => idle_front);
-  updateProgress('death_front');
+  try {
+    hit_back = await loadAnimationSmart(baseSpritePath + 'hit_back', 12, 1);
+    updateProgress('hit_back');
+  } catch (error) {
+    hit_back = idle_back;
+    updateProgress('hit_back');
+  }
   
-  const death_back = await loadAnimationSmart(baseSpritePath + 'death_back', 8, 1).catch(() => idle_back);
-  updateProgress('death_back');
+  try {
+    death_front = await loadAnimationSmart(baseSpritePath + 'death_front', 8, 1);
+    updateProgress('death_front');
+  } catch (error) {
+    death_front = idle_front;
+    updateProgress('death_front');
+  }
   
-  const spawn_front = await loadAnimationSmart(baseSpritePath + 'spawn_front', 8, 1).catch(() => idle_front);
-  updateProgress('spawn_front');
+  try {
+    death_back = await loadAnimationSmart(baseSpritePath + 'death_back', 8, 1);
+    updateProgress('death_back');
+  } catch (error) {
+    death_back = idle_back;
+    updateProgress('death_back');
+  }
   
-  const spawn_back = await loadAnimationSmart(baseSpritePath + 'spawn_back', 8, 1).catch(() => idle_back);
-  updateProgress('spawn_back');
+  try {
+    spawn_front = await loadAnimationSmart(baseSpritePath + 'spawn_front', 8, 1);
+    updateProgress('spawn_front');
+  } catch (error) {
+    spawn_front = idle_front;
+    updateProgress('spawn_front');
+  }
+  
+  try {
+    spawn_back = await loadAnimationSmart(baseSpritePath + 'spawn_back', 8, 1);
+    updateProgress('spawn_back');
+  } catch (error) {
+    spawn_back = idle_back;
+    updateProgress('spawn_back');
+  }
   
   const loaded = {
     idle_front,

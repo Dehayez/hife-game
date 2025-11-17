@@ -4,7 +4,7 @@ const loader = new THREE.TextureLoader();
 // Texture cache to prevent reloading the same textures
 const textureCache = new Map();
 
-export function loadTexture(path) {
+export function loadTexture(path, silent = false) {
   // Check cache first
   if (textureCache.has(path)) {
     return Promise.resolve(textureCache.get(path));
@@ -25,7 +25,9 @@ export function loadTexture(path) {
         resolve(tex);
       },
       undefined,
-      (err) => reject(err)
+      (err) => {
+        reject(err);
+      }
     );
   });
 }
@@ -121,19 +123,24 @@ export async function loadAnimationSmart(basePathNoExt, fallbackFps = 8, default
 
   const frameCountToTry = frames || 4; // assume 4 if not specified
   const textures = [];
+  let firstFrameFailed = false;
   
   for (let i = 0; i < frameCountToTry; i++) {
     try {
       // e.g., walk_front_0.png
       // Note: if any frame fails, we bail to spritesheet approach
       // to avoid partial animations
+      // Use silent=true for all frames to avoid error spam when falling back to sprite sheet
+      // The sprite sheet load will log success/failure
       // eslint-disable-next-line no-await-in-loop
-      const t = await loadTexture(`${basePathNoExt}_${i}.png`);
+      const t = await loadTexture(`${basePathNoExt}_${i}.png`, true); // Silent - sprite sheet fallback will log
       textures.push(t);
     } catch (error) {
       // If first frame fails, we'll fallback to spritesheet
       if (i === 0) {
+        firstFrameFailed = true;
         textures.length = 0;
+        // Don't log error here - we'll try sprite sheet next
       } else {
         // Some frames missing; invalidate sequence
         textures.length = 0;

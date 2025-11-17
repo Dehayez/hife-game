@@ -1112,7 +1112,7 @@ export class SoundManager {
         this.backgroundMusic.loop = true;
 
         // Handle loading errors gracefully
-        this.backgroundMusic.addEventListener('error', (e) => {
+        this.backgroundMusic.addEventListener('error', () => {
           this.backgroundMusic = null;
         });
 

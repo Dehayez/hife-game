@@ -13,6 +13,13 @@ import { tryLoadAudio, getAudioPath } from '../../../utils/AudioLoader.js';
 const SOUND_EXTENSIONS = ['mp3', 'ogg', 'wav'];
 
 /**
+ * List of optional sounds that don't exist yet - don't warn if missing
+ */
+const OPTIONAL_SOUNDS = [
+  'jump_obstacle', // Not implemented yet
+];
+
+/**
  * Try to load a sound file (uses AudioLoader cache)
  * @param {string} path - Sound file path (without extension)
  * @returns {Promise<string|null>} Path to sound file if found, null otherwise
