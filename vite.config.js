@@ -9,6 +9,12 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    // Configure middleware to preserve cache headers
+    middlewareMode: false,
+    fs: {
+      // Allow serving files from public directory
+      allow: ['..'],
+    },
   },
   // Configure static file handling
   publicDir: 'public',

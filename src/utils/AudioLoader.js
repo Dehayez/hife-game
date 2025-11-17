@@ -71,13 +71,16 @@ export async function tryLoadAudio(path) {
   }
   
   try {
+    // Create audio element with cache-friendly settings
     const audio = new Audio(path);
     audio.preload = 'auto';
+    // Ensure browser respects cache by not adding cache-busting
+    // The browser will use cached version if available
     
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         resolve(null); // Timeout - file probably doesn't exist
-      }, 3000); // Increased timeout to 3 seconds for larger files
+      }, 10000); // Increased timeout to 10 seconds for large files like background.wav
       
       // Use loadeddata for faster response (doesn't need full file loaded)
       audio.addEventListener('loadeddata', () => {
@@ -89,7 +92,7 @@ export async function tryLoadAudio(path) {
         resolve(audioClone);
       }, { once: true });
       
-      // Also listen for canplaythrough as backup
+      // Also listen for canplaythrough as backup (ensures enough data for playback)
       audio.addEventListener('canplaythrough', () => {
         clearTimeout(timeout);
         // Cache the loaded audio
@@ -106,7 +109,7 @@ export async function tryLoadAudio(path) {
         resolve(null); // File doesn't exist or failed to load
       }, { once: true });
       
-      // Try to load
+      // Try to load - browser will use cache if available
       audio.load();
     });
   } catch (error) {

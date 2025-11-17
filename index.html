@@ -54,6 +54,27 @@
     <meta name="msapplication-config" content="/browserconfig.xml">
     
     <link rel="stylesheet" href="./styles.css">
+    
+    <!-- Resource hints for faster loading -->
+    <!-- Preload critical assets - use fetchpriority for important resources -->
+    <link rel="preload" href="/assets/music/background.wav" as="audio" type="audio/wav" fetchpriority="high">
+    <link rel="preload" href="/assets/audio/core/jump.wav" as="audio" type="audio/wav">
+    
+    <!-- Prefetch commonly used character assets (default: lucy) -->
+    <link rel="prefetch" href="/assets/characters/lucy/idle_0.png" as="image" type="image/png">
+    <link rel="prefetch" href="/assets/characters/lucy/walk_0.png" as="image" type="image/png">
+    <link rel="prefetch" href="/assets/characters/lucy/run_0.png" as="image" type="image/png">
+    <link rel="prefetch" href="/assets/characters/lucy/jump_0.png" as="image" type="image/png">
+    
+    <!-- Prefetch arena assets -->
+    <link rel="prefetch" href="/assets/arenas/forest-plaza.png" as="image" type="image/png">
+    <link rel="prefetch" href="/assets/arenas/ancient grove.png" as="image" type="image/png">
+    
+    <!-- Prefetch audio files for better caching -->
+    <link rel="prefetch" href="/assets/audio/abilities/bolt/bolt_shot.wav" as="audio" type="audio/wav">
+    <link rel="prefetch" href="/assets/audio/abilities/mortar/mortar_explosion.wav" as="audio" type="audio/wav">
+    <link rel="prefetch" href="/assets/audio/abilities/melee/melee_hit.wav" as="audio" type="audio/wav">
+    
     <!-- Socket.io client for multiplayer -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   </head>
