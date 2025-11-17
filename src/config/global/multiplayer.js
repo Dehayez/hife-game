@@ -13,5 +13,5 @@
 export const WEBSOCKET_SERVER_URL = import.meta.env.VITE_WEBSOCKET_URL || '';
 
 // Production domains
-export const PRODUCTION_DOMAINS = ['hife.be', 'www.hife.be'];
+export const PRODUCTION_DOMAINS = ['hifeofmools.com', 'www.hifeofmools.com'];
 

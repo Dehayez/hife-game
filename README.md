@@ -1,6 +1,6 @@
-# Hife - Magical Forest Adventure
+# Hife of Mools - Magical Forest Adventure
 
-A magical 3D browser game built with Three.js featuring a mystical forest environment, character movement, multiple game modes, and two distinct arena sizes.
+A magical 3D browser game built with Three.js featuring a mystical forest environment, character movement, multiple game modes, and two distinct arena sizes. Play online at [hifeofmools.com](https://hifeofmools.com).
 
 ## Features
 
@@ -49,7 +49,7 @@ The server handles:
 - Projectile sync (bolts and mortars)
 - Health/damage sync
 
-**For production deployment on hife.be, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
+**For production deployment on hifeofmools.com, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
 
 **For local testing instructions, see [LOCAL_TESTING.md](./LOCAL_TESTING.md)**
 

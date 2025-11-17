@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3001;
 // Allow CORS from production domain
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['https://hife.be', 'https://www.hife.be', 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'];
+  : ['https://hifeofmools.com', 'https://www.hifeofmools.com', 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'];
 
 // Create HTTP server
 const httpServer = createServer();
