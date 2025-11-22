@@ -240,9 +240,16 @@ export function updateCharacterAnimation(
   anim.timeAcc += dt;
   
   // Use higher FPS when running (shift held) for walk animations
-  const currentFps = isRunning && isWalkAnim ? anim.fps * 1.4 : anim.fps;
+  // Smooth interpolation: gradually adjust FPS for more realistic movement
+  const targetFps = isRunning && isWalkAnim ? anim.fps * 1.4 : anim.fps;
+  const fpsTransitionSpeed = 5.0; // How fast to transition between FPS values
+  if (!anim.currentFps) anim.currentFps = anim.fps;
+  anim.currentFps += (targetFps - anim.currentFps) * Math.min(1, dt * fpsTransitionSpeed);
   
-  const frameDuration = 1 / currentFps;
+  const frameDuration = 1 / anim.currentFps;
+  
+  // Smooth frame interpolation for better visual quality
+  const frameProgress = anim.timeAcc / frameDuration;
   
   while (anim.timeAcc >= frameDuration) {
     anim.timeAcc -= frameDuration;
@@ -276,14 +283,30 @@ export function updateCharacterAnimation(
     if (anim.mode === 'sheet') {
       const u = anim.frameIndex / anim.frameCount;
       anim.texture.offset.x = u;
+      // Smooth texture offset for better visual quality
+      anim.texture.needsUpdate = true;
     } else if (anim.mode === 'frames') {
       const nextTex = anim.textures[anim.frameIndex];
       const spriteMat = player.material;
       if (spriteMat.map !== nextTex) {
         spriteMat.map = nextTex;
         spriteMat.needsUpdate = true;
+        // Force texture update for smoother transitions
+        if (nextTex) {
+          nextTex.needsUpdate = true;
+        }
       }
     }
+  }
+  
+  // Apply smooth interpolation between frames for better visual quality
+  // This helps reduce stuttering when frame rate doesn't match animation FPS exactly
+  if (anim.mode === 'sheet' && frameProgress < 1) {
+    // Smooth texture offset interpolation
+    const currentU = anim.frameIndex / anim.frameCount;
+    const nextU = ((anim.frameIndex + 1) % anim.frameCount) / anim.frameCount;
+    const interpolatedU = currentU + (nextU - currentU) * frameProgress;
+    anim.texture.offset.x = interpolatedU;
   }
 }
 

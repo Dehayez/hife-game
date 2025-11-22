@@ -34,8 +34,11 @@ export class RemotePlayerManager {
    * @param {Object} initialPosition - Initial position {x, y, z}
    */
   async spawnRemotePlayer(playerId, characterName = 'lucy', initialPosition = { x: 0, y: 0, z: 0 }) {
+    console.log(`[RemotePlayerManager] spawnRemotePlayer called for ${playerId}, character: ${characterName}, position:`, initialPosition);
+    
     // Check if player already exists or is currently being spawned
     if (this.remotePlayers.has(playerId)) {
+      console.log(`[RemotePlayerManager] Player ${playerId} already exists, returning existing player`);
       return this.remotePlayers.get(playerId);
     }
     
@@ -156,6 +159,8 @@ export class RemotePlayerManager {
     
     // Add to scene AFTER textures are loaded and mesh is configured
     this.scene.add(playerMesh);
+    
+    console.log(`[RemotePlayerManager] Added remote player ${playerId} mesh to scene. Visible: ${playerMesh.visible}, Position:`, playerMesh.position, `Parent:`, playerMesh.parent ? 'yes' : 'no');
 
     // Store remote player data
     const initialX = playerMesh.position.x;
@@ -201,8 +206,11 @@ export class RemotePlayerManager {
       // Remove from spawning set now that spawn is complete
       this.spawningPlayers.delete(playerId);
       
+      const spawnedPlayer = this.remotePlayers.get(playerId);
+      console.log(`[RemotePlayerManager] Successfully spawned remote player ${playerId}. Mesh in scene: ${spawnedPlayer.mesh.parent ? 'yes' : 'no'}, Visible: ${spawnedPlayer.mesh.visible}`);
+      
       // Return remote player data for health bar creation
-      return this.remotePlayers.get(playerId);
+      return spawnedPlayer;
     } catch (error) {
       // Clean up mesh if it was created but spawn failed
       if (playerMesh) {

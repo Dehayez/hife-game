@@ -1,5 +1,5 @@
 import { getSoundEffectsVolume, getBackgroundCinematicVolume } from './StorageUtils.js';
-import { tryLoadAudio, getAudioPath, loadCustomAudio } from './AudioLoader.js';
+import { tryLoadAudio, tryLoadAudioWithFallback, getAudioPath, loadCustomAudio } from './AudioLoader.js';
 import { isSoundEnabled } from '../config/global/SoundConfig.js';
 
 export class SoundManager {
@@ -1099,8 +1099,8 @@ export class SoundManager {
     }
 
     try {
-      // Use AudioLoader which handles caching
-      this.backgroundMusic = await tryLoadAudio(path);
+      // Use AudioLoader which handles caching (use longer timeout for large files)
+      this.backgroundMusic = await tryLoadAudio(path, 10000);
       if (!this.backgroundMusic) {
         // Fallback to loadCustomAudio if tryLoadAudio fails
         this.backgroundMusic = loadCustomAudio(path, this.backgroundMusicVolume);
@@ -1116,24 +1116,33 @@ export class SoundManager {
           this.backgroundMusic = null;
         });
 
-        // Auto-play when loaded
-        this.backgroundMusic.addEventListener('canplaythrough', () => {
-          // Attempt to play automatically when ready
-          // Check after a short delay if it actually started
+        // Auto-play when loaded (only if not already playing)
+        if (this.backgroundMusic.readyState >= 3) {
+          // Already loaded (HAVE_FUTURE_DATA or higher), try to play immediately
           this.playBackgroundMusic();
-          setTimeout(() => {
-            if (!this.isBackgroundMusicPlaying()) {
-              // Music didn't start, will need user interaction
-              this._backgroundMusicPlaying = false;
-            }
-          }, 100);
-        }, { once: true });
+        } else {
+          // Wait for canplaythrough event (only add listener if not already loaded)
+          this.backgroundMusic.addEventListener('canplaythrough', () => {
+            // Attempt to play automatically when ready
+            // Check after a short delay if it actually started
+            this.playBackgroundMusic();
+            setTimeout(() => {
+              if (!this.isBackgroundMusicPlaying()) {
+                // Music didn't start, will need user interaction
+                this._backgroundMusicPlaying = false;
+              }
+            }, 100);
+          }, { once: true });
+        }
 
-        // Try to load immediately if not already loaded
-        if (this.backgroundMusic.readyState === 0) {
+        // Don't call load() if already loaded - it causes unnecessary network requests
+        // The audio element will load automatically when play() is called if needed
+        // Only call load() if the element is in a state that requires it
+        if (this.backgroundMusic.readyState === 0 && !this.backgroundMusic.src) {
+          // Only load if src is not set (shouldn't happen, but safety check)
           this.backgroundMusic.load();
         } else {
-          // Already loaded from cache, try to play
+          // Already loaded or loading, try to play
           this.playBackgroundMusic();
         }
       }
@@ -1253,26 +1262,29 @@ export class SoundManager {
       // Try characters folder first: /assets/characters/{characterName}/mortar_explosion.wav or mortar_splash.wav
       const normalizedCharacterName = characterName.toLowerCase();
       
-      // Try mortar_explosion first
+      // Try mortar_explosion first with format fallback
       let characterSoundPath = `/assets/characters/${normalizedCharacterName}/mortar_explosion`;
-      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
-      }
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      
+      // Check SoundManager cache first
+      if (!this.customAudioCache.has(characterSoundPath)) {
+        let loadedAudio = await tryLoadAudioWithFallback(characterSoundPath);
+        if (loadedAudio) {
+          this.customAudioCache.set(characterSoundPath, loadedAudio);
+        } else {
+          // If not found, try mortar_splash as alternative name
+          const splashPath = `/assets/characters/${normalizedCharacterName}/mortar_splash`;
+          loadedAudio = await tryLoadAudioWithFallback(splashPath);
+          if (loadedAudio) {
+            // Cache under the original path name for consistency
+            this.customAudioCache.set(characterSoundPath, loadedAudio);
+          }
+        }
       }
       
-      // If not found, try mortar_splash as alternative name
-      if (!characterAudio) {
-        characterSoundPath = `/assets/characters/${normalizedCharacterName}/mortar_splash`;
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
-        if (!characterAudio) {
-          characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
-        }
-        if (!characterAudio) {
-          characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
-        }
+      let characterAudio = this.customAudioCache.get(characterSoundPath);
+      if (characterAudio) {
+        // Clone for independent playback
+        characterAudio = characterAudio.cloneNode();
       }
       
       if (characterAudio) {
@@ -1459,13 +1471,19 @@ export class SoundManager {
       const normalizedCharacterName = characterName.toLowerCase();
       // Try characters folder first: /assets/characters/{characterName}/mortar_launch.wav
       const characterSoundPath = `/assets/characters/${normalizedCharacterName}/mortar_launch`;
-      const wavPath = `${characterSoundPath}.wav`;
-      let characterAudio = await tryLoadAudio(wavPath);
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      
+      // Check SoundManager cache first to avoid reloading
+      if (!this.customAudioCache.has(characterSoundPath)) {
+        const loadedAudio = await tryLoadAudioWithFallback(characterSoundPath);
+        if (loadedAudio) {
+          this.customAudioCache.set(characterSoundPath, loadedAudio);
+        }
       }
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      
+      let characterAudio = this.customAudioCache.get(characterSoundPath);
+      if (characterAudio) {
+        // Clone for independent playback
+        characterAudio = characterAudio.cloneNode();
       }
       
       if (characterAudio) {
@@ -1633,12 +1651,21 @@ export class SoundManager {
     if (characterName) {
       // Try characters folder first: /assets/characters/{characterName}/bolt_shot.wav
       const characterSoundPath = `/assets/characters/${characterName}/bolt_shot`;
-      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      
+      // Check SoundManager cache first to avoid reloading
+      if (!this.customAudioCache.has(characterSoundPath)) {
+        const loadedAudio = await tryLoadAudioWithFallback(characterSoundPath);
+        if (loadedAudio) {
+          // Cache the original (before cloning) for future use
+          // Store the path without extension as the key
+          this.customAudioCache.set(characterSoundPath, loadedAudio);
+        }
       }
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
+      
+      let characterAudio = this.customAudioCache.get(characterSoundPath);
+      if (characterAudio) {
+        // Clone for independent playback
+        characterAudio = characterAudio.cloneNode();
       }
       
       if (characterAudio) {
@@ -1795,25 +1822,24 @@ export class SoundManager {
     if (characterName) {
       // Try characters folder first: /assets/characters/{characterName}/melee_swing.wav
       const characterSoundPath = `/assets/characters/${characterName}/melee_swing`;
-      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      
+      // Check SoundManager cache first to avoid reloading
+      if (!this.customAudioCache.has(characterSoundPath)) {
+        let loadedAudio = await tryLoadAudioWithFallback(characterSoundPath);
+        // Also try just "melee" as a fallback
+        if (!loadedAudio) {
+          const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+          loadedAudio = await tryLoadAudioWithFallback(simpleMeleePath);
+        }
+        if (loadedAudio) {
+          this.customAudioCache.set(characterSoundPath, loadedAudio);
+        }
       }
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
-      }
-      // Also try just "melee.wav" as a fallback
-      if (!characterAudio) {
-        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
-        characterAudio = await tryLoadAudio(`${simpleMeleePath}.wav`);
-      }
-      if (!characterAudio) {
-        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
-        characterAudio = await tryLoadAudio(`${simpleMeleePath}.mp3`);
-      }
-      if (!characterAudio) {
-        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
-        characterAudio = await tryLoadAudio(`${simpleMeleePath}.ogg`);
+      
+      let characterAudio = this.customAudioCache.get(characterSoundPath);
+      if (characterAudio) {
+        // Clone for independent playback
+        characterAudio = characterAudio.cloneNode();
       }
       
       if (characterAudio) {
@@ -1898,25 +1924,24 @@ export class SoundManager {
     if (characterName) {
       // Try characters folder first: /assets/characters/{characterName}/melee_hit.wav
       const characterSoundPath = `/assets/characters/${characterName}/melee_hit`;
-      let characterAudio = await tryLoadAudio(`${characterSoundPath}.wav`);
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.mp3`);
+      
+      // Check SoundManager cache first to avoid reloading
+      if (!this.customAudioCache.has(characterSoundPath)) {
+        let loadedAudio = await tryLoadAudioWithFallback(characterSoundPath);
+        // Also try just "melee" as a fallback
+        if (!loadedAudio) {
+          const simpleMeleePath = `/assets/characters/${characterName}/melee`;
+          loadedAudio = await tryLoadAudioWithFallback(simpleMeleePath);
+        }
+        if (loadedAudio) {
+          this.customAudioCache.set(characterSoundPath, loadedAudio);
+        }
       }
-      if (!characterAudio) {
-        characterAudio = await tryLoadAudio(`${characterSoundPath}.ogg`);
-      }
-      // Also try just "melee.wav" as a fallback
-      if (!characterAudio) {
-        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
-        characterAudio = await tryLoadAudio(`${simpleMeleePath}.wav`);
-      }
-      if (!characterAudio) {
-        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
-        characterAudio = await tryLoadAudio(`${simpleMeleePath}.mp3`);
-      }
-      if (!characterAudio) {
-        const simpleMeleePath = `/assets/characters/${characterName}/melee`;
-        characterAudio = await tryLoadAudio(`${simpleMeleePath}.ogg`);
+      
+      let characterAudio = this.customAudioCache.get(characterSoundPath);
+      if (characterAudio) {
+        // Clone for independent playback
+        characterAudio = characterAudio.cloneNode();
       }
       
       if (characterAudio) {

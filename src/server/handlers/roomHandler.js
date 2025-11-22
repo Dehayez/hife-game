@@ -4,7 +4,7 @@
  * Handles room creation and joining.
  */
 
-import { generateRoomCode, getOrCreateRoom } from '../utils/roomUtils.js';
+import { generateRoomCode, getOrCreateRoom, getRoomSocketIds } from '../utils/roomUtils.js';
 
 /**
  * Handle room creation
@@ -12,12 +12,14 @@ import { generateRoomCode, getOrCreateRoom } from '../utils/roomUtils.js';
  * @param {Map} rooms - Rooms map
  * @param {Map} players - Players map
  * @param {Object} gameState - Game state
+ * @param {Object} options - Room options (isPrivate)
  * @param {Function} callback - Callback function
  */
-export function handleCreateRoom(socket, rooms, players, gameState, callback) {
+export function handleCreateRoom(socket, rooms, players, gameState, options, callback) {
+  const isPrivate = options?.isPrivate || false;
   const roomCode = generateRoomCode();
-  const room = getOrCreateRoom(rooms, roomCode);
-  room.add(socket.id);
+  const room = getOrCreateRoom(rooms, roomCode, isPrivate);
+  room.socketIds.add(socket.id);
   
   socket.join(roomCode);
   
@@ -28,10 +30,10 @@ export function handleCreateRoom(socket, rooms, players, gameState, callback) {
     isHost: true
   });
   
-  console.log(`Room created: ${roomCode} by ${socket.id}`);
+  console.log(`Room created: ${roomCode} by ${socket.id} (${isPrivate ? 'private' : 'public'})`);
   
   if (callback) {
-    callback({ roomCode, success: true });
+    callback({ roomCode, success: true, isPrivate });
   }
   
   // Notify others in room (though initially empty)
@@ -52,10 +54,17 @@ export function handleCreateRoom(socket, rooms, players, gameState, callback) {
  */
 export function handleJoinRoom(socket, rooms, players, roomCode, gameState, callback) {
   const normalizedRoomCode = roomCode.toUpperCase();
-  const room = getOrCreateRoom(rooms, normalizedRoomCode);
+  const room = rooms.get(normalizedRoomCode);
   
-  if (!room.has(socket.id)) {
-    room.add(socket.id);
+  if (!room) {
+    if (callback) {
+      callback({ success: false, error: 'Room not found' });
+    }
+    return;
+  }
+  
+  if (!room.socketIds.has(socket.id)) {
+    room.socketIds.add(socket.id);
     socket.join(normalizedRoomCode);
     
     players.set(socket.id, {
@@ -74,7 +83,7 @@ export function handleJoinRoom(socket, rooms, players, roomCode, gameState, call
     });
     
     // Get existing players in room
-    const existingPlayers = Array.from(room)
+    const existingPlayers = Array.from(room.socketIds)
       .filter(id => id !== socket.id)
       .map(id => ({
         playerId: id,
@@ -85,7 +94,8 @@ export function handleJoinRoom(socket, rooms, players, roomCode, gameState, call
       callback({ 
         roomCode: normalizedRoomCode, 
         success: true,
-        existingPlayers
+        existingPlayers,
+        isPrivate: room.isPrivate
       });
     }
   } else {
@@ -106,8 +116,8 @@ export function handleLeaveRoom(socket, rooms, players) {
   if (player && player.roomCode) {
     const room = rooms.get(player.roomCode);
     if (room) {
-      room.delete(socket.id);
-      if (room.size === 0) {
+      room.socketIds.delete(socket.id);
+      if (room.socketIds.size === 0) {
         rooms.delete(player.roomCode);
       }
     }
@@ -120,6 +130,95 @@ export function handleLeaveRoom(socket, rooms, players) {
     players.delete(socket.id);
     
     console.log(`Player ${socket.id} left room ${player.roomCode}`);
+  }
+}
+
+/**
+ * Handle listing available rooms
+ * @param {Object} socket - Socket instance
+ * @param {Map} rooms - Rooms map
+ * @param {Map} players - Players map
+ * @param {Function} callback - Callback function
+ */
+export function handleListRooms(socket, rooms, players, callback) {
+  const availableRooms = [];
+  
+  for (const [roomCode, roomData] of rooms.entries()) {
+    const playerCount = roomData.socketIds.size;
+    // Only include public rooms that have at least one player and aren't full (assuming max 4 players)
+    if (!roomData.isPrivate && playerCount > 0 && playerCount < 4) {
+      availableRooms.push({
+        roomCode,
+        playerCount,
+        maxPlayers: 4
+      });
+    }
+  }
+  
+  if (callback) {
+    callback({ rooms: availableRooms, success: true });
+  }
+}
+
+/**
+ * Handle room property updates (e.g., privacy toggle)
+ * @param {Object} socket - Socket instance
+ * @param {Map} rooms - Rooms map
+ * @param {Map} players - Players map
+ * @param {Object} updates - Room property updates (isPrivate, etc.)
+ * @param {Function} callback - Callback function
+ */
+export function handleUpdateRoom(socket, rooms, players, updates, callback) {
+  const player = players.get(socket.id);
+  if (!player || !player.roomCode) {
+    if (callback) {
+      callback({ success: false, error: 'Not in a room' });
+    }
+    return;
+  }
+
+  // Check if player is host
+  if (!player.isHost) {
+    if (callback) {
+      callback({ success: false, error: 'Only the host can update room settings' });
+    }
+    return;
+  }
+
+  const room = rooms.get(player.roomCode);
+  if (!room) {
+    if (callback) {
+      callback({ success: false, error: 'Room not found' });
+    }
+    return;
+  }
+
+  // Update room properties
+  const updatedProperties = {};
+  if (updates.hasOwnProperty('isPrivate')) {
+    room.isPrivate = updates.isPrivate;
+    updatedProperties.isPrivate = updates.isPrivate;
+  }
+
+  console.log(`Room ${player.roomCode} updated by ${socket.id}:`, updatedProperties);
+
+  // Broadcast update to all players in room
+  socket.to(player.roomCode).emit('room-updated', {
+    roomCode: player.roomCode,
+    updates: updatedProperties
+  });
+
+  // Also emit to the host
+  socket.emit('room-updated', {
+    roomCode: player.roomCode,
+    updates: updatedProperties
+  });
+
+  if (callback) {
+    callback({ 
+      success: true, 
+      updates: updatedProperties 
+    });
   }
 }
 

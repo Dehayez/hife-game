@@ -1148,16 +1148,11 @@ export class GameLoop {
     }
     
     // Handle mortar hold system (RB hold, LT preview, RT release)
-    if (!heraldAbilitiesBlocked) {
-      this._handleMortarHoldSystem(player, dt);
-    } else {
-      this.lastMortarHoldInput = false;
-      this.lastLeftTriggerInput = false;
-      this.lastRightTriggerInput = false;
-    }
+    // Allow mortar activation even while running - running will automatically stop when mortar is activated
+    this._handleMortarHoldSystem(player, dt);
     
     // Legacy mortar input (right mouse click) - only if not using gamepad hold system
-    if (!heraldAbilitiesBlocked && !this.mortarHoldActive) {
+    if (!this.mortarHoldActive) {
       const mortarInput = this.inputManager.isMortarPressed();
       if (mortarInput && !this.lastMortarInput) {
         // Only handle mouse click if not holding RB
@@ -1410,6 +1405,7 @@ export class GameLoop {
     const rightTriggerInput = this.inputManager.isRightTriggerPressed();
     
     // Handle RB toggle to enter/exit mortar hold mode
+    // Note: Mortar can be activated while running - running will automatically stop when mortar is activated
     if (mortarHoldInput && !this.lastMortarHoldInput) {
       // RB just pressed - toggle mortar hold mode
       if (this.mortarHoldActive) {
@@ -1423,7 +1419,7 @@ export class GameLoop {
           this.mortarArcPreview = null;
         }
       } else {
-        // Not holding - enter mortar hold mode
+        // Not holding - enter mortar hold mode (works even while running)
         this.mortarHoldActive = true;
         this.inputManager.setMortarHoldActive(true);
         this._createMortarHoldVisual(player);

@@ -359,6 +359,58 @@ html, body { height: 100%; margin: 0; }
   gap: 12px;
 }
 
+.ui__privacy-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.ui__privacy-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ui__privacy-toggle {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.ui__privacy-text {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  opacity: 0.8;
+}
+
+.ui__room-success {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.5);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #81c784;
+  text-align: center;
+  font-weight: 500;
+  margin-bottom: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ui__room-status-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
 .ui__room-code {
   font-size: 24px;
   font-weight: 600;
@@ -370,6 +422,64 @@ html, body { height: 100%; margin: 0; }
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-medium);
   border-radius: 6px;
+  width: 100%;
+}
+
+.ui__room-privacy-badge,
+.ui__room-host-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.ui__room-privacy-badge {
+  background: rgba(255, 152, 0, 0.2);
+  border: 1px solid rgba(255, 152, 0, 0.4);
+  color: #ffb74d;
+}
+
+.ui__room-host-badge {
+  background: rgba(255, 193, 7, 0.2);
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  color: #ffd54f;
+}
+
+.ui__room-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.ui__room-info-item {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ui__room-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ui__room-host-controls {
+  padding: 8px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 6px;
+  margin-bottom: 4px;
 }
 
 .ui__share-text {
@@ -377,13 +487,87 @@ html, body { height: 100%; margin: 0; }
   color: var(--color-text-primary);
   opacity: 0.7;
   text-align: center;
-  margin-top: -8px;
+  margin-top: -4px;
+}
+
+.ui__button--success {
+  background: rgba(76, 175, 80, 0.3) !important;
+  border-color: rgba(76, 175, 80, 0.5) !important;
+  color: #81c784 !important;
 }
 
 .ui__input-wrapper {
   display: flex;
   gap: 8px;
   align-items: stretch;
+}
+
+.ui__room-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.ui__room-list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  opacity: 0.9;
+  margin-bottom: 4px;
+}
+
+.ui__room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ui__room-list-empty {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  opacity: 0.6;
+  text-align: center;
+  padding: 16px;
+  font-style: italic;
+}
+
+.ui__room-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-medium);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease, background 0.1s ease;
+}
+
+.ui__room-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.1);
+}
+
+.ui__room-item:active {
+  transform: translateY(0);
+}
+
+.ui__room-item-code {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+.ui__room-item-info {
+  font-size: 12px;
+  color: var(--color-text-primary);
+  opacity: 0.7;
 }
 
 .ui__input {

@@ -366,10 +366,11 @@ export function initializeUI(managers, config) {
   const roomManager = initRoomManager({
     mount: roomMount,
     multiplayerManager: multiplayerManager,
-    onRoomCreated: async (roomCode) => {
+    onRoomCreated: async (roomCode, isPrivate = false) => {
       const gameState = getCurrentGameState();
       try {
-        const actualRoomCode = await multiplayerManager.createRoom(gameState);
+        const options = { isPrivate };
+        const actualRoomCode = await multiplayerManager.createRoom(gameState, options);
         
         const url = new URL(window.location);
         url.searchParams.set('room', actualRoomCode);
@@ -397,6 +398,8 @@ export function initializeUI(managers, config) {
       try {
         const joinResult = await multiplayerManager.joinRoom(roomCode, gameState);
         
+        roomManager.update();
+        
         if (characterManager.getPlayer()) {
           setTimeout(() => {
             sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
@@ -418,6 +421,7 @@ export function initializeUI(managers, config) {
         gameModeManager.startMode();
       } catch (error) {
         console.error('Failed to join room:', error);
+        roomManager.update();
       }
     }
   });
@@ -760,7 +764,7 @@ function buildMenuStructure(gameMenu, mounts) {
   
   // Room Manager Section
   const roomSection = gameMenu.addSection('multiplayer', {
-    title: 'Multiplayer Room',
+    title: 'Rooms',
     className: 'game-menu__section--room-manager'
   });
   if (roomSection && roomMount.firstChild) {

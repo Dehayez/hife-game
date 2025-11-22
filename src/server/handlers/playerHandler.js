@@ -100,8 +100,8 @@ export function handleRequestExistingPlayers(socket, rooms, players) {
   const player = players.get(socket.id);
   if (player && player.roomCode) {
     const room = rooms.get(player.roomCode);
-    if (room) {
-      const existingPlayers = Array.from(room)
+    if (room && room.socketIds) {
+      const existingPlayers = Array.from(room.socketIds)
         .filter(id => id !== socket.id)
         .map(id => ({
           playerId: id,

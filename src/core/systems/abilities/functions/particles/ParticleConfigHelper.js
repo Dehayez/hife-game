@@ -31,14 +31,19 @@ export function getProjectileParticleConfig(characterName, abilityName, particle
   
   // Get character-specific config
   let characterConfig = {};
+  let fullCharacterConfig = {};
   if (characterName === 'lucy' && abilityName === 'bolt') {
     characterConfig = LUCY_BOLT_PARTICLE_CONFIG[particleType] || {};
+    fullCharacterConfig = LUCY_BOLT_PARTICLE_CONFIG;
   } else if (characterName === 'lucy' && abilityName === 'mortar') {
     characterConfig = LUCY_MORTAR_PARTICLE_CONFIG[particleType] || {};
+    fullCharacterConfig = LUCY_MORTAR_PARTICLE_CONFIG;
   } else if (characterName === 'herald' && abilityName === 'bolt') {
     characterConfig = HERALD_BOLT_PARTICLE_CONFIG[particleType] || {};
+    fullCharacterConfig = HERALD_BOLT_PARTICLE_CONFIG;
   } else if (characterName === 'herald' && abilityName === 'mortar') {
     characterConfig = HERALD_MORTAR_PARTICLE_CONFIG[particleType] || {};
+    fullCharacterConfig = HERALD_MORTAR_PARTICLE_CONFIG;
   }
   
   // Merge base with character-specific overrides
@@ -49,6 +54,17 @@ export function getProjectileParticleConfig(characterName, abilityName, particle
     if (characterConfig[key] !== undefined) {
       merged[key] = characterConfig[key];
     }
+  }
+  
+  // Add effect type and colors from full character config (not particleType-specific)
+  if (fullCharacterConfig.effectType) {
+    merged.effectType = fullCharacterConfig.effectType;
+  }
+  if (fullCharacterConfig.fireColors) {
+    merged.fireColors = fullCharacterConfig.fireColors;
+  }
+  if (fullCharacterConfig.poisonColors) {
+    merged.poisonColors = fullCharacterConfig.poisonColors;
   }
   
   // Special handling for ambient particle count (use mortar count for mortars)

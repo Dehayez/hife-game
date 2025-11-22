@@ -11,6 +11,10 @@ import { initializeUI } from './core/UIInitializer.js';
 import { getLastInputMode, setLastInputMode } from './utils/StorageUtils.js';
 import { GAME_CONSTANTS } from './config/global/GameConstants.js';
 import { getLoadingProgressManager } from './utils/LoadingProgressManager.js';
+import { initWorker } from './utils/workers/WorkerManager.js';
+
+// Initialize Web Worker early for parallel asset loading
+initWorker();
 
 // Get canvas element
 const canvas = document.getElementById('app-canvas');

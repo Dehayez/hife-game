@@ -1,38 +1,46 @@
 /**
  * Herald Mortar Particle Config
- * Herald-specific mortar particle overrides
+ * Herald-specific mortar particle overrides with FIRE effects
  */
 export const HERALD_MORTAR_PARTICLE_CONFIG = {
   ambient: {
-    particleCount: 8,            // Base count (can be customized)
-    sizeMin: 0.05,                // Larger (0.03 base)
-    sizeMax: 0.09,                // Larger (0.06 base)
-    opacityMin: 0.3,              // Dimmer (0.5 base) - more mystical
-    opacityMax: 0.6,              // Dimmer (0.9 base)
-    distanceMin: 0.95,            // Further out (0.8 base)
-    distanceMax: 1.5,             // Further out (1.2 base)
-    lifetimeMin: 0.45,            // Longer (0.4 base)
-    lifetimeMax: 0.75,             // Longer (0.7 base)
-    orbitSpeed: 0.016,            // Slower orbit (0.02 base)
-    outwardSpeedMin: 0.25,        // Slower expansion (0.3 base)
-    outwardSpeedMax: 0.55,         // Slower expansion (0.6 base)
-    rotationSpeedMin: 0.45,        // Slightly faster rotation (0.5 base)
-    rotationSpeedMax: 0.85          // Slower rotation (1.0 base)
+    particleCount: 12,            // More particles for bigger fire effect
+    sizeMin: 0.06,                // Larger fire particles
+    sizeMax: 0.14,                // Larger fire particles
+    opacityMin: 0.5,              // Brighter for fire visibility
+    opacityMax: 0.9,              // Brighter for fire visibility
+    distanceMin: 1.0,             // Further out - bigger fire sphere
+    distanceMax: 1.6,             // Further out - bigger fire sphere
+    lifetimeMin: 0.35,            // Shorter for flickering fire
+    lifetimeMax: 0.65,            // Shorter for flickering fire
+    orbitSpeed: 0.022,            // Faster orbit for dynamic fire
+    outwardSpeedMin: 0.35,        // Faster expansion for fire
+    outwardSpeedMax: 0.7,         // Faster expansion for fire
+    rotationSpeedMin: 0.5,        // Faster rotation for fire
+    rotationSpeedMax: 1.0          // Faster rotation for fire
   },
   trail: {
-    spawnInterval: 0.04,           // Less frequent (0.03 base) - arc trajectory
-    sizeMin: 0.06,                // Larger (0.04 base)
-    sizeMax: 0.12,                 // Larger (0.08 base)
-    opacityMin: 0.55,             // Slightly brighter (0.6 base)
-    opacityMax: 0.9,               // Same (0.9 base)
-    behindDistance: 1.2,           // Further behind (0.8 base) - bigger mortar
-    randomOffset: 0.5,             // More spread (0.3 base)
-    lifetimeMin: 0.22,            // Slightly longer (0.2 base)
-    lifetimeMax: 0.42,            // Slightly longer (0.4 base)
-    speedMin: 0.45,               // Slightly slower (0.5 base)
-    speedMax: 0.95,                // Slightly slower (1.0 base)
-    backwardDrift: 0.28,          // Slightly less drift (0.3 base)
-    randomDirection: 0.55          // Slightly more spread (0.5 base)
+    spawnInterval: 0.025,         // More frequent for continuous fire trail
+    sizeMin: 0.08,                // Larger fire trail particles
+    sizeMax: 0.16,                // Larger fire trail particles
+    opacityMin: 0.65,             // Brighter for fire trail
+    opacityMax: 0.95,             // Brighter for fire trail
+    behindDistance: 1.4,          // Further behind for longer fire trail
+    randomOffset: 0.6,             // More spread for fire
+    lifetimeMin: 0.18,            // Shorter for flickering fire trail
+    lifetimeMax: 0.38,            // Shorter for flickering fire trail
+    speedMin: 0.5,                // Faster for fire trail
+    speedMax: 1.1,                // Faster for fire trail
+    backwardDrift: 0.3,           // More drift for fire effect
+    randomDirection: 0.65         // More spread for fire
+  },
+  // Fire-specific effects
+  effectType: 'fire',             // Mark as fire effect
+  fireColors: {
+    core: 0xff6600,              // Orange core
+    mid: 0xff8800,                // Bright orange
+    outer: 0xffaa00,               // Yellow-orange
+    smoke: 0x333333               // Dark smoke
   }
 };
 

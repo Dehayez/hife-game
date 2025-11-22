@@ -1,4 +1,5 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { loadJsonFiles, processAnimationMetadata } from './workers/WorkerManager.js';
 
 const loader = new THREE.TextureLoader();
 // Texture cache to prevent reloading the same textures
@@ -63,10 +64,10 @@ export function loadSpriteSheet(basePathPng) {
 
   const anim = { texture: tex, frameCount: 1, fps: 6, frameIndex: 0, timeAcc: 0 };
   
-  // Load metadata if present (best-effort) - use browser cache
-  fetch(metaPath, { cache: 'default' }).then(async (res) => {
-    if (res.ok) {
-      const data = await res.json();
+  // Load metadata if present (best-effort) - use browser cache or worker
+  // Try loading JSON metadata
+  tryLoadJson(metaPath).then((data) => {
+    if (data) {
       const fc = Number(data.frameCount) || 1;
       const fps = Number(data.fps) || 6;
       anim.frameCount = Math.max(1, fc);
@@ -95,6 +96,11 @@ export function loadSpriteSheet(basePathPng) {
 // JSON cache to prevent reloading the same JSON files
 const jsonCache = new Map();
 
+/**
+ * Load a single JSON file (uses cache and worker when loading multiple files)
+ * @param {string} path - Path to JSON file
+ * @returns {Promise<Object|null>} JSON data or null if failed
+ */
 export async function tryLoadJson(path) {
   // Check cache first
   if (jsonCache.has(path)) {
@@ -114,9 +120,65 @@ export async function tryLoadJson(path) {
   }
 }
 
+/**
+ * Load multiple JSON files in parallel using Web Worker
+ * @param {string[]} paths - Array of JSON file paths
+ * @returns {Promise<Object>} Object mapping paths to loaded data or null
+ */
+export async function tryLoadJsonBatch(paths) {
+  if (!paths || paths.length === 0) {
+    return {};
+  }
+
+  // Filter out already cached paths
+  const uncachedPaths = paths.filter(path => !jsonCache.has(path));
+  
+  if (uncachedPaths.length === 0) {
+    // All paths are cached, return cached data
+    const results = {};
+    for (const path of paths) {
+      results[path] = jsonCache.get(path);
+    }
+    return results;
+  }
+
+  try {
+    // Use Web Worker to load JSON files in parallel
+    const workerResults = await loadJsonFiles(uncachedPaths);
+    
+    // Process results and update cache
+    const results = {};
+    for (const path of paths) {
+      if (jsonCache.has(path)) {
+        results[path] = jsonCache.get(path);
+      } else if (workerResults[path]?.success) {
+        const data = workerResults[path].data;
+        jsonCache.set(path, data);
+        results[path] = data;
+      } else {
+        results[path] = null;
+      }
+    }
+    
+    return results;
+  } catch (error) {
+    // Fallback to sequential loading
+    const results = {};
+    for (const path of paths) {
+      if (jsonCache.has(path)) {
+        results[path] = jsonCache.get(path);
+      } else {
+        results[path] = await tryLoadJson(path);
+      }
+    }
+    return results;
+  }
+}
+
 // Load animation either as numbered frames (<name>_0.png.._N.png) or as a sprite sheet (<name>.png + optional JSON)
 export async function loadAnimationSmart(basePathNoExt, fallbackFps = 8, defaultFrameCount = 1) {
   // 1) Try numbered frames first using metadata if available to know frameCount
+  // Use worker-optimized JSON loading
   const meta = (await tryLoadJson(basePathNoExt + '.json')) || {};
   const frames = Number(meta.frameCount) || undefined;
   const fps = Number(meta.fps) || fallbackFps;

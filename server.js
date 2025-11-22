@@ -53,7 +53,7 @@ const io = new Server(httpServer, {
 });
 
 // Store active rooms and players
-const rooms = new Map(); // roomCode -> Set of socketIds
+const rooms = new Map(); // roomCode -> { socketIds: Set, isPrivate: boolean }
 const players = new Map(); // socketId -> { roomCode, playerId, gameState }
 
 /**
@@ -66,9 +66,12 @@ function generateRoomCode() {
 /**
  * Get or create room
  */
-function getOrCreateRoom(roomCode) {
+function getOrCreateRoom(roomCode, isPrivate = false) {
   if (!rooms.has(roomCode)) {
-    rooms.set(roomCode, new Set());
+    rooms.set(roomCode, {
+      socketIds: new Set(),
+      isPrivate: isPrivate
+    });
   }
   return rooms.get(roomCode);
 }
@@ -79,10 +82,17 @@ io.on('connection', (socket) => {
   /**
    * Create a new room
    */
-  socket.on('create-room', (gameState, callback) => {
+  socket.on('create-room', (gameState, options, callback) => {
+    // Handle backward compatibility: if callback is passed as second argument
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+    
+    const isPrivate = options?.isPrivate || false;
     const roomCode = generateRoomCode();
-    const room = getOrCreateRoom(roomCode);
-    room.add(socket.id);
+    const room = getOrCreateRoom(roomCode, isPrivate);
+    room.socketIds.add(socket.id);
     
     socket.join(roomCode);
     
@@ -93,10 +103,10 @@ io.on('connection', (socket) => {
       isHost: true
     });
     
-    console.log(`Room created: ${roomCode} by ${socket.id}`);
+    console.log(`Room created: ${roomCode} by ${socket.id} (${isPrivate ? 'private' : 'public'})`);
     
     if (callback) {
-      callback({ roomCode, success: true });
+      callback({ roomCode, success: true, isPrivate });
     }
     
     // Notify others in room (though initially empty)
@@ -110,29 +120,37 @@ io.on('connection', (socket) => {
    * Join an existing room
    */
   socket.on('join-room', (roomCode, gameState, callback) => {
-    const room = getOrCreateRoom(roomCode.toUpperCase());
+    const normalizedRoomCode = roomCode.toUpperCase();
+    const room = rooms.get(normalizedRoomCode);
     
-    if (!room.has(socket.id)) {
-      room.add(socket.id);
-      socket.join(roomCode.toUpperCase());
+    if (!room) {
+      if (callback) {
+        callback({ success: false, error: 'Room not found' });
+      }
+      return;
+    }
+    
+    if (!room.socketIds.has(socket.id)) {
+      room.socketIds.add(socket.id);
+      socket.join(normalizedRoomCode);
       
       players.set(socket.id, {
-        roomCode: roomCode.toUpperCase(),
+        roomCode: normalizedRoomCode,
         playerId: socket.id,
         gameState: gameState || {},
         isHost: false
       });
       
-      console.log(`Player ${socket.id} joined room ${roomCode.toUpperCase()}`);
+      console.log(`Player ${socket.id} joined room ${normalizedRoomCode}`);
       
       // Notify others in room
-      socket.to(roomCode.toUpperCase()).emit('player-joined', {
+      socket.to(normalizedRoomCode).emit('player-joined', {
         playerId: socket.id,
         gameState: gameState || {}
       });
       
       // Get existing players in room
-      const existingPlayers = Array.from(room)
+      const existingPlayers = Array.from(room.socketIds)
         .filter(id => id !== socket.id)
         .map(id => ({
           playerId: id,
@@ -141,9 +159,10 @@ io.on('connection', (socket) => {
       
       if (callback) {
         callback({ 
-          roomCode: roomCode.toUpperCase(), 
+          roomCode: normalizedRoomCode, 
           success: true,
-          existingPlayers
+          existingPlayers,
+          isPrivate: room.isPrivate
         });
       }
     } else {
@@ -161,8 +180,8 @@ io.on('connection', (socket) => {
     if (player && player.roomCode) {
       const room = rooms.get(player.roomCode);
       if (room) {
-        room.delete(socket.id);
-        if (room.size === 0) {
+        room.socketIds.delete(socket.id);
+        if (room.socketIds.size === 0) {
           rooms.delete(player.roomCode);
         }
       }
@@ -243,8 +262,8 @@ io.on('connection', (socket) => {
     const player = players.get(socket.id);
     if (player && player.roomCode) {
       const room = rooms.get(player.roomCode);
-      if (room) {
-        const existingPlayers = Array.from(room)
+      if (room && room.socketIds) {
+        const existingPlayers = Array.from(room.socketIds)
           .filter(id => id !== socket.id)
           .map(id => ({
             playerId: id,
@@ -253,6 +272,86 @@ io.on('connection', (socket) => {
         
         socket.emit('existing-players', existingPlayers);
       }
+    }
+  });
+
+  /**
+   * List available rooms
+   */
+  socket.on('list-rooms', (callback) => {
+    const availableRooms = [];
+    
+    for (const [roomCode, roomData] of rooms.entries()) {
+      const playerCount = roomData.socketIds.size;
+      // Only include public rooms that have at least one player and aren't full (assuming max 4 players)
+      if (!roomData.isPrivate && playerCount > 0 && playerCount < 4) {
+        availableRooms.push({
+          roomCode,
+          playerCount,
+          maxPlayers: 4
+        });
+      }
+    }
+    
+    if (callback) {
+      callback({ rooms: availableRooms, success: true });
+    }
+  });
+
+  /**
+   * Update room properties (e.g., privacy toggle)
+   */
+  socket.on('update-room', (updates, callback) => {
+    const player = players.get(socket.id);
+    if (!player || !player.roomCode) {
+      if (callback) {
+        callback({ success: false, error: 'Not in a room' });
+      }
+      return;
+    }
+
+    // Check if player is host
+    if (!player.isHost) {
+      if (callback) {
+        callback({ success: false, error: 'Only the host can update room settings' });
+      }
+      return;
+    }
+
+    const room = rooms.get(player.roomCode);
+    if (!room) {
+      if (callback) {
+        callback({ success: false, error: 'Room not found' });
+      }
+      return;
+    }
+
+    // Update room properties
+    const updatedProperties = {};
+    if (updates.hasOwnProperty('isPrivate')) {
+      room.isPrivate = updates.isPrivate;
+      updatedProperties.isPrivate = updates.isPrivate;
+    }
+
+    console.log(`Room ${player.roomCode} updated by ${socket.id}:`, updatedProperties);
+
+    // Broadcast update to all players in room
+    socket.to(player.roomCode).emit('room-updated', {
+      roomCode: player.roomCode,
+      updates: updatedProperties
+    });
+
+    // Also emit to the host
+    socket.emit('room-updated', {
+      roomCode: player.roomCode,
+      updates: updatedProperties
+    });
+
+    if (callback) {
+      callback({ 
+        success: true, 
+        updates: updatedProperties 
+      });
     }
   });
 

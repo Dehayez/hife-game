@@ -180,6 +180,8 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
   // If remote player doesn't exist yet, spawn them
   // Note: spawnRemotePlayer has duplicate prevention, so this is safe
   if (!remotePlayer) {
+    console.log(`[handleRemotePlayerStateUpdate] Remote player ${playerId} doesn't exist, spawning from state update. Position:`, { x: data.x, y: data.y, z: data.z });
+    
     const playerInfo = multiplayerManager.getPlayerInfo(playerId);
     const initialPosition = { x: data.x || 0, y: data.y || 0, z: data.z || 0 };
     
@@ -193,6 +195,8 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
       initialPosition
     ).then((spawnedPlayer) => {
       if (spawnedPlayer && spawnedPlayer.mesh) {
+        console.log(`[handleRemotePlayerStateUpdate] Successfully spawned remote player ${playerId} from state update. Mesh visible: ${spawnedPlayer.mesh.visible}`);
+        
         // Update position and state after spawning
         remotePlayerManager.updateRemotePlayer(playerId, {
           x: data.x,
@@ -204,9 +208,11 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
           isGrounded: data.isGrounded,
           isRunning: data.isRunning
         });
+      } else {
+        console.error(`[handleRemotePlayerStateUpdate] Failed to spawn remote player ${playerId} from state update`);
       }
     }).catch(error => {
-      console.error(`Error spawning remote player ${playerId}:`, error);
+      console.error(`[handleRemotePlayerStateUpdate] Error spawning remote player ${playerId}:`, error);
     });
   } else {
     // Update existing remote player

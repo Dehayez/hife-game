@@ -1013,15 +1013,14 @@ export class InputManager {
     }
 
     // Mortar Toggle (RB button 5) - press once to enter hold mode, press again to drop
+    // Allow mortar activation even when abilities are blocked (e.g., while running)
+    // Running will automatically stop when mortar is activated
     const mortarHoldPressed = gamepad.buttons[5] && gamepad.buttons[5].pressed; // Right bumper (RB) only
     
-    if (this.abilityInputsBlocked) {
-      this.mortarHoldPressed = false;
-      this.inputState.mortar = false;
-    } else if (mortarHoldPressed && !this.mortarHoldPressed) {
+    if (mortarHoldPressed && !this.mortarHoldPressed) {
       this.mortarHoldPressed = true;
       this.inputState.mortar = true; // Keep for compatibility
-      if (this._loggingEnabled) {
+      if (this._loggingEnabled && !this.abilityInputsBlocked) {
         this._logInput('💣 MORTAR TOGGLE', 'pressed', gamepad);
       }
     } else if (!mortarHoldPressed && this.mortarHoldPressed) {
@@ -1512,12 +1511,11 @@ export class InputManager {
 
   /**
    * Check if mortar button is pressed (mouse right click or RB hold)
+   * Allows mortar activation even when abilities are blocked (e.g., while running)
    * @returns {boolean} True if mortar button is pressed
    */
   isMortarPressed() {
-    if (this.abilityInputsBlocked) {
-      return false;
-    }
+    // Allow mortar activation even when abilities are blocked - running will stop when mortar activates
     return this.inputState.mortar || this.mortarHoldPressed;
   }
   
@@ -1539,12 +1537,11 @@ export class InputManager {
   
   /**
    * Check if mortar hold button (RB) is pressed (for toggle detection)
+   * Allows mortar activation even when abilities are blocked (e.g., while running)
    * @returns {boolean} True if RB is currently pressed
    */
   isMortarHoldPressed() {
-    if (this.abilityInputsBlocked) {
-      return false;
-    }
+    // Allow mortar activation even when abilities are blocked - running will stop when mortar activates
     return this.mortarHoldPressed;
   }
   

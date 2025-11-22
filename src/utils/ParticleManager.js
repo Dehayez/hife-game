@@ -249,11 +249,47 @@ export class ParticleManager {
 
       // Fade out over time
       const lifeProgress = data.lifetime / data.maxLifetime;
-      particle.material.opacity = data.initialOpacity * (1 - lifeProgress * lifeProgress * stats.fadeSpeed); // Quadratic fade
-
-      // Scale up as it rises (smoke expands)
-      const scale = 1 + lifeProgress * stats.scaleGrowth;
-      particle.scale.set(scale, scale, 1);
+      let baseOpacity = data.initialOpacity * (1 - lifeProgress * lifeProgress * stats.fadeSpeed); // Quadratic fade
+      
+      // Dynamic effects for fire and poison particles
+      if (data.effectType === 'fire') {
+        // Fire flickering effect: rapid opacity variation
+        const flickerSpeed = 15.0; // How fast fire flickers
+        const flickerAmount = 0.3; // How much opacity varies (30%)
+        const flicker = Math.sin(data.lifetime * flickerSpeed) * flickerAmount + 1.0;
+        baseOpacity *= flicker;
+        
+        // Fire particles rise faster and expand more
+        const fireScale = 1 + lifeProgress * (stats.scaleGrowth * 1.5);
+        particle.scale.set(fireScale, fireScale, 1);
+        
+        // Slight upward drift for fire
+        if (data.velocity) {
+          data.velocity.y += dt * 0.5; // Fire rises
+        }
+      } else if (data.effectType === 'poison') {
+        // Poison pulsing effect: slower, smoother opacity variation
+        const pulseSpeed = 3.0; // How fast poison pulses
+        const pulseAmount = 0.2; // How much opacity varies (20%)
+        const pulse = Math.sin(data.lifetime * pulseSpeed) * pulseAmount + 1.0;
+        baseOpacity *= pulse;
+        
+        // Poison particles expand slower but linger longer
+        const poisonScale = 1 + lifeProgress * (stats.scaleGrowth * 0.8);
+        particle.scale.set(poisonScale, poisonScale, 1);
+        
+        // Slight random drift for poison cloud effect
+        if (data.velocity && Math.random() < 0.1) {
+          data.velocity.x += (Math.random() - 0.5) * 0.2;
+          data.velocity.z += (Math.random() - 0.5) * 0.2;
+        }
+      } else {
+        // Default: Scale up as it rises (smoke expands)
+        const scale = 1 + lifeProgress * stats.scaleGrowth;
+        particle.scale.set(scale, scale, 1);
+      }
+      
+      particle.material.opacity = Math.max(0, Math.min(1, baseOpacity));
 
       // Make particle face camera by billboarding
       // This will be handled externally or we can add camera reference
@@ -355,12 +391,44 @@ export class ParticleManager {
    * @param {number} characterColor - Character color (hex number)
    * @param {number} radius - Radius of the sword swing (default: 1.0)
    * @param {number} animationDuration - Animation duration in seconds (particles match this duration)
+   * @param {string} characterName - Optional character name ('lucy' or 'herald') for effect detection
    */
-  spawnSwordSwingParticles(position, characterColor, radius = 1.0, animationDuration = 0.5) {
+  spawnSwordSwingParticles(position, characterColor, radius = 1.0, animationDuration = 0.5, characterName = null) {
     const particleCount = 16; // Number of particles in the circle
     
-    // Convert hex to Color
-    const baseColor = new THREE.Color(characterColor);
+    // Detect character from color if not provided
+    if (!characterName) {
+      const colorHex = typeof characterColor === 'number' ? characterColor : parseInt(characterColor.toString().replace('#', ''), 16);
+      if (colorHex === 0xf5ba0b || colorHex === 0xF5BA0B) {
+        characterName = 'herald';
+      } else if (colorHex === 0x9c57b6 || colorHex === 0x9C57B6) {
+        characterName = 'lucy';
+      }
+    }
+    
+    // Create effect config based on character
+    let effectConfig = null;
+    if (characterName === 'herald') {
+      effectConfig = {
+        effectType: 'fire',
+        fireColors: {
+          core: 0xff6600,
+          mid: 0xff8800,
+          outer: 0xffaa00,
+          smoke: 0x333333
+        }
+      };
+    } else if (characterName === 'lucy') {
+      effectConfig = {
+        effectType: 'poison',
+        poisonColors: {
+          core: 0x00ff00,
+          mid: 0x88ff00,
+          outer: 0x00ff88,
+          toxic: 0x9c57b6
+        }
+      };
+    }
     
     // Particle size scales with range (15% of range base, with random variation)
     const baseParticleSize = radius * 0.15; // Scale relative to range variable
@@ -373,12 +441,20 @@ export class ParticleManager {
       const size = baseParticleSize + Math.random() * (baseParticleSize * 0.67); // 15% to 25% of range
       const geometry = new THREE.PlaneGeometry(size, size);
       
-      // Character color with slight variation
-      const particleColor = new THREE.Color(
-        Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.3),
-        Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.3),
-        Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.3)
-      );
+      // Use effect color if available, otherwise use character color with variation
+      let particleColor;
+      if (effectConfig) {
+        const distanceFromCore = Math.random();
+        particleColor = this._getEffectParticleColor(effectConfig, characterColor, distanceFromCore);
+      } else {
+        // Convert hex to Color
+        const baseColor = new THREE.Color(characterColor);
+        particleColor = new THREE.Color(
+          Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.3),
+          Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.3),
+          Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.3)
+        );
+      }
       
       const material = new THREE.MeshBasicMaterial({
         color: particleColor,
@@ -414,7 +490,8 @@ export class ParticleManager {
         maxLifetime: animationDuration, // Match animation duration
         initialSize: size,
         initialOpacity: material.opacity,
-        followCharacter: true // Mark for following character
+        followCharacter: true, // Mark for following character
+        effectType: effectConfig ? effectConfig.effectType : null // Store effect type for dynamic updates
       };
       
       this.scene.add(particle);
@@ -614,6 +691,65 @@ export class ParticleManager {
   }
 
   /**
+   * Get particle color based on effect type (fire or poison)
+   * @param {Object} config - Particle config with effectType and colors
+   * @param {number} characterColor - Base character color
+   * @param {number} distanceFromCore - Distance from core (0-1) for color gradient
+   * @returns {THREE.Color} Particle color
+   */
+  _getEffectParticleColor(config, characterColor, distanceFromCore = 0) {
+    if (config.effectType === 'fire' && config.fireColors) {
+      // Fire effect: gradient from core (orange) to outer (yellow)
+      const colors = config.fireColors;
+      let fireColor;
+      if (distanceFromCore < 0.3) {
+        fireColor = colors.core; // Orange core
+      } else if (distanceFromCore < 0.6) {
+        fireColor = colors.mid; // Bright orange
+      } else {
+        fireColor = colors.outer; // Yellow-orange
+      }
+      const baseColor = new THREE.Color(fireColor);
+      // Add variation for flickering fire effect
+      return new THREE.Color(
+        Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.2),
+        Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.1)
+      );
+    } else if (config.effectType === 'poison' && config.poisonColors) {
+      // Poison effect: gradient from core (green) to outer (purple)
+      const colors = config.poisonColors;
+      let poisonColor;
+      if (distanceFromCore < 0.3) {
+        poisonColor = colors.core; // Bright green
+      } else if (distanceFromCore < 0.6) {
+        poisonColor = colors.mid; // Yellow-green
+      } else {
+        poisonColor = colors.outer; // Cyan-green, blend with toxic purple
+        const blend = Math.random();
+        if (blend > 0.7) {
+          poisonColor = colors.toxic; // Purple toxic
+        }
+      }
+      const baseColor = new THREE.Color(poisonColor);
+      // Add variation for toxic effect
+      return new THREE.Color(
+        Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.2),
+        Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.3),
+        Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.2)
+      );
+    }
+    
+    // Default: use character color with variation
+    const baseColor = new THREE.Color(characterColor);
+    return new THREE.Color(
+      Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.2),
+      Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.2),
+      Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.2)
+    );
+  }
+
+  /**
    * Spawn projectile trail particle (behind while moving)
    * @param {THREE.Vector3} position - Projectile position
    * @param {THREE.Vector3} velocity - Projectile velocity (for direction)
@@ -630,15 +766,9 @@ export class ParticleManager {
     const size = config.sizeMin + Math.random() * (config.sizeMax - config.sizeMin);
     const geometry = new THREE.PlaneGeometry(size, size);
     
-    // Convert hex to Color
-    const baseColor = new THREE.Color(characterColor);
-    
-    // Character color with variation, slightly dimmed for trail
-    const particleColor = new THREE.Color(
-      Math.min(1, baseColor.r * 0.9 + (Math.random() - 0.5) * 0.2),
-      Math.min(1, baseColor.g * 0.9 + (Math.random() - 0.5) * 0.2),
-      Math.min(1, baseColor.b * 0.9 + (Math.random() - 0.5) * 0.2)
-    );
+    // Get effect color (fire/poison) or use character color
+    const distanceFromCore = Math.random(); // Random distance for color gradient
+    const particleColor = this._getEffectParticleColor(config, characterColor, distanceFromCore);
     
     const material = new THREE.MeshBasicMaterial({
       color: particleColor,
@@ -678,7 +808,8 @@ export class ParticleManager {
       lifetime: 0,
       maxLifetime: config.lifetimeMin + Math.random() * (config.lifetimeMax - config.lifetimeMin),
       initialSize: size,
-      initialOpacity: material.opacity
+      initialOpacity: material.opacity,
+      effectType: config.effectType || null // Store effect type for dynamic updates
     };
     
     this.scene.add(particle);
@@ -710,8 +841,6 @@ export class ParticleManager {
     // Use config particle count if provided, otherwise use passed parameter
     const finalParticleCount = config.particleCount !== undefined ? config.particleCount : particleCount;
     
-    // Convert hex to Color
-    const baseColor = new THREE.Color(characterColor);
     const particles = [];
     
     for (let i = 0; i < finalParticleCount; i++) {
@@ -719,12 +848,11 @@ export class ParticleManager {
       const size = config.sizeMin + Math.random() * (config.sizeMax - config.sizeMin);
       const geometry = new THREE.PlaneGeometry(size, size);
       
-      // Character color with variation, bright for ambient glow
-      const particleColor = new THREE.Color(
-        Math.min(1, baseColor.r + (Math.random() - 0.5) * 0.3),
-        Math.min(1, baseColor.g + (Math.random() - 0.5) * 0.3),
-        Math.min(1, baseColor.b + (Math.random() - 0.5) * 0.3)
-      );
+      // Calculate distance from core for color gradient
+      const distanceFromCore = Math.random();
+      
+      // Get effect color (fire/poison) or use character color
+      const particleColor = this._getEffectParticleColor(config, characterColor, distanceFromCore);
       
       const material = new THREE.MeshBasicMaterial({
         color: particleColor,
@@ -771,7 +899,8 @@ export class ParticleManager {
         orbitRadius: distance,
         orbitAngle: angle,
         orbitElevation: elevation,
-        orbitSpeed: config.orbitSpeed // Store orbit speed for updates
+        orbitSpeed: config.orbitSpeed, // Store orbit speed for updates
+        effectType: config.effectType || null // Store effect type for dynamic updates
       };
       
       this.scene.add(particle);

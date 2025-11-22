@@ -22,8 +22,10 @@ export class MultiplayerManager {
     this.onPlayerJoined = onPlayerJoined;
     this.onPlayerLeft = onPlayerLeft;
     this.onDataReceived = onDataReceived;
+    this.onRoomUpdated = null;
     this.socket = null;
     this.serverUrl = this._getServerUrl();
+    this.roomProperties = {}; // Store room properties like isPrivate
     
     // Connection state tracking
     this.connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected', 'reconnecting'
@@ -156,8 +158,12 @@ export class MultiplayerManager {
     
     // Handle player joined
     this.socket.on('player-joined', (data) => {
+      console.log(`[MultiplayerManager] Received player-joined event for ${data.playerId}. Local player: ${this.localPlayerId}`);
+      
       if (data.playerId !== this.localPlayerId) {
         if (!this.connectedPlayers.has(data.playerId)) {
+          console.log(`[MultiplayerManager] Adding new player ${data.playerId} to connectedPlayers`);
+          
           this.connectedPlayers.set(data.playerId, {
             id: data.playerId,
             isLocal: false,
@@ -167,13 +173,20 @@ export class MultiplayerManager {
           });
           
           if (this.onPlayerJoined) {
+            console.log(`[MultiplayerManager] Calling onPlayerJoined callback for ${data.playerId}`);
             this.onPlayerJoined(data.playerId, {
               characterName: data.gameState?.characterName,
               arena: data.gameState?.arena,
               gameMode: data.gameState?.gameMode
             });
+          } else {
+            console.warn(`[MultiplayerManager] onPlayerJoined callback is not set!`);
           }
+        } else {
+          console.log(`[MultiplayerManager] Player ${data.playerId} already in connectedPlayers, skipping`);
         }
+      } else {
+        console.log(`[MultiplayerManager] Ignoring player-joined for local player ${data.playerId}`);
       }
     });
     
@@ -193,6 +206,10 @@ export class MultiplayerManager {
           type: 'player-state',
           ...data.state
         });
+      } else if (data.playerId === this.localPlayerId) {
+        console.log(`[MultiplayerManager] Ignoring player-state for local player ${data.playerId}`);
+      } else if (!this.onDataReceived) {
+        console.warn(`[MultiplayerManager] onDataReceived callback is not set!`);
       }
     });
     
@@ -228,9 +245,15 @@ export class MultiplayerManager {
     
     // Handle existing players response
     this.socket.on('existing-players', (players) => {
+      console.log(`[MultiplayerManager] Received existing-players event with ${players.length} players`);
+      
       // Spawn all existing players
       players.forEach(playerData => {
+        console.log(`[MultiplayerManager] Processing existing player ${playerData.playerId}`);
+        
         if (!this.connectedPlayers.has(playerData.playerId)) {
+          console.log(`[MultiplayerManager] Adding existing player ${playerData.playerId} to connectedPlayers`);
+          
           this.connectedPlayers.set(playerData.playerId, {
             id: playerData.playerId,
             isLocal: false,
@@ -240,12 +263,17 @@ export class MultiplayerManager {
           });
           
           if (this.onPlayerJoined) {
+            console.log(`[MultiplayerManager] Calling onPlayerJoined callback for existing player ${playerData.playerId}`);
             this.onPlayerJoined(playerData.playerId, {
               characterName: playerData.gameState?.characterName,
               arena: playerData.gameState?.arena,
               gameMode: playerData.gameState?.gameMode
             });
+          } else {
+            console.warn(`[MultiplayerManager] onPlayerJoined callback is not set!`);
           }
+        } else {
+          console.log(`[MultiplayerManager] Existing player ${playerData.playerId} already in connectedPlayers, skipping`);
         }
       });
     });
@@ -268,14 +296,31 @@ export class MultiplayerManager {
         }
       }
     });
+
+    // Handle room property updates
+    this.socket.on('room-updated', (data) => {
+      if (data.roomCode === this.roomCode && data.updates) {
+        // Store room properties
+        if (!this.roomProperties) {
+          this.roomProperties = {};
+        }
+        Object.assign(this.roomProperties, data.updates);
+        
+        // Trigger callback if set
+        if (this.onRoomUpdated) {
+          this.onRoomUpdated(data.updates);
+        }
+      }
+    });
   }
 
   /**
    * Create a new room
    * @param {Object} gameState - Current game state {arena, gameMode, characterName}
+   * @param {Object} options - Room options (isPrivate: boolean)
    * @returns {Promise<string>} Room code
    */
-  async createRoom(gameState = {}) {
+  async createRoom(gameState = {}, options = {}) {
     // Wait for connection if not connected
     if (!this.socket || !this.socket.connected) {
       try {
@@ -291,10 +336,13 @@ export class MultiplayerManager {
         return;
       }
       
-      this.socket.emit('create-room', gameState, (response) => {
+      this.socket.emit('create-room', gameState, options, (response) => {
         if (response.success) {
           this.roomCode = response.roomCode;
           this.isHost = true;
+          this.roomProperties = {
+            isPrivate: response.isPrivate || options.isPrivate || false
+          };
           this.connectedPlayers.set(this.localPlayerId, {
             id: this.localPlayerId,
             isLocal: true,
@@ -370,6 +418,9 @@ export class MultiplayerManager {
         if (response.success) {
           this.roomCode = response.roomCode;
           this.isHost = false;
+          this.roomProperties = {
+            isPrivate: response.isPrivate || false
+          };
           this.connectedPlayers.set(this.localPlayerId, {
             id: this.localPlayerId,
             isLocal: true,
@@ -577,6 +628,73 @@ export class MultiplayerManager {
    */
   setConnectionStateChangeCallback(callback) {
     this.onConnectionStateChange = callback;
+  }
+
+  /**
+   * Set callback for room property updates
+   * @param {Function} callback - Callback function(updates)
+   */
+  setRoomUpdatedCallback(callback) {
+    this.onRoomUpdated = callback;
+  }
+
+  /**
+   * Update room properties (only host can do this)
+   * @param {Object} updates - Property updates (e.g., { isPrivate: true })
+   * @returns {Promise<Object>} Promise resolving to update result
+   */
+  async updateRoom(updates) {
+    if (!this.socket || !this.socket.connected) {
+      throw new Error('Not connected to server');
+    }
+
+    if (!this.isHost) {
+      throw new Error('Only the host can update room settings');
+    }
+
+    return new Promise((resolve, reject) => {
+      this.socket.emit('update-room', updates, (response) => {
+        if (response && response.success) {
+          // Update local room properties
+          if (!this.roomProperties) {
+            this.roomProperties = {};
+          }
+          Object.assign(this.roomProperties, response.updates);
+          resolve(response);
+        } else {
+          reject(new Error(response?.error || 'Failed to update room'));
+        }
+      });
+    });
+  }
+
+  /**
+   * Get room properties
+   * @returns {Object} Room properties
+   */
+  getRoomProperties() {
+    return this.roomProperties || {};
+  }
+
+  /**
+   * Fetch list of available rooms
+   * @returns {Promise<Array>} Promise resolving to array of available rooms
+   */
+  async fetchAvailableRooms() {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Not connected to server'));
+        return;
+      }
+
+      this.socket.emit('list-rooms', (response) => {
+        if (response && response.success) {
+          resolve(response.rooms || []);
+        } else {
+          reject(new Error(response?.error || 'Failed to fetch rooms'));
+        }
+      });
+    });
   }
 }
 

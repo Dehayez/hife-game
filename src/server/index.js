@@ -7,7 +7,7 @@
 
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { handleCreateRoom, handleJoinRoom, handleLeaveRoom } from './handlers/roomHandler.js';
+import { handleCreateRoom, handleJoinRoom, handleLeaveRoom, handleListRooms, handleUpdateRoom } from './handlers/roomHandler.js';
 import { handlePlayerState, handleProjectileCreate, handleProjectileUpdate, handlePlayerDamage, handleCharacterChange, handleRequestExistingPlayers } from './handlers/playerHandler.js';
 
 const PORT = process.env.PORT || 3001;
@@ -58,8 +58,13 @@ io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
 
   // Create a new room
-  socket.on('create-room', (gameState, callback) => {
-    handleCreateRoom(socket, rooms, players, gameState, callback);
+  socket.on('create-room', (gameState, options, callback) => {
+    // Handle backward compatibility: if callback is passed as second argument
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    }
+    handleCreateRoom(socket, rooms, players, gameState, options, callback);
   });
 
   // Join an existing room
@@ -100,6 +105,16 @@ io.on('connection', (socket) => {
   // Request existing players in room
   socket.on('request-existing-players', () => {
     handleRequestExistingPlayers(socket, rooms, players);
+  });
+
+  // List available rooms
+  socket.on('list-rooms', (callback) => {
+    handleListRooms(socket, rooms, players, callback);
+  });
+
+  // Update room properties (privacy, etc.)
+  socket.on('update-room', (updates, callback) => {
+    handleUpdateRoom(socket, rooms, players, updates, callback);
   });
 
   // Handle disconnection
