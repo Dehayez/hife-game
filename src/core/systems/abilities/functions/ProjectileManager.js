@@ -830,19 +830,18 @@ export class ProjectileManager {
    * @param {string} playerId - Player ID (defaults to 'local')
    */
   setCharacter(characterName, playerId = 'local') {
-    // Don't clear cooldowns - they should persist across character switches
-    // this.characterCooldowns.clear();
-    // this.mortarCharacterCooldowns.clear();
-    // this.meleeCharacterCooldowns.clear();
-    // this.playerRechargeCooldowns.clear();
-    
-    // Clear reload info since bullets are reset
+    // Ability cooldowns (melee, mortar, special) persist across swaps so a
+    // player can't dodge them by switching characters. The bolt recharge is
+    // different: bullets are reset to full below, so any in-flight reload
+    // timer no longer corresponds to anything and would animate the Shot
+    // bar from 0 → max after the swap. Clear it for this player.
+    this.playerRechargeCooldowns.setCooldown(playerId, 0);
     this.playerReloadInfo.delete(playerId);
-    
+
     // Reset bullets for new character (different characters may have different max bullets)
     const stats = getBoltStats(characterName);
     this.playerBullets.set(playerId, Math.floor(stats.maxBullets));
-    
+
     // Update character name
     this.playerCharacterNames.set(playerId, characterName);
   }

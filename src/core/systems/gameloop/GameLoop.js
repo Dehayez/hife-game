@@ -2557,17 +2557,23 @@ export class GameLoop {
       this.characterManager.particleManager.spawnCharacterSwapSmoke(player.position);
     }
     
+    // Reset the bullet pool / recharge timer *before* awaiting loadCharacter.
+    // characterManager.characterName flips to newChar synchronously at the
+    // top of loadCharacter, so the UI's getBoltBulletInfo() starts asking
+    // for Lucy's stats immediately — but if the bullet pool still holds
+    // Herald's count, the bar reads (e.g.) 12/42 and then snaps to 42/42
+    // once loadCharacter resolves. The CSS width transition (100ms linear)
+    // then animates that jump, which looks like the cooldown "moving".
+    if (this.projectileManager) {
+      this.projectileManager.setCharacter(newChar, 'local');
+    }
+
     // Load the new character
     this.characterManager.loadCharacter(newChar).then(() => {
       // Save to localStorage when character changes
       setLastCharacter(newChar);
       if (this.inputManager && typeof this.inputManager.applyCharacterMovementStats === 'function') {
         this.inputManager.applyCharacterMovementStats(newChar);
-      }
-      
-      // Reset bullets for new character
-      if (this.projectileManager) {
-        this.projectileManager.setCharacter(newChar, 'local');
       }
       
       // Update multiplayer if in a room
