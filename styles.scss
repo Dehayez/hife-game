@@ -158,9 +158,12 @@ html, body {
 
   // Character / arena / mode chooser grid
   &__choices {
+    // Card floor scales with viewport so they don't collapse to tiny tiles on big screens.
+    --choice-min: clamp(220px, 16vw, 320px);
+
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(var(--choice-min), 1fr));
+    gap: clamp(14px, 1vw, 22px);
     margin-top: 10px;
 
     // When this row holds only compact text toggles (no background images),
@@ -236,14 +239,14 @@ html, body {
     &[style*="background-image"].is-active::after {
       content: '✓';
       position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 22px;
-      height: 22px;
+      top: clamp(8px, 0.6vw, 14px);
+      right: clamp(8px, 0.6vw, 14px);
+      width: clamp(22px, 1.6vw, 30px);
+      height: clamp(22px, 1.6vw, 30px);
       border-radius: 50%;
       background: var(--grove-firefly);
       color: #1a1308;
-      font-size: 13px;
+      font-size: clamp(13px, 1vw, 18px);
       font-weight: 800;
       display: flex;
       align-items: center;
@@ -274,8 +277,8 @@ html, body {
       position: relative;
       z-index: 1;
       width: 100%;
-      padding: 10px 12px 12px;
-      font-size: 13px;
+      padding: clamp(10px, 0.8vw, 16px) clamp(12px, 1vw, 18px) clamp(12px, 0.9vw, 18px);
+      font-size: clamp(13px, 0.95vw, 18px);
       font-weight: 600;
       letter-spacing: 0.03em;
       color: var(--grove-text);
@@ -891,7 +894,7 @@ html, body {
     --cd-shine-opacity: 0;
     --cd-flash-opacity: 0;
 
-    margin-bottom: 10px;
+    margin-bottom: var(--cd-row-gap);
 
     &:last-child {
       margin-bottom: 0;
@@ -924,35 +927,64 @@ html, body {
   }
 
   &__cooldown-label {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    font-size: 12.5px;
-    margin-bottom: 6px;
+    // Two-column grid: ability text on the left, status pill flush-right.
+    // The text column may wrap; the status column stays a fixed width so
+    // every row's right edge aligns and pills sit on a consistent baseline.
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: calc(10px * var(--cd-scale));
+    font-size: var(--cd-label-size);
+    margin-bottom: var(--cd-label-gap);
     color: var(--color-text-primary);
     letter-spacing: 0.2px;
+    line-height: 1.25;
   }
 
   &__cooldown-name {
     font-weight: 600;
+    // Keep the ability name on a single line; the key chip sits next to it.
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   &__cooldown-key {
-    opacity: 0.45;
-    font-size: 11.5px;
+    opacity: 0.55;
+    font-size: var(--cd-key-size);
+    margin-left: calc(6px * var(--cd-scale));
+    // Compact key chip — same vertical rhythm as the status pill.
+    display: inline-flex;
+    align-items: center;
+    padding: 1px calc(6px * var(--cd-scale));
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
   &__cooldown-status {
-    margin-left: auto;
-    font-size: 10.5px;
-    font-weight: 600;
+    // No margin-left:auto — the grid column already pins us to the right.
+    font-size: var(--cd-status-size);
+    font-weight: 700;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: 2px calc(8px * var(--cd-scale));
+    min-width: calc(54px * var(--cd-scale));
+    height: calc(18px * var(--cd-scale));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
     background: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.65);
-    transition: background 0.18s ease, color 0.18s ease;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 
     .ui__cooldown-item.is-ready & {
       background: rgba(120, 220, 140, 0.18);
@@ -979,7 +1011,7 @@ html, body {
   &__cooldown-bar {
     position: relative;
     width: 100%;
-    height: 10px;
+    height: var(--cd-bar-height);
     background: rgba(255, 255, 255, 0.05);
     border-radius: 999px;
     overflow: hidden;
@@ -2606,21 +2638,13 @@ html, body {
   }
 }
 
-/* Place the connection pill just below the minimap so it never overlaps. */
+/* Place the connection pill just below the minimap (top-right column).
+   The cooldown indicator already lives in the bottom-right and is styled
+   in its own block above; we don't override it here. */
 .ui__connection-status {
-  top: auto !important;
+  top: 196px !important;   /* 16px minimap top + 168px height + 12px gap */
   right: 16px !important;
-  bottom: 16px !important;
-}
-
-/* Cooldown indicator container */
-#cooldown-indicator {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 1000;
+  bottom: auto !important;
 }
 
 /* ------------------------------------------------------------------ */
