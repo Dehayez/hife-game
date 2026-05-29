@@ -66,6 +66,19 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   container.className = 'ui__cooldown-indicator';
   container.style.display = 'block';
 
+  const header = document.createElement('div');
+  header.className = 'ui__cooldown-header';
+
+  const headerDot = document.createElement('span');
+  headerDot.className = 'ui__cooldown-header-dot';
+  header.appendChild(headerDot);
+
+  const headerName = document.createElement('span');
+  headerName.className = 'ui__cooldown-header-name';
+  header.appendChild(headerName);
+
+  container.appendChild(header);
+
   const shot = createAbilityRow('shot', 'Shot', 'LMB');
   const speedBoost = createAbilityRow('speedBoost', 'Speed Boost', 'E');
   const mortar = createAbilityRow('mortar', 'Mortar', 'RMB');
@@ -80,6 +93,7 @@ export function initCooldownIndicator({ mount, projectileManager, characterManag
   mount.appendChild(container);
 
   const rows = {
+    header: { name: headerName, dot: headerDot },
     shot,
     speedBoost,
     mortar,

@@ -637,6 +637,15 @@ function buildMenuStructure(gameMenu, mounts) {
     if (audioContent) {
       const soundManager = characterManager.getSoundManager();
       const gameLoop = managers.gameLoop;
+
+      // Keep the gold fill on the slider track in sync with the thumb position.
+      const syncSliderFill = (slider) => {
+        const min = parseFloat(slider.min) || 0;
+        const max = parseFloat(slider.max) || 1;
+        const value = parseFloat(slider.value);
+        const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+        slider.style.setProperty('--ui-slider-fill', `${pct}%`);
+      };
       
       // Sound Effects Volume Slider
       const soundEffectsContainer = document.createElement('div');
@@ -671,8 +680,10 @@ function buildMenuStructure(gameMenu, mounts) {
       soundEffectsSlider.addEventListener('input', (e) => {
         const volume = parseFloat(e.target.value);
         soundEffectsValue.textContent = Math.round(volume * 100) + '%';
+        syncSliderFill(soundEffectsSlider);
       });
-      
+      syncSliderFill(soundEffectsSlider);
+
       audioContent.appendChild(soundEffectsContainer);
       
       // Background Cinematic Volume Slider
@@ -708,8 +719,10 @@ function buildMenuStructure(gameMenu, mounts) {
       backgroundCinematicSlider.addEventListener('input', (e) => {
         const volume = parseFloat(e.target.value);
         backgroundCinematicValue.textContent = Math.round(volume * 100) + '%';
+        syncSliderFill(backgroundCinematicSlider);
       });
-      
+      syncSliderFill(backgroundCinematicSlider);
+
       audioContent.appendChild(backgroundCinematicContainer);
       
       // Vibration Intensity Slider
@@ -745,8 +758,10 @@ function buildMenuStructure(gameMenu, mounts) {
       vibrationSlider.addEventListener('input', (e) => {
         const intensity = parseFloat(e.target.value);
         vibrationValue.textContent = Math.round(intensity * 100) + '%';
+        syncSliderFill(vibrationSlider);
       });
-      
+      syncSliderFill(vibrationSlider);
+
       audioContent.appendChild(vibrationContainer);
     }
   }

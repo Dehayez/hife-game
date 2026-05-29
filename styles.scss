@@ -875,6 +875,32 @@ html, body {
     z-index: 1000;
   }
 
+  &__cooldown-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  &__cooldown-header-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-overlay-medium);
+    flex-shrink: 0;
+    transition: background 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  &__cooldown-header-name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-primary);
+  }
+
   &__cooldown-item {
     margin-bottom: 12px;
 

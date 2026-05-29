@@ -66,6 +66,17 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   const characterColor = getCharacterColorCss(characterName);
   const isHerald = characterName === 'herald';
 
+  if (rows.header) {
+    const displayName = characterName
+      ? characterName.charAt(0).toUpperCase() + characterName.slice(1)
+      : '';
+    if (rows.header.name.textContent !== displayName) {
+      rows.header.name.textContent = displayName;
+    }
+    rows.header.dot.style.background = characterColor;
+    rows.header.dot.style.boxShadow = `0 0 10px ${characterColor}`;
+  }
+
   // ---- Shot / Bolt ----
   const shotName = isHerald ? 'Bolt' : 'Shot';
   const shotKey = isControllerMode ? controllerLabel('RT') : 'LMB';
