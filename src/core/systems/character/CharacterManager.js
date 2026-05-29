@@ -33,6 +33,8 @@ import { loadAllCharacterSounds } from './CharacterSound.js';
 import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.js';
 import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../../../utils/DeathFadeUtils.js';
 import { createSpriteMesh } from '../../../utils/SpriteUtils.js';
+import { isUsing3DModels } from '../../../config/character/CharacterRenderMode.js';
+import { loadCharacterModel, configureCharacter3DModel, updateCharacter3DAnimation } from '../../../utils/Character3DLoader.js';
 
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
@@ -49,6 +51,11 @@ export class CharacterManager {
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
     this.characterName = 'lucy';
+    this.is3DMode = false;
+    
+    // Smooth rotation tracking for 3D models
+    this.currentRotationY = 0; // Current smoothed rotation
+    this.rotationLerpFactor = 0.15; // Rotation smoothing factor (higher = faster, lower = smoother)
     
     // Get stats from config
     const movementStats = getCharacterMovementStats();
@@ -145,21 +152,35 @@ export class CharacterManager {
   }
 
   /**
-   * Setup player sprite
+   * Setup player sprite or 3D model
    * @private
    */
   _setupPlayer() {
-    this.player = createSpriteMesh(this.playerHeight);
-    this.player.position.set(0, this.playerHeight * 0.5, 0);
+    // Check if 3D mode is enabled for this character
+    this.is3DMode = isUsing3DModels(this.characterName);
     
+    if (this.is3DMode) {
+      // For 3D models, we'll create a placeholder that gets replaced when model loads
+      // Create a simple box as placeholder
+      const placeholderGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+      const placeholderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
+      this.player = new THREE.Mesh(placeholderGeo, placeholderMat);
+    } else {
+      // Use sprite mesh for 2D mode
+      this.player = createSpriteMesh(this.playerHeight);
+    }
+    
+    this.player.position.set(0, this.playerHeight * 0.5, 0);
+
     // Add health tracking to player mesh
     const healthStats = getCharacterHealthStats();
     this.player.userData = {
       type: 'player',
+      renderMode: this.is3DMode ? '3d' : 'sprite',
       health: this.characterData.health,
       maxHealth: healthStats.maxHealth
     };
-    
+
     this.scene.add(this.player);
     this._ensureRollingMesh();
   }
@@ -185,20 +206,141 @@ export class CharacterManager {
    */
   async loadCharacter(name, onProgress = null) {
     this.characterName = name;
-    
-    // Load animations with progress tracking
-    const loaded = await loadCharacterAnimations(name, onProgress);
-    
+    // Track the mode the *current* player mesh was built for so we can detect
+    // a render-mode crossover on swap (e.g. 3D Herald → 2D Lucy).
+    const previousMeshMode = this.player?.userData?.renderMode
+      ?? (this.player?.material ? 'sprite' : (this.player ? '3d' : null));
+    this.is3DMode = isUsing3DModels(name);
+
     // Load sounds with progress tracking
     await loadAllCharacterSounds(name, this.soundManager, onProgress);
+
+    // If we're swapping from a 3D model to a 2D sprite, the previous player
+    // mesh is a Group (no `.material`) — replace it with a fresh sprite mesh
+    // before the sprite loader tries to apply textures to it. Without this,
+    // the old 3D model stays in the scene and the new sprite never appears.
+    if (!this.is3DMode && previousMeshMode === '3d' && this.player) {
+      const currentPosition = this.player.position.clone();
+      const currentParent = this.player.parent;
+      if (currentParent) currentParent.remove(this.player);
+
+      const sprite = createSpriteMesh(this.playerHeight);
+      sprite.position.copy(currentPosition);
+      const healthStats = getCharacterHealthStats();
+      sprite.userData = {
+        type: 'player',
+        renderMode: 'sprite',
+        health: this.characterData.health,
+        maxHealth: healthStats.maxHealth
+      };
+      this.player = sprite;
+      if (currentParent) currentParent.add(this.player);
+      else if (this.scene) this.scene.add(this.player);
+    }
+
+    if (this.is3DMode) {
+      // Load 3D model
+      try {
+        if (onProgress) {
+          onProgress(0.5, 1, `Loading ${name} 3D model...`);
+        }
+        
+        const model3D = await loadCharacterModel(name, onProgress);
+        
+        console.log(`[3D Model] Loaded model for ${name}:`, model3D);
+        console.log(`[3D Model] Model position:`, model3D.position);
+        console.log(`[3D Model] Model scale:`, model3D.scale);
+        console.log(`[3D Model] Model visible:`, model3D.visible);
+        console.log(`[3D Model] Model children count:`, model3D.children.length);
+        
+        // Configure the model
+        configureCharacter3DModel(model3D, name);
+        
+        // Initialize rotation tracking with the base rotation
+        this.currentRotationY = model3D.rotation.y;
+        
+        // Get current position and parent before replacing
+        const currentPosition = this.player.position.clone();
+        const currentParent = this.player.parent;
+        
+        console.log(`[3D Model] Current player position:`, currentPosition);
+        console.log(`[3D Model] Current parent:`, currentParent);
+        
+        // Remove old player mesh
+        if (this.player.parent) {
+          this.player.parent.remove(this.player);
+        }
+        
+        // Replace with 3D model
+        this.player = model3D;
+        this.player.position.copy(currentPosition);
+        this.player.visible = true; // Ensure visibility
+        
+        // Copy userData
+        const healthStats = getCharacterHealthStats();
+        this.player.userData = {
+          type: 'player',
+          renderMode: '3d',
+          health: this.characterData.health,
+          maxHealth: healthStats.maxHealth
+        };
+        
+        // Add to scene
+        if (currentParent) {
+          currentParent.add(this.player);
+          console.log(`[3D Model] Added to existing parent`);
+        } else if (this.scene) {
+          this.scene.add(this.player);
+          console.log(`[3D Model] Added to scene`);
+        } else {
+          console.warn(`[3D Model] No parent or scene to add model to!`);
+        }
+        
+        // Ensure model is visible and check bounds
+        model3D.traverse((child) => {
+          if (child.isMesh) {
+            child.visible = true;
+            console.log(`[3D Model] Mesh found:`, child.name || 'unnamed', 'visible:', child.visible);
+          }
+        });
+        
+        // Initialize animations for 3D (if available)
+        this.animations = null; // 3D models use their own animations
+        this.currentAnimKey = 'idle';
+        
+        if (onProgress) {
+          onProgress(1, 1, `${name} 3D model loaded`);
+        }
+        
+        console.log(`[3D Model] Model setup complete for ${name}`);
+      } catch (error) {
+        console.warn(`Failed to load 3D model for ${name}, falling back to sprites:`, error);
+        // Fallback to sprite mode
+        this.is3DMode = false;
+        await this._loadSpriteCharacter(name, onProgress);
+      }
+    } else {
+      // Load sprite animations
+      await this._loadSpriteCharacter(name, onProgress);
+    }
+    
+    this._ensureRollingMesh();
+    this._updateRollMeshAppearance();
+    this._resetRollingVisual();
+  }
+  
+  /**
+   * Load sprite-based character (2D mode)
+   * @private
+   */
+  async _loadSpriteCharacter(name, onProgress = null) {
+    // Load animations with progress tracking
+    const loaded = await loadCharacterAnimations(name, onProgress);
     
     this.animations = loaded;
     this.currentAnimKey = 'idle_front';
     this.lastFacing = 'front';
     this.setCurrentAnim(this.currentAnimKey, true);
-    this._ensureRollingMesh();
-    this._updateRollMeshAppearance();
-    this._resetRollingVisual();
     
     // Force immediate texture update to ensure character image changes right away
     if (this.player && this.player.material) {
@@ -215,17 +357,28 @@ export class CharacterManager {
    * @param {boolean} force - Force animation change
    */
   setCurrentAnim(key, force = false) {
-    if (!this.animations || !this.player) return;
+    if (!this.player) return;
     
-    const newKey = setCharacterAnimation(
-      this.player,
-      key,
-      this.animations,
-      this.currentAnimKey,
-      force
-    );
-    
-    this.currentAnimKey = newKey;
+    if (this.is3DMode) {
+      // For 3D models, just update the animation key
+      // Actual animation will be handled in updateAnimation
+      if (force || this.currentAnimKey !== key) {
+        this.currentAnimKey = key;
+      }
+    } else {
+      // For sprite mode, use the sprite animation system
+      if (!this.animations) return;
+      
+      const newKey = setCharacterAnimation(
+        this.player,
+        key,
+        this.animations,
+        this.currentAnimKey,
+        force
+      );
+      
+      this.currentAnimKey = newKey;
+    }
   }
 
   /**
@@ -234,18 +387,40 @@ export class CharacterManager {
    * @param {boolean} isRunning - Whether character is running
    */
   updateAnimation(dt, isRunning = false) {
-    if (!this.animations || !this.player) return;
+    if (!this.player) return;
     
-    updateCharacterAnimation(
-      this.player,
-      this.animations,
-      this.currentAnimKey,
-      this.characterData.isGrounded,
-      () => this.isOnBaseGround(),
-      this._shouldMuteFootsteps(isRunning) ? null : this.soundManager,
-      dt,
-      isRunning
-    );
+    if (this.is3DMode) {
+      // Update 3D model animations
+      // Map sprite animation keys to 3D animation names
+      let animName = 'idle';
+      if (this.currentAnimKey.includes('walk')) {
+        animName = isRunning ? 'run' : 'walk';
+      } else if (this.currentAnimKey.includes('jump')) {
+        animName = 'jump';
+      } else if (this.currentAnimKey.includes('hit')) {
+        animName = 'hit';
+      } else if (this.currentAnimKey.includes('death')) {
+        animName = 'death';
+      } else if (this.currentAnimKey.includes('spawn')) {
+        animName = 'spawn';
+      }
+      
+      updateCharacter3DAnimation(this.player, animName, dt, true);
+    } else {
+      // Update sprite animations
+      if (!this.animations) return;
+      
+      updateCharacterAnimation(
+        this.player,
+        this.animations,
+        this.currentAnimKey,
+        this.characterData.isGrounded,
+        () => this.isOnBaseGround(),
+        this._shouldMuteFootsteps(isRunning) ? null : this.soundManager,
+        dt,
+        isRunning
+      );
+    }
   }
 
   /**
@@ -258,28 +433,83 @@ export class CharacterManager {
   updateMovement(input, velocity, camera, isRunning = false) {
     if (!this.player) return;
     
-    const soundManager = this._shouldMuteFootsteps(isRunning) ? null : this.soundManager;
+    if (this.is3DMode) {
+      // For 3D models, rotate based on movement direction instead of billboarding
+      if (velocity.lengthSq() > 0.0001) {
+        // Calculate target rotation from velocity direction (add 180 degrees for correct facing)
+        // Base rotation is 90 degrees (π/2), so add that to the movement rotation
+        const baseRotation = Math.PI / 2;
+        const targetAngle = Math.atan2(velocity.x, velocity.z) + Math.PI + baseRotation;
+        
+        // Smooth rotation interpolation to avoid flickering
+        // Handle angle wrapping (shortest path between angles)
+        let angleDiff = targetAngle - this.currentRotationY;
+        // Normalize angle difference to [-PI, PI]
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        
+        // Apply smooth interpolation
+        this.currentRotationY += angleDiff * this.rotationLerpFactor;
+        this.player.rotation.y = this.currentRotationY;
+        
+        // Update animation based on movement
+        const isJumping = isCharacterJumping(this.characterData);
+        if (isJumping) {
+          this.currentAnimKey = 'jump';
+        } else if (isRunning) {
+          this.currentAnimKey = 'run';
+        } else {
+          this.currentAnimKey = 'walk';
+        }
+        
+        // Update facing for sound/particle effects
+        if (Math.abs(velocity.z) > 1e-4) {
+          this.lastFacing = velocity.z < 0 ? 'back' : 'front';
+        }
+      } else {
+        // Idle animation
+        this.currentAnimKey = 'idle';
+      }
+      
+      // Handle smoke particles when running
+      const smokeConfig = getRunningSmokeConfig();
+      const smokeSpawnInterval = smokeConfig.spawnInterval;
+      if (isRunning && this.characterData.isGrounded && this.particleManager) {
+        if (this.smokeSpawnTimer <= 0) {
+          this.particleManager.spawnSmokeParticle(this.player.position);
+          this.smokeSpawnTimer = smokeSpawnInterval;
+        } else {
+          this.smokeSpawnTimer -= 0.016; // Approximate frame time
+        }
+      } else {
+        this.smokeSpawnTimer = 0;
+      }
+    } else {
+      // Sprite mode - use existing billboarding system
+      const soundManager = this._shouldMuteFootsteps(isRunning) ? null : this.soundManager;
+      
+      const movementResult = updateCharacterMovement(
+        this.player,
+        camera,
+        input,
+        velocity,
+        isCharacterJumping(this.characterData),
+        this.characterData.isGrounded,
+        () => this.isOnBaseGround(),
+        this.animations,
+        this.currentAnimKey,
+        this.lastFacing,
+        soundManager,
+        this.particleManager,
+        this.smokeSpawnTimer,
+        isRunning
+      );
+      
+      this.currentAnimKey = movementResult.currentAnimKey;
+      this.lastFacing = movementResult.lastFacing;
+      this.smokeSpawnTimer = movementResult.smokeSpawnTimer;
+    }
     
-    const movementResult = updateCharacterMovement(
-      this.player,
-      camera,
-      input,
-      velocity,
-      isCharacterJumping(this.characterData),
-      this.characterData.isGrounded,
-      () => this.isOnBaseGround(),
-      this.animations,
-      this.currentAnimKey,
-      this.lastFacing,
-      soundManager,
-      this.particleManager,
-      this.smokeSpawnTimer,
-      isRunning
-    );
-    
-    this.currentAnimKey = movementResult.currentAnimKey;
-    this.lastFacing = movementResult.lastFacing;
-    this.smokeSpawnTimer = movementResult.smokeSpawnTimer;
     this._updateRollingVisual(velocity, isRunning);
   }
 
