@@ -1,4 +1,4 @@
-import { getMeleeStats, getBlastStats, getMultiProjectileStats } from '../../../core/systems/abilities/functions/CharacterAbilityStats.js';
+import { getMeleeStats, getBlastStats } from '../../../core/systems/abilities/functions/CharacterAbilityStats.js';
 import { getCharacterColorCss } from '../../../config/abilities/CharacterColors.js';
 import { getCharacterPhysicsStats } from '../../../config/character/PhysicsConfig.js';
 import { CONTROLLER_BUTTON_CONFIG } from '../XboxButton/helpers.js';
@@ -139,11 +139,12 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
       meleeMaxCooldown = blastStats.cooldown || 5.0;
     }
   } else if (characterName === 'lucy') {
-    const multiProjectileStats = getMultiProjectileStats(characterName);
-    if (multiProjectileStats) {
-      meleeCooldown = projectileManager.getSpecialAbilityCooldown ? projectileManager.getSpecialAbilityCooldown(playerId) : 0;
-      meleeMaxCooldown = multiProjectileStats.cooldown || 4.0;
-    }
+    // Lucy's "Multi-Projectile" is fired by `_handleSwordSwing` in GameLoop,
+    // which gates on `meleeCooldownTimer` and writes back via setMeleeCooldown.
+    // The legacy multiProjectile config is unused at runtime, so the UI must
+    // read the melee cooldown to match what the game actually enforces.
+    meleeCooldown = projectileManager.meleeCharacterCooldowns.getCooldown(playerId);
+    meleeMaxCooldown = meleeStats?.cooldown || 1.5;
   } else {
     meleeCooldown = projectileManager.meleeCharacterCooldowns.getCooldown(playerId);
     meleeMaxCooldown = meleeStats.cooldown || 1.5;
