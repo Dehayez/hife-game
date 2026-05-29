@@ -6,6 +6,7 @@
  */
 
 import { GameMenu } from '../ui/components/GameMenu/index.js';
+import { MenuIcons } from '../ui/components/GameMenu/icons.js';
 import { initCharacterSwitcher } from '../ui/adapters/reactAdapters.jsx';
 import { initControlsLegend } from '../ui/adapters/reactAdapters.jsx';
 import { initGameModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
@@ -528,6 +529,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Game Mode Display Section
   const modeDisplaySection = gameMenu.addSection('settings', {
     title: 'Current Game Mode',
+    icon: MenuIcons.currentGameMode,
     className: 'game-menu__section--mode-display'
   });
   if (modeDisplaySection && modeDisplayMount) {
@@ -541,6 +543,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Game Mode Section
   const gameModeSection = gameMenu.addSection('settings', {
     title: 'Game Mode',
+    icon: MenuIcons.gameMode,
     className: 'game-menu__section--game-mode'
   });
   if (gameModeSection && gameModeMount) {
@@ -554,6 +557,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Arena Selection Section
   const arenaSection = gameMenu.addSection('settings', {
     title: 'Arena',
+    icon: MenuIcons.arena,
     className: 'game-menu__section--arena'
   });
   if (arenaSection && arenaMount) {
@@ -567,6 +571,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Controls Legend Section
   const legendSection = gameMenu.addSection('settings', {
     title: 'Controls',
+    icon: MenuIcons.controls,
     className: 'game-menu__section--controls-legend'
   });
   if (legendSection && legendMount) {
@@ -610,6 +615,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Input Mode Section
   const inputModeSection = gameMenu.addSection('settings', {
     title: 'Input Mode',
+    icon: MenuIcons.inputMode,
     className: 'game-menu__section--input-mode'
   });
   if (inputModeSection && inputModeMount) {
@@ -623,6 +629,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Audio Settings Section
   const audioSettingsSection = gameMenu.addSection('settings', {
     title: 'Audio Settings',
+    icon: MenuIcons.audioSettings,
     className: 'game-menu__section--audio-settings'
   });
   if (audioSettingsSection && characterManager) {
@@ -634,23 +641,19 @@ function buildMenuStructure(gameMenu, mounts) {
       // Sound Effects Volume Slider
       const soundEffectsContainer = document.createElement('div');
       soundEffectsContainer.className = 'game-menu__control ui__control';
-      soundEffectsContainer.style.marginTop = '10px';
-      
+
       const soundEffectsLabel = document.createElement('label');
       soundEffectsLabel.className = 'game-menu__label ui__label';
       soundEffectsLabel.textContent = 'Sound Effects';
-      soundEffectsLabel.style.marginRight = '10px';
       soundEffectsContainer.appendChild(soundEffectsLabel);
-      
+
       const soundEffectsSlider = document.createElement('input');
       soundEffectsSlider.type = 'range';
       soundEffectsSlider.min = '0';
       soundEffectsSlider.max = '1';
       soundEffectsSlider.step = '0.01';
       soundEffectsSlider.value = getSoundEffectsVolume();
-      soundEffectsSlider.style.width = '200px';
-      soundEffectsSlider.style.cursor = 'pointer';
-      soundEffectsSlider.tabIndex = 0; // Make focusable for controller navigation
+      soundEffectsSlider.tabIndex = 0;
       soundEffectsSlider.addEventListener('input', (e) => {
         const volume = parseFloat(e.target.value);
         setSoundEffectsVolume(volume);
@@ -659,12 +662,10 @@ function buildMenuStructure(gameMenu, mounts) {
         }
       });
       soundEffectsContainer.appendChild(soundEffectsSlider);
-      
+
       const soundEffectsValue = document.createElement('span');
       soundEffectsValue.className = 'game-menu__value ui__label';
       soundEffectsValue.textContent = Math.round(getSoundEffectsVolume() * 100) + '%';
-      soundEffectsValue.style.marginLeft = '10px';
-      soundEffectsValue.style.minWidth = '40px';
       soundEffectsContainer.appendChild(soundEffectsValue);
       
       soundEffectsSlider.addEventListener('input', (e) => {
@@ -677,23 +678,19 @@ function buildMenuStructure(gameMenu, mounts) {
       // Background Cinematic Volume Slider
       const backgroundCinematicContainer = document.createElement('div');
       backgroundCinematicContainer.className = 'game-menu__control ui__control';
-      backgroundCinematicContainer.style.marginTop = '10px';
-      
+
       const backgroundCinematicLabel = document.createElement('label');
       backgroundCinematicLabel.className = 'game-menu__label ui__label';
       backgroundCinematicLabel.textContent = 'Background Cinematic';
-      backgroundCinematicLabel.style.marginRight = '10px';
       backgroundCinematicContainer.appendChild(backgroundCinematicLabel);
-      
+
       const backgroundCinematicSlider = document.createElement('input');
       backgroundCinematicSlider.type = 'range';
       backgroundCinematicSlider.min = '0';
       backgroundCinematicSlider.max = '1';
       backgroundCinematicSlider.step = '0.01';
       backgroundCinematicSlider.value = getBackgroundCinematicVolume();
-      backgroundCinematicSlider.style.width = '200px';
-      backgroundCinematicSlider.style.cursor = 'pointer';
-      backgroundCinematicSlider.tabIndex = 0; // Make focusable for controller navigation
+      backgroundCinematicSlider.tabIndex = 0;
       backgroundCinematicSlider.addEventListener('input', (e) => {
         const volume = parseFloat(e.target.value);
         setBackgroundCinematicVolume(volume);
@@ -702,12 +699,10 @@ function buildMenuStructure(gameMenu, mounts) {
         }
       });
       backgroundCinematicContainer.appendChild(backgroundCinematicSlider);
-      
+
       const backgroundCinematicValue = document.createElement('span');
       backgroundCinematicValue.className = 'game-menu__value ui__label';
       backgroundCinematicValue.textContent = Math.round(getBackgroundCinematicVolume() * 100) + '%';
-      backgroundCinematicValue.style.marginLeft = '10px';
-      backgroundCinematicValue.style.minWidth = '40px';
       backgroundCinematicContainer.appendChild(backgroundCinematicValue);
       
       backgroundCinematicSlider.addEventListener('input', (e) => {
@@ -720,23 +715,19 @@ function buildMenuStructure(gameMenu, mounts) {
       // Vibration Intensity Slider
       const vibrationContainer = document.createElement('div');
       vibrationContainer.className = 'game-menu__control ui__control';
-      vibrationContainer.style.marginTop = '10px';
-      
+
       const vibrationLabel = document.createElement('label');
       vibrationLabel.className = 'game-menu__label ui__label';
       vibrationLabel.textContent = 'Vibration Intensity';
-      vibrationLabel.style.marginRight = '10px';
       vibrationContainer.appendChild(vibrationLabel);
-      
+
       const vibrationSlider = document.createElement('input');
       vibrationSlider.type = 'range';
       vibrationSlider.min = '0';
       vibrationSlider.max = '1';
       vibrationSlider.step = '0.01';
       vibrationSlider.value = getVibrationIntensity();
-      vibrationSlider.style.width = '200px';
-      vibrationSlider.style.cursor = 'pointer';
-      vibrationSlider.tabIndex = 0; // Make focusable for controller navigation
+      vibrationSlider.tabIndex = 0;
       vibrationSlider.addEventListener('input', (e) => {
         const intensity = parseFloat(e.target.value);
         setVibrationIntensity(intensity);
@@ -745,12 +736,10 @@ function buildMenuStructure(gameMenu, mounts) {
         }
       });
       vibrationContainer.appendChild(vibrationSlider);
-      
+
       const vibrationValue = document.createElement('span');
       vibrationValue.className = 'game-menu__value ui__label';
       vibrationValue.textContent = Math.round(getVibrationIntensity() * 100) + '%';
-      vibrationValue.style.marginLeft = '10px';
-      vibrationValue.style.minWidth = '40px';
       vibrationContainer.appendChild(vibrationValue);
       
       vibrationSlider.addEventListener('input', (e) => {
@@ -765,6 +754,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Room Manager Section
   const roomSection = gameMenu.addSection('multiplayer', {
     title: 'Rooms',
+    icon: MenuIcons.rooms,
     className: 'game-menu__section--room-manager'
   });
   if (roomSection && roomMount.firstChild) {
@@ -779,6 +769,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Bot Control Section
   const botSection = gameMenu.addSection('multiplayer', {
     title: 'Bot Control',
+    icon: MenuIcons.botControl,
     className: 'game-menu__section--bot-control'
   });
   if (botSection && botControlMount.firstChild) {
@@ -796,6 +787,7 @@ function buildMenuStructure(gameMenu, mounts) {
   // Learning Feedback Section
   const learningSection = gameMenu.addSection('multiplayer', {
     title: 'Bot Learning Progress',
+    icon: MenuIcons.learning,
     className: 'game-menu__section--learning-feedback'
   });
   if (learningSection && learningFeedbackMount.firstChild) {

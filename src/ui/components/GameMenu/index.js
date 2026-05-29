@@ -529,7 +529,13 @@ export class GameMenu {
       if (section.icon) {
         const iconSpan = document.createElement('span');
         iconSpan.className = 'game-menu__section-button-icon';
-        iconSpan.textContent = section.icon;
+        const isSvg = typeof section.icon === 'string' && section.icon.trim().startsWith('<svg');
+        if (isSvg) {
+          iconSpan.classList.add('game-menu__section-button-icon--svg');
+          iconSpan.innerHTML = section.icon;
+        } else {
+          iconSpan.textContent = section.icon;
+        }
         buttonContent.appendChild(iconSpan);
       }
       

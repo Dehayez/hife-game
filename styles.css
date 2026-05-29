@@ -724,231 +724,57 @@ html, body {
   margin-right: 0.5rem;
 }
 .ui__cooldown-indicator {
-  --cd-scale: clamp(1, 0.6 + 0.35vw, 1.6);
-  --cd-bar-height: calc(10px * var(--cd-scale));
-  --cd-label-size: calc(12.5px * var(--cd-scale));
-  --cd-key-size: calc(11.5px * var(--cd-scale));
-  --cd-status-size: calc(10.5px * var(--cd-scale));
-  --cd-row-gap: calc(10px * var(--cd-scale));
-  --cd-label-gap: calc(6px * var(--cd-scale));
-  --cd-pad-x: calc(16px * var(--cd-scale));
-  --cd-pad-y: calc(14px * var(--cd-scale));
-  --cd-min-width: calc(220px * var(--cd-scale));
-  --cd-edge: clamp(16px, 1.2vw, 32px);
   position: fixed;
-  bottom: var(--cd-edge);
-  right: var(--cd-edge);
-  background: linear-gradient(180deg, rgba(14, 18, 26, 0.55), rgba(8, 12, 18, 0.45));
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: calc(12px * var(--cd-scale));
-  padding: var(--cd-pad-y) var(--cd-pad-x);
+  bottom: 16px;
+  right: 16px;
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  padding: 12px 16px;
   pointer-events: auto;
-  min-width: var(--cd-min-width);
+  opacity: 0.9;
+  min-width: 200px;
   z-index: 1000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .ui__cooldown-item {
-  --cd-fill-opacity: 1;
-  --cd-glow-opacity: 0;
-  --cd-shine-opacity: 0;
-  --cd-flash-opacity: 0;
-  margin-bottom: var(--cd-row-gap);
+  margin-bottom: 12px;
 }
 .ui__cooldown-item:last-child {
   margin-bottom: 0;
 }
-.ui__cooldown-item.is-ready {
-  --cd-fill-opacity: 1;
-  --cd-glow-opacity: 0.7;
-  --cd-shine-opacity: 0;
-  --cd-flash-opacity: 1;
-}
-.ui__cooldown-item.is-cooling {
-  --cd-fill-opacity: 0.55;
-  --cd-glow-opacity: 0;
-  --cd-shine-opacity: 1;
-}
-.ui__cooldown-item.is-active {
-  --cd-fill-opacity: 1;
-  --cd-glow-opacity: 1;
-  --cd-shine-opacity: 0;
-}
-.ui__cooldown-item.is-empty {
-  --cd-fill-opacity: 0.18;
-  --cd-glow-opacity: 0;
-  --cd-shine-opacity: 0;
-}
 .ui__cooldown-label {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  column-gap: calc(10px * var(--cd-scale));
-  font-size: var(--cd-label-size);
-  margin-bottom: var(--cd-label-gap);
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 6px;
   color: var(--color-text-primary);
-  letter-spacing: 0.2px;
-  line-height: 1.25;
 }
 .ui__cooldown-name {
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  font-weight: inherit;
 }
 .ui__cooldown-key {
-  opacity: 0.55;
-  font-size: var(--cd-key-size);
-  margin-left: calc(6px * var(--cd-scale));
-  display: inline-flex;
-  align-items: center;
-  padding: 1px calc(6px * var(--cd-scale));
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  opacity: 0.5;
 }
 .ui__cooldown-status {
-  font-size: var(--cd-status-size);
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  padding: 2px calc(8px * var(--cd-scale));
-  min-width: calc(54px * var(--cd-scale));
-  height: calc(18px * var(--cd-scale));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.65);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
-}
-.ui__cooldown-item.is-ready .ui__cooldown-status {
-  background: rgba(120, 220, 140, 0.18);
-  color: rgba(170, 240, 180, 0.95);
-}
-.ui__cooldown-item.is-cooling .ui__cooldown-status {
-  background: rgba(255, 180, 80, 0.14);
-  color: rgba(255, 200, 120, 0.95);
-  animation: ui__cooldown-status-pulse 1.1s ease-in-out infinite;
-}
-.ui__cooldown-item.is-active .ui__cooldown-status {
-  background: rgba(120, 200, 255, 0.18);
-  color: rgba(170, 220, 255, 0.95);
-}
-.ui__cooldown-item.is-empty .ui__cooldown-status {
-  background: rgba(255, 90, 90, 0.18);
-  color: rgba(255, 150, 150, 0.95);
+  display: none;
 }
 .ui__cooldown-bar {
   position: relative;
   width: 100%;
-  height: var(--cd-bar-height);
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 999px;
+  height: 12px;
+  background: var(--color-overlay-light);
+  border-radius: 4px;
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
 }
-.ui__cooldown-track {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.02) 0 6px, rgba(255, 255, 255, 0.04) 6px 12px);
-  border-radius: inherit;
-  pointer-events: none;
+.ui__cooldown-track, .ui__cooldown-shine, .ui__cooldown-flash {
+  display: none;
 }
 .ui__cooldown-fill {
-  position: relative;
   height: 100%;
-  border-radius: inherit;
+  background: var(--color-overlay-medium);
+  border-radius: 4px;
+  transition: width 0.1s linear, opacity 0.1s ease;
   width: 100%;
-  opacity: var(--cd-fill-opacity);
-  transition: width 0.12s linear, opacity 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset, 0 0 8px 0 rgba(255, 255, 255, calc(0.15 * var(--cd-glow-opacity))), 0 0 14px 0 rgba(255, 255, 255, calc(0.18 * var(--cd-glow-opacity)));
-}
-.ui__cooldown-item.is-ready .ui__cooldown-fill {
-  filter: brightness(1.15) saturate(1.1);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 0 10px 0 currentColor, 0 0 18px 0 rgba(255, 255, 255, 0.18);
-}
-.ui__cooldown-item.is-active .ui__cooldown-fill {
-  filter: brightness(1.25) saturate(1.2);
-  animation: ui__cooldown-active-pulse 0.9s ease-in-out infinite;
-}
-.ui__cooldown-item.is-cooling .ui__cooldown-fill {
-  filter: brightness(0.7) saturate(0.7);
-}
-.ui__cooldown-item.is-empty .ui__cooldown-fill {
-  filter: grayscale(0.6) brightness(0.6);
-}
-.ui__cooldown-shine {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  overflow: hidden;
-  opacity: var(--cd-shine-opacity);
-  pointer-events: none;
-}
-.ui__cooldown-shine::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 40%;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%);
-  transform: translateX(-100%);
-  animation: ui__cooldown-shine-sweep 1.4s ease-in-out infinite;
-}
-.ui__cooldown-flash {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 70%);
-  opacity: 0;
-  pointer-events: none;
-}
-.ui__cooldown-item.is-ready .ui__cooldown-flash {
-  animation: ui__cooldown-ready-flash 0.5s ease-out;
-}
-@keyframes ui__cooldown-shine-sweep {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(350%);
-  }
-}
-@keyframes ui__cooldown-active-pulse {
-  0%, 100% {
-    filter: brightness(1.25) saturate(1.2);
-  }
-  50% {
-    filter: brightness(1.5) saturate(1.4);
-  }
-}
-@keyframes ui__cooldown-ready-flash {
-  0% {
-    opacity: 0.9;
-    transform: scaleX(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scaleX(1.02);
-  }
-}
-@keyframes ui__cooldown-status-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
 }
 .ui__connection-status {
   position: fixed;
@@ -1276,7 +1102,38 @@ html, body {
 .game-menu__section-button-content {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+.game-menu__section-button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: inherit;
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+.game-menu__section-button-icon--svg svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  stroke: currentColor;
+  fill: none;
+  overflow: visible;
+}
+.game-menu__section-button:hover .game-menu__section-button-icon {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+.game-menu__section-button.is-active .game-menu__section-button-icon {
+  background: rgba(255, 204, 68, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 204, 68, 0.4), 0 0 10px rgba(255, 204, 68, 0.25);
 }
 .game-menu__trigger-icon {
   display: none;
@@ -1441,6 +1298,59 @@ html, body {
   border-radius: 0;
   padding: 0;
   opacity: 1;
+}
+.game-menu__section--input-mode .ui__choices {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  max-width: 640px;
+}
+.game-menu__section--input-mode .ui__choice {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  min-height: 72px;
+  padding: 18px 20px !important;
+  justify-content: center !important;
+  text-align: center;
+}
+.game-menu__section--input-mode .ui__choice-caption {
+  padding: 0 !important;
+  font-size: clamp(14px, 1vw, 17px) !important;
+}
+.game-menu__section--audio-settings .game-menu__section-content {
+  max-width: 640px;
+}
+.game-menu__section--audio-settings .game-menu__control {
+  display: grid;
+  grid-template-columns: 200px 1fr 56px;
+  align-items: center;
+  column-gap: 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.game-menu__section--audio-settings .game-menu__control:last-child {
+  border-bottom: none;
+}
+.game-menu__section--audio-settings .game-menu__label {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+.game-menu__section--audio-settings input[type=range] {
+  width: 100%;
+  margin: 0;
+}
+.game-menu__section--audio-settings .game-menu__value {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--grove-firefly);
+  min-width: 0;
 }
 
 @keyframes fadeIn {
