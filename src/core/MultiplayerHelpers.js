@@ -27,6 +27,9 @@ export function getPlayerState(characterManager, sceneManager, inputManager = nu
   // Get isRunning from inputManager if available
   const isRunning = inputManager ? inputManager.isRunning() : false;
   
+  // Get isRolling state from player userData (for Herald ball transformation)
+  const isRolling = player.userData && player.userData.isRolling === true;
+  
   return {
     x: player.position.x,
     y: player.position.y,
@@ -35,7 +38,8 @@ export function getPlayerState(characterManager, sceneManager, inputManager = nu
     currentAnimKey: characterManager.currentAnimKey || 'idle_front',
     lastFacing: characterManager.lastFacing || 'front',
     isGrounded: characterManager.characterData?.isGrounded ?? true,
-    isRunning: isRunning
+    isRunning: isRunning,
+    isRolling: isRolling
   };
 }
 
@@ -180,7 +184,9 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
   // If remote player doesn't exist yet, spawn them
   // Note: spawnRemotePlayer has duplicate prevention, so this is safe
   if (!remotePlayer) {
-    console.log(`[handleRemotePlayerStateUpdate] Remote player ${playerId} doesn't exist, spawning from state update. Position:`, { x: data.x, y: data.y, z: data.z });
+    if (typeof window !== 'undefined' && window.HIFE_DEBUG_MP) {
+      console.log(`[handleRemotePlayerStateUpdate] Remote player ${playerId} doesn't exist, spawning from state update. Position:`, { x: data.x, y: data.y, z: data.z });
+    }
     
     const playerInfo = multiplayerManager.getPlayerInfo(playerId);
     const initialPosition = { x: data.x || 0, y: data.y || 0, z: data.z || 0 };
@@ -195,7 +201,9 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
       initialPosition
     ).then((spawnedPlayer) => {
       if (spawnedPlayer && spawnedPlayer.mesh) {
-        console.log(`[handleRemotePlayerStateUpdate] Successfully spawned remote player ${playerId} from state update. Mesh visible: ${spawnedPlayer.mesh.visible}`);
+        if (typeof window !== 'undefined' && window.HIFE_DEBUG_MP) {
+          console.log(`[handleRemotePlayerStateUpdate] Successfully spawned remote player ${playerId} from state update. Mesh visible: ${spawnedPlayer.mesh.visible}`);
+        }
         
         // Update position and state after spawning
         remotePlayerManager.updateRemotePlayer(playerId, {
@@ -206,7 +214,8 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
           currentAnimKey: data.currentAnimKey,
           lastFacing: data.lastFacing,
           isGrounded: data.isGrounded,
-          isRunning: data.isRunning
+          isRunning: data.isRunning,
+          isRolling: data.isRolling
         });
       } else {
         console.error(`[handleRemotePlayerStateUpdate] Failed to spawn remote player ${playerId} from state update`);
@@ -224,7 +233,8 @@ export function handleRemotePlayerStateUpdate(remotePlayerManager, healthBarMana
       currentAnimKey: data.currentAnimKey,
       lastFacing: data.lastFacing,
       isGrounded: data.isGrounded,
-      isRunning: data.isRunning
+      isRunning: data.isRunning,
+      isRolling: data.isRolling
     });
   }
 }

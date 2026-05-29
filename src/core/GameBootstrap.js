@@ -189,6 +189,9 @@ export function setupGameLoopWrapper(gameLoop, managers, uiComponents) {
 export async function handleAutoJoinRoom(multiplayerManager, roomManager, roomCode, getCurrentGameState) {
   if (!roomCode) return;
   
+  let retryCount = 0;
+  const maxRetries = GAME_CONSTANTS.AUTO_JOIN_MAX_RETRIES;
+  
   const attemptAutoJoin = async () => {
     try {
       if (!multiplayerManager.isConnected()) {
@@ -199,7 +202,29 @@ export async function handleAutoJoinRoom(multiplayerManager, roomManager, roomCo
       await multiplayerManager.joinRoom(roomCode.toUpperCase(), gameState);
       roomManager.update();
     } catch (error) {
-      console.error('Failed to auto-join room:', error);
+      const errorMessage = error.message || error.toString();
+      
+      // Don't retry if room doesn't exist - this is a permanent error
+      if (errorMessage.includes('Room not found')) {
+        console.warn(`Room ${roomCode.toUpperCase()} not found. Auto-join cancelled.`);
+        return;
+      }
+      
+      // Don't retry if room is full - this is a permanent error
+      if (errorMessage.includes('Room is full')) {
+        console.warn(`Room ${roomCode.toUpperCase()} is full. Auto-join cancelled.`);
+        return;
+      }
+      
+      // Don't retry if max retries exceeded
+      if (retryCount >= maxRetries) {
+        console.error(`Failed to auto-join room after ${maxRetries} attempts:`, error);
+        return;
+      }
+      
+      retryCount++;
+      console.warn(`Failed to auto-join room (attempt ${retryCount}/${maxRetries}):`, error.message || error);
+      
       setTimeout(() => {
         attemptAutoJoin();
       }, GAME_CONSTANTS.AUTO_JOIN_RETRY_DELAY);
@@ -329,7 +354,7 @@ export async function initializeGame(managers, uiComponents, config) {
   
   try {
     // Load character with progress tracking
-    progressManager.setProgress(0, 'Loading character assets...');
+    progressManager.setProgress(0, 'Calling your champion...');
     await characterManager.loadCharacter(characterName, (step, total, task) => {
       // The callback receives relative steps from within animation/sound loading
       // Animations: total=10, steps 1-10
@@ -348,7 +373,7 @@ export async function initializeGame(managers, uiComponents, config) {
     });
     
     // Set camera for health bar manager
-    progressManager.setProgress(14, 'Setting up game systems...');
+    progressManager.setProgress(14, 'Lighting the arena...');
     if (healthBarManager) {
       healthBarManager.setCamera(sceneManager.getCamera());
     }
@@ -369,7 +394,7 @@ export async function initializeGame(managers, uiComponents, config) {
       }
     }
     
-    progressManager.setProgress(15, 'Starting game...');
+    progressManager.setProgress(15, 'Step into the grove...');
     gameLoop.start();
     
     // Small delay to show "Starting game..." message

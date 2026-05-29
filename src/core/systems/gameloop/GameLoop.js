@@ -211,6 +211,8 @@ export class GameLoop {
   start() {
     this.isRunning = true;
     this.lastTime = performance.now();
+    // Bind once so requestAnimationFrame doesn't allocate a closure per frame.
+    if (!this._boundTick) this._boundTick = () => this.tick();
     this.tick();
   }
 
@@ -267,8 +269,8 @@ export class GameLoop {
 
     this.update(dt);
     this.sceneManager.render();
-    
-    requestAnimationFrame(() => this.tick());
+
+    requestAnimationFrame(this._boundTick || (this._boundTick = () => this.tick()));
   }
 
   /**

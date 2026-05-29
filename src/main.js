@@ -24,15 +24,15 @@ if (!canvas) {
 
 // Initialize progress manager
 const progressManager = getLoadingProgressManager();
-progressManager.setPercentage(0, 'Initializing game managers...');
+progressManager.setPercentage(0, 'Awakening the grove...');
 
 // Get initial configuration
 const config = getInitialConfig();
 
 // Initialize all managers
-progressManager.setPercentage(10, 'Setting up game systems...');
+progressManager.setPercentage(10, 'Weaving the forest...');
 const managers = initializeManagers(canvas, config.arenaName);
-progressManager.setPercentage(20, 'Managers initialized');
+progressManager.setPercentage(20, 'Mools are stirring...');
 
 if (managers.inputManager && typeof managers.inputManager.applyCharacterMovementStats === 'function') {
   managers.inputManager.applyCharacterMovementStats(config.characterName);

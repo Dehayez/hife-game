@@ -21,7 +21,7 @@ export class StartButton {
     if (this.button) {
       this.button.style.display = 'block';
       this.button.disabled = false;
-      this.button.textContent = 'Start';
+      this.button.textContent = 'Enter the Grove';
       this.button.classList.remove('is-counting');
     }
     this.countdown = 2;

@@ -8,7 +8,7 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { handleCreateRoom, handleJoinRoom, handleLeaveRoom, handleListRooms, handleUpdateRoom } from './handlers/roomHandler.js';
-import { handlePlayerState, handleProjectileCreate, handleProjectileUpdate, handlePlayerDamage, handleCharacterChange, handleRequestExistingPlayers } from './handlers/playerHandler.js';
+import { handlePlayerState, handleProjectileCreate, handleProjectileUpdate, handlePlayerDamage, handleCharacterChange, handleRequestExistingPlayers, rateLimiter } from './handlers/playerHandler.js';
 
 const PORT = process.env.PORT || 3001;
 
@@ -117,9 +117,18 @@ io.on('connection', (socket) => {
     handleUpdateRoom(socket, rooms, players, updates, callback);
   });
 
+  // Latency probe — ack immediately so client can measure RTT.
+  socket.on('ping-probe', (ack) => {
+    if (typeof ack === 'function') ack();
+  });
+
   // Handle disconnection
   socket.on('disconnect', () => {
     handleLeaveRoom(socket, rooms, players);
+    
+    // Clean up rate limiter data
+    rateLimiter.clear(socket.id);
+    
     console.log(`Player disconnected: ${socket.id}`);
   });
 });

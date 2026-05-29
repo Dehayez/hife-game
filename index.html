@@ -150,8 +150,8 @@
     
     <!-- Resource hints for faster loading -->
     <!-- Preload critical assets - use fetchpriority for important resources -->
-    <link rel="preload" href="/assets/music/background.wav" as="audio" type="audio/wav" fetchpriority="high">
-    <link rel="preload" href="/assets/audio/core/jump.wav" as="audio" type="audio/wav">
+    <link rel="preload" href="/assets/music/background.wav" as="fetch" type="audio/wav" fetchpriority="high">
+    <link rel="preload" href="/assets/audio/core/jump.wav" as="fetch" type="audio/wav">
     
     <!-- Prefetch commonly used character assets (default: lucy) -->
     <link rel="prefetch" href="/assets/characters/lucy/idle_0.png" as="image" type="image/png">
@@ -164,12 +164,22 @@
     <link rel="prefetch" href="/assets/arenas/ancient grove.png" as="image" type="image/png">
     
     <!-- Prefetch audio files for better caching -->
-    <link rel="prefetch" href="/assets/audio/abilities/bolt/bolt_shot.wav" as="audio" type="audio/wav">
-    <link rel="prefetch" href="/assets/audio/abilities/mortar/mortar_explosion.wav" as="audio" type="audio/wav">
-    <link rel="prefetch" href="/assets/audio/abilities/melee/melee_hit.wav" as="audio" type="audio/wav">
+    <link rel="prefetch" href="/assets/audio/abilities/bolt/bolt_shot.wav" as="fetch" type="audio/wav">
+    <link rel="prefetch" href="/assets/audio/abilities/mortar/mortar_explosion.wav" as="fetch" type="audio/wav">
+    <link rel="prefetch" href="/assets/audio/abilities/melee/melee_hit.wav" as="fetch" type="audio/wav">
     
     <!-- Socket.io client for multiplayer -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <!-- Import map for Three.js - allows GLTFLoader to resolve 'three' module -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
+      }
+    }
+    </script>
   </head>
   <body class="app">
     <!-- Menu button (always visible) -->
@@ -207,14 +217,57 @@
     <div id="controls-legend" style="display: none;"></div>
 
     <!-- Loading screen -->
-    <div id="loading-screen" class="loading-screen">
+    <div id="loading-screen" class="loading-screen" role="status" aria-live="polite">
+      <div class="loading-screen__aurora" aria-hidden="true"></div>
       <div class="loading-screen__content">
-        <div id="loading-progress" class="loading-screen__progress">
+        <div class="loading-screen__brand">
+          <div class="loading-screen__sigil" aria-hidden="true">
+            <span class="loading-screen__sigil-ring"></span>
+            <span class="loading-screen__sigil-ring loading-screen__sigil-ring--reverse"></span>
+            <span class="loading-screen__sigil-core"></span>
+          </div>
+          <h1 class="loading-screen__title">Hife <span class="loading-screen__title-of">of</span> Mools</h1>
+          <p class="loading-screen__tagline">Where the mushroom-folk wake the old magic.</p>
+        </div>
+
+        <div class="loading-screen__lore" id="loading-lore">
+          Long after the last star fell into the grove, the Mools rose from spore and song —
+          guardians of a forest that remembers everything.
+        </div>
+
+        <div id="loading-progress" class="loading-screen__progress" aria-hidden="true">
           <div id="loading-progress-bar" class="loading-screen__progress-bar"></div>
         </div>
-        <div id="loading-status-text" class="loading-screen__text">Initializing...</div>
+        <div id="loading-status-text" class="loading-screen__text">Awakening the grove...</div>
+
+        <div class="loading-screen__tip" id="loading-tip" aria-hidden="true"></div>
       </div>
     </div>
+    <script>
+      // Rotating tips while loading — gives the player something to read.
+      (function () {
+        var tipEl = document.getElementById('loading-tip');
+        if (!tipEl) return;
+        var tips = [
+          'Higher ground hits harder — fight from the ridges.',
+          'Press TAB (or Select) to peek at the scoreboard.',
+          'Lucy bends light. Herald breaks ground.',
+          'Rooms can be public or private — share the link to invite a friend.',
+          'A controller works too — Xbox, PlayStation, or generic.',
+          'Mushrooms aren’t just scenery. Keep an eye on them.'
+        ];
+        var i = Math.floor(Math.random() * tips.length);
+        tipEl.textContent = 'Tip — ' + tips[i];
+        setInterval(function () {
+          i = (i + 1) % tips.length;
+          tipEl.style.opacity = '0';
+          setTimeout(function () {
+            tipEl.textContent = 'Tip — ' + tips[i];
+            tipEl.style.opacity = '';
+          }, 280);
+        }, 4200);
+      })();
+    </script>
 
     <!-- Game canvas -->
     <canvas id="app-canvas" class="canvas"></canvas>

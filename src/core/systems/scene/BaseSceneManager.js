@@ -1,4 +1,5 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { loadAndApplyEnvironment } from '../../utils/EnvironmentLoader.js';
 
 /**
  * BaseSceneManager.js
@@ -20,11 +21,20 @@ export class BaseSceneManager {
     this.blinkingEyes = [];
     this.eyeBlinkTimers = [];
     this.mushrooms = [];
+    this.environmentData = null; // Store loaded environment data
   }
 
   _setupRenderer(canvas) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+      stencil: false
+    });
+    // Cap DPR at 1.75 — visually indistinguishable from 2 on most displays
+    // but materially cheaper on high-DPI phones and retina laptops.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
@@ -227,5 +237,44 @@ export class BaseSceneManager {
       mushroom.glowLight.visible = visible;
       mushroom.softGlow.visible = visible;
     });
+  }
+
+  /**
+   * Load and apply an HDRI environment map (like Blender backgrounds)
+   * @param {string} hdriPath - Path to HDRI file (.hdr or .exr)
+   * @param {Object} options - Configuration options
+   * @param {boolean} options.useAsBackground - Set as scene background (default: true)
+   * @param {boolean} options.useAsEnvironment - Set as scene environment for reflections (default: true)
+   * @returns {Promise<void>}
+   */
+  async loadEnvironmentMap(hdriPath, options = {}) {
+    if (!this.renderer || !this.scene) {
+      throw new Error('Scene and renderer must be initialized before loading environment map');
+    }
+
+    try {
+      this.environmentData = await loadAndApplyEnvironment(
+        this.scene,
+        this.renderer,
+        hdriPath,
+        options
+      );
+      console.log(`Environment map loaded successfully: ${hdriPath}`);
+    } catch (error) {
+      console.error('Failed to load environment map:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove environment map and restore default background
+   * @param {THREE.Color} defaultColor - Default background color (default: 0x0a1a1f)
+   */
+  removeEnvironmentMap(defaultColor = 0x0a1a1f) {
+    if (this.scene) {
+      this.scene.background = new THREE.Color(defaultColor);
+      this.scene.environment = null;
+    }
+    this.environmentData = null;
   }
 }

@@ -23,22 +23,40 @@ export function initConnectionStatus({ mount, multiplayerManager }) {
   // Initially hidden
   wrapper.classList.add('is-hidden');
   
+  // Track latest values so state and latency callbacks can compose.
+  let currentState = multiplayerManager ? multiplayerManager.getConnectionState() : 'disconnected';
+  let currentLatency = multiplayerManager && typeof multiplayerManager.getLatency === 'function'
+    ? multiplayerManager.getLatency()
+    : null;
+
+  const render = () => updateStatus(wrapper, statusIndicator, statusText, currentState, currentLatency);
+
   // Set initial state
   if (multiplayerManager) {
-    updateStatus(wrapper, statusIndicator, statusText, multiplayerManager.getConnectionState());
-    
+    render();
+
     // Listen for connection state changes
     multiplayerManager.setConnectionStateChangeCallback((state) => {
-      updateStatus(wrapper, statusIndicator, statusText, state);
+      currentState = state;
+      render();
     });
+
+    // Listen for latency updates (optional API; older managers may not have it)
+    if (typeof multiplayerManager.setLatencyChangeCallback === 'function') {
+      multiplayerManager.setLatencyChangeCallback((latency) => {
+        currentLatency = latency;
+        render();
+      });
+    }
   }
-  
+
   mount.appendChild(wrapper);
-  
+
   // Public API
   return {
     update(state) {
-      updateStatus(wrapper, statusIndicator, statusText, state);
+      if (state !== undefined) currentState = state;
+      render();
     },
     getWrapper() {
       return wrapper;

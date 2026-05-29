@@ -30,7 +30,12 @@ export class MultiplayerManager {
     // Connection state tracking
     this.connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected', 'reconnecting'
     this.onConnectionStateChange = null;
-    
+
+    // Latency tracking (ms). Updated by periodic pings.
+    this.latency = null;
+    this.onLatencyChange = null;
+    this._pingTimer = null;
+
     this._setupSocket();
   }
 
@@ -88,6 +93,55 @@ export class MultiplayerManager {
   }
 
   /**
+   * Probe round-trip latency using Socket.io's volatile emit + ack pattern.
+   * Uses the built-in engine.io ping if available, otherwise a lightweight
+   * application-level probe. Updates `this.latency` and notifies listeners.
+   * @private
+   */
+  _startLatencyProbe() {
+    this._stopLatencyProbe();
+    const probe = () => {
+      if (!this.socket || !this.socket.connected) return;
+      const start = performance.now();
+      // volatile so probes never queue up if the socket is briefly unhealthy
+      this.socket.volatile.emit('ping-probe', () => {
+        const rtt = Math.round(performance.now() - start);
+        // simple low-pass filter to avoid jitter
+        this.latency = this.latency == null ? rtt : Math.round(this.latency * 0.7 + rtt * 0.3);
+        if (this.onLatencyChange) this.onLatencyChange(this.latency);
+      });
+    };
+    // first sample quickly, then every 4s
+    setTimeout(probe, 250);
+    this._pingTimer = setInterval(probe, 4000);
+  }
+
+  _stopLatencyProbe() {
+    if (this._pingTimer) {
+      clearInterval(this._pingTimer);
+      this._pingTimer = null;
+    }
+    this.latency = null;
+    if (this.onLatencyChange) this.onLatencyChange(null);
+  }
+
+  /**
+   * Get current latency in ms (or null if unknown).
+   * @returns {number|null}
+   */
+  getLatency() {
+    return this.latency;
+  }
+
+  /**
+   * Set callback fired when latency changes.
+   * @param {Function} callback - (latencyMs|null) => void
+   */
+  setLatencyChangeCallback(callback) {
+    this.onLatencyChange = callback;
+  }
+
+  /**
    * Setup Socket.io connection
    * @private
    */
@@ -111,7 +165,8 @@ export class MultiplayerManager {
     this.socket.on('connect', () => {
       this.localPlayerId = this.socket.id;
       this._updateConnectionState('connected');
-      
+      this._startLatencyProbe();
+
       // Trigger connection callback if set
       if (this.onConnected) {
         this.onConnected();
@@ -119,6 +174,7 @@ export class MultiplayerManager {
     });
     
     this.socket.on('disconnect', (reason) => {
+      this._stopLatencyProbe();
       // If disconnect was intentional or server closed, mark as disconnected
       if (reason === 'io server disconnect' || reason === 'io client disconnect') {
         this._updateConnectionState('disconnected');
@@ -156,37 +212,32 @@ export class MultiplayerManager {
       this._updateConnectionState('disconnected');
     });
     
+    // Debug logging gated behind window.HIFE_DEBUG_MP — quiet by default in production.
+    const dbg = (...args) => { if (typeof window !== 'undefined' && window.HIFE_DEBUG_MP) console.log('[MultiplayerManager]', ...args); };
+
     // Handle player joined
     this.socket.on('player-joined', (data) => {
-      console.log(`[MultiplayerManager] Received player-joined event for ${data.playerId}. Local player: ${this.localPlayerId}`);
-      
-      if (data.playerId !== this.localPlayerId) {
-        if (!this.connectedPlayers.has(data.playerId)) {
-          console.log(`[MultiplayerManager] Adding new player ${data.playerId} to connectedPlayers`);
-          
-          this.connectedPlayers.set(data.playerId, {
-            id: data.playerId,
-            isLocal: false,
-            characterName: data.gameState?.characterName || 'lucy',
-            arena: data.gameState?.arena,
-            gameMode: data.gameState?.gameMode
-          });
-          
-          if (this.onPlayerJoined) {
-            console.log(`[MultiplayerManager] Calling onPlayerJoined callback for ${data.playerId}`);
-            this.onPlayerJoined(data.playerId, {
-              characterName: data.gameState?.characterName,
-              arena: data.gameState?.arena,
-              gameMode: data.gameState?.gameMode
-            });
-          } else {
-            console.warn(`[MultiplayerManager] onPlayerJoined callback is not set!`);
-          }
-        } else {
-          console.log(`[MultiplayerManager] Player ${data.playerId} already in connectedPlayers, skipping`);
-        }
-      } else {
-        console.log(`[MultiplayerManager] Ignoring player-joined for local player ${data.playerId}`);
+      dbg(`player-joined ${data.playerId}`);
+
+      if (data.playerId === this.localPlayerId) return;
+      if (this.connectedPlayers.has(data.playerId)) return;
+
+      this.connectedPlayers.set(data.playerId, {
+        id: data.playerId,
+        isLocal: false,
+        characterName: data.gameState?.characterName || 'lucy',
+        arena: data.gameState?.arena,
+        gameMode: data.gameState?.gameMode
+      });
+
+      if (this.onPlayerJoined) {
+        this.onPlayerJoined(data.playerId, {
+          characterName: data.gameState?.characterName,
+          arena: data.gameState?.arena,
+          gameMode: data.gameState?.gameMode
+        });
+      } else if (typeof window !== 'undefined' && window.HIFE_DEBUG_MP) {
+        console.warn('[MultiplayerManager] onPlayerJoined callback is not set!');
       }
     });
     
@@ -199,17 +250,14 @@ export class MultiplayerManager {
       }
     });
     
-    // Handle player state updates
+    // Handle player state updates — hot path, no logging.
     this.socket.on('player-state', (data) => {
-      if (data.playerId !== this.localPlayerId && this.onDataReceived) {
+      if (data.playerId === this.localPlayerId) return;
+      if (this.onDataReceived) {
         this.onDataReceived(data.playerId, {
           type: 'player-state',
           ...data.state
         });
-      } else if (data.playerId === this.localPlayerId) {
-        console.log(`[MultiplayerManager] Ignoring player-state for local player ${data.playerId}`);
-      } else if (!this.onDataReceived) {
-        console.warn(`[MultiplayerManager] onDataReceived callback is not set!`);
       }
     });
     
@@ -245,35 +293,22 @@ export class MultiplayerManager {
     
     // Handle existing players response
     this.socket.on('existing-players', (players) => {
-      console.log(`[MultiplayerManager] Received existing-players event with ${players.length} players`);
-      
-      // Spawn all existing players
+      dbg(`existing-players (${players.length})`);
       players.forEach(playerData => {
-        console.log(`[MultiplayerManager] Processing existing player ${playerData.playerId}`);
-        
-        if (!this.connectedPlayers.has(playerData.playerId)) {
-          console.log(`[MultiplayerManager] Adding existing player ${playerData.playerId} to connectedPlayers`);
-          
-          this.connectedPlayers.set(playerData.playerId, {
-            id: playerData.playerId,
-            isLocal: false,
-            characterName: playerData.gameState?.characterName || 'lucy',
+        if (this.connectedPlayers.has(playerData.playerId)) return;
+        this.connectedPlayers.set(playerData.playerId, {
+          id: playerData.playerId,
+          isLocal: false,
+          characterName: playerData.gameState?.characterName || 'lucy',
+          arena: playerData.gameState?.arena,
+          gameMode: playerData.gameState?.gameMode
+        });
+        if (this.onPlayerJoined) {
+          this.onPlayerJoined(playerData.playerId, {
+            characterName: playerData.gameState?.characterName,
             arena: playerData.gameState?.arena,
             gameMode: playerData.gameState?.gameMode
           });
-          
-          if (this.onPlayerJoined) {
-            console.log(`[MultiplayerManager] Calling onPlayerJoined callback for existing player ${playerData.playerId}`);
-            this.onPlayerJoined(playerData.playerId, {
-              characterName: playerData.gameState?.characterName,
-              arena: playerData.gameState?.arena,
-              gameMode: playerData.gameState?.gameMode
-            });
-          } else {
-            console.warn(`[MultiplayerManager] onPlayerJoined callback is not set!`);
-          }
-        } else {
-          console.log(`[MultiplayerManager] Existing player ${playerData.playerId} already in connectedPlayers, skipping`);
         }
       });
     });
