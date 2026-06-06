@@ -147,11 +147,16 @@
     </script>
     
     <link rel="stylesheet" href="./styles.css">
-    
+
+    <!-- Splash-screen handwritten font (chalk-on-board sketch feel) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap">
+
     <!-- Resource hints for faster loading -->
     <!-- Preload critical assets - use fetchpriority for important resources -->
-    <link rel="preload" href="/assets/music/background.wav" as="fetch" type="audio/wav" fetchpriority="high">
-    <link rel="preload" href="/assets/audio/core/jump.wav" as="fetch" type="audio/wav">
+    <link rel="prefetch" href="/assets/music/background.wav" as="audio" type="audio/wav">
+    <link rel="prefetch" href="/assets/audio/core/jump.wav" as="audio" type="audio/wav">
     
     <!-- Prefetch commonly used character assets (default: lucy) -->
     <link rel="prefetch" href="/assets/characters/lucy/idle_0.png" as="image" type="image/png">
@@ -215,72 +220,128 @@
 
     <!-- Loading screen -->
     <div id="loading-screen" class="loading-screen" role="status" aria-live="polite">
-      <div class="loading-screen__aurora" aria-hidden="true"></div>
+      <div class="loading-screen__paper" aria-hidden="true"></div>
       <div class="loading-screen__content">
-        <div class="loading-screen__brand">
-          <div class="loading-screen__sigil" aria-hidden="true">
-            <span class="loading-screen__sigil-ring"></span>
-            <span class="loading-screen__sigil-ring loading-screen__sigil-ring--reverse"></span>
-            <span class="loading-screen__sigil-core"></span>
-          </div>
-          <h1 class="loading-screen__title">Hife <span class="loading-screen__title-of">of</span> Mools</h1>
-          <p class="loading-screen__tagline">Where the mushroom-folk wake the old magic.</p>
+        <h1 class="loading-screen__title">Hife of Mools</h1>
+
+        <svg class="loading-screen__crest" viewBox="0 0 360 320" aria-hidden="true" focusable="false">
+          <defs>
+            <filter id="ls-chalk" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="3" />
+              <feDisplacementMap in="SourceGraphic" scale="1.4" />
+            </filter>
+          </defs>
+          <g class="loading-screen__crest-strokes" filter="url(#ls-chalk)">
+            <!-- Mace (left, pointing up-left) -->
+            <g class="loading-screen__crest-mace">
+              <line x1="92" y1="68" x2="244" y2="288" />
+              <!-- Head -->
+              <path d="M 92 68 L 70 50 L 64 76 L 78 84 L 82 100 L 100 92 L 116 100 L 120 80 L 110 64 Z" />
+              <circle cx="93" cy="78" r="3" />
+              <!-- Pommel -->
+              <circle cx="248" cy="294" r="9" />
+            </g>
+            <!-- Sword (right, pointing up-right) -->
+            <g class="loading-screen__crest-sword">
+              <!-- Blade -->
+              <path d="M 272 56 L 256 96 L 244 144 L 232 192 L 218 220 L 230 226 L 244 200 L 258 154 L 270 110 L 280 72 Z" />
+              <!-- Blade center line -->
+              <line x1="266" y1="68" x2="226" y2="218" />
+              <!-- Cross guard -->
+              <line x1="200" y1="232" x2="262" y2="250" />
+              <!-- Grip -->
+              <line x1="218" y1="240" x2="116" y2="296" />
+              <!-- Pommel -->
+              <circle cx="112" cy="298" r="7" />
+            </g>
+          </g>
+        </svg>
+
+        <div id="loading-progress" class="loading-screen__wand" aria-hidden="true">
+          <svg class="loading-screen__wand-shape" viewBox="0 0 800 80" preserveAspectRatio="none">
+            <defs>
+              <clipPath id="ls-wand-clip">
+                <path d="M 18 40
+                         C 30 28, 60 24, 110 24
+                         L 470 24
+                         C 500 22, 530 22, 560 28
+                         L 600 30
+                         C 640 32, 680 34, 720 38
+                         C 760 42, 782 44, 786 50
+                         C 782 56, 760 58, 720 56
+                         C 680 56, 640 54, 600 52
+                         L 560 54
+                         C 530 58, 500 58, 470 56
+                         L 110 56
+                         C 60 56, 30 52, 18 40 Z" />
+              </clipPath>
+            </defs>
+            <!-- Outline -->
+            <path
+              class="loading-screen__wand-outline"
+              d="M 18 40
+                 C 30 28, 60 24, 110 24
+                 L 470 24
+                 C 500 22, 530 22, 560 28
+                 L 600 30
+                 C 640 32, 680 34, 720 38
+                 C 760 42, 782 44, 786 50
+                 C 782 56, 760 58, 720 56
+                 C 680 56, 640 54, 600 52
+                 L 560 54
+                 C 530 58, 500 58, 470 56
+                 L 110 56
+                 C 60 56, 30 52, 18 40 Z" />
+            <!-- Grip notch -->
+            <line class="loading-screen__wand-notch" x1="560" y1="22" x2="560" y2="58" />
+            <line class="loading-screen__wand-notch" x1="600" y1="22" x2="600" y2="58" />
+            <!-- Fill (animated via width) -->
+            <rect
+              id="loading-progress-bar"
+              class="loading-screen__wand-fill"
+              x="0" y="0" width="0" height="80"
+              clip-path="url(#ls-wand-clip)" />
+          </svg>
+          <span id="loading-progress-percent" class="loading-screen__wand-percent">0%</span>
         </div>
 
-        <div class="loading-screen__lore" id="loading-lore">
-          Long after the last star fell into the grove, the Mools rose from spore and song —
-          guardians of a forest that remembers everything.
-        </div>
-
-        <div id="loading-progress" class="loading-screen__progress" aria-hidden="true">
-          <div id="loading-progress-bar" class="loading-screen__progress-bar"></div>
-        </div>
-        <div id="loading-status-text" class="loading-screen__text">Awakening the grove...</div>
-
-        <div class="loading-screen__tip" id="loading-tip" aria-hidden="true"></div>
-
-        <div class="loading-screen__roster" aria-label="Playable champions">
-          <div class="loading-screen__roster-heading">Champions of the Grove</div>
-          <ul class="loading-screen__roster-list">
-            <li class="loading-screen__roster-card" data-character="lucy">
-              <div class="loading-screen__roster-portrait">
-                <img src="/assets/characters/lucy/idle_front.png" alt="Lucy" loading="eager" />
-              </div>
-              <span class="loading-screen__roster-name">Lucy</span>
-            </li>
-            <li class="loading-screen__roster-card" data-character="herald">
-              <div class="loading-screen__roster-portrait">
-                <img src="/assets/characters/herald/idle_front.png" alt="Herald" loading="eager" />
-              </div>
-              <span class="loading-screen__roster-name">Herald</span>
-            </li>
-          </ul>
-        </div>
+        <div id="loading-status-text" class="loading-screen__tagline">Lay within' crowd to run in peace</div>
       </div>
     </div>
     <script>
-      // Rotating tips while loading — gives the player something to read.
+      // Rotating splash tagline — swaps every few seconds with a soft fade.
+      // Stops as soon as the loading screen is dismissed.
       (function () {
-        var tipEl = document.getElementById('loading-tip');
-        if (!tipEl) return;
-        var tips = [
-          'Higher ground hits harder — fight from the ridges.',
-          'Press TAB (or Select) to peek at the scoreboard.',
-          'Lucy bends light. Herald breaks ground.',
-          'Rooms can be public or private — share the link to invite a friend.',
-          'A controller works too — Xbox, PlayStation, or generic.',
-          'Mushrooms aren’t just scenery. Keep an eye on them.'
+        var el = document.getElementById('loading-status-text');
+        var screen = document.getElementById('loading-screen');
+        if (!el || !screen) return;
+
+        var lines = [
+          "Lay within' crowd to run in peace",
+          "Stand the high ground, let the low folk fall",
+          "Where the mushroom-folk wake the old magic",
+          "Sharper than steel: a friend at your back",
+          "The grove remembers — so do the Mools",
+          "Step softly. Strike sudden."
         ];
-        var i = Math.floor(Math.random() * tips.length);
-        tipEl.textContent = 'Tip — ' + tips[i];
-        setInterval(function () {
-          i = (i + 1) % tips.length;
-          tipEl.style.opacity = '0';
+        var ROTATE_MS = 5000;
+        var FADE_MS = 320;
+        var i = Math.floor(Math.random() * lines.length);
+        el.textContent = lines[i];
+
+        var timer = setInterval(function () {
+          if (screen.classList.contains('is-hidden')) {
+            clearInterval(timer);
+            return;
+          }
+          i = (i + 1) % lines.length;
+          el.style.transition = 'opacity ' + FADE_MS + 'ms ease';
+          el.style.opacity = '0';
           setTimeout(function () {
-            tipEl.textContent = 'Tip — ' + tips[i];
-            tipEl.style.opacity = '';
-          }, 280);
-        }, 4200);
+            el.textContent = lines[i];
+            el.style.opacity = '';
+          }, FADE_MS);
+        }, ROTATE_MS);
       })();
     </script>
 

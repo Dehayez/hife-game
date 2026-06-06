@@ -27,7 +27,8 @@ export class LoadingProgressManager {
     this.progressElement = document.getElementById('loading-progress');
     this.textElement = document.getElementById('loading-status-text');
     this.barElement = document.getElementById('loading-progress-bar');
-    
+    this.percentElement = document.getElementById('loading-progress-percent');
+
     if (!this.progressElement || !this.textElement || !this.barElement) {
       console.warn('Loading progress elements not found in DOM', {
         progress: !!this.progressElement,
@@ -103,20 +104,28 @@ export class LoadingProgressManager {
       }
     }
 
-    const percentage = this.totalSteps > 0 
+    const percentage = this.totalSteps > 0
       ? Math.min(100, Math.max(0, (this.currentStep / this.totalSteps) * 100))
       : 0;
 
-    // Update progress bar width (ensure minimum 1% to show the bar)
+    // Wand progress is an SVG <rect> inside a 0–800 viewBox, so width is
+    // expressed in viewBox units. The DOM element still gets style.width as
+    // a fallback in case a future CSS swap reverts to a plain div.
     const displayWidth = Math.max(1, percentage);
-    this.barElement.style.width = `${displayWidth}%`;
-
-    // Update text
-    if (this.currentTask) {
-      this.textElement.textContent = this.currentTask;
+    if (this.barElement.tagName === 'rect' || this.barElement.tagName === 'RECT') {
+      this.barElement.setAttribute('width', String((displayWidth / 100) * 800));
     } else {
-      this.textElement.textContent = `Loading... ${Math.round(percentage)}%`;
+      this.barElement.style.width = `${displayWidth}%`;
     }
+
+    // Inscribe the integer percent inside the wand fill.
+    if (this.percentElement) {
+      this.percentElement.textContent = `${Math.round(percentage)}%`;
+    }
+
+    // The bottom line is owned by the splash rotator (see index.html) and
+    // cycles handwritten taglines on a timer. We intentionally do NOT write
+    // the caller-supplied `task` here so it can't stomp the rotator mid-fade.
   }
 
   /**
