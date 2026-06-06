@@ -36,6 +36,9 @@ function getSharedConfettiTexture() {
 export function createConfettiBurst(scene, x, y, z, options = {}) {
   const stats = getConfettiStats();
   const firstPerson = !!options.firstPerson;
+  const aroundPlayer = !!options.aroundPlayer;
+  const spreadRadius = options.spreadRadius || (firstPerson ? 0.7 : 0.9);
+  const spreadHeight = options.spreadHeight || (firstPerson ? 1.0 : 1.2);
   const particleCount = firstPerson
     ? Math.max(8, Math.round(stats.particleCount * 0.45))
     : stats.particleCount;
@@ -58,21 +61,37 @@ export function createConfettiBurst(scene, x, y, z, options = {}) {
   
   for (let i = 0; i < particleCount; i++) {
     const i3 = i * 3;
-    
-    // Start at position
-    positions[i3] = x;
-    positions[i3 + 1] = y;
-    positions[i3 + 2] = z;
+
+    // Spawn from a shell around the player body (or exact point fallback).
+    const shellAngle = Math.random() * Math.PI * 2;
+    const shellRadius = aroundPlayer ? (0.2 + Math.random() * spreadRadius) : 0;
+    const shellHeight = aroundPlayer ? ((Math.random() - 0.25) * spreadHeight) : 0;
+    const startX = x + Math.cos(shellAngle) * shellRadius;
+    const startY = y + shellHeight;
+    const startZ = z + Math.sin(shellAngle) * shellRadius;
+
+    positions[i3] = startX;
+    positions[i3 + 1] = startY;
+    positions[i3 + 2] = startZ;
     
     // Random velocity for burst effect
     const angle = Math.random() * Math.PI * 2;
     const verticalAngle = (Math.random() - 0.3) * Math.PI * 0.3; // Less vertical spread
     const speed = stats.minVelocity + Math.random() * (stats.maxVelocity - stats.minVelocity);
     
+    // If spawning around player, bias velocity away from center so the effect
+    // visibly wraps around the character.
+    const awayX = aroundPlayer ? (startX - x) : 0;
+    const awayZ = aroundPlayer ? (startZ - z) : 0;
+    const awayLength = Math.hypot(awayX, awayZ) || 1;
+    const awayScale = aroundPlayer ? 0.9 : 0;
+    const outwardX = (awayX / awayLength) * awayScale;
+    const outwardZ = (awayZ / awayLength) * awayScale;
+
     velocities.push({
-      x: Math.cos(angle) * Math.cos(verticalAngle) * speed,
+      x: Math.cos(angle) * Math.cos(verticalAngle) * speed + outwardX,
       y: Math.sin(verticalAngle) * speed + verticalBoost,
-      z: Math.sin(angle) * Math.cos(verticalAngle) * speed
+      z: Math.sin(angle) * Math.cos(verticalAngle) * speed + outwardZ
     });
     
     // Confetti colors with small variation

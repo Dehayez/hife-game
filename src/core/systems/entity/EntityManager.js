@@ -132,6 +132,13 @@ export class EntityManager {
       const firstPerson = getCameraViewMode() === VIEW_MODE.FIRST_PERSON;
       this.collectedIds.add(item.userData.id);
 
+      const listenerPos = this.soundManager && this.soundManager.listenerPosition
+        ? this.soundManager.listenerPosition
+        : null;
+      const effectOrigin = listenerPos
+        ? { x: listenerPos.x, y: listenerPos.y + 0.45, z: listenerPos.z }
+        : { x: item.position.x, y: item.position.y, z: item.position.z };
+
       if (this.soundManager && typeof this.soundManager.playCollectiblePickup === 'function') {
         this.soundManager.playCollectiblePickup(item.position, firstPerson);
       }
@@ -139,10 +146,15 @@ export class EntityManager {
       // Create confetti burst effect
       const confettiEffect = createConfettiBurst(
         this.scene,
-        item.position.x,
-        item.position.y,
-        item.position.z,
-        { firstPerson }
+        effectOrigin.x,
+        effectOrigin.y,
+        effectOrigin.z,
+        {
+          firstPerson,
+          aroundPlayer: true,
+          spreadRadius: firstPerson ? 0.85 : 1.0,
+          spreadHeight: firstPerson ? 1.0 : 1.2
+        }
       );
       this.confettiEffects.push(confettiEffect);
       
