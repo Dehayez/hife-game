@@ -6,7 +6,7 @@
  * Tinted with the active character's accent color so swaps re-skin it.
  */
 
-import { getCSSColor } from '../../../config/abilities/CharacterColors.js';
+import { getCharacterColorCss } from '../../../config/abilities/CharacterColors.js';
 
 export class PlayerHealthBar {
   constructor({ characterManager }) {
@@ -106,7 +106,7 @@ export class PlayerHealthBar {
 
     // Restyle accent when character changes
     if (name && name !== this.lastCharacter) {
-      const accent = getCSSColor(name);
+      const accent = getCharacterColorCss(name);
       this.fill.style.background = `linear-gradient(90deg, ${accent} 0%, ${this._lighten(accent, 0.18)} 100%)`;
       this.fill.style.boxShadow = `0 0 10px ${this._withAlpha(accent, 0.55)} inset`;
       this.lastCharacter = name;
