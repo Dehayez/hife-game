@@ -29,7 +29,7 @@ export function createSplashArea(scene, x, y, z, mortarData) {
   const fireDuration = mortarData.fireDuration || 1.5;
   const shrinkDelay = mortarData.mortarShrinkDelay || 0.5;
   const areaDamage = mortarData.areaDamage || 10;
-  const _isHeraldFamily = mortarData.characterName === 'herald' || mortarData.characterName === 'babyHerald';
+  const _isHeraldFamily = mortarData.characterName === 'herald' || mortarData.characterName === 'draco';
   const characterColor = _isHeraldFamily
     ? getCharacterColor(mortarData.characterName)
     : getCharacterColor('lucy');
@@ -62,7 +62,7 @@ export function createSplashArea(scene, x, y, z, mortarData) {
   splashContainer.add(particles);
   
   // Add point light for splash glow - positioned at exact impact point
-  const isHeraldSplash = mortarData.characterName === 'herald' || mortarData.characterName === 'babyHerald';
+  const isHeraldSplash = mortarData.characterName === 'herald' || mortarData.characterName === 'draco';
   const splashLightIntensity = isHeraldSplash 
     ? SPLASH_AREA_CONFIG.light.heraldIntensity 
     : SPLASH_AREA_CONFIG.light.lucyIntensity;

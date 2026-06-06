@@ -27,7 +27,7 @@ export const DEFAULT_RENDER_MODE = RENDER_MODE.SPRITE;
 export const CHARACTER_RENDER_MODES = {
   lucy: DEFAULT_RENDER_MODE,
   herald: RENDER_MODE.MODEL_3D,  // Enable 3D mode for Herald
-  babyHerald: RENDER_MODE.MODEL_3D
+  draco: RENDER_MODE.MODEL_3D
 };
 
 /**
@@ -35,7 +35,7 @@ export const CHARACTER_RENDER_MODES = {
  * `/assets/characters/<name>/<name>.glb`.
  */
 const CHARACTER_MODEL_PATH_OVERRIDES = {
-  babyHerald: '/assets/characters/herald/BabyHerald.glb'
+  draco: '/assets/characters/herald/Draco.glb'
 };
 
 /**

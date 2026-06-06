@@ -1,11 +1,11 @@
 /**
- * Baby Herald Bolt Attack Config — "Spore Dart"
+ * Draco Bolt Attack Config — "Spore Dart"
  *
  * Tiny emerald spore-darts. Each one barely tickles, but they leave the
- * tube in dense, fast volleys. Baby Herald empties a magazine in the time
+ * tube in dense, fast volleys. Draco empties a magazine in the time
  * his elder lines up a single shot.
  */
-export const BABY_HERALD_BOLT_ATTACK_CONFIG = {
+export const DRACO_BOLT_ATTACK_CONFIG = {
   damage: 0.55,             // 55% of base — every dart is light
   cooldown: 0.45,           // 45% of base — fires nearly twice as fast as base
   projectileSpeed: 1.35,    // 135% of base final speed

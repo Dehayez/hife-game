@@ -430,7 +430,7 @@ export class GameLoop {
     const swordSwingInput = this.inputManager.isSwordSwingPressed();
     if (!heraldAbilitiesBlocked && swordSwingInput && !this.lastSwordSwingInput) {
       const characterName = this.characterManager.getCharacterName();
-      if (characterName === 'herald' || characterName === 'babyHerald') {
+      if (characterName === 'herald' || characterName === 'draco') {
         // Check special ability cooldown for Herald's blast
         if (this.specialAbilityCooldownTimer <= 0) {
           this._handleHeraldBlast(player);
@@ -1584,7 +1584,7 @@ export class GameLoop {
     
     const characterName = this.characterManager.getCharacterName();
     const characterColor = this._getCharacterColorForParticles(characterName);
-    const isHerald = characterName === 'herald' || characterName === 'babyHerald';
+    const isHerald = characterName === 'herald' || characterName === 'draco';
 
     // Create container group for visual effects
     const visualGroup = new THREE.Group();
@@ -2630,7 +2630,7 @@ export class GameLoop {
     }
     
     const currentChar = this.characterManager.getCharacterName();
-    const swapCycle = ['lucy', 'herald', 'babyHerald'];
+    const swapCycle = ['lucy', 'herald', 'draco'];
     const currentIdx = swapCycle.indexOf(currentChar);
     const newChar = swapCycle[(currentIdx + 1) % swapCycle.length] || 'lucy';
     

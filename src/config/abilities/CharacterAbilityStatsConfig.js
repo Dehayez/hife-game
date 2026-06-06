@@ -12,9 +12,9 @@ import { LUCY_MELEE_ATTACK_CONFIG } from './characters/lucy/melee/AttackConfig.j
 import { HERALD_BOLT_ATTACK_CONFIG } from './characters/herald/bolt/AttackConfig.js';
 import { HERALD_MORTAR_ATTACK_CONFIG } from './characters/herald/mortar/AttackConfig.js';
 import { HERALD_MELEE_ATTACK_CONFIG } from './characters/herald/melee/AttackConfig.js';
-import { BABY_HERALD_BOLT_ATTACK_CONFIG } from './characters/babyHerald/bolt/AttackConfig.js';
-import { BABY_HERALD_MORTAR_ATTACK_CONFIG } from './characters/babyHerald/mortar/AttackConfig.js';
-import { BABY_HERALD_MELEE_ATTACK_CONFIG } from './characters/babyHerald/melee/AttackConfig.js';
+import { DRACO_BOLT_ATTACK_CONFIG } from './characters/draco/bolt/AttackConfig.js';
+import { DRACO_MORTAR_ATTACK_CONFIG } from './characters/draco/mortar/AttackConfig.js';
+import { DRACO_MELEE_ATTACK_CONFIG } from './characters/draco/melee/AttackConfig.js';
 
 /**
  * Character Ability Stats Configuration
@@ -27,6 +27,6 @@ import { BABY_HERALD_MELEE_ATTACK_CONFIG } from './characters/babyHerald/melee/A
 export const CHARACTER_STATS = {
   lucy: createCharacterStats('lucy', LUCY_BOLT_ATTACK_CONFIG, LUCY_MORTAR_ATTACK_CONFIG, LUCY_MELEE_ATTACK_CONFIG),
   herald: createCharacterStats('herald', HERALD_BOLT_ATTACK_CONFIG, HERALD_MORTAR_ATTACK_CONFIG, HERALD_MELEE_ATTACK_CONFIG),
-  babyHerald: createCharacterStats('babyHerald', BABY_HERALD_BOLT_ATTACK_CONFIG, BABY_HERALD_MORTAR_ATTACK_CONFIG, BABY_HERALD_MELEE_ATTACK_CONFIG)
+  draco: createCharacterStats('draco', DRACO_BOLT_ATTACK_CONFIG, DRACO_MORTAR_ATTACK_CONFIG, DRACO_MELEE_ATTACK_CONFIG)
 };
 

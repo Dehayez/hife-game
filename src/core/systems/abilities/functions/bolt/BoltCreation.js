@@ -47,7 +47,7 @@ export function createBolt(scene, startX, startY, startZ, directionX, directionZ
   const baseSpeed = stats.projectileSpeed;
   const minSpeed = (stats.minSpeed ?? 1.0) * baseSpeed;
   const maxSpeed = (stats.maxSpeed ?? 1.0) * baseSpeed;
-  const isHerald = characterName === 'herald' || characterName === 'babyHerald';
+  const isHerald = characterName === 'herald' || characterName === 'draco';
   const startSpeed = isHerald ? minSpeed : maxSpeed;
   const endSpeed = isHerald ? maxSpeed * BOLT_ATTACK_CONFIG.physics.heraldAccelerationMultiplier : minSpeed;
   

@@ -4,7 +4,7 @@ export function toTitleCase(str) {
 }
 
 const CHARACTER_PORTRAIT_OVERRIDES = {
-  babyHerald: '/assets/characters/herald/idle_front.png'
+  draco: '/assets/characters/herald/idle_front.png'
 };
 
 export function getCharacterPortraitSrc(characterName) {
@@ -15,7 +15,7 @@ export function getCharacterPortraitSrc(characterName) {
 }
 
 const CHARACTER_DISPLAY_NAMES = {
-  babyHerald: 'Baby Herald'
+  draco: 'Draco'
 };
 
 export function getCharacterDisplayName(characterName) {

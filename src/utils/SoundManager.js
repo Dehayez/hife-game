@@ -1324,7 +1324,7 @@ export class SoundManager {
     this.notifyAction('mortarExplosion', 0.9);
     
     const normalizedName = characterName && characterName.toLowerCase();
-    const isHerald = normalizedName === 'herald' || normalizedName === 'babyherald';
+    const isHerald = normalizedName === 'herald' || normalizedName === 'draco';
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {

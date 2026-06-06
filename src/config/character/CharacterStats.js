@@ -23,7 +23,7 @@ const CHARACTER_MOVEMENT_OVERRIDES = {
   herald: {
     runSpeedMultiplier: 2.1
   },
-  babyHerald: {
+  draco: {
     // Small frame = lower top speed than papa Herald but quicker base trot.
     moveSpeed: 4.6,
     runSpeedMultiplier: 2.35

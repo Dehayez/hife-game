@@ -38,7 +38,7 @@ export const GAME_CONSTANTS = {
   
   // Character defaults
   DEFAULT_CHARACTER: 'lucy',
-  AVAILABLE_CHARACTERS: ['lucy', 'herald', 'babyHerald'],
+  AVAILABLE_CHARACTERS: ['lucy', 'herald', 'draco'],
   
   // Game mode defaults
   DEFAULT_GAME_MODE: 'free-play',

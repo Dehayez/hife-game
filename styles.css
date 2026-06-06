@@ -912,20 +912,6 @@ html, body {
   opacity: 0.85;
 }
 
-.controls-legend-wrapper {
-  position: fixed;
-  bottom: 16px;
-  left: 16px;
-  pointer-events: none;
-  z-index: 1000;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-.controls-legend-wrapper.is-visible {
-  opacity: 1;
-  visibility: visible;
-}
 
 .game-menu {
   position: fixed;
@@ -1375,6 +1361,127 @@ html, body {
   font-weight: 600;
   color: var(--grove-firefly);
   min-width: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Controls Legend — settings-only layout                             */
+/* Each row is a clean [action | input chip(s)] grid; sub-section     */
+/* titles replace the old inline pseudo-headers; chips share padding  */
+/* and corner radii with the other menu controls.                     */
+/* ------------------------------------------------------------------ */
+.game-menu__section--controls-legend .ui__legend-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px 28px;
+  max-width: 880px;
+  margin-top: 4px;
+}
+.game-menu__section--controls-legend .ui__legend-content {
+  display: contents;
+}
+.game-menu__section--controls-legend .ui__legend-section {
+  margin: 0;
+  padding: 14px 16px;
+  background: rgba(8, 12, 18, 0.35);
+  border: 1px solid var(--grove-line);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  break-inside: avoid;
+}
+.game-menu__section--controls-legend .ui__legend-section-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--grove-firefly);
+  opacity: 0.85;
+}
+.game-menu__section--controls-legend .ui__legend-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.game-menu__section--controls-legend .ui__legend-group {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 14px;
+  margin: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.game-menu__section--controls-legend .ui__legend-section-body > .ui__legend-group:last-child {
+  border-bottom: none;
+}
+.game-menu__section--controls-legend .ui__legend-label {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.8);
+  opacity: 1;
+}
+.game-menu__section--controls-legend .ui__legend-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+.game-menu__section--controls-legend .ui__legend-hint {
+  font-size: 11px;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.55);
+}
+.game-menu__section--controls-legend .ui__legend-keys {
+  gap: 4px;
+}
+.game-menu__section--controls-legend .ui__legend-keys:empty {
+  display: none;
+}
+.game-menu__section--controls-legend .ui__legend-key {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: rgba(8, 12, 18, 0.65);
+  border: 1px solid var(--grove-line-strong);
+  border-radius: 7px;
+  color: var(--grove-text) !important;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  opacity: 1;
+}
+.game-menu__section--controls-legend .ui__legend-key--shift,
+.game-menu__section--controls-legend .ui__legend-key--space {
+  min-width: 0;
+  padding: 0 12px;
+  justify-content: center;
+}
+.game-menu__section--controls-legend .ui__legend-keys--arrows {
+  gap: 3px;
+}
+.game-menu__section--controls-legend .ui__legend-keys--arrows .ui__legend-key {
+  min-width: 28px;
+  height: 24px;
+  padding: 0;
+  font-size: 13px;
+}
+.game-menu__section--controls-legend .ui__legend-key--controller {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-width: 0;
+  height: auto;
+}
+.game-menu__section--controls-legend .ui__legend-stick {
+  width: 36px;
+  height: 36px;
 }
 
 @keyframes fadeIn {

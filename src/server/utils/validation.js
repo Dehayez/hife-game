@@ -36,7 +36,7 @@ const RATE_LIMITS = {
 
 // Valid character names
 // Canonical character names — exposed as the source of truth.
-const VALID_CHARACTERS = ['lucy', 'herald', 'babyHerald'];
+const VALID_CHARACTERS = ['lucy', 'herald', 'draco'];
 
 /**
  * Normalize an incoming character name to its canonical form.

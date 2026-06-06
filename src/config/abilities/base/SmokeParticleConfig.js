@@ -41,7 +41,7 @@ export const RUNNING_SMOKE_CONFIG = {
  * herald — fluffy smoke: bigger puffs, more opaque, slower rise so they linger
  *          and read as billowing rather than wispy. Slight performance trim via
  *          lower maxParticles since each puff is larger.
- * babyHerald — same fluffy family as herald (sprout sibling), kept slightly
+ * draco — same fluffy family as herald (sprout sibling), kept slightly
  *          smaller to match the model scale.
  */
 const RUNNING_SMOKE_OVERRIDES = {
@@ -81,7 +81,7 @@ const RUNNING_SMOKE_OVERRIDES = {
     scaleGrowth: 3.0,
     spawnInterval: 0.06
   },
-  babyHerald: {
+  draco: {
     maxParticles: 70,
     minSize: 0.14,
     maxSize: 0.24,

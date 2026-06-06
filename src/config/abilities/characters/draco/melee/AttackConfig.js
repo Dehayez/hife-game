@@ -1,11 +1,11 @@
 /**
- * Baby Herald Melee Attack Config — "Briar Sting"
+ * Draco Melee Attack Config — "Briar Sting"
  *
  * A whiplash sprig swing. Snappy animation, weak per-hit, but the thorns
  * leave a lingering verdant poison that bleeds opponents for a long time
  * and slows them more than papa Herald's sword.
  */
-export const BABY_HERALD_MELEE_ATTACK_CONFIG = {
+export const DRACO_MELEE_ATTACK_CONFIG = {
   damage: 7 / 11,                  // Exactly 7 damage per tick (base 11)
   initialDamage: 8 / 15,           // Exactly 8 initial damage (base 15)
   animationDuration: 0.4 / 1.3,    // Exactly 0.4s (base 1.3s) — very snappy

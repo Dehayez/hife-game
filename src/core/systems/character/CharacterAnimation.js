@@ -16,7 +16,7 @@ import { isFirstPerson } from '../../../config/camera/CameraViewMode.js';
  * @returns {Promise<Object>} Loaded animations object
  */
 const CHARACTER_SPRITE_FOLDER_OVERRIDES = {
-  babyHerald: 'herald'
+  draco: 'herald'
 };
 
 export async function loadCharacterAnimations(characterName, onProgress = null) {

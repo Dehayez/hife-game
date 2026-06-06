@@ -125,7 +125,7 @@ const CHARACTER_MODEL_CONFIGS = {
     animationSpeed: 1.0,
     baseRotationY: Math.PI / 2
   },
-  babyHerald: {
+  draco: {
     scale: 0.35,
     // Small frame reads faster — bump mixer speed so the walk/jump/attack
     // clips feel twitchy and toddler-quick instead of papa-pace.
@@ -149,7 +149,7 @@ export function getCharacter3DBaseRotationY(characterName) {
  * Falls back to the logical key when no override is set.
  */
 const CHARACTER_ANIMATION_NAME_MAPS = {
-  babyHerald: {
+  draco: {
     idle: null,
     walk: 'Walk',
     run: 'Walk',

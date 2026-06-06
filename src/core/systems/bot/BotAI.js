@@ -318,7 +318,7 @@ export function updateBotAbilities(bot, userData, playerPosition, projectileMana
   
   // Check for special abilities (blast for Herald, multiProjectile for Lucy)
   if (userData.specialAbilityCooldown <= 0) {
-    if (characterName === 'herald' || characterName === 'babyHerald') {
+    if (characterName === 'herald' || characterName === 'draco') {
       const blastStats = getBlastStats(characterName);
       if (blastStats && dist <= blastStats.radius * 1.2) {
         // Use blast when player is within range (20% chance per check)

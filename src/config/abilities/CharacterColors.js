@@ -21,7 +21,7 @@ export const CHARACTER_COLORS = {
     css: '#f5ba0b',          // CSS hex string
     rgb: '245, 186, 11'      // RGB string for CSS rgba()
   },
-  babyHerald: {
+  draco: {
     hex: 0x2ecc71,           // Emerald green — small sprout, fresh life
     css: '#2ecc71',
     rgb: '46, 204, 113'

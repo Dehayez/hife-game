@@ -64,12 +64,12 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   const stats = projectileManager.getCharacterStats(characterName);
   const meleeStats = getMeleeStats(characterName);
   const characterColor = getCharacterColorCss(characterName);
-  const isHerald = characterName === 'herald' || characterName === 'babyHerald';
+  const isHerald = characterName === 'herald' || characterName === 'draco';
   const isHeraldFamily = isHerald;
 
   if (rows.header) {
-    const displayName = characterName === 'babyHerald'
-      ? 'Baby Herald'
+    const displayName = characterName === 'draco'
+      ? 'Draco'
       : characterName
         ? characterName.charAt(0).toUpperCase() + characterName.slice(1)
         : '';

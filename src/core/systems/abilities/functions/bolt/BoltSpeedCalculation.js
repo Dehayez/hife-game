@@ -69,7 +69,7 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
       // Further joystick push = faster bolt
       const speedMultiplier = MIN_SPEED_MULTIPLIER + (joystickMagnitude * (MAX_SPEED_MULTIPLIER - MIN_SPEED_MULTIPLIER));
       
-      if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'babyHerald')) {
+      if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'draco')) {
         // Herald: Use existing acceleration pattern which already accounts for joystick
         // The existing system uses minSpeed + (speedRange * joystickMagnitude)
         // So we just use that directly without additional scaling
@@ -80,7 +80,7 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
       }
     } else {
       // Joystick not pushed or too small - use minimum speed from config
-      if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'babyHerald')) {
+      if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'draco')) {
         // Herald: Use minimum speed from existing system
         targetSpeed = projectile.userData.startSpeed;
       } else {
@@ -88,7 +88,7 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
         targetSpeed = projectile.userData.baseSpeed * MIN_SPEED_MULTIPLIER;
       }
     }
-  } else if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'babyHerald') && inputManager) {
+  } else if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'draco') && inputManager) {
     // Herald: Speed controlled by input method (keyboard/mouse)
     targetSpeed = calculateHeraldSpeed(projectile, camera, inputManager, playerPosition);
   } else {

@@ -11,7 +11,7 @@ import { LUCY_BOLT_PARTICLE_CONFIG } from '../../../../../config/abilities/chara
 import { LUCY_MORTAR_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/lucy/mortar/ParticleConfig.js';
 import { HERALD_BOLT_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/herald/bolt/ParticleConfig.js';
 import { HERALD_MORTAR_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/herald/mortar/ParticleConfig.js';
-import { BABY_HERALD_BOLT_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/babyHerald/bolt/ParticleConfig.js';
+import { DRACO_BOLT_PARTICLE_CONFIG } from '../../../../../config/abilities/characters/draco/bolt/ParticleConfig.js';
 
 /**
  * Get projectile particle config for a character and ability
@@ -39,13 +39,13 @@ export function getProjectileParticleConfig(characterName, abilityName, particle
   } else if (characterName === 'lucy' && abilityName === 'mortar') {
     characterConfig = LUCY_MORTAR_PARTICLE_CONFIG[particleType] || {};
     fullCharacterConfig = LUCY_MORTAR_PARTICLE_CONFIG;
-  } else if (characterName === 'babyHerald' && abilityName === 'bolt') {
-    characterConfig = BABY_HERALD_BOLT_PARTICLE_CONFIG[particleType] || {};
-    fullCharacterConfig = BABY_HERALD_BOLT_PARTICLE_CONFIG;
+  } else if (characterName === 'draco' && abilityName === 'bolt') {
+    characterConfig = DRACO_BOLT_PARTICLE_CONFIG[particleType] || {};
+    fullCharacterConfig = DRACO_BOLT_PARTICLE_CONFIG;
   } else if (characterName === 'herald' && abilityName === 'bolt') {
     characterConfig = HERALD_BOLT_PARTICLE_CONFIG[particleType] || {};
     fullCharacterConfig = HERALD_BOLT_PARTICLE_CONFIG;
-  } else if ((characterName === 'herald' || characterName === 'babyHerald') && abilityName === 'mortar') {
+  } else if ((characterName === 'herald' || characterName === 'draco') && abilityName === 'mortar') {
     characterConfig = HERALD_MORTAR_PARTICLE_CONFIG[particleType] || {};
     fullCharacterConfig = HERALD_MORTAR_PARTICLE_CONFIG;
   }

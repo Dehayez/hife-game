@@ -9,9 +9,9 @@ const ONE_SHOT_CLIPS = new Set(['Jump', 'Attack', 'Heal']);
 const CROSSFADE_SECONDS = 0.3;
 const DEFAULT_IDLE = 'Walk';
 
-const BabyHerald = React.forwardRef(function BabyHerald(
+const Draco = React.forwardRef(function Draco(
   {
-    modelUrl = '/assets/characters/herald/BabyHerald.glb',
+    modelUrl = '/assets/characters/herald/Draco.glb',
     showControlButtons = true,
     onReady,
     onClipStart,
@@ -191,7 +191,7 @@ const BabyHerald = React.forwardRef(function BabyHerald(
       },
       undefined,
       (error) => {
-        console.error('Failed to load BabyHerald model:', error);
+        console.error('Failed to load Draco model:', error);
       },
     );
 
@@ -299,4 +299,4 @@ const BabyHerald = React.forwardRef(function BabyHerald(
   );
 });
 
-export default BabyHerald;
+export default Draco;

@@ -1,11 +1,11 @@
 /**
- * Baby Herald Mortar Attack Config — "Verdant Bloom"
+ * Draco Mortar Attack Config — "Verdant Bloom"
  *
- * Baby Herald lobs a seed pod that bursts into a creeping patch of moss.
+ * Draco lobs a seed pod that bursts into a creeping patch of moss.
  * Damage is modest but the patch lingers far longer than papa Herald's
  * mortar fire, and arcs in low and tight for close skirmishes.
  */
-export const BABY_HERALD_MORTAR_ATTACK_CONFIG = {
+export const DRACO_MORTAR_ATTACK_CONFIG = {
   areaDamage: 0.5,          // 50% of base area damage — gentle ticks
   cooldown: 1.4,            // 140% of base cooldown — slightly slower than Lucy
   arcHeight: 0.7,           // 70% of base height — flatter, faster lob

@@ -18,7 +18,7 @@ const CLIENT_VALIDATION_LIMITS = {
   MIN_HEALTH: 0
 };
 
-const VALID_CHARACTERS = ['lucy', 'herald', 'babyHerald'];
+const VALID_CHARACTERS = ['lucy', 'herald', 'draco'];
 
 function canonicalizeCharacterName(name) {
   if (typeof name !== 'string') return null;
