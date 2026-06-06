@@ -102,6 +102,13 @@ export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) 
           </LegendKeys>
         </LegendGroup>
 
+        <LegendGroup label="View:">
+          <LegendKeys>
+            <ControllerStick side="right" controllerLabel={controllerLabel} />
+            <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(click)</span>
+          </LegendKeys>
+        </LegendGroup>
+
         <LegendGroup label="Open Menu:">
           <LegendKeys>
             <LegendKey className="ui__legend-key--char">Start</LegendKey>

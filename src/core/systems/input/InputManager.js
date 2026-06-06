@@ -146,6 +146,9 @@ export class InputManager {
    */
   toggleViewMode() {
     const next = isFirstPerson() ? VIEW_MODE.THIRD_PERSON : VIEW_MODE.FIRST_PERSON;
+    if (this.sceneManager && this.sceneManager.startViewTransition) {
+      this.sceneManager.startViewTransition(220);
+    }
     setCameraViewMode(next);
     this._applyViewModeSideEffects(next);
     if (this._fpvOnViewModeChange) this._fpvOnViewModeChange(next);

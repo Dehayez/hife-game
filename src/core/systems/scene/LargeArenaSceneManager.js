@@ -26,6 +26,34 @@ export class LargeArenaSceneManager {
     this.viewPitch = 0;
     this.fpvEyeOffset = new THREE.Vector3(0, FPV_EYE_HEIGHT, 0);
     this._fpvEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+    this._viewTransition = null;
+  }
+
+  startViewTransition(durationMs = 220) {
+    if (!this.camera) return;
+    this._viewTransition = {
+      startTime: performance.now(),
+      duration: durationMs,
+      fromPos: this.camera.position.clone(),
+      fromQuat: this.camera.quaternion.clone()
+    };
+  }
+
+  _applyViewTransition() {
+    if (!this._viewTransition) return false;
+    const elapsed = performance.now() - this._viewTransition.startTime;
+    const t = Math.min(1, elapsed / this._viewTransition.duration);
+    if (t >= 1) {
+      this._viewTransition = null;
+      return false;
+    }
+    const ease = t * t * (3 - 2 * t);
+    const targetPos = this.camera.position.clone();
+    const targetQuat = this.camera.quaternion.clone();
+    this.camera.position.copy(this._viewTransition.fromPos).lerp(targetPos, ease);
+    this.camera.quaternion.copy(this._viewTransition.fromQuat).slerp(targetQuat, ease);
+    return true;
   }
   
   /**
@@ -577,6 +605,7 @@ export class LargeArenaSceneManager {
   }
 
   updateCamera(playerPosition, isRunning = false, viewMode = VIEW_MODE.THIRD_PERSON) {
+    const transitioning = !!this._viewTransition;
     if (viewMode === VIEW_MODE.FIRST_PERSON) {
       this.camera.position.set(
         playerPosition.x + this.fpvEyeOffset.x,
@@ -588,6 +617,7 @@ export class LargeArenaSceneManager {
       }
       this._fpvEuler.set(this.viewPitch, this.viewYaw, 0, 'YXZ');
       this.camera.quaternion.setFromEuler(this._fpvEuler);
+      this._applyViewTransition();
       return;
     }
 
@@ -597,8 +627,12 @@ export class LargeArenaSceneManager {
     const adjustedOffset = new THREE.Vector3(this.cameraOffset.x, this.currentYOffset, this.cameraOffset.z);
     const desiredCamPos = playerPosition.clone().add(adjustedOffset);
 
-    // Lerp camera to desired position first
-    this.camera.position.lerp(desiredCamPos, 0.08);
+    // Snap to target while transitioning so the blend reads the true endpoint
+    if (transitioning) {
+      this.camera.position.copy(desiredCamPos);
+    } else {
+      this.camera.position.lerp(desiredCamPos, 0.08);
+    }
 
     // Apply screen shake directly to camera position (after lerp, so it's not smoothed out)
     if (this.screenShakeManager) {
@@ -607,6 +641,7 @@ export class LargeArenaSceneManager {
     }
 
     this.camera.lookAt(playerPosition.x, playerPosition.y + 0.4, playerPosition.z);
+    this._applyViewTransition();
   }
 
   setViewLook(deltaYaw, deltaPitch) {

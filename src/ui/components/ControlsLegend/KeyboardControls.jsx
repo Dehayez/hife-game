@@ -104,6 +104,12 @@ export function KeyboardControls({ isShootingMode }) {
           </LegendKeys>
         </LegendGroup>
 
+        <LegendGroup label="View:">
+          <LegendKeys>
+            <LegendKey className="ui__legend-key--char">V</LegendKey>
+          </LegendKeys>
+        </LegendGroup>
+
         <LegendGroup label="Open Menu:">
           <LegendKeys>
             <LegendKey className="ui__legend-key--char">ESC</LegendKey>
