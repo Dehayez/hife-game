@@ -197,6 +197,39 @@ export function setLastInputMode(inputMode) {
 }
 
 /**
+ * Get saved camera view mode preference
+ * @returns {string} 'third-person' or 'first-person' (default 'third-person')
+ */
+export function getCameraViewMode() {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}camera_view_mode`;
+    const stored = localStorage.getItem(key);
+    return stored === 'first-person' ? 'first-person' : 'third-person';
+  } catch (e) {
+    handleStorageError(e, 'read', 'cameraViewMode');
+    return 'third-person';
+  }
+}
+
+/**
+ * Save camera view mode preference
+ * @param {string} mode - 'third-person' or 'first-person'
+ * @returns {boolean} True if saved successfully
+ */
+export function setCameraViewMode(mode) {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}camera_view_mode`;
+    if (mode === 'third-person' || mode === 'first-person') {
+      localStorage.setItem(key, mode);
+      return true;
+    }
+  } catch (e) {
+    return handleStorageError(e, 'write', 'cameraViewMode');
+  }
+  return false;
+}
+
+/**
  * Get saved bot difficulty preference
  * @returns {string} Bot difficulty ('easy', 'beginner', 'midway', 'veteran', default 'beginner')
  */

@@ -30,6 +30,7 @@ import { KillStreakManager } from '../utils/KillStreakManager.js';
 import { Scoreboard } from '../ui/components/Scoreboard/index.js';
 import { spawnRemotePlayerWithHealthBar, removeRemotePlayer, sendPlayerState, handleRemotePlayerStateUpdate } from './MultiplayerHelpers.js';
 import { getLastBotDifficulty } from '../utils/StorageUtils.js';
+import { getCameraViewMode } from '../config/camera/CameraViewMode.js';
 
 /**
  * Initialize all game managers
@@ -64,14 +65,20 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   const customFootstepPath = null;
   const characterManager = new CharacterManager(null, customFootstepPath);
   const inputManager = new InputManager();
-  
+  inputManager.setSceneManager(sceneManager);
+  inputManager.setOnViewModeChange((mode) => {
+    characterManager.setLocalPlayerVisible(mode !== 'first-person');
+  });
+
   const entityManager = new EntityManager(sceneManager.getScene(), sceneManager.getArenaSize(), collisionManager);
   const gameModeManager = new GameModeManager(entityManager, arenaName);
-  
+
   // Connect managers
   collisionManager.setGameModeManager(gameModeManager);
   characterManager.initializePlayer(sceneManager.getScene());
   characterManager.setCollisionManager(collisionManager);
+  // Apply initial view-mode visibility (after player mesh exists).
+  characterManager.setLocalPlayerVisible(getCameraViewMode() !== 'first-person');
   
   // Initialize particle manager
   const particleManager = new ParticleManager(sceneManager.getScene(), collisionManager);

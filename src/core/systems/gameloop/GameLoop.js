@@ -15,6 +15,9 @@ import { VibrationManager } from '../../../utils/VibrationManager.js';
 import { getHealingVibrationInterval } from '../../../config/global/VibrationConfig.js';
 import { getVibrationIntensity } from '../../../utils/StorageUtils.js';
 import { getRespawnStats } from '../../../config/collision/CollisionStats.js';
+import { getCameraViewMode, VIEW_MODE } from '../../../config/camera/CameraViewMode.js';
+
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 export class GameLoop {
   /**
@@ -1058,7 +1061,7 @@ export class GameLoop {
     // Camera follows player
     // isRunning() already checks mortarHoldActive internally
     const isRunningForCamera = this.inputManager.isRunning();
-    this.sceneManager.updateCamera(player.position, isRunningForCamera);
+    this.sceneManager.updateCamera(player.position, isRunningForCamera, getCameraViewMode());
   }
 
   /**
@@ -2478,7 +2481,11 @@ export class GameLoop {
       
       if (!hasKnockback) {
         const currentSpeed = this.inputManager.getCurrentSpeed();
-        const velocity = new THREE.Vector3(input.x, 0, -input.y).multiplyScalar(currentSpeed * dt);
+        const rawDir = new THREE.Vector3(input.x, 0, -input.y);
+        if (getCameraViewMode() === VIEW_MODE.FIRST_PERSON && this.sceneManager.getViewYaw) {
+          rawDir.applyAxisAngle(WORLD_UP, this.sceneManager.getViewYaw());
+        }
+        const velocity = rawDir.multiplyScalar(currentSpeed * dt);
         const nextPos = player.position.clone().add(velocity);
         const playerSize = this.characterManager.getPlayerSize();
 

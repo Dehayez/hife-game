@@ -12,6 +12,15 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getKeyBindings } from '../../../config/input/InputStats.js';
 import { getCharacterMovementStatsFor } from '../../../config/character/CharacterStats.js';
 import { GAME_CONSTANTS } from '../../../config/global/GameConstants.js';
+import {
+  VIEW_MODE,
+  getCameraViewMode,
+  setCameraViewMode,
+  isFirstPerson
+} from '../../../config/camera/CameraViewMode.js';
+
+const FPV_STICK_LOOK_SPEED = 2.5; // radians per second at full deflection
+const FPV_MOUSE_SENSITIVITY = 0.0022; // radians per pixel
 
 export class InputManager {
   /**
@@ -99,9 +108,87 @@ export class InputManager {
     
     // Callback for controller connection status changes
     this._onControllerStatusChange = null;
-    
+
+    // FPV / view-mode state
+    this.sceneManager = null;
+    this._fpvCanvas = null;
+    this._fpvToggleKeyPressed = false;
+    this._fpvRightStickClickPressed = false;
+    this._fpvOnViewModeChange = null;
+
     this._setupEventListeners();
     this._setupGamepadListeners();
+    this._setupFpvPointerLock();
+  }
+
+  /**
+   * Wire a SceneManager so the InputManager can drive FPV look (yaw/pitch)
+   * and so the canvas element is known for pointer-lock acquisition.
+   * @param {Object} sceneManager
+   */
+  setSceneManager(sceneManager) {
+    this.sceneManager = sceneManager;
+    if (sceneManager && sceneManager.renderer && sceneManager.renderer.domElement) {
+      this._fpvCanvas = sceneManager.renderer.domElement;
+    }
+  }
+
+  /**
+   * Subscribe to view-mode change events (fired after the toggle).
+   * @param {Function} cb (viewMode) => void
+   */
+  setOnViewModeChange(cb) {
+    this._fpvOnViewModeChange = cb;
+  }
+
+  /**
+   * Flip first/third-person and run side effects (pointer lock, callback).
+   */
+  toggleViewMode() {
+    const next = isFirstPerson() ? VIEW_MODE.THIRD_PERSON : VIEW_MODE.FIRST_PERSON;
+    setCameraViewMode(next);
+    this._applyViewModeSideEffects(next);
+    if (this._fpvOnViewModeChange) this._fpvOnViewModeChange(next);
+  }
+
+  _applyViewModeSideEffects(viewMode) {
+    if (viewMode === VIEW_MODE.FIRST_PERSON) {
+      this._requestPointerLockIfAppropriate();
+    } else {
+      this._releasePointerLock();
+    }
+  }
+
+  _requestPointerLockIfAppropriate() {
+    if (!this._fpvCanvas) return;
+    if (this.inputMode !== 'keyboard') return;
+    if (document.pointerLockElement === this._fpvCanvas) return;
+    try {
+      this._fpvCanvas.requestPointerLock();
+    } catch (_) { /* ignore */ }
+  }
+
+  _releasePointerLock() {
+    if (document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch (_) { /* ignore */ }
+    }
+  }
+
+  _setupFpvPointerLock() {
+    window.addEventListener('mousemove', (e) => {
+      if (!isFirstPerson()) return;
+      if (!this.sceneManager || !this.sceneManager.setViewLook) return;
+      if (document.pointerLockElement === null) return;
+      const dx = e.movementX || 0;
+      const dy = e.movementY || 0;
+      this.sceneManager.setViewLook(-dx * FPV_MOUSE_SENSITIVITY, -dy * FPV_MOUSE_SENSITIVITY);
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (!isFirstPerson()) return;
+      if (this._isUIElement && this._isUIElement(e)) return;
+      this._requestPointerLockIfAppropriate();
+    });
   }
 
   /**
@@ -1119,10 +1206,42 @@ export class InputManager {
       this.inputState.speedBoost = false;
     }
 
+    // Right stick click (button 11, R3) - toggle camera view mode (press detection)
+    const r3Pressed = gamepad.buttons[11] && gamepad.buttons[11].pressed;
+    if (r3Pressed && !this._fpvRightStickClickPressed) {
+      this._fpvRightStickClickPressed = true;
+      this.toggleViewMode();
+    } else if (!r3Pressed && this._fpvRightStickClickPressed) {
+      this._fpvRightStickClickPressed = false;
+    }
+
     // Right analog stick (axes 2 and 3) for aiming/shooting direction
     const rightStickX = gamepad.axes[2];
     const rightStickY = gamepad.axes[3];
-    
+
+    // In first-person view, the right stick drives free look instead of aim/cursor.
+    if (isFirstPerson() && this.sceneManager && this.sceneManager.setViewLook) {
+      const fpvMag = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
+      if (fpvMag > this.gamepadDeadZone) {
+        const scale = (fpvMag - this.gamepadDeadZone) / (1 - this.gamepadDeadZone);
+        const nx = rightStickX / fpvMag;
+        const ny = rightStickY / fpvMag;
+        this.sceneManager.setViewLook(
+          -nx * scale * FPV_STICK_LOOK_SPEED * dt,
+          -ny * scale * FPV_STICK_LOOK_SPEED * dt
+        );
+      }
+      // Skip the aim-cursor / mortar-direction path entirely while in FPV.
+      this.gamepadAimingVector.x = 0;
+      this.gamepadAimingVector.y = 0;
+      this._gamepadAimingActive = false;
+      this._rightJoystickDirectionActive = false;
+      this.rightJoystickDirection.x = 0;
+      this.rightJoystickDirection.z = 0;
+      this._rightJoystickMagnitude = 0;
+      return;
+    }
+
     // Check if stick is actually released (raw values very close to zero)
     const isStickReleased = Math.abs(rightStickX) < 0.05 && Math.abs(rightStickY) < 0.05;
     
@@ -1407,6 +1526,16 @@ export class InputManager {
       } else if (!pressed && this.speedBoostPressed) {
         this.speedBoostPressed = false;
         this.inputState.speedBoost = false;
+      }
+    }
+
+    // Toggle camera view mode (V key) - press detection
+    if (keys.toggleViewMode && keys.toggleViewMode.includes(e.key)) {
+      if (pressed && !this._fpvToggleKeyPressed) {
+        this._fpvToggleKeyPressed = true;
+        this.toggleViewMode();
+      } else if (!pressed) {
+        this._fpvToggleKeyPressed = false;
       }
     }
   }

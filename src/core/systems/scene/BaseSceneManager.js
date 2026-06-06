@@ -1,9 +1,13 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { loadAndApplyEnvironment } from '../../utils/EnvironmentLoader.js';
+import { VIEW_MODE } from '../../config/camera/CameraViewMode.js';
+
+const PITCH_LIMIT = Math.PI / 2 - 0.05;
+const FPV_EYE_HEIGHT = 0.4;
 
 /**
  * BaseSceneManager.js
- * 
+ *
  * Base class for scene managers to reduce code duplication.
  * Contains shared scene setup logic for both standard and large arenas.
  */
@@ -22,6 +26,16 @@ export class BaseSceneManager {
     this.eyeBlinkTimers = [];
     this.mushrooms = [];
     this.environmentData = null; // Store loaded environment data
+    this.screenShakeManager = null;
+
+    this.viewYaw = 0;
+    this.viewPitch = 0;
+    this.fpvEyeOffset = new THREE.Vector3(0, FPV_EYE_HEIGHT, 0);
+    this._fpvEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+  }
+
+  setScreenShakeManager(screenShakeManager) {
+    this.screenShakeManager = screenShakeManager;
   }
 
   _setupRenderer(canvas) {
@@ -204,14 +218,44 @@ export class BaseSceneManager {
     onResize();
   }
 
-  updateCamera(playerPosition, isRunning = false) {
+  updateCamera(playerPosition, isRunning = false, viewMode = VIEW_MODE.THIRD_PERSON) {
+    if (viewMode === VIEW_MODE.FIRST_PERSON) {
+      this.camera.position.set(
+        playerPosition.x + this.fpvEyeOffset.x,
+        playerPosition.y + this.fpvEyeOffset.y,
+        playerPosition.z + this.fpvEyeOffset.z
+      );
+      if (this.screenShakeManager) {
+        this.camera.position.add(this.screenShakeManager.getOffset());
+      }
+      this._fpvEuler.set(this.viewPitch, this.viewYaw, 0, 'YXZ');
+      this.camera.quaternion.setFromEuler(this._fpvEuler);
+      return;
+    }
+
     const targetYOffset = isRunning ? this.cameraOffset.y - 0.6 : this.cameraOffset.y;
     this.currentYOffset = THREE.MathUtils.lerp(this.currentYOffset, targetYOffset, 0.05);
-    
+
     const adjustedOffset = new THREE.Vector3(this.cameraOffset.x, this.currentYOffset, this.cameraOffset.z);
     const desiredCamPos = playerPosition.clone().add(adjustedOffset);
     this.camera.position.lerp(desiredCamPos, 0.08);
+    if (this.screenShakeManager) {
+      this.camera.position.add(this.screenShakeManager.getOffset());
+    }
     this.camera.lookAt(playerPosition.x, playerPosition.y + 0.4, playerPosition.z);
+  }
+
+  setViewLook(deltaYaw, deltaPitch) {
+    this.viewYaw += deltaYaw;
+    this.viewPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.viewPitch + deltaPitch));
+  }
+
+  getViewYaw() {
+    return this.viewYaw;
+  }
+
+  getViewPitch() {
+    return this.viewPitch;
   }
 
   render() {

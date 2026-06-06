@@ -7,6 +7,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getMeleeStats } from '../../abilities/functions/CharacterAbilityStats.js';
+import { isFirstPerson } from '../../../../config/camera/CameraViewMode.js';
 
 /**
  * Combat handler for game loop
@@ -34,9 +35,24 @@ export class CombatHandler {
     const camera = this.gameLoop.sceneManager.getCamera();
     
     let directionX, directionZ, targetX, targetZ;
-    
-    // In keyboard mode, use mouse position for aiming
-    if (inputMode === 'keyboard') {
+
+    // In first-person view, always shoot from the camera's forward direction
+    // (mouse is pointer-locked or irrelevant). This also covers controller FPV.
+    if (isFirstPerson()) {
+      const cameraDir = new THREE.Vector3();
+      camera.getWorldDirection(cameraDir);
+      const horizLen = Math.sqrt(cameraDir.x * cameraDir.x + cameraDir.z * cameraDir.z);
+      if (horizLen > 0.001) {
+        directionX = cameraDir.x / horizLen;
+        directionZ = cameraDir.z / horizLen;
+      } else {
+        // Looking straight up/down — fall back to a small forward nudge along X.
+        directionX = 1;
+        directionZ = 0;
+      }
+      targetX = null;
+      targetZ = null;
+    } else if (inputMode === 'keyboard') {
       const mousePos = this.gameLoop.inputManager.getMousePosition();
       const raycaster = new THREE.Raycaster();
       const mouse = new THREE.Vector2();

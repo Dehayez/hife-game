@@ -1,4 +1,9 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
+import { loadAndApplyEnvironment } from '../../../utils/EnvironmentLoader.js';
+import { VIEW_MODE } from '../../../config/camera/CameraViewMode.js';
+
+const PITCH_LIMIT = Math.PI / 2 - 0.05;
+const FPV_EYE_HEIGHT = 0.4;
 
 export class LargeArenaSceneManager {
   constructor() {
@@ -15,6 +20,12 @@ export class LargeArenaSceneManager {
     this.eyeBlinkTimers = [];
     this.mushrooms = [];
     this.screenShakeManager = null; // Screen shake manager reference
+    this.environmentData = null; // Store loaded environment data
+
+    this.viewYaw = 0;
+    this.viewPitch = 0;
+    this.fpvEyeOffset = new THREE.Vector3(0, FPV_EYE_HEIGHT, 0);
+    this._fpvEuler = new THREE.Euler(0, 0, 0, 'YXZ');
   }
   
   /**
@@ -565,23 +576,50 @@ export class LargeArenaSceneManager {
     onResize();
   }
 
-  updateCamera(playerPosition, isRunning = false) {
+  updateCamera(playerPosition, isRunning = false, viewMode = VIEW_MODE.THIRD_PERSON) {
+    if (viewMode === VIEW_MODE.FIRST_PERSON) {
+      this.camera.position.set(
+        playerPosition.x + this.fpvEyeOffset.x,
+        playerPosition.y + this.fpvEyeOffset.y,
+        playerPosition.z + this.fpvEyeOffset.z
+      );
+      if (this.screenShakeManager) {
+        this.camera.position.add(this.screenShakeManager.getOffset());
+      }
+      this._fpvEuler.set(this.viewPitch, this.viewYaw, 0, 'YXZ');
+      this.camera.quaternion.setFromEuler(this._fpvEuler);
+      return;
+    }
+
     const targetYOffset = isRunning ? this.cameraOffset.y - 0.6 : this.cameraOffset.y;
     this.currentYOffset = THREE.MathUtils.lerp(this.currentYOffset, targetYOffset, 0.05);
-    
+
     const adjustedOffset = new THREE.Vector3(this.cameraOffset.x, this.currentYOffset, this.cameraOffset.z);
     const desiredCamPos = playerPosition.clone().add(adjustedOffset);
-    
+
     // Lerp camera to desired position first
     this.camera.position.lerp(desiredCamPos, 0.08);
-    
+
     // Apply screen shake directly to camera position (after lerp, so it's not smoothed out)
     if (this.screenShakeManager) {
       const shakeOffset = this.screenShakeManager.getOffset();
       this.camera.position.add(shakeOffset);
     }
-    
+
     this.camera.lookAt(playerPosition.x, playerPosition.y + 0.4, playerPosition.z);
+  }
+
+  setViewLook(deltaYaw, deltaPitch) {
+    this.viewYaw += deltaYaw;
+    this.viewPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.viewPitch + deltaPitch));
+  }
+
+  getViewYaw() {
+    return this.viewYaw;
+  }
+
+  getViewPitch() {
+    return this.viewPitch;
   }
 
   render() {
@@ -607,6 +645,45 @@ export class LargeArenaSceneManager {
       mushroom.glowLight.visible = visible;
       mushroom.softGlow.visible = visible;
     });
+  }
+
+  /**
+   * Load and apply an HDRI environment map (like Blender backgrounds)
+   * @param {string} hdriPath - Path to HDRI file (.hdr or .exr)
+   * @param {Object} options - Configuration options
+   * @param {boolean} options.useAsBackground - Set as scene background (default: true)
+   * @param {boolean} options.useAsEnvironment - Set as scene environment for reflections (default: true)
+   * @returns {Promise<void>}
+   */
+  async loadEnvironmentMap(hdriPath, options = {}) {
+    if (!this.renderer || !this.scene) {
+      throw new Error('Scene and renderer must be initialized before loading environment map');
+    }
+
+    try {
+      this.environmentData = await loadAndApplyEnvironment(
+        this.scene,
+        this.renderer,
+        hdriPath,
+        options
+      );
+      console.log(`Environment map loaded successfully: ${hdriPath}`);
+    } catch (error) {
+      console.error('Failed to load environment map:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove environment map and restore default background
+   * @param {THREE.Color} defaultColor - Default background color (default: 0x0a1a1f)
+   */
+  removeEnvironmentMap(defaultColor = 0x0a1a1f) {
+    if (this.scene) {
+      this.scene.background = new THREE.Color(defaultColor);
+      this.scene.environment = null;
+    }
+    this.environmentData = null;
   }
 }
 

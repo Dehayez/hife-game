@@ -31,7 +31,10 @@ export const INPUT_STATS = {
     characterSwap: ['c', 'C', 'KeyC'],      // C - Character Swap
     heal: ['h', 'H', 'KeyH'],               // H - Heal (hold)
     swordSwing: ['f', 'F', 'KeyF'],         // F - Melee/Sword Swing
-    speedBoost: ['e', 'E', 'KeyE']          // E - Speed Boost
+    speedBoost: ['e', 'E', 'KeyE'],         // E - Speed Boost
+
+    // Camera
+    toggleViewMode: ['v', 'V', 'KeyV']      // V - Toggle first/third-person view
   }
 };
 

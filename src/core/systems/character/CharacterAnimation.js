@@ -7,6 +7,7 @@
 import { loadAnimationSmart } from '../../../utils/TextureLoader.js';
 import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
 import { getLoadingProgressManager } from '../../../utils/LoadingProgressManager.js';
+import { isFirstPerson } from '../../../config/camera/CameraViewMode.js';
 
 /**
  * Load character animations
@@ -171,9 +172,10 @@ export function setCharacterAnimation(player, key, animations, currentAnimKey, f
     texture.needsUpdate = true;
     
     // Ensure player is visible when setting animation, but respect rolling state
-    // Don't force visibility if Herald is rolling (ball form)
+    // and the first-person view (which hides the local player mesh).
+    // Don't force visibility if Herald is rolling (ball form) or FPV is active.
     const isRolling = player.userData && player.userData.isRolling === true;
-    if (player.visible === false && !isRolling) {
+    if (player.visible === false && !isRolling && !isFirstPerson()) {
       player.visible = true;
     }
   }
@@ -344,9 +346,13 @@ export function updateCharacterMovement(
   smokeSpawnTimer,
   isRunning = false
 ) {
-  // Billboard the sprite to camera around Y only
-  const camYaw = camera.rotation.y;
-  player.rotation.set(0, camYaw, 0);
+  // Billboard the sprite to camera around Y only.
+  // Skip in first-person: the camera is at the player's head and any rotation
+  // would jitter the FPV view. (Local mesh is hidden in FPV anyway.)
+  if (!isFirstPerson()) {
+    const camYaw = camera.rotation.y;
+    player.rotation.set(0, camYaw, 0);
+  }
 
   // Track previous animation to detect transitions
   const prevAnimKey = currentAnimKey;
