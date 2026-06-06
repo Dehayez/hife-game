@@ -33,12 +33,17 @@ export class CombatHandler {
     
     const inputMode = this.gameLoop.inputManager.getInputMode();
     const camera = this.gameLoop.sceneManager.getCamera();
-    
+    const firstPerson = isFirstPerson();
+
     let directionX, directionZ, targetX, targetZ;
+    let spawnX = playerPos.x;
+    let spawnY = playerPos.y + 0.5;
+    let spawnZ = playerPos.z;
+    let fpvAimDirY = 0;
 
     // In first-person view, always shoot from the camera's forward direction
     // (mouse is pointer-locked or irrelevant). This also covers controller FPV.
-    if (isFirstPerson()) {
+    if (firstPerson) {
       const cameraDir = new THREE.Vector3();
       camera.getWorldDirection(cameraDir);
       const horizLen = Math.sqrt(cameraDir.x * cameraDir.x + cameraDir.z * cameraDir.z);
@@ -46,12 +51,17 @@ export class CombatHandler {
         directionX = cameraDir.x / horizLen;
         directionZ = cameraDir.z / horizLen;
       } else {
-        // Looking straight up/down — fall back to a small forward nudge along X.
         directionX = 1;
         directionZ = 0;
       }
+      // Spawn from the camera eye so the bolt visually originates from the crosshair.
+      spawnX = camera.position.x;
+      spawnY = camera.position.y;
+      spawnZ = camera.position.z;
+      // Disable horizontal cursor-follow in FPV — full 3D aim is taken from camera forward.
       targetX = null;
       targetZ = null;
+      fpvAimDirY = cameraDir.y;
     } else if (inputMode === 'keyboard') {
       const mousePos = this.gameLoop.inputManager.getMousePosition();
       const raycaster = new THREE.Raycaster();
@@ -95,9 +105,9 @@ export class CombatHandler {
     
     // Create projectile
     const projectile = this.gameLoop.projectileManager.createProjectile(
-      playerPos.x,
-      playerPos.y + 0.5,
-      playerPos.z,
+      spawnX,
+      spawnY,
+      spawnZ,
       directionX,
       directionZ,
       playerId,
@@ -107,6 +117,26 @@ export class CombatHandler {
     );
     
     if (projectile) {
+      // In first-person, re-aim the bolt to the camera's full 3D forward (incl. pitch)
+      // while preserving the bolt's initial speed.
+      if (firstPerson) {
+        const ud = projectile.userData;
+        const speed = Math.sqrt(ud.velocityX * ud.velocityX + ud.velocityZ * ud.velocityZ);
+        const dirLen = Math.sqrt(directionX * directionX + fpvAimDirY * fpvAimDirY + directionZ * directionZ);
+        if (dirLen > 0.001 && speed > 0.001) {
+          const nx = directionX / dirLen;
+          const ny = fpvAimDirY / dirLen;
+          const nz = directionZ / dirLen;
+          ud.velocityX = nx * speed;
+          ud.velocityY = ny * speed;
+          ud.velocityZ = nz * speed;
+          ud.initialDirX = nx;
+          ud.initialDirZ = nz;
+        }
+        // Let the bolt fly freely along its own path instead of snapping to shooter Y.
+        ud.shooterY = undefined;
+      }
+
       // Vibration feedback for shooting
       this.gameLoop.vibrationManager.vibrate(0.1, 0.1, 50);
     }

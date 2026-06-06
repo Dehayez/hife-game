@@ -26,14 +26,21 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
   // Check for custom speed override (used by melee projectiles, multi-projectile, etc.)
   if (projectile.userData.customSpeed !== undefined && projectile.userData.customSpeed !== null) {
     const currentVelocityX = projectile.userData.velocityX;
+    const currentVelocityY = projectile.userData.velocityY || 0;
     const currentVelocityZ = projectile.userData.velocityZ;
-    const currentVelocityLength = calculateSpeed2D(currentVelocityX, currentVelocityZ);
-    
-    // Normalize direction and apply custom speed
+    const currentVelocityLength = Math.sqrt(
+      currentVelocityX * currentVelocityX +
+      currentVelocityY * currentVelocityY +
+      currentVelocityZ * currentVelocityZ
+    );
+
+    // Normalize direction and apply custom speed (preserving any Y component)
     if (currentVelocityLength > 0.001) {
       const dirX = currentVelocityX / currentVelocityLength;
+      const dirY = currentVelocityY / currentVelocityLength;
       const dirZ = currentVelocityZ / currentVelocityLength;
       projectile.userData.velocityX = dirX * projectile.userData.customSpeed;
+      projectile.userData.velocityY = dirY * projectile.userData.customSpeed;
       projectile.userData.velocityZ = dirZ * projectile.userData.customSpeed;
     }
     return;
@@ -62,7 +69,7 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
       // Further joystick push = faster bolt
       const speedMultiplier = MIN_SPEED_MULTIPLIER + (joystickMagnitude * (MAX_SPEED_MULTIPLIER - MIN_SPEED_MULTIPLIER));
       
-      if (projectile.userData.characterName === 'herald') {
+      if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'babyHerald')) {
         // Herald: Use existing acceleration pattern which already accounts for joystick
         // The existing system uses minSpeed + (speedRange * joystickMagnitude)
         // So we just use that directly without additional scaling
@@ -73,7 +80,7 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
       }
     } else {
       // Joystick not pushed or too small - use minimum speed from config
-      if (projectile.userData.characterName === 'herald') {
+      if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'babyHerald')) {
         // Herald: Use minimum speed from existing system
         targetSpeed = projectile.userData.startSpeed;
       } else {
@@ -81,7 +88,7 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
         targetSpeed = projectile.userData.baseSpeed * MIN_SPEED_MULTIPLIER;
       }
     }
-  } else if (projectile.userData.characterName === 'herald' && inputManager) {
+  } else if ((projectile.userData.characterName === 'herald' || projectile.userData.characterName === 'babyHerald') && inputManager) {
     // Herald: Speed controlled by input method (keyboard/mouse)
     targetSpeed = calculateHeraldSpeed(projectile, camera, inputManager, playerPosition);
   } else {
@@ -91,14 +98,22 @@ export function updateSpeed(projectile, camera, inputManager, playerPosition) {
   
   // Get current velocity direction (may have been modified by cursor following)
   const currentVelocityX = projectile.userData.velocityX;
+  const currentVelocityY = projectile.userData.velocityY || 0;
   const currentVelocityZ = projectile.userData.velocityZ;
-  const currentVelocityLength = calculateSpeed2D(currentVelocityX, currentVelocityZ);
-  
+  const currentVelocityLength = Math.sqrt(
+    currentVelocityX * currentVelocityX +
+    currentVelocityY * currentVelocityY +
+    currentVelocityZ * currentVelocityZ
+  );
+
   // Normalize direction and apply speed based on acceleration/deceleration
+  // (preserve Y component so first-person up/down aim is respected)
   if (currentVelocityLength > 0.001) {
     const dirX = currentVelocityX / currentVelocityLength;
+    const dirY = currentVelocityY / currentVelocityLength;
     const dirZ = currentVelocityZ / currentVelocityLength;
     projectile.userData.velocityX = dirX * targetSpeed;
+    projectile.userData.velocityY = dirY * targetSpeed;
     projectile.userData.velocityZ = dirZ * targetSpeed;
   }
 }

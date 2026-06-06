@@ -25,8 +25,14 @@ export function applyCursorFollowing(projectile, dt) {
   const followStrength = projectile.userData.cursorFollowStrength || 0;
   const targetX = projectile.userData.targetX;
   const targetZ = projectile.userData.targetZ;
-  
+
   if (followStrength <= 0 || targetX === null || targetZ === null) {
+    return;
+  }
+
+  // Skip 2D cursor-follow for bolts with vertical velocity (first-person aim).
+  // The 2D lerp would re-pin horizontal direction and overwrite the up/down component.
+  if ((projectile.userData.velocityY || 0) !== 0) {
     return;
   }
   

@@ -20,10 +20,15 @@ export function updatePosition(projectile, dt, collisionManager, playerPosition)
   // Calculate new position
   const newX = projectile.position.x + projectile.userData.velocityX * dt;
   const newZ = projectile.position.z + projectile.userData.velocityZ * dt;
-  
-  // Update Y position to track shooter's height
+
+  // Update Y position. If the bolt has a vertical velocity component (e.g. fired in
+  // first-person view), integrate it. Otherwise snap Y to the shooter's height so
+  // ground-plane bolts keep their existing behavior.
+  const velocityY = projectile.userData.velocityY || 0;
   let newY = projectile.position.y;
-  if (projectile.userData.shooterY !== undefined) {
+  if (velocityY !== 0) {
+    newY = projectile.position.y + velocityY * dt;
+  } else if (projectile.userData.shooterY !== undefined) {
     newY = projectile.userData.shooterY;
   } else if (playerPosition) {
     newY = playerPosition.y;

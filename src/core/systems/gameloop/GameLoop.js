@@ -430,7 +430,7 @@ export class GameLoop {
     const swordSwingInput = this.inputManager.isSwordSwingPressed();
     if (!heraldAbilitiesBlocked && swordSwingInput && !this.lastSwordSwingInput) {
       const characterName = this.characterManager.getCharacterName();
-      if (characterName === 'herald') {
+      if (characterName === 'herald' || characterName === 'babyHerald') {
         // Check special ability cooldown for Herald's blast
         if (this.specialAbilityCooldownTimer <= 0) {
           this._handleHeraldBlast(player);
@@ -1240,11 +1240,35 @@ export class GameLoop {
     
     const inputMode = this.inputManager.getInputMode();
     const camera = this.sceneManager.getCamera();
-    
+    const firstPerson = getCameraViewMode() === VIEW_MODE.FIRST_PERSON;
+
     let directionX, directionZ, targetX, targetZ;
-    
-    // In keyboard mode, use mouse position for aiming
-    if (inputMode === 'keyboard') {
+    let fpvSpawnX = playerPos.x;
+    let fpvSpawnY = playerPos.y;
+    let fpvSpawnZ = playerPos.z;
+    let fpvAimDirY = 0;
+
+    // In first-person view, always aim along the camera's full 3D forward (incl. pitch)
+    // and spawn from the camera eye so the bolt visibly travels where you're looking.
+    if (firstPerson) {
+      camera.getWorldDirection(this._cachedCameraDir);
+      directionX = this._cachedCameraDir.x;
+      directionZ = this._cachedCameraDir.z;
+      fpvAimDirY = this._cachedCameraDir.y;
+      const horizLen = Math.sqrt(directionX * directionX + directionZ * directionZ);
+      if (horizLen > 0.001) {
+        directionX /= horizLen;
+        directionZ /= horizLen;
+      } else {
+        directionX = 1;
+        directionZ = 0;
+      }
+      fpvSpawnX = camera.position.x;
+      fpvSpawnY = camera.position.y;
+      fpvSpawnZ = camera.position.z;
+      targetX = null;
+      targetZ = null;
+    } else if (inputMode === 'keyboard') {
       // Convert mouse position to world coordinates using cached raycaster
       const mousePos = this.inputManager.getMousePosition();
       this._cachedMouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
@@ -1355,10 +1379,13 @@ export class GameLoop {
     }
     
     // Create projectile
+    const spawnX = firstPerson ? fpvSpawnX : playerPos.x;
+    const spawnY = firstPerson ? fpvSpawnY : playerPos.y;
+    const spawnZ = firstPerson ? fpvSpawnZ : playerPos.z;
     const projectile = this.projectileManager.createProjectile(
-      playerPos.x,
-      playerPos.y,
-      playerPos.z,
+      spawnX,
+      spawnY,
+      spawnZ,
       directionX,
       directionZ,
       playerId,
@@ -1366,7 +1393,26 @@ export class GameLoop {
       targetX,
       targetZ
     );
-    
+
+    // In first-person, re-aim the bolt to the camera's full 3D forward (incl. pitch)
+    // while preserving the bolt's initial speed, and stop snapping Y to shooter height.
+    if (projectile && firstPerson) {
+      const ud = projectile.userData;
+      const speed = Math.sqrt(ud.velocityX * ud.velocityX + ud.velocityZ * ud.velocityZ);
+      const dirLen = Math.sqrt(directionX * directionX + fpvAimDirY * fpvAimDirY + directionZ * directionZ);
+      if (dirLen > 0.001 && speed > 0.001) {
+        const nx = directionX / dirLen;
+        const ny = fpvAimDirY / dirLen;
+        const nz = directionZ / dirLen;
+        ud.velocityX = nx * speed;
+        ud.velocityY = ny * speed;
+        ud.velocityZ = nz * speed;
+        ud.initialDirX = nx;
+        ud.initialDirZ = nz;
+      }
+      ud.shooterY = undefined;
+    }
+
     // Track player shot for learning system
     if (projectile && this.learningManager) {
       const playerPosVec = new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z);
@@ -1529,8 +1575,8 @@ export class GameLoop {
     
     const characterName = this.characterManager.getCharacterName();
     const characterColor = this._getCharacterColorForParticles(characterName);
-    const isHerald = characterName === 'herald';
-    
+    const isHerald = characterName === 'herald' || characterName === 'babyHerald';
+
     // Create container group for visual effects
     const visualGroup = new THREE.Group();
     
@@ -2556,7 +2602,9 @@ export class GameLoop {
     }
     
     const currentChar = this.characterManager.getCharacterName();
-    const newChar = currentChar === 'lucy' ? 'herald' : 'lucy';
+    const swapCycle = ['lucy', 'herald', 'babyHerald'];
+    const currentIdx = swapCycle.indexOf(currentChar);
+    const newChar = swapCycle[(currentIdx + 1) % swapCycle.length] || 'lucy';
     
     // Trigger fast smoke particle burst
     const player = this.characterManager.getPlayer();

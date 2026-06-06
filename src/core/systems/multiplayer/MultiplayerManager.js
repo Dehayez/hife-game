@@ -6,6 +6,7 @@
  */
 
 import { WEBSOCKET_SERVER_URL, PRODUCTION_DOMAINS } from '../../../config/global/multiplayer.js';
+import { MAX_PLAYERS_PER_ROOM, ROOM_CODE_REGEX } from '../../../config/global/RoomConfig.js';
 
 export class MultiplayerManager {
   /**
@@ -23,9 +24,11 @@ export class MultiplayerManager {
     this.onPlayerLeft = onPlayerLeft;
     this.onDataReceived = onDataReceived;
     this.onRoomUpdated = null;
+    this.onHostChanged = null;
     this.socket = null;
     this.serverUrl = this._getServerUrl();
     this.roomProperties = {}; // Store room properties like isPrivate
+    this.maxPlayers = MAX_PLAYERS_PER_ROOM;
     
     // Connection state tracking
     this.connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected', 'reconnecting'
@@ -234,7 +237,8 @@ export class MultiplayerManager {
         this.onPlayerJoined(data.playerId, {
           characterName: data.gameState?.characterName,
           arena: data.gameState?.arena,
-          gameMode: data.gameState?.gameMode
+          gameMode: data.gameState?.gameMode,
+          position: data.position || null
         });
       } else if (typeof window !== 'undefined' && window.HIFE_DEBUG_MP) {
         console.warn('[MultiplayerManager] onPlayerJoined callback is not set!');
@@ -295,7 +299,23 @@ export class MultiplayerManager {
     this.socket.on('existing-players', (players) => {
       dbg(`existing-players (${players.length})`);
       players.forEach(playerData => {
-        if (this.connectedPlayers.has(playerData.playerId)) return;
+        const cached = this.connectedPlayers.get(playerData.playerId);
+        if (cached) {
+          // Refresh stale character info — a player may have swapped while we
+          // were mid-join, and onPlayerJoined dedup would otherwise stick us
+          // with the old sprite.
+          const freshCharacter = playerData.gameState?.characterName;
+          if (freshCharacter && freshCharacter !== cached.characterName) {
+            cached.characterName = freshCharacter;
+            if (this.onDataReceived) {
+              this.onDataReceived(playerData.playerId, {
+                type: 'character-change',
+                characterName: freshCharacter
+              });
+            }
+          }
+          return;
+        }
         this.connectedPlayers.set(playerData.playerId, {
           id: playerData.playerId,
           isLocal: false,
@@ -307,7 +327,8 @@ export class MultiplayerManager {
           this.onPlayerJoined(playerData.playerId, {
             characterName: playerData.gameState?.characterName,
             arena: playerData.gameState?.arena,
-            gameMode: playerData.gameState?.gameMode
+            gameMode: playerData.gameState?.gameMode,
+            position: playerData.position || null
           });
         }
       });
@@ -329,6 +350,19 @@ export class MultiplayerManager {
             characterName: data.characterName
           });
         }
+      }
+    });
+
+    // Handle host transfer
+    this.socket.on('host-changed', (data) => {
+      if (data.roomCode !== this.roomCode) return;
+      const wasHost = this.isHost;
+      this.isHost = data.newHostId === this.localPlayerId;
+      if (this.onHostChanged) {
+        this.onHostChanged({ newHostId: data.newHostId, isHost: this.isHost, wasHost });
+      }
+      if (this.onRoomUpdated) {
+        this.onRoomUpdated({ isHost: this.isHost, hostId: data.newHostId });
       }
     });
 
@@ -375,6 +409,7 @@ export class MultiplayerManager {
         if (response.success) {
           this.roomCode = response.roomCode;
           this.isHost = true;
+          this.maxPlayers = response.maxPlayers || this.maxPlayers;
           this.roomProperties = {
             isPrivate: response.isPrivate || options.isPrivate || false
           };
@@ -394,36 +429,39 @@ export class MultiplayerManager {
   }
 
   /**
-   * Wait for connection to be established
-   * @param {number} timeout - Timeout in milliseconds (default: 5000ms)
-   * @returns {Promise<void>} Resolves when connected
+   * Wait for connection to be established.
+   * @param {number} timeout - Timeout in milliseconds (default 5000ms)
+   * @returns {Promise<void>} Resolves when connected, rejects on timeout or missing socket.
    */
   waitForConnection(timeout = 5000) {
     return new Promise((resolve, reject) => {
-      if (this.socket && this.socket.connected) {
+      if (!this.socket) {
+        reject(new Error('Socket not initialised'));
+        return;
+      }
+      if (this.socket.connected) {
         resolve();
         return;
       }
-      
-      const startTime = Date.now();
-      const checkInterval = setInterval(() => {
-        if (this.socket && this.socket.connected) {
-          clearInterval(checkInterval);
-          resolve();
-        } else if (Date.now() - startTime > timeout) {
-          clearInterval(checkInterval);
-          reject(new Error('Connection timeout'));
-        }
-      }, 100);
-      
-      // Also listen for connect event
-      if (this.socket) {
-        const onConnect = () => {
-          clearInterval(checkInterval);
-          resolve();
-        };
-        this.socket.once('connect', onConnect);
-      }
+
+      let settled = false;
+      const cleanup = () => {
+        settled = true;
+        clearTimeout(timer);
+        this.socket.off('connect', onConnect);
+      };
+      const onConnect = () => {
+        if (settled) return;
+        cleanup();
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        if (settled) return;
+        cleanup();
+        reject(new Error('Connection timeout'));
+      }, timeout);
+
+      this.socket.once('connect', onConnect);
     });
   }
 
@@ -434,6 +472,11 @@ export class MultiplayerManager {
    * @returns {Promise<Object>} Response with existing players
    */
   async joinRoom(roomCode, gameState = {}) {
+    const normalized = typeof roomCode === 'string' ? roomCode.trim().toUpperCase() : '';
+    if (!ROOM_CODE_REGEX.test(normalized)) {
+      throw new Error('Invalid room code format');
+    }
+
     // Wait for connection if not connected
     if (!this.socket || !this.socket.connected) {
       try {
@@ -442,17 +485,18 @@ export class MultiplayerManager {
         throw new Error('Failed to connect to server: ' + error.message);
       }
     }
-    
+
     return new Promise((resolve, reject) => {
       if (!this.socket || !this.socket.connected) {
         reject(new Error('Not connected to server'));
         return;
       }
-      
-      this.socket.emit('join-room', roomCode, gameState, (response) => {
+
+      this.socket.emit('join-room', normalized, gameState, (response) => {
         if (response.success) {
           this.roomCode = response.roomCode;
-          this.isHost = false;
+          this.isHost = response.isHost === true;
+          this.maxPlayers = response.maxPlayers || this.maxPlayers;
           this.roomProperties = {
             isPrivate: response.isPrivate || false
           };
@@ -475,12 +519,13 @@ export class MultiplayerManager {
                   arena: playerData.gameState?.arena,
                   gameMode: playerData.gameState?.gameMode
                 });
-                
+
                 if (this.onPlayerJoined) {
                   this.onPlayerJoined(playerData.playerId, {
                     characterName: playerData.gameState?.characterName,
                     arena: playerData.gameState?.arena,
-                    gameMode: playerData.gameState?.gameMode
+                    gameMode: playerData.gameState?.gameMode,
+                    position: playerData.position || null
                   });
                 }
               }
@@ -505,6 +550,7 @@ export class MultiplayerManager {
     
     this.roomCode = null;
     this.isHost = false;
+    this.roomProperties = {};
     this.connectedPlayers.clear();
   }
 
@@ -590,12 +636,12 @@ export class MultiplayerManager {
   }
 
   /**
-   * Request existing players' states (called when joining a room)
-   * @param {Function} sendStateCallback - Callback to send current player state
+   * Manually request the server to re-send the existing-players list. The
+   * normal join handshake already includes them; this is only useful as a
+   * resync escape hatch after a reconnect.
    */
-  requestExistingPlayers(sendStateCallback) {
-    if (this.roomCode && this.socket && sendStateCallback) {
-      this.sendStateCallback = sendStateCallback;
+  requestExistingPlayers() {
+    if (this.roomCode && this.socket && this.socket.connected) {
       this.socket.emit('request-existing-players');
     }
   }
@@ -671,6 +717,22 @@ export class MultiplayerManager {
    */
   setRoomUpdatedCallback(callback) {
     this.onRoomUpdated = callback;
+  }
+
+  /**
+   * Set callback for host transfer events.
+   * @param {Function} callback - Callback function({ newHostId, isHost, wasHost })
+   */
+  setHostChangedCallback(callback) {
+    this.onHostChanged = callback;
+  }
+
+  /**
+   * Maximum players per room (server-authoritative; falls back to shared default).
+   * @returns {number}
+   */
+  getMaxPlayers() {
+    return this.maxPlayers;
   }
 
   /**

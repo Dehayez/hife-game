@@ -137,8 +137,13 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
         return;
       }
       
-      // Use initial position (0,0,0) - will be updated when first player-state is received
-      const initialPosition = { x: 0, y: 0, z: 0 };
+      // Prefer the spawn position carried in the join handshake so the remote
+      // player appears in the right spot instead of at the origin while we
+      // wait for the first player-state tick.
+      const handshakePos = playerInfo?.position;
+      const initialPosition = handshakePos && typeof handshakePos === 'object'
+        ? { x: handshakePos.x || 0, y: handshakePos.y || 0, z: handshakePos.z || 0 }
+        : { x: 0, y: 0, z: 0 };
       
       // Spawn player with proper initialization
       // Note: spawnRemotePlayerWithHealthBar has duplicate prevention built-in

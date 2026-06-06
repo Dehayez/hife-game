@@ -59,11 +59,6 @@ io.on('connection', (socket) => {
 
   // Create a new room
   socket.on('create-room', (gameState, options, callback) => {
-    // Handle backward compatibility: if callback is passed as second argument
-    if (typeof options === 'function') {
-      callback = options;
-      options = {};
-    }
     handleCreateRoom(socket, rooms, players, gameState, options, callback);
   });
 
@@ -109,7 +104,7 @@ io.on('connection', (socket) => {
 
   // List available rooms
   socket.on('list-rooms', (callback) => {
-    handleListRooms(socket, rooms, players, callback);
+    handleListRooms(socket, rooms, callback);
   });
 
   // Update room properties (privacy, etc.)

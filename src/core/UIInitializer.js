@@ -68,13 +68,24 @@ export function initializeUI(managers, config) {
   const modeDisplayMount = document.getElementById('game-mode-display') || document.body;
   const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
   
-  // Helper function to get current game state
+  // Helper function to get current game state. Includes the local player's
+  // position so the server can hand it to other players during the join
+  // handshake (prevents remote players spawning at the world origin).
   const getCurrentGameState = () => {
-    return {
+    const player = characterManager.getPlayer();
+    const state = {
       arena: arenaManager.getCurrentArena(),
       gameMode: gameModeManager.getMode(),
       characterName: characterManager.getCharacterName()
     };
+    if (player && player.position) {
+      state.position = {
+        x: player.position.x,
+        y: player.position.y,
+        z: player.position.z
+      };
+    }
+    return state;
   };
   
   // Helper function to update URL parameter
@@ -318,10 +329,12 @@ export function initializeUI(managers, config) {
     
     if (mode !== 'shooting' && multiplayerManager.isInRoom()) {
       multiplayerManager.leaveRoom();
-      
+
       const url = new URL(window.location);
       url.searchParams.delete('room');
-      window.history.pushState({}, '', url);
+      window.history.replaceState({}, '', url);
+
+      if (roomManager) roomManager.update();
     }
     
     // Cooldown indicator is now shown in all game modes
@@ -371,67 +384,38 @@ export function initializeUI(managers, config) {
     }
   });
   
-  // Initialize room manager
+  // Initialize room manager. onRoomCreated/onRoomJoined return the resolved room code
+  // and rethrow on failure so RoomManager can surface the error inline.
+  const enterMultiplayerShootingMode = () => {
+    if (characterManager.getPlayer()) {
+      setTimeout(() => {
+        sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
+      }, 50);
+    }
+    if (gameModeManager.getMode() !== 'shooting') {
+      gameModeManager.setMode('shooting');
+      setLastGameMode('shooting');
+    }
+    gameModeManager.startMode();
+  };
+
   const roomManager = initRoomManager({
     mount: roomMount,
     multiplayerManager: multiplayerManager,
-    onRoomCreated: async (roomCode, isPrivate = false) => {
+    onRoomCreated: async (isPrivate = false) => {
       const gameState = getCurrentGameState();
-      try {
-        const options = { isPrivate };
-        const actualRoomCode = await multiplayerManager.createRoom(gameState, options);
-        
-        const url = new URL(window.location);
-        url.searchParams.set('room', actualRoomCode);
-        window.history.pushState({}, '', url);
-        
-        roomManager.update();
-        
-        if (characterManager.getPlayer()) {
-          setTimeout(() => {
-            sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
-          }, 50);
-        }
-        
-        if (gameModeManager.getMode() !== 'shooting') {
-          gameModeManager.setMode('shooting');
-          setLastGameMode('shooting');
-        }
-        gameModeManager.startMode();
-      } catch (error) {
-        console.error('Failed to create room:', error);
-      }
+      const actualRoomCode = await multiplayerManager.createRoom(gameState, { isPrivate });
+      enterMultiplayerShootingMode();
+      return actualRoomCode;
     },
     onRoomJoined: async (roomCode) => {
       const gameState = getCurrentGameState();
-      try {
-        const joinResult = await multiplayerManager.joinRoom(roomCode, gameState);
-        
-        roomManager.update();
-        
-        if (characterManager.getPlayer()) {
-          setTimeout(() => {
-            sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
-          }, 50);
-        }
-        
-        setTimeout(() => {
-          multiplayerManager.requestExistingPlayers(() => {
-            if (characterManager.getPlayer()) {
-              sendPlayerState(multiplayerManager, characterManager, sceneManager, inputManager, 0);
-            }
-          });
-        }, 100);
-        
-        if (gameModeManager.getMode() !== 'shooting') {
-          gameModeManager.setMode('shooting');
-          setLastGameMode('shooting');
-        }
-        gameModeManager.startMode();
-      } catch (error) {
-        console.error('Failed to join room:', error);
-        roomManager.update();
-      }
+      // joinRoom already returns existingPlayers in its callback; the
+      // MultiplayerManager spawns them via onPlayerJoined. No need for a
+      // second request-existing-players round trip.
+      await multiplayerManager.joinRoom(roomCode, gameState);
+      enterMultiplayerShootingMode();
+      return roomCode;
     }
   });
   

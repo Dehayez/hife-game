@@ -155,13 +155,15 @@ export function setupGameLoopWrapper(gameLoop, managers, uiComponents) {
         lastAnimationUpdateTime = now;
       }
       
-      // Cleanup stale players periodically
+      // Cleanup stale players periodically — but only while we're actually
+      // connected. A disconnected/throttled tab would otherwise wipe its own
+      // roster of remote players and never re-spawn them on reconnect.
       if (Math.floor(now / GAME_CONSTANTS.STALE_PLAYER_CLEANUP) !== Math.floor((now - 16) / GAME_CONSTANTS.STALE_PLAYER_CLEANUP)) {
-        remotePlayerManager.cleanupStalePlayers(GAME_CONSTANTS.STALE_PLAYER_CLEANUP);
-        // Also cleanup orphaned meshes that might have been left behind
+        if (multiplayerManager && multiplayerManager.isConnected()) {
+          remotePlayerManager.cleanupStalePlayers(GAME_CONSTANTS.STALE_PLAYER_CLEANUP);
+        }
+        // Orphaned meshes / health bars are scene hygiene; safe to run regardless.
         remotePlayerManager.cleanupOrphanedMeshes();
-        
-        // Cleanup orphaned health bars
         if (managers.healthBarManager && typeof managers.healthBarManager.cleanupOrphanedHealthBars === 'function') {
           managers.healthBarManager.cleanupOrphanedHealthBars();
         }

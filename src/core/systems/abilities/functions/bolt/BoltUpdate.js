@@ -76,7 +76,7 @@ export function updateBolt(projectile, dt, collisionManager, camera = null, inpu
       }
       projectile.userData._cachedVelocity.set(
         projectile.userData.velocityX,
-        0,
+        projectile.userData.velocityY || 0,
         projectile.userData.velocityZ
       );
       

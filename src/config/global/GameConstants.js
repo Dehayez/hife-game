@@ -9,7 +9,7 @@ export const GAME_CONSTANTS = {
   // Timing constants
   SYNC_INTERVAL: 66, // Position sync interval in milliseconds (~15 times per second for ultra-smooth multiplayer with less jitter)
   ANIMATION_UPDATE_THROTTLE: 16, // Max update interval for animations in milliseconds
-  STALE_PLAYER_CLEANUP: 5000, // Cleanup stale players every 5 seconds
+  STALE_PLAYER_CLEANUP: 30000, // Drop remote players with no updates for 30s (background-throttled tabs can pause sync for >10s; the server sends player-left on real disconnects).
   AUTO_JOIN_DELAY: 50, // Delay before attempting auto-join in milliseconds
   AUTO_JOIN_RETRY_DELAY: 500, // Retry delay for auto-join in milliseconds
   INITIAL_STATE_SEND_DELAY: 30, // Delay before sending initial state in milliseconds
@@ -38,7 +38,7 @@ export const GAME_CONSTANTS = {
   
   // Character defaults
   DEFAULT_CHARACTER: 'lucy',
-  AVAILABLE_CHARACTERS: ['lucy', 'herald'],
+  AVAILABLE_CHARACTERS: ['lucy', 'herald', 'babyHerald'],
   
   // Game mode defaults
   DEFAULT_GAME_MODE: 'free-play',
