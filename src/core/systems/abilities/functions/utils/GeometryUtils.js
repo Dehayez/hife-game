@@ -108,6 +108,9 @@ export function createProjectileMesh(config) {
   }
   
   mesh.castShadow = castShadow;
+  // Fast-moving glowing projectiles (bolt/mortar "balls") can be culled
+  // incorrectly when bounds lag behind animation/camera updates.
+  mesh.frustumCulled = false;
   
   return mesh;
 }

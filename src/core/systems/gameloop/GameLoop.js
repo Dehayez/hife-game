@@ -166,6 +166,10 @@ export class GameLoop {
     this._cachedCameraForward = new THREE.Vector3();
     this._cachedCameraRight = new THREE.Vector3();
     this._cachedUpVector = new THREE.Vector3(0, 1, 0);
+
+    // Lightweight runtime spike watcher for live gameplay profiling.
+    this._frameSpikeThresholdMs = 20;
+    this._lastSpikeLogTime = 0;
   }
   
   /**
@@ -270,8 +274,22 @@ export class GameLoop {
       dt = Math.min(Math.max(dt, 0.0001), 0.033);
     }
 
+    const updateStart = performance.now();
     this.update(dt);
+    const updateDurationMs = performance.now() - updateStart;
+
+    const renderStart = performance.now();
     this.sceneManager.render();
+    const renderDurationMs = performance.now() - renderStart;
+
+    const frameDurationMs = updateDurationMs + renderDurationMs;
+    if (frameDurationMs > this._frameSpikeThresholdMs && now - this._lastSpikeLogTime > 1000) {
+      this._lastSpikeLogTime = now;
+      const bottleneck = updateDurationMs >= renderDurationMs ? 'update' : 'render';
+      console.warn(
+        `[PerfSpike] frame=${frameDurationMs.toFixed(1)}ms update=${updateDurationMs.toFixed(1)}ms render=${renderDurationMs.toFixed(1)}ms bottleneck=${bottleneck}`
+      );
+    }
 
     requestAnimationFrame(this._boundTick || (this._boundTick = () => this.tick()));
   }
@@ -1291,7 +1309,11 @@ export class GameLoop {
       this._cachedRaycaster.setFromCamera(this._cachedMouse, camera);
       
       // Intersect with ground plane at y = 0 (reuse cached plane and intersect)
-      this._cachedRaycaster.ray.intersectPlane(this._cachedPlane, this._cachedIntersect);
+      const hasGroundIntersect = !!this._cachedRaycaster.ray.intersectPlane(this._cachedPlane, this._cachedIntersect);
+      if (!hasGroundIntersect) {
+        // Avoid using stale intersection coordinates from a previous frame.
+        this._cachedIntersect.set(playerPos.x, playerPos.y, playerPos.z);
+      }
       
       // Calculate direction from player to mouse cursor position
       const toCursorX = this._cachedIntersect.x - playerPos.x;
@@ -1603,6 +1625,7 @@ export class GameLoop {
     
     const visual = new THREE.Mesh(geometry, material);
     visual.castShadow = true;
+    visual.frustumCulled = false;
     
     // Add glow effect with point light (like fireball/bolt)
     const lightIntensity = isHerald ? 2.0 : 1.2;
@@ -1621,6 +1644,7 @@ export class GameLoop {
     const cooldownRing = new THREE.Mesh(ringGeometry, ringMaterial);
     cooldownRing.rotation.x = Math.PI / 2; // Rotate to be horizontal
     cooldownRing.visible = false; // Hidden by default when ready
+    cooldownRing.frustumCulled = false;
     
     // Add visual first (so it's children[0]), then light, then ring
     visualGroup.add(visual);
@@ -1739,7 +1763,7 @@ export class GameLoop {
       // Pulse between darker and brighter character color (smaller pulse during cooldown)
       pulseData.pulsePhase += dt * pulseData.pulseSpeedCooldown * Math.PI * 2;
       const pulseVariation = Math.sin(pulseData.pulsePhase) * 0.1; // Smaller pulse variation
-      const pulseScale = growthScale + pulseVariation;
+      const pulseScale = Math.max(0.2, growthScale + pulseVariation);
       visual.scale.set(pulseScale, pulseScale, pulseScale);
 
       // Color transition between character color shades
@@ -1761,17 +1785,17 @@ export class GameLoop {
       
       // Base opacity grows with progress, with small pulsing variation
       const pulseOpacityVariation = Math.sin(pulseData.pulsePhase) * 0.1;
-      visual.material.opacity = growthOpacity + pulseOpacityVariation;
+      visual.material.opacity = Math.min(0.9, Math.max(0.25, growthOpacity + pulseOpacityVariation));
     } else {
       // Ready: bright character color, smooth pulsing at full size
       pulseData.pulsePhase += dt * pulseData.pulseSpeed * Math.PI * 2;
-      const pulseScale = pulseData.baseScale + Math.sin(pulseData.pulsePhase) * 0.2;
+      const pulseScale = Math.max(0.25, pulseData.baseScale + Math.sin(pulseData.pulsePhase) * 0.2);
       visual.scale.set(pulseScale, pulseScale, pulseScale);
       
       // Bright character color with emissive glow
       visual.material.color.setHex(pulseData.characterColor);
       visual.material.emissive.setHex(pulseData.characterColor); // Update emissive for glow
-      visual.material.opacity = 0.6 + Math.sin(pulseData.pulsePhase) * 0.2; // Smooth pulsing opacity
+      visual.material.opacity = Math.min(0.9, Math.max(0.35, 0.6 + Math.sin(pulseData.pulsePhase) * 0.2)); // Smooth pulsing opacity
       
       // Update light color and intensity (pulsing)
       if (glowLight) {
@@ -1858,40 +1882,35 @@ export class GameLoop {
     if (inputMode === 'keyboard') {
       // Convert mouse position to world coordinates using raycaster
       const mousePos = this.inputManager.getMousePosition();
-      const raycaster = new THREE.Raycaster();
-      const mouse = new THREE.Vector2();
-      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      this._cachedMouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+      this._cachedMouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
 
-      raycaster.setFromCamera(mouse, camera);
+      this._cachedRaycaster.setFromCamera(this._cachedMouse, camera);
 
       // Intersect with ground plane at y = 0
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersect = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, intersect);
+      const hasGroundIntersect = !!this._cachedRaycaster.ray.intersectPlane(this._cachedPlane, this._cachedIntersect);
 
       // Use mouse cursor position as target. If the cursor is essentially on the player
       // (no meaningful aim direction), fall back to the character's facing direction so
       // the arc preview still renders sensibly while holding the charge.
-      const dx = intersect.x - playerPos.x;
-      const dz = intersect.z - playerPos.z;
-      if (Math.sqrt(dx * dx + dz * dz) < 0.5) {
+      const dx = this._cachedIntersect.x - playerPos.x;
+      const dz = this._cachedIntersect.z - playerPos.z;
+      if (!hasGroundIntersect || Math.sqrt(dx * dx + dz * dz) < 0.5) {
         const lastFacing = this.characterManager.getLastFacing();
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
-        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        camera.getWorldDirection(this._cachedCameraDir);
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
         const mortarStats = getMortarStats(characterName);
         const defaultDistance = mortarStats.maxRange * 0.5;
         if (lastFacing === 'back') {
-          targetX = playerPos.x + cameraForward.x * defaultDistance;
-          targetZ = playerPos.z + cameraForward.z * defaultDistance;
+          targetX = playerPos.x + this._cachedCameraForward.x * defaultDistance;
+          targetZ = playerPos.z + this._cachedCameraForward.z * defaultDistance;
         } else {
-          targetX = playerPos.x - cameraForward.x * defaultDistance;
-          targetZ = playerPos.z - cameraForward.z * defaultDistance;
+          targetX = playerPos.x - this._cachedCameraForward.x * defaultDistance;
+          targetZ = playerPos.z - this._cachedCameraForward.z * defaultDistance;
         }
       } else {
-        targetX = intersect.x;
-        targetZ = intersect.z;
+        targetX = this._cachedIntersect.x;
+        targetZ = this._cachedIntersect.z;
       }
     } else {
       // In controller mode, use right joystick for aiming
@@ -1902,19 +1921,17 @@ export class GameLoop {
       if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
         // Calculate target position (same logic as _handleMortarInput)
         // Get camera forward and right vectors (in world space)
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
+        camera.getWorldDirection(this._cachedCameraDir);
         
         // Create a right vector perpendicular to camera direction (in XZ plane)
-        const cameraRight = new THREE.Vector3();
-        cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+        this._cachedCameraRight.crossVectors(this._cachedCameraDir, this._cachedUpVector).normalize();
         
         // Create a forward vector in XZ plane (project camera direction onto ground)
-        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
         
         // Map joystick input to camera-relative direction
-        let directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
-        let directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+        let directionX = (this._cachedCameraRight.x * rightJoystickDir.x) + (this._cachedCameraForward.x * -rightJoystickDir.z);
+        let directionZ = (this._cachedCameraRight.z * rightJoystickDir.x) + (this._cachedCameraForward.z * -rightJoystickDir.z);
         
         // Normalize direction
         const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
@@ -1941,22 +1958,21 @@ export class GameLoop {
         const lastFacing = this.characterManager.getLastFacing();
         
         // Get camera forward direction in world space
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
+        camera.getWorldDirection(this._cachedCameraDir);
         
         // Project camera direction onto ground plane (XZ plane)
-        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
         
         // Use default distance
         const mortarStats = getMortarStats(characterName);
         const defaultDistance = mortarStats.maxRange * 0.5; // Default to half max range
         
         if (lastFacing === 'back') {
-          targetX = playerPos.x + cameraForward.x * defaultDistance;
-          targetZ = playerPos.z + cameraForward.z * defaultDistance;
+          targetX = playerPos.x + this._cachedCameraForward.x * defaultDistance;
+          targetZ = playerPos.z + this._cachedCameraForward.z * defaultDistance;
         } else {
-          targetX = playerPos.x - cameraForward.x * defaultDistance;
-          targetZ = playerPos.z - cameraForward.z * defaultDistance;
+          targetX = playerPos.x - this._cachedCameraForward.x * defaultDistance;
+          targetZ = playerPos.z - this._cachedCameraForward.z * defaultDistance;
         }
       }
     }
@@ -2026,21 +2042,27 @@ export class GameLoop {
     if (inputMode === 'keyboard') {
       // Convert mouse position to world coordinates using raycaster
       const mousePos = this.inputManager.getMousePosition();
-      const raycaster = new THREE.Raycaster();
-      const mouse = new THREE.Vector2();
-      mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
-      mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
+      this._cachedMouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
+      this._cachedMouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
       
-      raycaster.setFromCamera(mouse, camera);
+      this._cachedRaycaster.setFromCamera(this._cachedMouse, camera);
       
       // Intersect with ground plane at y = 0
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersect = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, intersect);
+      const hasGroundIntersect = !!this._cachedRaycaster.ray.intersectPlane(this._cachedPlane, this._cachedIntersect);
       
       // Use mouse cursor position as target
-      targetX = intersect.x;
-      targetZ = intersect.z;
+      if (hasGroundIntersect) {
+        targetX = this._cachedIntersect.x;
+        targetZ = this._cachedIntersect.z;
+      } else {
+        // Stable fallback when camera ray is parallel to the ground plane.
+        camera.getWorldDirection(this._cachedCameraDir);
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
+        const mortarStats = getMortarStats(characterName);
+        const fallbackDistance = mortarStats.maxRange * 0.5;
+        targetX = playerPos.x + this._cachedCameraForward.x * fallbackDistance;
+        targetZ = playerPos.z + this._cachedCameraForward.z * fallbackDistance;
+      }
     } else {
       // In controller mode, use right joystick for aiming
       const rightJoystickDir = this.inputManager.getRightJoystickDirection();
@@ -2049,19 +2071,17 @@ export class GameLoop {
       // Prioritize right joystick for aiming only when actively pushed (smooth 360-degree aiming in world space)
       if (isRightJoystickPushed && (rightJoystickDir.x !== 0 || rightJoystickDir.z !== 0)) {
         // Use camera-relative direction: convert joystick input to world space using camera orientation
-        const cameraDir = new THREE.Vector3();
-        camera.getWorldDirection(cameraDir);
+        camera.getWorldDirection(this._cachedCameraDir);
         
         // Create a right vector perpendicular to camera direction (in XZ plane)
-        const cameraRight = new THREE.Vector3();
-        cameraRight.crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+        this._cachedCameraRight.crossVectors(this._cachedCameraDir, this._cachedUpVector).normalize();
         
         // Create a forward vector in XZ plane (project camera direction onto ground)
-        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        this._cachedCameraForward.set(this._cachedCameraDir.x, 0, this._cachedCameraDir.z).normalize();
         
         // Map joystick input to camera-relative direction
-        let directionX = (cameraRight.x * rightJoystickDir.x) + (cameraForward.x * -rightJoystickDir.z);
-        let directionZ = (cameraRight.z * rightJoystickDir.x) + (cameraForward.z * -rightJoystickDir.z);
+        let directionX = (this._cachedCameraRight.x * rightJoystickDir.x) + (this._cachedCameraForward.x * -rightJoystickDir.z);
+        let directionZ = (this._cachedCameraRight.z * rightJoystickDir.x) + (this._cachedCameraForward.z * -rightJoystickDir.z);
         
         // Normalize direction
         const dirLength = Math.sqrt(directionX * directionX + directionZ * directionZ);

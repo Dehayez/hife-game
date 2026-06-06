@@ -17,6 +17,8 @@ const ARC_COLOR = ARC_CONFIG.color;
 const ARC_OPACITY = ARC_CONFIG.opacity;
 const ARC_POINTS = ARC_CONFIG.points;
 const ARC_TUBE_SEGMENTS = ARC_CONFIG.tubeSegments;
+const ARC_REBUILD_TARGET_DELTA = 0.015;
+const ARC_REBUILD_START_DELTA = 0.008;
 
 /**
  * Calculate trajectory points for arc preview
@@ -188,7 +190,12 @@ export function createMortarArcPreview(scene, startX, startY, startZ, targetX, t
     type: 'mortarArcPreview',
     characterName: characterName,
     curve: curve, // Store curve reference for updates
-    geometry: tubeGeometry // Store geometry reference
+    geometry: tubeGeometry, // Store geometry reference
+    lastStartX: startX,
+    lastStartY: startY,
+    lastStartZ: startZ,
+    lastTargetX: targetX,
+    lastTargetZ: targetZ
   };
   
   return arcTube;
@@ -208,6 +215,23 @@ export function createMortarArcPreview(scene, startX, startY, startZ, targetX, t
  * @returns {boolean} True if update was successful, false if too few points
  */
 export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX, targetZ, characterName, collisionManager = null) {
+  if (!arcTube || !arcTube.userData) {
+    return false;
+  }
+
+  const dx = targetX - (arcTube.userData.lastTargetX ?? targetX);
+  const dz = targetZ - (arcTube.userData.lastTargetZ ?? targetZ);
+  const sx = startX - (arcTube.userData.lastStartX ?? startX);
+  const sy = startY - (arcTube.userData.lastStartY ?? startY);
+  const sz = startZ - (arcTube.userData.lastStartZ ?? startZ);
+  const targetMoved = (dx * dx + dz * dz) > (ARC_REBUILD_TARGET_DELTA * ARC_REBUILD_TARGET_DELTA);
+  const startMoved = (sx * sx + sy * sy + sz * sz) > (ARC_REBUILD_START_DELTA * ARC_REBUILD_START_DELTA);
+  const characterChanged = arcTube.userData.characterName !== characterName;
+
+  if (!targetMoved && !startMoved && !characterChanged) {
+    return true;
+  }
+
   // Get ground height at target position (for reference, but trajectory will show actual landing)
   const targetY = collisionManager 
     ? collisionManager.getGroundHeight(targetX, targetZ, 0.1)
@@ -234,8 +258,8 @@ export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX,
     }
   }
   
-  // Always create a new curve from fresh points to avoid undefined point issues
-  const curve = new THREE.CatmullRomCurve3(points.map(p => p.clone()));
+  // Create a new curve from fresh points.
+  const curve = new THREE.CatmullRomCurve3(points);
   
   // Store old geometry for disposal
   const oldGeometry = arcTube.geometry;
@@ -248,6 +272,11 @@ export function updateMortarArcPreview(arcTube, startX, startY, startZ, targetX,
   
   // Update userData with new curve reference
   arcTube.userData.curve = curve;
+  arcTube.userData.lastStartX = startX;
+  arcTube.userData.lastStartY = startY;
+  arcTube.userData.lastStartZ = startZ;
+  arcTube.userData.lastTargetX = targetX;
+  arcTube.userData.lastTargetZ = targetZ;
   
   // Dispose old geometry asynchronously to avoid frame drops
   if (oldGeometry && oldGeometry !== newGeometry) {

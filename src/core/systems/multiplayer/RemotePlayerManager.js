@@ -935,12 +935,20 @@ export class RemotePlayerManager {
       }
     }
     
-    // Find all meshes in the scene that look like player meshes but aren't tracked
+    // Find all meshes in the scene that look like REMOTE player meshes but
+    // aren't tracked. Never touch the local player here.
     const sceneChildren = [...this.scene.children];
     for (const child of sceneChildren) {
-      // Check if this looks like a player mesh (has userData with type)
-      if (child.userData && 
-          (child.userData.type === 'remote-player' || child.userData.type === 'player')) {
+      if (!child.userData) {
+        continue;
+      }
+
+      const isRemoteType = child.userData.type === 'remote-player';
+      const isRemotePlayerTag = !!child.userData.playerId && child.userData.playerId !== 'local';
+
+      // Only cleanup remote entities. Local player models often use type='player'
+      // and must never be removed by the remote cleanup pass.
+      if (isRemoteType || isRemotePlayerTag) {
         // If it's not in our tracked meshes, it's orphaned
         if (!trackedMeshes.has(child)) {
           // Check if this is a 3D model (Group) or sprite (Mesh)
@@ -948,8 +956,14 @@ export class RemotePlayerManager {
           const isSprite = child.isMesh || child.type === 'Mesh';
           
           if (is3DModel) {
-            // For 3D models, check if they have children meshes
-            const hasMeshes = child.children && child.children.some(c => c.isMesh);
+            // For 3D models, check descendants (not just direct children).
+            // Wrapper groups often contain an inner group which contains meshes.
+            let hasMeshes = false;
+            child.traverse((obj) => {
+              if (obj !== child && obj.isMesh) {
+                hasMeshes = true;
+              }
+            });
             if (!hasMeshes) {
               console.warn(`Removing orphaned 3D player model ${child.userData.playerId || 'unknown'} - no meshes`);
               this.scene.remove(child);

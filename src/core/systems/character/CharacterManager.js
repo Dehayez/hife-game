@@ -38,6 +38,7 @@ import { isUsing3DModels } from '../../../config/character/CharacterRenderMode.j
 import { loadCharacterModel, configureCharacter3DModel, updateCharacter3DAnimation, getCharacter3DBaseRotationY, triggerCharacter3DOneShot } from '../../../utils/Character3DLoader.js';
 
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const ENABLE_ROLL_VISUAL_FOR_3D_MODE = false;
 
 export class CharacterManager {
   /**
@@ -1087,6 +1088,16 @@ export class CharacterManager {
    */
   _updateRollingVisual(velocity, isRunning) {
     if (!this.rollMesh || !this.player) return;
+
+    // Hotfix: 3D GLB characters occasionally appear to "disappear" during
+    // sprint because the roll-ball visual handoff hides the model. Keep the
+    // 3D model visible and skip roll swapping until that path is fully stable.
+    if (this.is3DMode && !ENABLE_ROLL_VISUAL_FOR_3D_MODE) {
+      if (this._isRollVisible) {
+        this._resetRollingVisual();
+      }
+      return;
+    }
     
     const shouldRoll = isRunning &&
                        this.characterName === 'herald' &&
@@ -1144,7 +1155,7 @@ export class CharacterManager {
    * @private
    */
   _shouldMuteFootsteps(isRunning) {
-    return this.characterName === 'herald' && isRunning;
+    return this.characterName === 'herald' && this._isRollVisible && isRunning;
   }
 }
 

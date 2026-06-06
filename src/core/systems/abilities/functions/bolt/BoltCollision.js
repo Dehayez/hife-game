@@ -7,6 +7,11 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getBaseEntityMovementStats } from '../../../../../config/global/BaseEntityStats.js';
 
+const _playerBox = new THREE.Box3();
+const _projectileBox = new THREE.Box3();
+const _playerMin = new THREE.Vector3();
+const _playerMax = new THREE.Vector3();
+
 /**
  * Check if bolt collides with a player
  * @param {THREE.Mesh} projectile - Projectile mesh
@@ -28,13 +33,12 @@ export function checkBoltPlayerCollision(projectile, playerPos, playerSize, play
   
   // Create hitbox matching actual sprite dimensions
   // Sprite center is at playerPos.y, sprite extends from playerPos.y - halfHeight to playerPos.y + halfHeight
-  const playerBox = new THREE.Box3(
-    new THREE.Vector3(playerPos.x - halfSize, playerPos.y - halfHeight, playerPos.z - halfSize),
-    new THREE.Vector3(playerPos.x + halfSize, playerPos.y + halfHeight, playerPos.z + halfSize)
-  );
-  
-  const projectileBox = new THREE.Box3().setFromObject(projectile);
-  if (playerBox.intersectsBox(projectileBox)) {
+  _playerMin.set(playerPos.x - halfSize, playerPos.y - halfHeight, playerPos.z - halfSize);
+  _playerMax.set(playerPos.x + halfSize, playerPos.y + halfHeight, playerPos.z + halfSize);
+  _playerBox.set(_playerMin, _playerMax);
+
+  _projectileBox.setFromObject(projectile);
+  if (_playerBox.intersectsBox(_projectileBox)) {
     // Mark as hit to prevent multiple damage applications
     projectile.userData.hasHit = true;
     const damage = projectile.userData.damage;
