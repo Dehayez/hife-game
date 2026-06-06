@@ -1,6 +1,6 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { loadAndApplyEnvironment } from '../../utils/EnvironmentLoader.js';
-import { VIEW_MODE } from '../../config/camera/CameraViewMode.js';
+import { loadAndApplyEnvironment } from '../../../utils/EnvironmentLoader.js';
+import { VIEW_MODE } from '../../../config/camera/CameraViewMode.js';
 
 const PITCH_LIMIT = Math.PI / 2 - 0.05;
 const FPV_EYE_HEIGHT = 0.4;
@@ -283,6 +283,14 @@ export class BaseSceneManager {
   setViewLook(deltaYaw, deltaPitch) {
     this.viewYaw += deltaYaw;
     this.viewPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.viewPitch + deltaPitch));
+  }
+
+  setViewYaw(yaw) {
+    this.viewYaw = yaw;
+  }
+
+  setViewPitch(pitch) {
+    this.viewPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch));
   }
 
   getViewYaw() {

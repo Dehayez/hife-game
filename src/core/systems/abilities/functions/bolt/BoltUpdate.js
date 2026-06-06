@@ -88,7 +88,8 @@ export function updateBolt(projectile, dt, collisionManager, camera = null, inpu
           projectile.userData.characterColor,
           projectile.userData.size,
           projectile.userData.characterName || 'lucy',
-          'bolt'
+          'bolt',
+          projectile
         );
       }
     }

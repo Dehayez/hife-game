@@ -27,11 +27,11 @@ export class InputManager {
    * Create a new InputManager
    */
   constructor() {
-    this.inputState = { 
-      up: false, 
-      down: false, 
-      left: false, 
-      right: false, 
+    this.inputState = {
+      up: false,
+      down: false,
+      left: false,
+      right: false,
       shift: false,
       jump: false,
       shoot: false,
@@ -41,8 +41,20 @@ export class InputManager {
       swordSwing: false,
       doubleJump: false,
       fly: false,
-      speedBoost: false
+      speedBoost: false,
+      // Apocalypse Cottage edge flags — true for one frame on key-down.
+      dig: false,
+      raise: false,
+      flatten: false,
+      plantTree: false,
+      placeBlock: false,
+      selectBlock: 0     // 0 = no change, 1|2|3 = pick that slot
     };
+    this._digHeld = false;
+    this._raiseHeld = false;
+    this._flattenHeld = false;
+    this._plantTreeHeld = false;
+    this._placeBlockHeld = false;
     
     this.mousePosition = { x: 0, y: 0 };
     this.shootPressed = false;
@@ -111,6 +123,7 @@ export class InputManager {
 
     // FPV / view-mode state
     this.sceneManager = null;
+    this.characterManager = null;
     this._fpvCanvas = null;
     this._fpvToggleKeyPressed = false;
     this._fpvRightStickClickPressed = false;
@@ -142,16 +155,49 @@ export class InputManager {
   }
 
   /**
+   * Wire the CharacterManager so view toggles can keep camera yaw and
+   * character facing in sync across the perspective swap.
+   */
+  setCharacterManager(characterManager) {
+    this.characterManager = characterManager;
+  }
+
+  /**
    * Flip first/third-person and run side effects (pointer lock, callback).
    */
   toggleViewMode() {
     const next = isFirstPerson() ? VIEW_MODE.THIRD_PERSON : VIEW_MODE.FIRST_PERSON;
+    this._syncViewRotation(next);
     if (this.sceneManager && this.sceneManager.startViewTransition) {
       this.sceneManager.startViewTransition(220);
     }
     setCameraViewMode(next);
     this._applyViewModeSideEffects(next);
     if (this._fpvOnViewModeChange) this._fpvOnViewModeChange(next);
+  }
+
+  /**
+   * Keep the player oriented the same way across a perspective swap:
+   * - Third → First: aim the camera where the character was facing.
+   * - First → Third: rotate the character to match where the camera was looking,
+   *   so standing still and toggling back doesn't snap orientation.
+   * Pitch resets to level on entry to first-person; the third-person camera
+   * uses a fixed offset so pitch isn't carried back out.
+   */
+  _syncViewRotation(nextMode) {
+    if (!this.sceneManager || !this.characterManager) return;
+    if (nextMode === VIEW_MODE.FIRST_PERSON) {
+      if (typeof this.characterManager.getFacingYawWorld !== 'function') return;
+      if (typeof this.sceneManager.setViewYaw !== 'function') return;
+      this.sceneManager.setViewYaw(this.characterManager.getFacingYawWorld());
+      if (typeof this.sceneManager.setViewPitch === 'function') {
+        this.sceneManager.setViewPitch(0);
+      }
+    } else {
+      if (typeof this.characterManager.setFacingYawWorld !== 'function') return;
+      if (typeof this.sceneManager.getViewYaw !== 'function') return;
+      this.characterManager.setFacingYawWorld(this.sceneManager.getViewYaw());
+    }
   }
 
   _applyViewModeSideEffects(viewMode) {
@@ -1541,6 +1587,83 @@ export class InputManager {
         this._fpvToggleKeyPressed = false;
       }
     }
+
+    // Apocalypse Cottage actions — keep state true while key is held so the
+    // TerraformController's cooldown decides how fast actions repeat.
+    if (keys.dig && keys.dig.includes(e.key)) {
+      this._digHeld = pressed;
+      this.inputState.dig = pressed;
+    }
+    if (keys.raise && keys.raise.includes(e.key)) {
+      this._raiseHeld = pressed;
+      this.inputState.raise = pressed;
+    }
+    if (keys.flatten && keys.flatten.includes(e.key)) {
+      this._flattenHeld = pressed;
+      this.inputState.flatten = pressed;
+    }
+    if (keys.plantTree && keys.plantTree.includes(e.key)) {
+      // Plant is single-shot on key-down.
+      if (pressed && !this._plantTreeHeld) {
+        this._plantTreeHeld = true;
+        this.inputState.plantTree = true;
+      } else if (!pressed) {
+        this._plantTreeHeld = false;
+        this.inputState.plantTree = false;
+      }
+    }
+    if (keys.placeBlock && keys.placeBlock.includes(e.key)) {
+      // Place is single-shot on key-down.
+      if (pressed && !this._placeBlockHeld) {
+        this._placeBlockHeld = true;
+        this.inputState.placeBlock = true;
+      } else if (!pressed) {
+        this._placeBlockHeld = false;
+        this.inputState.placeBlock = false;
+      }
+    }
+    if (pressed) {
+      if (keys.selectBlock1 && keys.selectBlock1.includes(e.key)) {
+        this.inputState.selectBlock = 1;
+      } else if (keys.selectBlock2 && keys.selectBlock2.includes(e.key)) {
+        this.inputState.selectBlock = 2;
+      } else if (keys.selectBlock3 && keys.selectBlock3.includes(e.key)) {
+        this.inputState.selectBlock = 3;
+      }
+    }
+  }
+
+  // ----- Apocalypse Cottage consumer accessors -----
+  isDigPressed() { return !!this.inputState.dig; }
+  isRaisePressed() { return !!this.inputState.raise; }
+  isFlattenPressed() { return !!this.inputState.flatten; }
+
+  /** One-shot consume for plant — clears the flag so it fires once. */
+  consumePlantTreePressed() {
+    if (this.inputState.plantTree) {
+      this.inputState.plantTree = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** One-shot consume for place block. */
+  consumePlaceBlockPressed() {
+    if (this.inputState.placeBlock) {
+      this.inputState.placeBlock = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** Returns 1|2|3 once, then resets to 0. */
+  consumeSelectBlock() {
+    const v = this.inputState.selectBlock;
+    if (v !== 0) {
+      this.inputState.selectBlock = 0;
+      return v;
+    }
+    return 0;
   }
 
   /**

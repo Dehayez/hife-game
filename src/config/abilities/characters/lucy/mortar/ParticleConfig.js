@@ -19,20 +19,22 @@ export const LUCY_MORTAR_PARTICLE_CONFIG = {
     rotationSpeedMin: 0.5,       // Slower rotation for poison
     rotationSpeedMax: 1.0          // Slower rotation for poison
   },
+  // Subtle baseline opacity — fall-off vs projectile distance is set by the
+  // mortar base config (PROJECTILE_TRAIL_BASE with a wider radius).
   trail: {
-    spawnInterval: 0.025,         // More frequent for continuous poison trail
-    sizeMin: 0.06,                // Larger poison trail particles
-    sizeMax: 0.12,                // Larger poison trail particles
-    opacityMin: 0.6,              // Brighter for poison trail
-    opacityMax: 0.9,              // Brighter for poison trail
-    behindDistance: 1.2,          // Further behind for longer poison trail
-    randomOffset: 0.5,            // More spread for poison
-    lifetimeMin: 0.2,            // Longer for lingering poison trail
-    lifetimeMax: 0.4,            // Longer for lingering poison trail
-    speedMin: 0.4,               // Slower for poison trail
-    speedMax: 0.9,                // Slower for poison trail
-    backwardDrift: 0.25,         // Less drift for poison
-    randomDirection: 0.6          // More spread for poison
+    spawnInterval: 0.04,
+    sizeMin: 0.06,
+    sizeMax: 0.12,
+    opacityMin: 0.12,
+    opacityMax: 0.3,
+    behindDistance: 1.2,
+    randomOffset: 0.5,
+    lifetimeMin: 0.2,
+    lifetimeMax: 0.38,
+    speedMin: 0.4,
+    speedMax: 0.9,
+    backwardDrift: 0.25,
+    randomDirection: 0.6
   },
   // Poison-specific effects
   effectType: 'poison',           // Mark as poison effect

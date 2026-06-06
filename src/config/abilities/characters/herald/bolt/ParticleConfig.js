@@ -19,20 +19,23 @@ export const HERALD_BOLT_PARTICLE_CONFIG = {
     rotationSpeedMin: 0.6,        // Faster rotation for fire
     rotationSpeedMax: 1.2          // Faster rotation for fire
   },
+  // Opacity stays low so the trail reads as glow, not flame-smear; the
+  // distance-fade radius from PROJECTILE_TRAIL_BASE keeps puffs close to
+  // the bolt itself.
   trail: {
-    spawnInterval: 0.02,          // More frequent for continuous fire trail
-    sizeMin: 0.06,                // Larger fire trail particles
-    sizeMax: 0.14,                // Larger fire trail particles
-    opacityMin: 0.7,              // Brighter for fire trail
-    opacityMax: 0.95,              // Brighter for fire trail
-    behindDistance: 1.2,          // Further behind for longer fire trail
-    randomOffset: 0.5,             // More spread for fire
-    lifetimeMin: 0.15,            // Shorter for flickering fire trail
-    lifetimeMax: 0.35,            // Shorter for flickering fire trail
-    speedMin: 0.5,                // Faster for fire trail
-    speedMax: 1.2,                // Faster for fire trail
-    backwardDrift: 0.3,           // More drift for fire effect
-    randomDirection: 0.7          // More spread for fire
+    spawnInterval: 0.04,
+    sizeMin: 0.06,
+    sizeMax: 0.14,
+    opacityMin: 0.15,
+    opacityMax: 0.35,
+    behindDistance: 1.2,
+    randomOffset: 0.5,
+    lifetimeMin: 0.14,
+    lifetimeMax: 0.3,
+    speedMin: 0.5,
+    speedMax: 1.2,
+    backwardDrift: 0.3,
+    randomDirection: 0.7
   },
   // Fire-specific effects
   effectType: 'fire',             // Mark as fire effect

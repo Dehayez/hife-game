@@ -19,20 +19,23 @@ export const LUCY_BOLT_PARTICLE_CONFIG = {
     rotationSpeedMin: 0.4,       // Slower rotation for poison
     rotationSpeedMax: 0.8         // Slower rotation for poison
   },
+  // Opacity + distanceFadeRadius inherit from PROJECTILE_TRAIL_BASE so the
+  // subtle look stays consistent across attacks. Only the poison-specific
+  // shape (frequency, spread, lifetime) is tuned here.
   trail: {
-    spawnInterval: 0.02,         // More frequent for continuous poison trail
-    sizeMin: 0.05,               // Larger poison trail particles
-    sizeMax: 0.1,                // Larger poison trail particles
-    opacityMin: 0.6,             // Brighter for poison trail
-    opacityMax: 0.9,             // Brighter for poison trail
-    behindDistance: 1.0,         // Further behind for longer poison trail
-    randomOffset: 0.4,           // More spread for poison
-    lifetimeMin: 0.25,          // Longer for lingering poison trail
-    lifetimeMax: 0.45,          // Longer for lingering poison trail
-    speedMin: 0.4,              // Slower for poison trail
-    speedMax: 0.9,               // Slower for poison trail
-    backwardDrift: 0.25,        // Less drift for poison
-    randomDirection: 0.6         // More spread for poison
+    spawnInterval: 0.04,
+    sizeMin: 0.05,
+    sizeMax: 0.1,
+    opacityMin: 0.12,
+    opacityMax: 0.3,
+    behindDistance: 1.0,
+    randomOffset: 0.4,
+    lifetimeMin: 0.22,
+    lifetimeMax: 0.4,
+    speedMin: 0.4,
+    speedMax: 0.9,
+    backwardDrift: 0.25,
+    randomDirection: 0.6
   },
   // Poison-specific effects
   effectType: 'poison',          // Mark as poison effect

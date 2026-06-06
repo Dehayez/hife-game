@@ -15,7 +15,8 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { SoundManager } from '../../../utils/SoundManager.js';
 import { getCharacterHealthStats, getCharacterMovementStats } from '../../../config/character/CharacterStats.js';
 import { getCharacterPhysicsStats } from '../../../config/character/PhysicsConfig.js';
-import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
+import { getRunningSmokeConfig, getRunningSmokeConfigFor } from '../../../config/abilities/base/SmokeParticleConfig.js';
+import { isFirstPerson } from '../../../config/camera/CameraViewMode.js';
 import { 
   loadCharacterAnimations, 
   setCharacterAnimation, 
@@ -471,12 +472,20 @@ export class CharacterManager {
         this.currentAnimKey = 'idle';
       }
       
-      // Handle smoke particles when running
-      const smokeConfig = getRunningSmokeConfig();
+      // Handle smoke particles when running. Spawn rate and puff style come
+      // from the per-character config; the FPV overlay cuts rate + lowers the
+      // puffs so the local player isn't staring into a smoke wall.
+      const firstPerson = isFirstPerson();
+      const smokeConfig = getRunningSmokeConfigFor(this.characterName, firstPerson);
       const smokeSpawnInterval = smokeConfig.spawnInterval;
       if (isRunning && this.characterData.isGrounded && this.particleManager) {
         if (this.smokeSpawnTimer <= 0) {
-          this.particleManager.spawnSmokeParticle(this.player.position);
+          this.particleManager.spawnSmokeParticle(
+            this.player.position,
+            false,
+            this.characterName,
+            firstPerson
+          );
           this.smokeSpawnTimer = smokeSpawnInterval;
         } else {
           this.smokeSpawnTimer -= 0.016; // Approximate frame time
@@ -548,6 +557,9 @@ export class CharacterManager {
    * @param {boolean} visible
    */
   setLocalPlayerVisible(visible) {
+    if (this._localPlayerVisible !== visible) {
+      console.log(`[CharacterManager.setLocalPlayerVisible] ${this._localPlayerVisible} → ${visible}`, new Error().stack);
+    }
     this._localPlayerVisible = visible;
     if (this.player) {
       this.player.visible = visible;
@@ -605,6 +617,28 @@ export class CharacterManager {
    */
   getLastFacing() {
     return this.lastFacing;
+  }
+
+  /**
+   * World-space yaw the character is currently facing, in the same convention
+   * as SceneManager's FPV viewYaw (yaw=0 looks toward -Z). Strips the per-model
+   * baseRotation correction so the value is independent of asset orientation.
+   */
+  getFacingYawWorld() {
+    const baseRotation = this.is3DMode ? getCharacter3DBaseRotationY(this.characterName) : 0;
+    return this.currentRotationY - baseRotation;
+  }
+
+  /**
+   * Rotate the character to face the given world-space yaw (same convention as
+   * SceneManager viewYaw — yaw=0 faces -Z). Snaps without smoothing so view
+   * toggles don't visibly spin the model.
+   */
+  setFacingYawWorld(yaw) {
+    if (!this.player) return;
+    const baseRotation = this.is3DMode ? getCharacter3DBaseRotationY(this.characterName) : 0;
+    this.currentRotationY = yaw + baseRotation;
+    this.player.rotation.y = this.currentRotationY;
   }
 
   /**

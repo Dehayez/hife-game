@@ -223,7 +223,8 @@ export function updateMortar(mortar, dt, collisionManager) {
           mortar.userData.characterColor,
           mortar.userData.size,
           mortar.userData.characterName || 'lucy', // Pass character name for config
-          'mortar' // Pass ability name for config
+          'mortar', // Pass ability name for config
+          mortar
         );
       }
     }

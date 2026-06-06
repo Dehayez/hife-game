@@ -649,6 +649,14 @@ export class LargeArenaSceneManager {
     this.viewPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.viewPitch + deltaPitch));
   }
 
+  setViewYaw(yaw) {
+    this.viewYaw = yaw;
+  }
+
+  setViewPitch(pitch) {
+    this.viewPitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch));
+  }
+
   getViewYaw() {
     return this.viewYaw;
   }

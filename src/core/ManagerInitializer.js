@@ -8,6 +8,13 @@
 import { RespawnOverlay } from '../ui/components/RespawnOverlay/index.js';
 import { SceneManager } from './systems/scene/SceneManager.js';
 import { LargeArenaSceneManager } from './systems/scene/LargeArenaSceneManager.js';
+import { ApocalypseCottageSceneManager } from './systems/scene/ApocalypseCottageSceneManager.js';
+import { HeightmapTerrain } from './systems/terrain/HeightmapTerrain.js';
+import { TerraformController } from './systems/terrain/TerraformController.js';
+import { TreeManager } from './systems/entity/TreeManager.js';
+import { BlockManager } from './systems/entity/BlockManager.js';
+import { ApocalypseSurvivalManager } from './systems/gamemode/ApocalypseSurvivalManager.js';
+import { ApocalypseHud } from '../ui/components/ApocalypseHud/index.js';
 import { CharacterManager } from './systems/character/CharacterManager.js';
 import { InputManager } from './systems/input/InputManager.js';
 import { CollisionManager } from './systems/collision/CollisionManager.js';
@@ -49,9 +56,18 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   
   // Initialize arena-specific managers
   const isLargeArena = arenaManager.isLargeArena();
+  const isApocalypseCottage = arenaManager.isApocalypseCottage();
   let sceneManager, collisionManager;
-  
-  if (isLargeArena) {
+
+  let apocalypseTerrain = null;
+  if (isApocalypseCottage) {
+    sceneManager = new ApocalypseCottageSceneManager();
+    sceneManager.init(canvas);
+    apocalypseTerrain = new HeightmapTerrain(sceneManager.getArenaSize());
+    sceneManager.replaceGroundWithTerrain(apocalypseTerrain.mesh);
+    collisionManager = new CollisionManager(sceneManager.getScene(), sceneManager.getArenaSize(), respawnOverlay);
+    collisionManager.setTerrainHeightProvider((x, z) => apocalypseTerrain.sampleWorldHeight(x, z));
+  } else if (isLargeArena) {
     sceneManager = new LargeArenaSceneManager();
     sceneManager.init(canvas);
     collisionManager = new LargeArenaCollisionManager(sceneManager.getScene(), sceneManager.getArenaSize(), respawnOverlay);
@@ -66,6 +82,7 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   const characterManager = new CharacterManager(null, customFootstepPath);
   const inputManager = new InputManager();
   inputManager.setSceneManager(sceneManager);
+  inputManager.setCharacterManager(characterManager);
   inputManager.setOnViewModeChange((mode) => {
     characterManager.setLocalPlayerVisible(mode !== 'first-person');
   });
@@ -256,6 +273,22 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
           }
         }
       }
+    } else if (data.type === 'world-event') {
+      // Apocalypse Cottage — dispatch to the local terrain/tree/block systems.
+      const { type } = data;
+      if (type === 'terrain' && gameLoop.apocalypseTerrain) {
+        gameLoop.apocalypseTerrain.applyDelta({ ix: data.ix, iz: data.iz, h: data.h });
+      } else if (type === 'tree-plant' && gameLoop.treeManager) {
+        gameLoop.treeManager.applyRemotePlant({ id: data.id, ix: data.ix, iz: data.iz });
+      } else if (type === 'tree-stage' && gameLoop.treeManager) {
+        gameLoop.treeManager.applyRemoteStage({ id: data.id, stage: data.stage });
+      } else if (type === 'tree-chop' && gameLoop.treeManager) {
+        gameLoop.treeManager.applyRemoteChop({ id: data.id, fell: !!data.fell });
+      } else if (type === 'block-place' && gameLoop.blockManager) {
+        gameLoop.blockManager.applyRemotePlace({ ix: data.ix, iz: data.iz, iy: data.iy, type: data.type });
+      } else if (type === 'block-remove' && gameLoop.blockManager) {
+        gameLoop.blockManager.applyRemoteRemove({ ix: data.ix, iz: data.iz, iy: data.iy });
+      }
     } else if (data.type === 'character-change') {
       if (playerId !== multiplayerManager.getLocalPlayerId()) {
         const remotePlayer = remotePlayerManager.getRemotePlayer(playerId);
@@ -314,6 +347,133 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     learningManager
   );
   
+  // Apocalypse Cottage — terraform controller + tree manager + block manager
+  if (apocalypseTerrain) {
+    const worldEventSink = {
+      sendWorldEvent: (type, payload) => multiplayerManager.sendWorldEvent(type, payload)
+    };
+    const treeManager = new TreeManager({
+      scene: sceneManager.getScene(),
+      terrain: apocalypseTerrain,
+      worldEventSink
+    });
+    const blockManager = new BlockManager({
+      scene: sceneManager.getScene(),
+      terrain: apocalypseTerrain,
+      worldEventSink
+    });
+    collisionManager.setBlockTopProvider((x, z) => blockManager.topWorldYAt(x, z));
+    const resourceSink = {
+      addWood: (n) => {
+        const s = gameModeManager.modeState;
+        if (s) s.wood = (s.wood || 0) + n;
+      },
+      addStone: (n) => {
+        const s = gameModeManager.modeState;
+        if (s) s.stone = (s.stone || 0) + n;
+      },
+      addMushroom: (n) => {
+        const s = gameModeManager.modeState;
+        if (s) s.mushroom = (s.mushroom || 0) + n;
+      }
+    };
+    const terraformController = new TerraformController({
+      terrain: apocalypseTerrain,
+      sceneManager,
+      inputManager,
+      characterManager,
+      worldEventSink,
+      treeManager,
+      blockManager,
+      resourceSink,
+      gameModeState: gameModeManager.modeState
+    });
+    gameLoop.terraformController = terraformController;
+    gameLoop.apocalypseTerrain = apocalypseTerrain;
+    gameLoop.treeManager = treeManager;
+    gameLoop.blockManager = blockManager;
+    gameLoop.apocalypseResourceSink = resourceSink;
+    gameLoop.requestApocalypseSnapshot = async () => {
+      try {
+        const snap = await multiplayerManager.requestWorldSnapshot();
+        if (snap?.terrain?.length) {
+          for (const t of snap.terrain) apocalypseTerrain.applyDelta(t);
+        }
+        if (snap?.trees?.length) treeManager.applySnapshot(snap.trees);
+        if (snap?.blocks?.length) blockManager.applySnapshot(snap.blocks);
+      } catch (e) {
+        console.warn('Failed to fetch apocalypse cottage world snapshot:', e);
+      }
+    };
+    // Fetch the room snapshot once we successfully enter a room.
+    multiplayerManager.setOnRoomJoined(() => {
+      gameLoop.requestApocalypseSnapshot?.();
+    });
+
+    // Survival + HUD
+    const apocalypseHud = new ApocalypseHud({ gameModeManager });
+    const apocalypseSurvival = new ApocalypseSurvivalManager({
+      gameModeManager,
+      characterManager,
+      blockManager,
+      treeManager,
+      hud: apocalypseHud
+    });
+    gameLoop.apocalypseHud = apocalypseHud;
+    gameLoop.apocalypseSurvival = apocalypseSurvival;
+
+    // Show HUD when entering apocalypse-cottage; hide when leaving.
+    const refreshHudVisibility = () => {
+      const m = gameModeManager.getMode();
+      apocalypseHud.setVisible(m === 'apocalypse-cottage');
+    };
+    const prev = gameModeManager.onModeChangeCallback;
+    gameModeManager.setOnModeChangeCallback(() => {
+      if (typeof prev === 'function') prev();
+      refreshHudVisibility();
+    });
+    refreshHudVisibility();
+
+    // Cozy starter cottage near spawn so the world isn't bare on first boot.
+    // Center cell is at world (0, 0). Cellsize is 0.5u, so cell (centerIx, centerIz)
+    // lives near (0, 0) in world space.
+    const center = apocalypseTerrain.worldToCell(2, 2);
+    const cIx = center.ix;
+    const cIz = center.iz;
+    const wood = 'wood';
+    const stone = 'stone';
+    const thatch = 'thatch';
+    // 3-wide × 3-tall stone foundation
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        if (Math.abs(dx) === 2 || Math.abs(dz) === 2) {
+          blockManager.seedAt(cIx + dx, cIz + dz, 0, stone);
+        }
+      }
+    }
+    // Second tier walls (wood)
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        if (Math.abs(dx) === 2 || Math.abs(dz) === 2) {
+          blockManager.seedAt(cIx + dx, cIz + dz, 1, wood);
+        }
+      }
+    }
+    // Thatch roof
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        blockManager.seedAt(cIx + dx, cIz + dz, 2, thatch);
+      }
+    }
+    // Couple of mature trees beside it
+    treeManager.plantAt(cIx + 4, cIz + 1, { broadcast: false });
+    treeManager.plantAt(cIx - 4, cIz - 1, { broadcast: false });
+    // Fast-forward those to mature so they're a visible canopy at spawn.
+    for (const t of treeManager.trees.values()) {
+      t.applyState({ stage: 'mature', stageAge: 0 });
+    }
+  }
+
   // Connect visual effects managers to game loop
   gameLoop.setScreenShakeManager(screenShakeManager);
   gameLoop.setDamageNumberManager(damageNumberManager);
@@ -369,7 +529,11 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     killStreakManager,
     multiplayerManager,
     gameLoop,
-    scoreboard
+    scoreboard,
+    apocalypseTerrain,
+    terraformController: gameLoop.terraformController || null,
+    treeManager: gameLoop.treeManager || null,
+    blockManager: gameLoop.blockManager || null
   };
 }
 

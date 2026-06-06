@@ -1,6 +1,11 @@
+import { PROJECTILE_TRAIL_BASE } from './ProjectileTrailConfig.js';
+
 /**
  * Base Bolt Particle Config
- * Configuration for bolt projectile particle effects
+ * Configuration for bolt projectile particle effects.
+ *
+ * The trail block inherits from PROJECTILE_TRAIL_BASE so subtlety + distance
+ * fade live in one place across every ability.
  */
 export const BOLT_PARTICLE_BASE = {
   // Ambient Particle Settings (particles around projectile sphere)
@@ -20,24 +25,10 @@ export const BOLT_PARTICLE_BASE = {
     rotationSpeedMin: 0.5,          // Minimum rotation speed around orbit
     rotationSpeedMax: 1.0            // Maximum rotation speed around orbit
   },
-  
+
   // Trail Particle Settings (particles behind projectile while moving)
-  trail: {
-    spawnInterval: 0.03,            // Seconds between trail particle spawns (lower = more frequent)
-    minVelocity: 0.1,                // Minimum velocity to spawn trail particles
-    sizeMin: 0.04,                   // Minimum particle size
-    sizeMax: 0.08,                   // Maximum particle size
-    opacityMin: 0.6,                 // Minimum opacity (0.0 - 1.0)
-    opacityMax: 0.9,                 // Maximum opacity (0.0 - 1.0)
-    behindDistance: 0.8,             // Distance behind projectile (relative to projectile size)
-    randomOffset: 0.3,               // Random offset amount (relative to projectile size)
-    lifetimeMin: 0.2,                // Minimum lifetime in seconds
-    lifetimeMax: 0.4,                // Maximum lifetime in seconds
-    speedMin: 0.5,                   // Minimum speed
-    speedMax: 1.0,                   // Maximum speed
-    backwardDrift: 0.3,              // Backward drift factor (opposite of velocity)
-    randomDirection: 0.5              // Random direction spread
-  }
+  // Inherits subtle defaults + distance-fade from PROJECTILE_TRAIL_BASE.
+  trail: { ...PROJECTILE_TRAIL_BASE }
 };
 
 /**

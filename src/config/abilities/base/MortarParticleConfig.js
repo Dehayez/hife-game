@@ -1,6 +1,13 @@
+import { PROJECTILE_TRAIL_BASE } from './ProjectileTrailConfig.js';
+
 /**
  * Base Mortar Particle Config
- * Configuration for mortar projectile particle effects
+ * Configuration for mortar projectile particle effects.
+ *
+ * Mortar trails inherit the shared subtle defaults from
+ * PROJECTILE_TRAIL_BASE — only the distance-fade radius is widened a touch
+ * since mortar arcs are larger and a slightly longer tail still reads
+ * cleanly without smearing the screen.
  */
 export const MORTAR_PARTICLE_BASE = {
   // Ambient Particle Settings (particles around projectile sphere)
@@ -20,23 +27,11 @@ export const MORTAR_PARTICLE_BASE = {
     rotationSpeedMin: 0.5,          // Minimum rotation speed around orbit
     rotationSpeedMax: 1.0            // Maximum rotation speed around orbit
   },
-  
+
   // Trail Particle Settings (particles behind projectile while moving)
   trail: {
-    spawnInterval: 0.03,            // Seconds between trail particle spawns (lower = more frequent)
-    minVelocity: 0.1,                // Minimum velocity to spawn trail particles
-    sizeMin: 0.04,                   // Minimum particle size
-    sizeMax: 0.08,                   // Maximum particle size
-    opacityMin: 0.6,                 // Minimum opacity (0.0 - 1.0)
-    opacityMax: 0.9,                 // Maximum opacity (0.0 - 1.0)
-    behindDistance: 0.8,             // Distance behind projectile (relative to projectile size)
-    randomOffset: 0.3,               // Random offset amount (relative to projectile size)
-    lifetimeMin: 0.2,                // Minimum lifetime in seconds
-    lifetimeMax: 0.4,                // Maximum lifetime in seconds
-    speedMin: 0.5,                   // Minimum speed
-    speedMax: 1.0,                   // Maximum speed
-    backwardDrift: 0.3,              // Backward drift factor (opposite of velocity)
-    randomDirection: 0.5              // Random direction spread
+    ...PROJECTILE_TRAIL_BASE,
+    distanceFadeRadius: 1.6
   }
 };
 

@@ -300,7 +300,27 @@ export class ParticleManager {
         const scale = 1 + lifeProgress * stats.scaleGrowth;
         particle.scale.set(scale, scale, 1);
       }
-      
+
+      // Distance fade for projectile trail particles: while the owning
+      // projectile is still in the scene, drop opacity smoothly to 0 at
+      // `trailFadeRadius`. Once the projectile is removed (parent === null)
+      // we stop applying this so the trail lingers and fades on lifetime
+      // alone — important so the impact still has visible particles.
+      if (data.trailProjectile && data.trailFadeRadius > 0 && data.trailProjectile.parent) {
+        const dx = particle.position.x - data.trailProjectile.position.x;
+        const dy = particle.position.y - data.trailProjectile.position.y;
+        const dz = particle.position.z - data.trailProjectile.position.z;
+        const distSq = dx * dx + dy * dy + dz * dz;
+        const radius = data.trailFadeRadius;
+        if (distSq >= radius * radius) {
+          baseOpacity = 0;
+        } else {
+          const t = Math.sqrt(distSq) / radius;     // 0 at projectile, 1 at radius
+          const falloff = Math.pow(1 - t, data.trailFadeExponent);
+          baseOpacity *= falloff;
+        }
+      }
+
       particle.material.opacity = Math.max(0, Math.min(1, baseOpacity));
 
       // Make particle face camera by billboarding
@@ -769,19 +789,24 @@ export class ParticleManager {
    * @param {number} projectileSize - Size of the projectile (affects particle size)
    * @param {string} characterName - Character name ('lucy' or 'herald') for config
    * @param {string} abilityName - Ability name ('bolt' or 'mortar') for config
+   * @param {THREE.Object3D|null} projectile - Optional projectile mesh — when
+   *   present, the particle's opacity is multiplied by a smooth falloff that
+   *   reaches 0 at `distanceFadeRadius`. Once the projectile is removed from
+   *   the scene (parent === null) the falloff stops applying so the particle
+   *   simply fades out on its lifetime.
    */
-  spawnProjectileTrailParticle(position, velocity, characterColor, projectileSize = 0.1, characterName = 'lucy', abilityName = 'bolt') {
+  spawnProjectileTrailParticle(position, velocity, characterColor, projectileSize = 0.1, characterName = 'lucy', abilityName = 'bolt', projectile = null) {
     // Get config for this character and ability
     const config = getProjectileParticleConfig(characterName, abilityName, 'trail');
-    
+
     // Create trail particle with configurable size
     const size = config.sizeMin + Math.random() * (config.sizeMax - config.sizeMin);
     const geometry = new THREE.PlaneGeometry(size, size);
-    
+
     // Get effect color (fire/poison) or use character color
     const distanceFromCore = Math.random(); // Random distance for color gradient
     const particleColor = this._getEffectParticleColor(config, characterColor, distanceFromCore);
-    
+
     const material = new THREE.MeshBasicMaterial({
       color: particleColor,
       transparent: true,
@@ -791,20 +816,20 @@ export class ParticleManager {
       depthWrite: false,
       blending: THREE.AdditiveBlending // Glowing effect
     });
-    
+
     const particle = new THREE.Mesh(geometry, material);
-    
+
     // Position particle behind projectile (opposite direction of velocity)
     const velocityNormalized = velocity.clone().normalize();
     const trailDistance = projectileSize * config.behindDistance;
-    
+
     particle.position.copy(position);
     particle.position.sub(velocityNormalized.clone().multiplyScalar(trailDistance));
     // Add random offset for variation
     particle.position.x += (Math.random() - 0.5) * projectileSize * config.randomOffset;
     particle.position.y += (Math.random() - 0.5) * projectileSize * config.randomOffset;
     particle.position.z += (Math.random() - 0.5) * projectileSize * config.randomOffset;
-    
+
     // Velocity: slight outward from trail direction, with some randomness
     const speed = config.speedMin + Math.random() * (config.speedMax - config.speedMin);
     const velocityOpposite = velocityNormalized.clone().multiplyScalar(-config.backwardDrift);
@@ -814,19 +839,25 @@ export class ParticleManager {
       (Math.random() - 0.5) * config.randomDirection
     );
     const finalVelocity = velocityOpposite.clone().add(randomDirection).normalize().multiplyScalar(speed);
-    
+
     particle.userData = {
       velocity: finalVelocity,
       lifetime: 0,
       maxLifetime: config.lifetimeMin + Math.random() * (config.lifetimeMax - config.lifetimeMin),
       initialSize: size,
       initialOpacity: material.opacity,
-      effectType: config.effectType || null // Store effect type for dynamic updates
+      effectType: config.effectType || null,
+      // Distance-fade hookup. The update loop reads these to multiply opacity
+      // by a 1 → 0 ramp keyed off how far the particle has drifted from its
+      // owning projectile this frame.
+      trailProjectile: projectile,
+      trailFadeRadius: config.distanceFadeRadius || 0,
+      trailFadeExponent: config.distanceFadeExponent || 2
     };
-    
+
     this.scene.add(particle);
     this.smokeParticles.push(particle);
-    
+
     // Remove oldest particles if we exceed max
     if (this.smokeParticles.length > this.maxParticles) {
       const oldest = this.smokeParticles.shift();

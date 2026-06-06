@@ -20,19 +20,19 @@ export const HERALD_MORTAR_PARTICLE_CONFIG = {
     rotationSpeedMax: 1.0          // Faster rotation for fire
   },
   trail: {
-    spawnInterval: 0.025,         // More frequent for continuous fire trail
-    sizeMin: 0.08,                // Larger fire trail particles
-    sizeMax: 0.16,                // Larger fire trail particles
-    opacityMin: 0.65,             // Brighter for fire trail
-    opacityMax: 0.95,             // Brighter for fire trail
-    behindDistance: 1.4,          // Further behind for longer fire trail
-    randomOffset: 0.6,             // More spread for fire
-    lifetimeMin: 0.18,            // Shorter for flickering fire trail
-    lifetimeMax: 0.38,            // Shorter for flickering fire trail
-    speedMin: 0.5,                // Faster for fire trail
-    speedMax: 1.1,                // Faster for fire trail
-    backwardDrift: 0.3,           // More drift for fire effect
-    randomDirection: 0.65         // More spread for fire
+    spawnInterval: 0.04,
+    sizeMin: 0.08,
+    sizeMax: 0.16,
+    opacityMin: 0.15,
+    opacityMax: 0.35,
+    behindDistance: 1.4,
+    randomOffset: 0.6,
+    lifetimeMin: 0.16,
+    lifetimeMax: 0.32,
+    speedMin: 0.5,
+    speedMax: 1.1,
+    backwardDrift: 0.3,
+    randomDirection: 0.65
   },
   // Fire-specific effects
   effectType: 'fire',             // Mark as fire effect
