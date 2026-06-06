@@ -303,7 +303,7 @@ export function setSoundEffectsVolume(volume) {
 
 /**
  * Get background cinematic volume (0.0 to 1.0)
- * @returns {number} Background cinematic volume (default 0.2)
+ * @returns {number} Background cinematic volume (default 0.06)
  */
 export function getBackgroundCinematicVolume() {
   try {
@@ -316,7 +316,7 @@ export function getBackgroundCinematicVolume() {
   } catch (e) {
     handleStorageError(e, 'read', 'backgroundCinematicVolume');
   }
-  return 0.2; // Default volume
+  return 0.06; // Quiet first-render default; user can raise via settings
 }
 
 /**

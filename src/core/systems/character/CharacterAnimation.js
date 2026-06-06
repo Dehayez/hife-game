@@ -278,12 +278,12 @@ export function updateCharacterAnimation(
       // Play footsteps on specific frames (typically when feet hit ground)
       // For 4-frame walk cycle: play on frames 0 and 2
       const footstepFrames = anim.frameCount >= 4 ? [0, 2] : [0];
-      
+
       // Play when we transition to a footstep frame
       if (footstepFrames.includes(anim.frameIndex)) {
         // Check if on obstacle/platform (not base ground) to play appropriate sound
         const isObstacle = !isOnBaseGround();
-        soundManager.playFootstep(isObstacle);
+        soundManager.playFootstep(isObstacle, isRunning);
       }
     }
     
@@ -410,7 +410,7 @@ export function updateCharacterMovement(
         const isObstacle = !isOnBaseGround();
         shouldPlayFootstep = true;
         if (soundManager) {
-          soundManager.playFootstep(isObstacle);
+          soundManager.playFootstep(isObstacle, isRunning);
         }
       }
       
@@ -444,6 +444,10 @@ export function updateCharacterMovement(
     }
     // Reset smoke timer when not moving
     newSmokeSpawnTimer = 0;
+    // Tell the soundtrack the client is idle so drums + ambience duck down.
+    if (soundManager && typeof soundManager.notifyMovementState === 'function') {
+      soundManager.notifyMovementState({ isMoving: false, isRunning: false, isGrounded });
+    }
   }
 
   return {

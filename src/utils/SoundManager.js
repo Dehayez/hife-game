@@ -1,6 +1,6 @@
 import { getSoundEffectsVolume, getBackgroundCinematicVolume } from './StorageUtils.js';
 import { tryLoadAudio, tryLoadAudioWithFallback, getAudioPath, loadCustomAudio } from './AudioLoader.js';
-import { isSoundEnabled } from '../config/global/SoundConfig.js';
+import { isSoundEnabled, getSoundValue } from '../config/global/SoundConfig.js';
 
 export class SoundManager {
   constructor(customFootstepPath = null, customObstacleFootstepPath = null, customJumpPath = null, customObstacleJumpPath = null) {
@@ -19,11 +19,40 @@ export class SoundManager {
     this.currentFlySound = null; // Track currently playing fly sound to stop it
     this.backgroundMusic = null;
     this.backgroundMusicPath = null;
-    this.backgroundMusicVolume = 0.2; // Background music volume (0-1), typically lower than sound effects - will be loaded from storage via initFromStorage
+    this.backgroundMusicVolume = 0.06; // Quiet first-render default - will be loaded from storage via initFromStorage
     this.soundEffectsVolume = 0.15; // Sound effects volume (0-1) - will be loaded from storage via initFromStorage
     
     // Cache for loaded custom audio files
     this.customAudioCache = new Map();
+
+    // Procedural drum loop state (layered over background music)
+    this._drumTimer = null;
+    this._drumNextStep = 0;
+    this._drumScheduledUntil = 0;
+    this._drumStepIndex = 0;
+    this._drumNoiseBuffer = null;
+    this._drumBarActive = false; // re-rolled at each bar boundary for sparse playback
+
+    // Intermittent background-music state
+    this._musicSegmentTimer = null;
+    this._musicFadeTimer = null;
+    this._musicActive = false;     // true = currently inside an on-segment
+    this._musicSegmentEnabled = false; // master switch for the scheduler loop
+
+    // Live performance state — drums + ambience react to player activity.
+    // intensity ramps toward intensityTarget; targets come from action bumps
+    // (notifyAction) and movement state (notifyMovementState). Idle clients
+    // drift to ~0, which ducks drum volume and slows the ambient wood scheduler.
+    this._intensity = 0;
+    this._intensityTarget = 0;
+    this._movementIntensity = 0;
+    this._actionIntensity = 0;
+    this._lastActionTime = 0;
+    this._lastIntensityTickMs = 0;
+    this._intensityTimer = null;
+
+    // Ambient wood SFX scheduler state
+    this._ambientWoodTimer = null;
     
     // Listener position for distance-based volume (player position)
     this.listenerPosition = null;
@@ -410,7 +439,7 @@ export class SoundManager {
     } catch (error) {
       // Use defaults if storage read fails
       this.soundEffectsVolume = 0.15;
-      this.backgroundMusicVolume = 0.2;
+      this.backgroundMusicVolume = 0.06;
       this.masterVolume = 0.15;
     }
   }
@@ -446,6 +475,7 @@ export class SoundManager {
   playJump(isObstacle = false) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('movement', 'jump')) return;
+    this.notifyAction('jump', 0.6);
 
     // Always use the same jump audio for all jumps (ground and obstacle)
     if (this.jumpAudio) {
@@ -604,6 +634,8 @@ export class SoundManager {
   playFly() {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('movement', 'fly')) return;
+    this.notifyAction('fly', 0.5);
+    this.notifyMovementState({ isMoving: true, isRunning: false, isGrounded: false });
 
     // Stop any currently playing fly sound first
     this.stopFly();
@@ -719,6 +751,14 @@ export class SoundManager {
     if (!this.soundEnabled) return;
     if (isObstacle && !isSoundEnabled('movement', 'landingObstacle')) return;
     if (!isObstacle && !isSoundEnabled('movement', 'landingGround')) return;
+
+    // Layer a procedural wood thud on top of the landing sound
+    const woodKey = isObstacle ? 'onLandingObstacle' : 'onLandingGround';
+    if (isSoundEnabled('wood', woodKey)) {
+      const landingVol = getSoundValue('wood', 'landingVolume', 0.7);
+      this._playWoodKnock(isObstacle ? landingVol * 1.15 : landingVol);
+    }
+    this.notifyAction('landing', 0.55);
 
     // For landing, we can reuse the footstep sounds but potentially with different volume
     // Or play a slightly different version. For now, we'll use footstep sounds but louder
@@ -842,10 +882,21 @@ export class SoundManager {
    * Play footstep sound - uses custom audio file if available, otherwise generates procedural sound
    * @param {boolean} isObstacle - If true, plays obstacle/platform footstep sound
    */
-  playFootstep(isObstacle = false) {
+  playFootstep(isObstacle = false, isRunning = false) {
     if (!this.soundEnabled) return;
     if (isObstacle && !isSoundEnabled('movement', 'footstepObstacle')) return;
     if (!isObstacle && !isSoundEnabled('movement', 'footstepGround')) return;
+
+    // Drive the live drum performance: each footstep pulses movement intensity.
+    this.notifyMovementState({ isMoving: true, isRunning, isGrounded: true });
+    this.notifyAction(isRunning ? 'run' : 'walk', isRunning ? 0.55 : 0.35);
+
+    // Layer a procedural wood knock on top of the regular footstep sound
+    const woodKey = isObstacle ? 'onFootstepObstacle' : 'onFootstepGround';
+    if (isSoundEnabled('wood', woodKey)) {
+      const stepVol = getSoundValue('wood', 'stepVolume', 0.45);
+      this._playWoodKnock(isObstacle ? stepVol * 1.1 : stepVol);
+    }
 
     // Use obstacle-specific audio if available and on obstacle
     if (isObstacle && this.obstacleFootstepAudio) {
@@ -1109,26 +1160,31 @@ export class SoundManager {
       }
       
       if (this.backgroundMusic) {
-        this.backgroundMusic.loop = true;
+        const intermittent = isSoundEnabled('music', 'backgroundIntermittent');
+        // In intermittent mode we manage looping ourselves; otherwise loop continuously.
+        this.backgroundMusic.loop = !intermittent;
 
         // Handle loading errors gracefully
         this.backgroundMusic.addEventListener('error', () => {
           this.backgroundMusic = null;
         });
 
+        const kickoff = () => {
+          if (intermittent) {
+            this._startMusicSegments();
+          } else {
+            this.playBackgroundMusic();
+          }
+        };
+
         // Auto-play when loaded (only if not already playing)
         if (this.backgroundMusic.readyState >= 3) {
-          // Already loaded (HAVE_FUTURE_DATA or higher), try to play immediately
-          this.playBackgroundMusic();
+          kickoff();
         } else {
-          // Wait for canplaythrough event (only add listener if not already loaded)
           this.backgroundMusic.addEventListener('canplaythrough', () => {
-            // Attempt to play automatically when ready
-            // Check after a short delay if it actually started
-            this.playBackgroundMusic();
+            kickoff();
             setTimeout(() => {
-              if (!this.isBackgroundMusicPlaying()) {
-                // Music didn't start, will need user interaction
+              if (!intermittent && !this.isBackgroundMusicPlaying()) {
                 this._backgroundMusicPlaying = false;
               }
             }, 100);
@@ -1136,14 +1192,10 @@ export class SoundManager {
         }
 
         // Don't call load() if already loaded - it causes unnecessary network requests
-        // The audio element will load automatically when play() is called if needed
-        // Only call load() if the element is in a state that requires it
         if (this.backgroundMusic.readyState === 0 && !this.backgroundMusic.src) {
-          // Only load if src is not set (shouldn't happen, but safety check)
           this.backgroundMusic.load();
         } else {
-          // Already loaded or loading, try to play
-          this.playBackgroundMusic();
+          kickoff();
         }
       }
     } catch (error) {
@@ -1175,14 +1227,17 @@ export class SoundManager {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            // Mark that we successfully started playing
             this._backgroundMusicPlaying = true;
+            this._startDrumLoop();
+            this._startAmbientWood();
           })
           .catch(err => {
             // Silently handle autoplay blocking - it's expected behavior in browsers
-            // Mark that we need user interaction
             this._backgroundMusicPlaying = false;
           });
+      } else {
+        this._startDrumLoop();
+        this._startAmbientWood();
       }
     } catch (err) {
       // Silently handle autoplay blocking - it's expected behavior in browsers
@@ -1201,6 +1256,9 @@ export class SoundManager {
     } catch (err) {
       // Error pausing background music
     }
+    this._stopMusicSegments();
+    this._stopDrumLoop();
+    this._stopAmbientWood();
   }
 
   /**
@@ -1215,6 +1273,9 @@ export class SoundManager {
     } catch (err) {
       // Error stopping background music
     }
+    this._stopMusicSegments();
+    this._stopDrumLoop();
+    this._stopAmbientWood();
   }
 
   /**
@@ -1224,7 +1285,13 @@ export class SoundManager {
   setBackgroundMusicVolume(volume) {
     this.backgroundMusicVolume = Math.max(0, Math.min(1, volume));
     if (this.backgroundMusic) {
-      this.backgroundMusic.volume = this.backgroundMusicVolume;
+      // In intermittent mode, only push the new volume when we're in an
+      // on-segment; otherwise silent gaps stay silent.
+      if (this._musicSegmentEnabled && !this._musicActive) {
+        this.backgroundMusic.volume = 0;
+      } else {
+        this.backgroundMusic.volume = this.backgroundMusicVolume;
+      }
     }
   }
 
@@ -1254,6 +1321,7 @@ export class SoundManager {
   async playMortarExplosion(position = null, characterName = null) {
     if (!this.soundEnabled) return null;
     if (!isSoundEnabled('abilities', 'mortarExplosion')) return null;
+    this.notifyAction('mortarExplosion', 0.9);
     
     const normalizedName = characterName && characterName.toLowerCase();
     const isHerald = normalizedName === 'herald' || normalizedName === 'babyherald';
@@ -1465,6 +1533,7 @@ export class SoundManager {
   async playMortarLaunch(characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'mortarLaunch')) return;
+    this.notifyAction('mortar', 0.85);
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {
@@ -1647,6 +1716,7 @@ export class SoundManager {
   async playBoltShot(position = null, characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'boltShot')) return;
+    this.notifyAction('bolt', 0.7);
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {
@@ -1775,6 +1845,7 @@ export class SoundManager {
   playBoltHit(position = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'boltHit')) return;
+    this.notifyAction('boltHit', 0.55);
     const path = getAudioPath('abilities', 'bolt', 'bolt_hit');
     this._playSoundWithFallback(path, () => {
       this._playBoltHitProcedural(position);
@@ -1818,6 +1889,7 @@ export class SoundManager {
   async playMeleeSwing(characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'meleeSwing')) return;
+    this.notifyAction('meleeSwing', 0.65);
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {
@@ -1920,6 +1992,7 @@ export class SoundManager {
   async playMeleeHit(characterName = null) {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('abilities', 'meleeHit')) return;
+    this.notifyAction('meleeHit', 0.8);
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {
@@ -2022,6 +2095,7 @@ export class SoundManager {
   playCharacterSwap() {
     if (!this.soundEnabled) return;
     if (!isSoundEnabled('character', 'characterSwap')) return;
+    this.notifyAction('characterSwap', 0.5);
     const path = getAudioPath('core', 'character', 'character_swap');
     this._playSoundWithFallback(path, () => {
       this._playCharacterSwapProcedural();
@@ -2221,6 +2295,527 @@ export class SoundManager {
       return proceduralFn();
     }
     return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Intermittent background music — plays for short segments with silent gaps
+  // ---------------------------------------------------------------------------
+
+  _startMusicSegments() {
+    if (!this.backgroundMusic) return;
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('music', 'background')) return;
+    if (this._musicSegmentEnabled) return;
+    this._musicSegmentEnabled = true;
+    this._musicActive = false;
+    this.backgroundMusic.volume = 0;
+    this._runMusicSegment();
+  }
+
+  _stopMusicSegments() {
+    this._musicSegmentEnabled = false;
+    this._musicActive = false;
+    if (this._musicSegmentTimer) {
+      clearTimeout(this._musicSegmentTimer);
+      this._musicSegmentTimer = null;
+    }
+    if (this._musicFadeTimer) {
+      clearInterval(this._musicFadeTimer);
+      this._musicFadeTimer = null;
+    }
+    if (this.backgroundMusic) {
+      this.backgroundMusic.volume = this.backgroundMusicVolume;
+    }
+  }
+
+  _runMusicSegment() {
+    if (!this._musicSegmentEnabled || !this.backgroundMusic) return;
+    if (!isSoundEnabled('music', 'background')) {
+      this._stopMusicSegments();
+      return;
+    }
+
+    const playMs = Math.max(2000, getSoundValue('music', 'backgroundPlayMs', 18000));
+    const fadeMs = Math.max(0, getSoundValue('music', 'backgroundFadeMs', 1500));
+
+    this._musicActive = true;
+    // Rewind so each segment starts at the top of the track.
+    try { this.backgroundMusic.currentTime = 0; } catch (_) {}
+    this.backgroundMusic.volume = 0;
+
+    const playPromise = this.backgroundMusic.play();
+    const onStarted = () => {
+      this._backgroundMusicPlaying = true;
+      this._startDrumLoop();
+      this._startAmbientWood();
+      this._fadeMusic(0, this.backgroundMusicVolume, fadeMs);
+      // Schedule fade-out near the end of the segment.
+      this._musicSegmentTimer = setTimeout(() => this._endMusicSegment(), Math.max(0, playMs - fadeMs));
+    };
+
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise.then(onStarted).catch(() => {
+        // Autoplay blocked or playback failed — try again later.
+        this._musicActive = false;
+        this._scheduleNextSegment();
+      });
+    } else {
+      onStarted();
+    }
+  }
+
+  _endMusicSegment() {
+    if (!this.backgroundMusic) return;
+    const fadeMs = Math.max(0, getSoundValue('music', 'backgroundFadeMs', 1500));
+    this._fadeMusic(this.backgroundMusic.volume, 0, fadeMs, () => {
+      if (this.backgroundMusic) {
+        try {
+          this.backgroundMusic.pause();
+          this.backgroundMusic.currentTime = 0;
+        } catch (_) {}
+      }
+      this._musicActive = false;
+      this._stopDrumLoop();
+      this._stopAmbientWood();
+      this._scheduleNextSegment();
+    });
+  }
+
+  _scheduleNextSegment() {
+    if (!this._musicSegmentEnabled) return;
+    const minMs = Math.max(1000, getSoundValue('music', 'backgroundMinSilenceMs', 25000));
+    const maxMs = Math.max(minMs + 1000, getSoundValue('music', 'backgroundMaxSilenceMs', 55000));
+    const gap = minMs + Math.random() * (maxMs - minMs);
+    this._musicSegmentTimer = setTimeout(() => this._runMusicSegment(), gap);
+  }
+
+  _fadeMusic(from, to, durationMs, onDone) {
+    if (this._musicFadeTimer) {
+      clearInterval(this._musicFadeTimer);
+      this._musicFadeTimer = null;
+    }
+    if (!this.backgroundMusic) {
+      if (onDone) onDone();
+      return;
+    }
+    if (durationMs <= 0) {
+      this.backgroundMusic.volume = Math.max(0, Math.min(1, to));
+      if (onDone) onDone();
+      return;
+    }
+    const steps = Math.max(4, Math.floor(durationMs / 50));
+    const stepMs = durationMs / steps;
+    let i = 0;
+    this._musicFadeTimer = setInterval(() => {
+      i++;
+      const t = i / steps;
+      if (!this.backgroundMusic) {
+        clearInterval(this._musicFadeTimer);
+        this._musicFadeTimer = null;
+        return;
+      }
+      const v = from + (to - from) * t;
+      this.backgroundMusic.volume = Math.max(0, Math.min(1, v));
+      if (i >= steps) {
+        clearInterval(this._musicFadeTimer);
+        this._musicFadeTimer = null;
+        if (onDone) onDone();
+      }
+    }, stepMs);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Procedural drum loop layered over background music
+  // ---------------------------------------------------------------------------
+
+  _getDrumNoiseBuffer() {
+    if (this._drumNoiseBuffer || !this.audioContext) return this._drumNoiseBuffer;
+    const length = Math.floor(this.audioContext.sampleRate * 0.5);
+    const buffer = this.audioContext.createBuffer(1, length, this.audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    this._drumNoiseBuffer = buffer;
+    return buffer;
+  }
+
+  _drumVolume() {
+    const rel = getSoundValue('music', 'drumsVolume', 0.55);
+    // Intensity 0 ducks drums to 35% of base, intensity 1 boosts to 115%.
+    const idleFloor = getSoundValue('music', 'drumsIdleFloor', 0.35);
+    const peakBoost = getSoundValue('music', 'drumsPeakBoost', 1.15);
+    const intensityCurve = idleFloor + (peakBoost - idleFloor) * this._intensity;
+    return Math.max(0, Math.min(1, this.backgroundMusicVolume * rel * intensityCurve));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Live performance — intensity from movement + actions feeds the drums + ambience
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Bump the action intensity. Called when the local or remote client does
+   * something audible (jump, attack, mortar, swap, etc). Intensity decays
+   * automatically over ~1.5s.
+   * @param {string} kind - identifier (jump|melee|bolt|mortar|landing|swap|...)
+   * @param {number} amount - 0-1, how big the bump is
+   */
+  notifyAction(kind, amount = 0.5) {
+    const clamped = Math.max(0, Math.min(1, amount));
+    this._actionIntensity = Math.max(this._actionIntensity, clamped);
+    this._lastActionTime = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now()
+      : 0;
+    this._recomputeIntensityTarget();
+  }
+
+  /**
+   * Set the steady-state movement intensity. Called per-frame from movement
+   * code with the player's current state (idle / walking / running).
+   * @param {Object} state - { isMoving, isRunning, isGrounded }
+   */
+  notifyMovementState(state = {}) {
+    const { isMoving = false, isRunning = false, isGrounded = true } = state;
+    let movement = 0;
+    if (!isGrounded) movement = 0.55;
+    else if (isRunning) movement = 0.75;
+    else if (isMoving) movement = 0.4;
+    // Smooth a tiny bit so quick toggles don't snap.
+    this._movementIntensity = this._movementIntensity * 0.6 + movement * 0.4;
+    this._recomputeIntensityTarget();
+  }
+
+  _recomputeIntensityTarget() {
+    this._intensityTarget = Math.max(this._movementIntensity, this._actionIntensity);
+  }
+
+  _ensureIntensityTimer() {
+    if (this._intensityTimer) return;
+    this._lastIntensityTickMs = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now()
+      : 0;
+    this._intensityTimer = setInterval(() => this._tickIntensity(), 60);
+  }
+
+  _stopIntensityTimer() {
+    if (this._intensityTimer) {
+      clearInterval(this._intensityTimer);
+      this._intensityTimer = null;
+    }
+  }
+
+  _tickIntensity() {
+    const nowMs = (typeof performance !== 'undefined' && performance.now)
+      ? performance.now()
+      : (this._lastIntensityTickMs + 60);
+    const dt = Math.max(0, (nowMs - this._lastIntensityTickMs) / 1000);
+    this._lastIntensityTickMs = nowMs;
+
+    // Action intensity decays toward 0 with a ~1.5s half-life.
+    const decay = Math.exp(-dt / 0.5);
+    this._actionIntensity *= decay;
+    if (this._actionIntensity < 0.01) this._actionIntensity = 0;
+    this._recomputeIntensityTarget();
+
+    // Smooth follower: intensity chases the target with a short time constant.
+    const follow = 1 - Math.exp(-dt / 0.18);
+    this._intensity += (this._intensityTarget - this._intensity) * follow;
+    if (Math.abs(this._intensity - this._intensityTarget) < 0.002) {
+      this._intensity = this._intensityTarget;
+    }
+  }
+
+  _startDrumLoop() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('music', 'background')) return;
+    if (!isSoundEnabled('music', 'drums')) return;
+    if (this._drumTimer) return;
+    if (!this._ensureAudioContext()) return;
+
+    this._drumStepIndex = 0;
+    this._drumNextStep = this.audioContext.currentTime + 0.1;
+    this._drumScheduledUntil = this._drumNextStep;
+    this._scheduleDrumWindow();
+    this._drumTimer = setInterval(() => this._scheduleDrumWindow(), 100);
+    this._ensureIntensityTimer();
+  }
+
+  _stopDrumLoop() {
+    if (this._drumTimer) {
+      clearInterval(this._drumTimer);
+      this._drumTimer = null;
+    }
+    this._drumStepIndex = 0;
+    this._drumScheduledUntil = 0;
+    if (!this._ambientWoodTimer) this._stopIntensityTimer();
+  }
+
+  _scheduleDrumWindow() {
+    if (!this.audioContext) return;
+    if (!isSoundEnabled('music', 'drums')) {
+      this._stopDrumLoop();
+      return;
+    }
+
+    const bpm = Math.max(40, getSoundValue('music', 'drumsBpm', 88));
+    const swing = Math.max(0, Math.min(0.4, getSoundValue('music', 'drumsSwing', 0.18)));
+    const eighth = 60 / bpm / 2;
+    const lookahead = 0.25;
+    const horizon = this.audioContext.currentTime + lookahead;
+
+    while (this._drumNextStep < horizon) {
+      const step = this._drumStepIndex % 8;
+      // At the top of each bar, decide whether the whole bar plays.
+      if (step === 0) {
+        const baseChance = getSoundValue('music', 'drumsBarPlayChance', 0.35);
+        // Intensity makes bars more likely to play, but never every bar.
+        const chance = Math.min(0.85, baseChance + this._intensity * 0.4);
+        this._drumBarActive = Math.random() < chance;
+      }
+
+      if (this._drumBarActive) {
+        const swingOffset = step % 2 === 1 ? eighth * swing : 0;
+        this._playDrumStep(step, this._drumNextStep + swingOffset);
+      }
+      this._drumNextStep += eighth;
+      this._drumStepIndex++;
+    }
+  }
+
+  _playDrumStep(step, when) {
+    const vol = this._drumVolume();
+    if (vol <= 0) return;
+    const intensity = this._intensity;
+    const maxDensity = Math.max(0, Math.min(1, getSoundValue('music', 'drumsMaxDensity', 0.55)));
+    // Effective density blends idle quiet with intensity, capped by maxDensity.
+    const density = Math.min(maxDensity, 0.2 + intensity * 0.8);
+
+    // Kick: always on the bar-start downbeat (1). Only sometimes on beat 3 (step 4).
+    if (step === 0) {
+      this._playKick(when, vol);
+    } else if (step === 4 && Math.random() < 0.45 + density * 0.4) {
+      this._playKick(when, vol * 0.85);
+    }
+
+    // Snare: only on backbeat (step 4 in this context = step 4 of 8 eighths). Use
+    // step 4 -> downbeat 3, step 6 -> "and of 3". Here we use 4 as snare hit,
+    // gated by density so it sometimes drops out.
+    if (step === 4 && Math.random() < density + 0.1) {
+      this._playSnare(when, vol * (0.6 + 0.4 * intensity));
+    }
+
+    // Hi-hat: sparse. Quarter-note hats by default; double up to eighths only
+    // at higher density. Idle clients hear only the bar-start hat.
+    if (step === 0) {
+      this._playHat(when, vol * 0.85);
+    } else if (density > 0.35 && step % 2 === 0) {
+      this._playHat(when, vol * 0.65);
+    } else if (density > 0.7 && step % 2 === 1) {
+      this._playHat(when, vol * 0.45);
+    }
+  }
+
+  _playKick(when, vol) {
+    const ctx = this.audioContext;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, when);
+    osc.frequency.exponentialRampToValueAtTime(45, when + 0.12);
+
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(vol * 0.9, when + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, when + 0.18);
+
+    osc.start(when);
+    osc.stop(when + 0.2);
+  }
+
+  _playSnare(when, vol) {
+    const ctx = this.audioContext;
+    const buffer = this._getDrumNoiseBuffer();
+    if (!buffer) return;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.value = 1500;
+    const noiseGain = ctx.createGain();
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    noiseGain.gain.setValueAtTime(0, when);
+    noiseGain.gain.linearRampToValueAtTime(vol * 0.7, when + 0.005);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, when + 0.18);
+
+    noise.start(when);
+    noise.stop(when + 0.2);
+
+    // Tonal body for the snare
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(220, when);
+    osc.frequency.exponentialRampToValueAtTime(140, when + 0.1);
+
+    oscGain.gain.setValueAtTime(0, when);
+    oscGain.gain.linearRampToValueAtTime(vol * 0.35, when + 0.005);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, when + 0.12);
+
+    osc.start(when);
+    osc.stop(when + 0.14);
+  }
+
+  _playHat(when, vol) {
+    const ctx = this.audioContext;
+    const buffer = this._getDrumNoiseBuffer();
+    if (!buffer) return;
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 6000;
+    const gain = ctx.createGain();
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(vol * 0.25, when + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.001, when + 0.05);
+
+    noise.start(when);
+    noise.stop(when + 0.06);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Procedural wood SFX (knock + creak) layered over movement & ambient
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Procedural wood knock - short, percussive, slight pitch wobble for variation.
+   * @param {number} volumeMultiplier - 0-1 multiplier on top of soundEffectsVolume
+   */
+  _playWoodKnock(volumeMultiplier = 0.5) {
+    if (!this.soundEnabled) return;
+    if (!this._ensureAudioContext()) return;
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+    const base = this.soundEffectsVolume * Math.max(0, Math.min(1, volumeMultiplier));
+    if (base <= 0) return;
+
+    const pitch = 180 + Math.random() * 80; // 180-260 Hz body
+
+    // Hollow body resonance
+    const body = ctx.createOscillator();
+    const bodyGain = ctx.createGain();
+    body.connect(bodyGain);
+    bodyGain.connect(ctx.destination);
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(pitch, now);
+    body.frequency.exponentialRampToValueAtTime(pitch * 0.55, now + 0.08);
+    bodyGain.gain.setValueAtTime(0, now);
+    bodyGain.gain.linearRampToValueAtTime(base * 0.5, now + 0.004);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    body.start(now);
+    body.stop(now + 0.1);
+
+    // Sharp transient click for the impact
+    const click = ctx.createOscillator();
+    const clickGain = ctx.createGain();
+    click.connect(clickGain);
+    clickGain.connect(ctx.destination);
+    click.type = 'square';
+    click.frequency.setValueAtTime(900, now);
+    click.frequency.exponentialRampToValueAtTime(450, now + 0.03);
+    clickGain.gain.setValueAtTime(0, now);
+    clickGain.gain.linearRampToValueAtTime(base * 0.25, now + 0.002);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+    click.start(now);
+    click.stop(now + 0.05);
+  }
+
+  /**
+   * Procedural wood creak - longer, pitchy groan for ambient ambience.
+   */
+  _playWoodCreak(volumeMultiplier = 0.4) {
+    if (!this.soundEnabled) return;
+    if (!this._ensureAudioContext()) return;
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+    const base = this.soundEffectsVolume * Math.max(0, Math.min(1, volumeMultiplier));
+    if (base <= 0) return;
+
+    const duration = 0.6 + Math.random() * 0.5;
+    const startFreq = 130 + Math.random() * 40;
+    const endFreq = startFreq * (1.2 + Math.random() * 0.4);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.linearRampToValueAtTime(endFreq, now + duration * 0.7);
+    osc.frequency.linearRampToValueAtTime(endFreq * 0.95, now + duration);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(base * 0.35, now + 0.08);
+    gain.gain.linearRampToValueAtTime(base * 0.25, now + duration * 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  }
+
+  _startAmbientWood() {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('wood', 'ambient')) return;
+    if (this._ambientWoodTimer) return;
+    this._ensureIntensityTimer();
+
+    const schedule = () => {
+      const minMs = Math.max(500, getSoundValue('wood', 'ambientMinIntervalMs', 4000));
+      const maxMs = Math.max(minMs + 500, getSoundValue('wood', 'ambientMaxIntervalMs', 11000));
+      // Idle clients hear the wood ambience less often — stretch the interval
+      // by up to 2.5x when intensity is near zero.
+      const idleStretch = 1 + 1.5 * (1 - this._intensity);
+      const delay = (minMs + Math.random() * (maxMs - minMs)) * idleStretch;
+      this._ambientWoodTimer = setTimeout(() => {
+        if (!isSoundEnabled('wood', 'ambient')) {
+          this._ambientWoodTimer = null;
+          return;
+        }
+        const baseVol = getSoundValue('wood', 'ambientVolume', 0.35);
+        // Quieter when idle, full when the client is doing things.
+        const intensityVolMul = 0.45 + 0.55 * this._intensity;
+        const vol = baseVol * intensityVolMul;
+        if (Math.random() < 0.55) {
+          this._playWoodCreak(vol);
+        } else {
+          this._playWoodKnock(vol * 0.9);
+        }
+        schedule();
+      }, delay);
+    };
+    schedule();
+  }
+
+  _stopAmbientWood() {
+    if (this._ambientWoodTimer) {
+      clearTimeout(this._ambientWoodTimer);
+      this._ambientWoodTimer = null;
+    }
+    if (!this._drumTimer) this._stopIntensityTimer();
   }
 }
 
