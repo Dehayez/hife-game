@@ -326,6 +326,41 @@ export function hideLoadingScreen() {
 }
 
 /**
+ * Warm up renderer + shaders before first interactive frame.
+ * This shifts first-render compilation cost behind the loading screen.
+ * @param {Object} sceneManager
+ * @param {Object} characterManager
+ * @returns {Promise<void>}
+ */
+async function prewarmFirstRender(sceneManager, characterManager) {
+  const renderer = sceneManager?.renderer;
+  const scene = sceneManager?.getScene?.();
+  const camera = sceneManager?.getCamera?.();
+  if (!renderer || !scene || !camera || typeof sceneManager.render !== 'function') {
+    return;
+  }
+
+  const player = characterManager?.getPlayer?.();
+  if (player && typeof sceneManager.updateCamera === 'function') {
+    sceneManager.updateCamera(player.position, false);
+  }
+
+  try {
+    if (typeof renderer.compileAsync === 'function') {
+      await renderer.compileAsync(scene, camera);
+    } else if (typeof renderer.compile === 'function') {
+      renderer.compile(scene, camera);
+    }
+  } catch (error) {
+    // Best effort only; fallback warmup renders still help.
+  }
+
+  sceneManager.render();
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  sceneManager.render();
+}
+
+/**
  * Initialize game with character loading and setup
  * @param {Object} managers - All game managers
  * @param {Object} uiComponents - All UI components
@@ -400,6 +435,7 @@ export async function initializeGame(managers, uiComponents, config) {
     }
     
     progressManager.setProgress(15, 'Step into the grove...');
+    await prewarmFirstRender(sceneManager, characterManager);
     gameLoop.start();
     
     // Small delay to show "Starting game..." message

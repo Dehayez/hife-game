@@ -170,6 +170,9 @@ export class GameLoop {
     // Lightweight runtime spike watcher for live gameplay profiling.
     this._frameSpikeThresholdMs = 20;
     this._lastSpikeLogTime = 0;
+
+    // One-time warmup to avoid first RMB hitch (shader/material compilation).
+    this._mortarVisualsPrewarmed = false;
   }
   
   /**
@@ -309,6 +312,10 @@ export class GameLoop {
     }
     
     const player = this.characterManager.getPlayer();
+
+    if (player && !this._mortarVisualsPrewarmed) {
+      this._prewarmMortarVisuals(player);
+    }
     
     // Update sound manager listener position for distance-based volume
     if (player && this.characterManager.getSoundManager()) {
@@ -1727,6 +1734,57 @@ export class GameLoop {
       return false;
     }
     return this.inputManager.isRunning();
+  }
+
+  /**
+   * Pre-compile mortar hold visual + arc preview assets so first RMB hold
+   * doesn't hitch from first-use shader/geometry setup.
+   * @param {THREE.Mesh|THREE.Group} player
+   * @private
+   */
+  _prewarmMortarVisuals(player) {
+    if (this._mortarVisualsPrewarmed || !player || this.mortarHoldActive) {
+      return;
+    }
+
+    const scene = this.sceneManager?.getScene?.();
+    if (!scene) {
+      return;
+    }
+
+    try {
+      // Warm the hold orb materials/lights once.
+      this._createMortarHoldVisual(player);
+      if (this.mortarHoldVisual) {
+        this.mortarHoldVisual.visible = false;
+      }
+      this._removeMortarHoldVisual();
+
+      // Warm the arc preview material + tube geometry once.
+      const playerPos = player.position;
+      const characterName = this.characterManager.getCharacterName();
+      const warmTargetX = playerPos.x + 1.5;
+      const warmTargetZ = playerPos.z;
+      const warmArc = createMortarArcPreview(
+        scene,
+        playerPos.x,
+        playerPos.y,
+        playerPos.z,
+        warmTargetX,
+        warmTargetZ,
+        characterName,
+        this.collisionManager
+      );
+
+      if (warmArc) {
+        scene.add(warmArc);
+        removeMortarArcPreview(warmArc, scene);
+      }
+    } catch (error) {
+      // Best-effort warmup only; gameplay should continue even if prewarm fails.
+    }
+
+    this._mortarVisualsPrewarmed = true;
   }
   
   /**
