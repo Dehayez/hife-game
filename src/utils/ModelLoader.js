@@ -9,6 +9,22 @@ import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 // Lazy load GLTFLoader - we'll create it manually to avoid import issues
 let loader = null;
 let loaderPromise = null;
+let skeletonUtilsPromise = null;
+
+async function getSkeletonUtils() {
+  if (skeletonUtilsPromise) return skeletonUtilsPromise;
+  skeletonUtilsPromise = (async () => {
+    try {
+      const dynamicImport = new Function('p', 'return import(p)');
+      const mod = await dynamicImport('three/addons/utils/SkeletonUtils.js');
+      return mod;
+    } catch (err) {
+      console.warn('[ModelLoader] SkeletonUtils unavailable, falling back to scene.clone():', err?.message);
+      return null;
+    }
+  })();
+  return skeletonUtilsPromise;
+}
 
 async function getGLTFLoader() {
   if (loader) return loader;
@@ -57,9 +73,20 @@ const modelCache = new Map();
  * @param {string} path - Path to the GLB/GLTF file
  * @returns {Promise<THREE.Group>} Promise that resolves to the loaded model group
  */
+function cloneSceneWithAnimations(cachedScene, animations, skeletonUtils = null) {
+  const cloned = skeletonUtils?.clone
+    ? skeletonUtils.clone(cachedScene)
+    : cachedScene.clone();
+  cloned.animations = animations || [];
+  return cloned;
+}
+
 export async function loadModel(path) {
+  const skeletonUtils = await getSkeletonUtils();
+
   if (modelCache.has(path)) {
-    return Promise.resolve(modelCache.get(path).clone());
+    const cached = modelCache.get(path);
+    return cloneSceneWithAnimations(cached.scene, cached.animations, skeletonUtils);
   }
 
   const gltfLoader = await getGLTFLoader();
@@ -68,8 +95,10 @@ export async function loadModel(path) {
     gltfLoader.load(
       path,
       (gltf) => {
-        modelCache.set(path, gltf.scene);
-        resolve(gltf.scene.clone());
+        const animations = gltf.animations || [];
+        gltf.scene.animations = animations;
+        modelCache.set(path, { scene: gltf.scene, animations });
+        resolve(cloneSceneWithAnimations(gltf.scene, animations, skeletonUtils));
       },
       undefined,
       (err) => {
@@ -87,7 +116,9 @@ export async function loadModel(path) {
  */
 export function getCachedModel(path) {
   if (modelCache.has(path)) {
-    return modelCache.get(path).clone();
+    const cached = modelCache.get(path);
+    // Synchronous getter: skeletonUtils may not be loaded yet — fall back to plain clone.
+    return cloneSceneWithAnimations(cached.scene, cached.animations);
   }
   return null;
 }
@@ -112,12 +143,14 @@ export async function preloadModel(path) {
   }
 
   const gltfLoader = await getGLTFLoader();
-  
+
   return new Promise((resolve, reject) => {
     gltfLoader.load(
       path,
       (gltf) => {
-        modelCache.set(path, gltf.scene);
+        const animations = gltf.animations || [];
+        gltf.scene.animations = animations;
+        modelCache.set(path, { scene: gltf.scene, animations });
         resolve();
       },
       undefined,

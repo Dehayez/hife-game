@@ -64,12 +64,15 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
   const stats = projectileManager.getCharacterStats(characterName);
   const meleeStats = getMeleeStats(characterName);
   const characterColor = getCharacterColorCss(characterName);
-  const isHerald = characterName === 'herald';
+  const isHerald = characterName === 'herald' || characterName === 'babyHerald';
+  const isHeraldFamily = isHerald;
 
   if (rows.header) {
-    const displayName = characterName
-      ? characterName.charAt(0).toUpperCase() + characterName.slice(1)
-      : '';
+    const displayName = characterName === 'babyHerald'
+      ? 'Baby Herald'
+      : characterName
+        ? characterName.charAt(0).toUpperCase() + characterName.slice(1)
+        : '';
     if (rows.header.name.textContent !== displayName) {
       rows.header.name.textContent = displayName;
     }
@@ -136,14 +139,14 @@ export function updateCooldowns(projectileManager, characterManager, inputManage
 
   // ---- Melee / Special ----
   let meleeName = 'Melee';
-  if (characterName === 'herald') meleeName = 'Blast';
+  if (isHeraldFamily) meleeName = 'Blast';
   else if (characterName === 'lucy') meleeName = 'Multi-Projectile';
   const meleeKey = isControllerMode ? controllerLabel('B') : 'F';
   setLabel(rows.melee, meleeName, meleeKey);
 
   let meleeCooldown = 0;
   let meleeMaxCooldown = 1.5;
-  if (characterName === 'herald') {
+  if (isHeraldFamily) {
     const blastStats = getBlastStats(characterName);
     if (blastStats) {
       meleeCooldown = projectileManager.getSpecialAbilityCooldown ? projectileManager.getSpecialAbilityCooldown(playerId) : 0;

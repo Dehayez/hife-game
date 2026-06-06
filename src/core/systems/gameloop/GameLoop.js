@@ -501,6 +501,9 @@ export class GameLoop {
 
         // If held longer than threshold, start healing
         if (this.healHoldDuration >= tapThreshold) {
+          if (!this.healingActive && this.characterManager.triggerOneShotAnimation) {
+            this.characterManager.triggerOneShotAnimation('heal');
+          }
           isHealingActive = true;
           this._handleHeal(player, dt);
         }
@@ -516,6 +519,9 @@ export class GameLoop {
     } else {
       // In other modes, X button is for heal (hold to heal)
       if (healInput) {
+        if (!this.healingActive && this.characterManager.triggerOneShotAnimation) {
+          this.characterManager.triggerOneShotAnimation('heal');
+        }
         // Increase hold duration while held
         this.healHoldDuration += dt;
         isHealingActive = true;
@@ -1237,7 +1243,11 @@ export class GameLoop {
     if (!this.projectileManager.canShoot(playerId)) {
       return;
     }
-    
+
+    if (this.characterManager.triggerOneShotAnimation) {
+      this.characterManager.triggerOneShotAnimation('attack');
+    }
+
     const inputMode = this.inputManager.getInputMode();
     const camera = this.sceneManager.getCamera();
     const firstPerson = getCameraViewMode() === VIEW_MODE.FIRST_PERSON;
@@ -1988,7 +1998,11 @@ export class GameLoop {
     if (!this.projectileManager.canShootMortar(playerId)) {
       return;
     }
-    
+
+    if (this.characterManager.triggerOneShotAnimation) {
+      this.characterManager.triggerOneShotAnimation('attack');
+    }
+
     const inputMode = this.inputManager.getInputMode();
     const camera = this.sceneManager.getCamera();
     
@@ -3421,6 +3435,10 @@ export class GameLoop {
     // Vibration for blast
     if (this.vibrationManager) {
       this.vibrationManager.veryHeavy();
+    }
+
+    if (this.characterManager.triggerOneShotAnimation) {
+      this.characterManager.triggerOneShotAnimation('attack');
     }
     
     // Play blast sound

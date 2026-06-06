@@ -15,8 +15,13 @@ import { isFirstPerson } from '../../../config/camera/CameraViewMode.js';
  * @param {Function} onProgress - Optional progress callback
  * @returns {Promise<Object>} Loaded animations object
  */
+const CHARACTER_SPRITE_FOLDER_OVERRIDES = {
+  babyHerald: 'herald'
+};
+
 export async function loadCharacterAnimations(characterName, onProgress = null) {
-  const baseSpritePath = `/assets/characters/${characterName}/`;
+  const spriteFolder = CHARACTER_SPRITE_FOLDER_OVERRIDES[characterName] || characterName;
+  const baseSpritePath = `/assets/characters/${spriteFolder}/`;
   const progressManager = getLoadingProgressManager();
   
   // Total animations to load

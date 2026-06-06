@@ -30,13 +30,63 @@ const MODEL_CONFIG = {
 const CHARACTER_MODEL_CONFIGS = {
   lucy: {
     scale: 1.0,
-    animationSpeed: 1.0
+    animationSpeed: 1.0,
+    baseRotationY: Math.PI / 2
   },
   herald: {
     scale: 1.0,
-    animationSpeed: 1.0
+    animationSpeed: 1.0,
+    baseRotationY: Math.PI / 2
+  },
+  babyHerald: {
+    scale: 0.35,
+    animationSpeed: 1.0,
+    // Model already stands upright in source. Only a Y rotation is needed to
+    // orient its gaze along the game's forward axis.
+    baseRotationY: Math.PI
   }
 };
+
+export function getCharacter3DBaseRotationY(characterName) {
+  const cfg = CHARACTER_MODEL_CONFIGS[characterName];
+  if (cfg && typeof cfg.baseRotationY === 'number') return cfg.baseRotationY;
+  return Math.PI / 2;
+}
+
+/**
+ * Per-character mapping from the in-game logical animation key
+ * (lowercase: walk, run, idle, jump, hit, death, spawn) to the actual
+ * GLB clip name. A value of `null` means "no clip — keep the mixer paused".
+ * Falls back to the logical key when no override is set.
+ */
+const CHARACTER_ANIMATION_NAME_MAPS = {
+  babyHerald: {
+    idle: null,
+    walk: 'Walk',
+    run: 'Walk',
+    jump: 'Jump',
+    hit: 'Heal',
+    death: 'Heal',
+    spawn: 'Walk',
+    attack: 'Attack',
+    fly: 'Fly'
+  }
+};
+
+/**
+ * Resolve a logical animation key (e.g. 'walk') to the actual clip name
+ * for the given character's GLB.
+ * @param {string} characterName
+ * @param {string} logicalKey
+ * @returns {string}
+ */
+export function resolveCharacter3DAnimationName(characterName, logicalKey) {
+  const map = CHARACTER_ANIMATION_NAME_MAPS[characterName];
+  if (map && Object.prototype.hasOwnProperty.call(map, logicalKey)) {
+    return map[logicalKey];
+  }
+  return logicalKey;
+}
 
 /**
  * Load a 3D character model
@@ -46,46 +96,66 @@ const CHARACTER_MODEL_CONFIGS = {
  */
 export async function loadCharacterModel(characterName, onProgress = null) {
   const modelPath = getCharacterModelPath(characterName);
-  
+
   if (onProgress) {
     onProgress(0.5, 1, `Loading ${characterName} 3D model...`);
   }
-  
+
   try {
-    const model = await loadModel(modelPath);
+    const inner = await loadModel(modelPath);
 
     const config = CHARACTER_MODEL_CONFIGS[characterName] || {};
     const scale = config.scale || MODEL_CONFIG.defaultScale;
 
-    model.scale.set(scale, scale, scale);
+    inner.scale.set(scale, scale, scale);
 
-    model.traverse((child) => {
+    inner.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = MODEL_CONFIG.castShadow;
         child.receiveShadow = MODEL_CONFIG.receiveShadow;
         child.visible = true;
+        // Skinned meshes get frustum-culled based on their bind-pose bounding
+        // sphere, which can be off-screen even when the animated bones place
+        // the mesh well within view — causing the model to vanish mid-game.
+        if (child.isSkinnedMesh) {
+          child.frustumCulled = false;
+        }
       }
     });
 
-    const animations = model.animations || [];
-    let mixer = null;
-    if (animations.length > 0) {
-      mixer = new THREE.AnimationMixer(model);
+    // Apply per-character pre-rotations to the inner mesh so the outer wrapper
+    // can rotate around Y freely without clobbering an X/Z tilt the model needs.
+    if (typeof config.baseRotationX === 'number') {
+      inner.rotation.x = config.baseRotationX;
     }
-    
-    // Store mixer and animations in userData for easy access
-    model.userData.animationMixer = mixer;
-    model.userData.animations = animations;
-    model.userData.characterName = characterName;
-    
-    // Ensure model is visible
-    model.visible = true;
-    
+    if (typeof config.baseRotationZ === 'number') {
+      inner.rotation.z = config.baseRotationZ;
+    }
+
+    // The mixer must be bound to the actual animated root (the cloned scene),
+    // not to a wrapper Group that has no bones.
+    const animations = inner.animations || [];
+    const mixer = animations.length > 0 ? new THREE.AnimationMixer(inner) : null;
+    console.log(
+      `[Character3DLoader] ${characterName} clips:`,
+      animations.map(a => a.name),
+    );
+
+    // Wrap the inner model so we can rotate the wrapper around Y for facing
+    // without touching the inner's X/Z tilt.
+    const wrapper = new THREE.Group();
+    wrapper.add(inner);
+    wrapper.userData.animationMixer = mixer;
+    wrapper.userData.animations = animations;
+    wrapper.userData.characterName = characterName;
+    wrapper.userData.inner = inner;
+    wrapper.visible = true;
+
     if (onProgress) {
       onProgress(1, 1, `${characterName} 3D model loaded`);
     }
-    
-    return model;
+
+    return wrapper;
   } catch (error) {
     console.error(`[Character3DLoader] Failed to load 3D model for ${characterName} from ${modelPath}:`, error);
     throw error;
@@ -130,26 +200,135 @@ export async function createCharacter3DAtPosition(characterName, x, z, onProgres
  * @param {number} dt - Delta time in seconds
  * @param {boolean} loop - Whether to loop the animation
  */
+/**
+ * Find an AnimationClip on this model whose name matches `targetName`
+ * case-insensitively. Returns null and warns when nothing matches.
+ */
+function findClipCaseInsensitive(animations, targetName) {
+  if (!targetName) return null;
+  const lower = String(targetName).toLowerCase();
+  const clip = animations.find(a => a.name && a.name.toLowerCase() === lower);
+  if (!clip) {
+    console.warn(
+      `[Character3DLoader] Clip "${targetName}" not found. Available:`,
+      animations.map(a => a.name),
+    );
+    return null;
+  }
+  return clip;
+}
+
+const ONE_SHOT_CROSSFADE = 0.2;
+
 export function updateCharacter3DAnimation(model, animationName, dt, loop = true) {
   if (!model.userData.animationMixer) return;
-  
+
   const mixer = model.userData.animationMixer;
-  const animations = model.userData.animations || [];
-  
-  // Find animation clip by name
-  const clip = animations.find(anim => anim.name === animationName);
-  if (!clip) return;
-  
-  // Get or create animation action
-  let action = mixer.existingAction(clip);
-  if (!action) {
-    action = mixer.clipAction(clip);
-    action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce);
-    action.play();
+  // While a one-shot is active, only advance the mixer — never switch clips.
+  // The 'finished' listener installed by triggerCharacter3DOneShot will hand
+  // control back to the movement animation.
+  if (model.userData.oneShot) {
+    mixer.update(dt);
+    return;
   }
-  
-  // Update mixer
+
+  const animations = model.userData.animations || [];
+  const characterName = model.userData.characterName;
+
+  const resolvedName = resolveCharacter3DAnimationName(characterName, animationName);
+  if (resolvedName === null) {
+    mixer.stopAllAction();
+    model.userData.currentAction = null;
+    return;
+  }
+
+  const clip =
+    findClipCaseInsensitive(animations, resolvedName) ||
+    findClipCaseInsensitive(animations, animationName);
+  if (!clip) return;
+
+  let action = mixer.existingAction(clip);
+  if (!action) action = mixer.clipAction(clip);
+
+  const desiredLoop = loop ? THREE.LoopRepeat : THREE.LoopOnce;
+  const isCurrent = model.userData.currentAction === action;
+  if (!isCurrent) {
+    mixer.stopAllAction();
+    action.reset();
+    action.setLoop(desiredLoop, loop ? Infinity : 1);
+    action.clampWhenFinished = !loop;
+    action.play();
+    model.userData.currentAction = action;
+  } else if (action.loop !== desiredLoop) {
+    action.setLoop(desiredLoop, loop ? Infinity : 1);
+    action.clampWhenFinished = !loop;
+  }
+
   mixer.update(dt);
+}
+
+/**
+ * Play a one-shot clip on the model. Crossfades from the current action,
+ * clears the one-shot when the clip finishes, and crossfades back to the
+ * movement animation via the supplied callback.
+ *
+ * @param {THREE.Object3D} model
+ * @param {string} logicalKey - e.g. 'attack', 'heal'
+ * @param {() => void} [onFinished] - called once the one-shot completes
+ * @returns {boolean} true if the one-shot started, false if the clip is missing
+ */
+export function triggerCharacter3DOneShot(model, logicalKey, onFinished) {
+  if (!model || !model.userData) return false;
+  const mixer = model.userData.animationMixer;
+  if (!mixer) return false;
+
+  const animations = model.userData.animations || [];
+  const characterName = model.userData.characterName;
+  const resolvedName = resolveCharacter3DAnimationName(characterName, logicalKey);
+  if (!resolvedName) return false;
+
+  const clip =
+    findClipCaseInsensitive(animations, resolvedName) ||
+    findClipCaseInsensitive(animations, logicalKey);
+  if (!clip) return false;
+
+  const action = mixer.clipAction(clip);
+  action.reset();
+  action.setLoop(THREE.LoopOnce, 1);
+  action.clampWhenFinished = true;
+  action.enabled = true;
+  action.setEffectiveTimeScale(1);
+  action.setEffectiveWeight(1);
+
+  const previous = model.userData.currentAction;
+  if (previous && previous !== action) {
+    previous.crossFadeTo(action, ONE_SHOT_CROSSFADE, false);
+  }
+  action.play();
+
+  // Tear down any previous finished listener before installing a new one,
+  // so rapid re-triggers (button mashing) don't stack handlers.
+  const existing = model.userData.oneShotFinishedListener;
+  if (existing) {
+    mixer.removeEventListener('finished', existing);
+  }
+
+  const listener = (event) => {
+    if (event.action !== action) return;
+    mixer.removeEventListener('finished', listener);
+    if (model.userData.oneShotFinishedListener === listener) {
+      model.userData.oneShotFinishedListener = null;
+    }
+    model.userData.oneShot = null;
+    // Leave currentAction pointing at the one-shot so the next
+    // updateCharacter3DAnimation() call sees a stale currentAction and
+    // crossfades the resumed movement clip in cleanly.
+    if (typeof onFinished === 'function') onFinished();
+  };
+  mixer.addEventListener('finished', listener);
+  model.userData.oneShotFinishedListener = listener;
+  model.userData.oneShot = action;
+  return true;
 }
 
 /**
@@ -192,13 +371,13 @@ export function getCharacter3DAnimations(model) {
  */
 export function configureCharacter3DModel(model, characterName) {
   const config = CHARACTER_MODEL_CONFIGS[characterName] || {};
-  const scale = config.scale || MODEL_CONFIG.defaultScale;
-  
-  model.scale.set(scale, scale, scale);
-  
-  // Apply base rotation of 90 degrees (π/2 radians) around Y axis
-  model.rotation.y = Math.PI / 2;
-  
+
+  // The outer wrapper handles facing rotation; the inner mesh keeps its
+  // per-character X/Z pre-rotations baked in by loadCharacterModel.
+  // Wrapper Y-rotation starts at the character's base orientation so the
+  // model faces the right way before gameplay rotation lerps in.
+  model.rotation.y = getCharacter3DBaseRotationY(characterName);
+
   // Configure materials for better rendering
   model.traverse((child) => {
     if (child.isMesh) {

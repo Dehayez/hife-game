@@ -38,10 +38,10 @@ export function getProjectileParticleConfig(characterName, abilityName, particle
   } else if (characterName === 'lucy' && abilityName === 'mortar') {
     characterConfig = LUCY_MORTAR_PARTICLE_CONFIG[particleType] || {};
     fullCharacterConfig = LUCY_MORTAR_PARTICLE_CONFIG;
-  } else if (characterName === 'herald' && abilityName === 'bolt') {
+  } else if ((characterName === 'herald' || characterName === 'babyHerald') && abilityName === 'bolt') {
     characterConfig = HERALD_BOLT_PARTICLE_CONFIG[particleType] || {};
     fullCharacterConfig = HERALD_BOLT_PARTICLE_CONFIG;
-  } else if (characterName === 'herald' && abilityName === 'mortar') {
+  } else if ((characterName === 'herald' || characterName === 'babyHerald') && abilityName === 'mortar') {
     characterConfig = HERALD_MORTAR_PARTICLE_CONFIG[particleType] || {};
     fullCharacterConfig = HERALD_MORTAR_PARTICLE_CONFIG;
   }

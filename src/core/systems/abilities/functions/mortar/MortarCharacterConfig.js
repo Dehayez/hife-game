@@ -16,8 +16,8 @@ import { DEFAULT_MORTAR_CONFIG } from '../../../../../config/abilities/base/Mort
  * @returns {Object} Merged configuration
  */
 export function getMortarCharacterConfig(characterName) {
-  const characterConfig = characterName === 'herald' 
-    ? HERALD_MORTAR_ATTACK_CONFIG 
+  const characterConfig = (characterName === 'herald' || characterName === 'babyHerald')
+    ? HERALD_MORTAR_ATTACK_CONFIG
     : LUCY_MORTAR_ATTACK_CONFIG || {};
   
   // Start with base config

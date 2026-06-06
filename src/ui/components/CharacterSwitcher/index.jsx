@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getCharacterColorValues } from '../../../config/abilities/CharacterColors.js';
-import { toTitleCase } from './functions.js';
+import { getCharacterDisplayName, getCharacterPortraitSrc } from './functions.js';
 
 export const CharacterSwitcher = React.memo(function CharacterSwitcher({ options, value, onChange }) {
   const [selectedValue, setSelectedValue] = useState(value);
@@ -44,10 +44,10 @@ export const CharacterSwitcher = React.memo(function CharacterSwitcher({ options
           <img
             className="ui__choice-img"
             alt={name}
-            src={`/assets/characters/${name}/idle_front.png`}
+            src={getCharacterPortraitSrc(name)}
             loading="lazy"
           />
-          <span className="ui__choice-caption">{toTitleCase(name)}</span>
+          <span className="ui__choice-caption">{getCharacterDisplayName(name)}</span>
         </button>
       );
     });

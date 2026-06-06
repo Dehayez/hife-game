@@ -1255,7 +1255,8 @@ export class SoundManager {
     if (!this.soundEnabled) return null;
     if (!isSoundEnabled('abilities', 'mortarExplosion')) return null;
     
-    const isHerald = characterName && characterName.toLowerCase() === 'herald';
+    const normalizedName = characterName && characterName.toLowerCase();
+    const isHerald = normalizedName === 'herald' || normalizedName === 'babyherald';
     
     // Try character-specific sound first (in characters folder, consistent with other character sounds)
     if (characterName) {

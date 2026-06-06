@@ -22,6 +22,9 @@ const CHARACTER_MOVEMENT_OVERRIDES = {
   },
   herald: {
     runSpeedMultiplier: 2.1
+  },
+  babyHerald: {
+    runSpeedMultiplier: 1.9
   }
 };
 

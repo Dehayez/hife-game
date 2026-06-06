@@ -34,7 +34,7 @@ import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.
 import { startDeathFade, updateDeathFade, resetDeathFade, DEATH_FADE_CONFIG } from '../../../utils/DeathFadeUtils.js';
 import { createSpriteMesh } from '../../../utils/SpriteUtils.js';
 import { isUsing3DModels } from '../../../config/character/CharacterRenderMode.js';
-import { loadCharacterModel, configureCharacter3DModel, updateCharacter3DAnimation } from '../../../utils/Character3DLoader.js';
+import { loadCharacterModel, configureCharacter3DModel, updateCharacter3DAnimation, getCharacter3DBaseRotationY, triggerCharacter3DOneShot } from '../../../utils/Character3DLoader.js';
 
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
@@ -52,6 +52,13 @@ export class CharacterManager {
     this.lastFacing = 'front';
     this.characterName = 'lucy';
     this.is3DMode = false;
+    // True while a one-shot 3D clip (attack/heal/etc.) is playing on the
+    // current model. Movement-driven animation switching is suppressed until
+    // the one-shot's 'finished' listener clears it.
+    this._oneShotActive = false;
+    // Tracks last-frame grounded state so we can detect the takeoff edge and
+    // fire 'jump' as a one-shot (which blocks 'fly' from interrupting).
+    this._wasGrounded = true;
     
     // Smooth rotation tracking for 3D models
     this.currentRotationY = 0; // Current smoothed rotation
@@ -264,7 +271,9 @@ export class CharacterManager {
         this.player.visible = this.shouldShowLocalPlayer();
 
         const healthStats = getCharacterHealthStats();
+        // Preserve animation mixer/clips that Character3DLoader stored on userData.
         this.player.userData = {
+          ...this.player.userData,
           type: 'player',
           renderMode: '3d',
           health: this.characterData.health,
@@ -369,22 +378,34 @@ export class CharacterManager {
     if (!this.player) return;
     
     if (this.is3DMode) {
-      // Update 3D model animations
-      // Map sprite animation keys to 3D animation names
-      let animName = 'idle';
-      if (this.currentAnimKey.includes('walk')) {
-        animName = isRunning ? 'run' : 'walk';
-      } else if (this.currentAnimKey.includes('jump')) {
-        animName = 'jump';
-      } else if (this.currentAnimKey.includes('hit')) {
-        animName = 'hit';
-      } else if (this.currentAnimKey.includes('death')) {
-        animName = 'death';
-      } else if (this.currentAnimKey.includes('spawn')) {
-        animName = 'spawn';
+      // Detect the takeoff edge (grounded → airborne) and play the jump clip
+      // as a one-shot. While that one-shot is running, fly can't interrupt it
+      // because _oneShotActive gates the movement branch below.
+      const isGroundedNow = !!this.characterData?.isGrounded;
+      if (this._wasGrounded && !isGroundedNow) {
+        this.triggerOneShotAnimation('jump');
       }
-      
-      updateCharacter3DAnimation(this.player, animName, dt, true);
+      this._wasGrounded = isGroundedNow;
+
+      let animName = 'idle';
+      let loop = true;
+
+      if (!this._oneShotActive) {
+        const flyState = this.getFlyState ? this.getFlyState() : null;
+        if (flyState && flyState.isActive) {
+          animName = 'fly';
+        } else if (this.currentAnimKey.includes('walk')) {
+          animName = isRunning ? 'run' : 'walk';
+        } else if (this.currentAnimKey.includes('hit')) {
+          animName = 'hit';
+        } else if (this.currentAnimKey.includes('death')) {
+          animName = 'death';
+        } else if (this.currentAnimKey.includes('spawn')) {
+          animName = 'spawn';
+        }
+      }
+
+      updateCharacter3DAnimation(this.player, animName, dt, loop);
     } else {
       // Update sprite animations
       if (!this.animations) return;
@@ -416,8 +437,8 @@ export class CharacterManager {
       // For 3D models, rotate based on movement direction instead of billboarding
       if (velocity.lengthSq() > 0.0001) {
         // Calculate target rotation from velocity direction (add 180 degrees for correct facing)
-        // Base rotation is 90 degrees (π/2), so add that to the movement rotation
-        const baseRotation = Math.PI / 2;
+        // Use the character's configured base rotation so each model faces forward correctly.
+        const baseRotation = getCharacter3DBaseRotationY(this.characterName);
         const targetAngle = Math.atan2(velocity.x, velocity.z) + Math.PI + baseRotation;
         
         // Smooth rotation interpolation to avoid flickering
@@ -728,6 +749,23 @@ export class CharacterManager {
    * Get current fly state
    * @returns {{isActive: boolean, durationRemaining: number, cooldownRemaining: number}}
    */
+  /**
+   * Trigger a one-shot 3D animation (e.g. 'attack', 'heal'). The clip plays
+   * once with a short crossfade in, then the manager resumes its movement-
+   * driven animation. Re-triggering while already playing restarts the clip
+   * (so rapid presses don't get swallowed). No-op in sprite mode.
+   * @param {string} logicalKey
+   */
+  triggerOneShotAnimation(logicalKey) {
+    if (!this.is3DMode || !this.player) return;
+    const started = triggerCharacter3DOneShot(this.player, logicalKey, () => {
+      this._oneShotActive = false;
+    });
+    if (started) {
+      this._oneShotActive = true;
+    }
+  }
+
   getFlyState() {
     const data = this.characterData || {};
 

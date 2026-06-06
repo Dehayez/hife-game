@@ -111,8 +111,8 @@ export function getCharacterStats(characterName) {
   // If still loading, compute on the fly
   if (characterName === 'lucy') {
     return createCharacterStats('lucy', LUCY_BOLT_ATTACK_CONFIG, LUCY_MORTAR_ATTACK_CONFIG, LUCY_MELEE_ATTACK_CONFIG);
-  } else if (characterName === 'herald') {
-    return createCharacterStats('herald', HERALD_BOLT_ATTACK_CONFIG, HERALD_MORTAR_ATTACK_CONFIG, HERALD_MELEE_ATTACK_CONFIG);
+  } else if (characterName === 'herald' || characterName === 'babyHerald') {
+    return createCharacterStats(characterName, HERALD_BOLT_ATTACK_CONFIG, HERALD_MORTAR_ATTACK_CONFIG, HERALD_MELEE_ATTACK_CONFIG);
   }
   
   // Default to lucy
@@ -165,7 +165,7 @@ export function getMeleeStats(characterName) {
  * @returns {Object} Blast ability stats or null if not Herald
  */
 export function getBlastStats(characterName) {
-  if (characterName === 'herald') {
+  if (characterName === 'herald' || characterName === 'babyHerald') {
     return HERALD_BLAST_ATTACK_CONFIG;
   }
   return null;

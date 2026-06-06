@@ -20,6 +20,11 @@ export const CHARACTER_COLORS = {
     hex: 0xf5ba0b,           // Gold color (hex number for Three.js)
     css: '#f5ba0b',          // CSS hex string
     rgb: '245, 186, 11'      // RGB string for CSS rgba()
+  },
+  babyHerald: {
+    hex: 0xffd76b,           // Lighter gold for the baby variant
+    css: '#ffd76b',
+    rgb: '255, 215, 107'
   }
 };
 
