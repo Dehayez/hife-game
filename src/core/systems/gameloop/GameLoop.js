@@ -1060,9 +1060,23 @@ export class GameLoop {
 
     // Update magical particle animations
     this.sceneManager.updateParticles(dt);
-    
+
     // Update blinking eyes animation
     this.sceneManager.updateBlinkingEyes(dt);
+
+    // Apocalypse Cottage systems (only present in that mode)
+    if (this.treeManager) {
+      this.treeManager.update(dt);
+    }
+    if (this.terraformController) {
+      this.terraformController.update(dt);
+    }
+    if (this.apocalypseSurvival) {
+      this.apocalypseSurvival.update(dt);
+    }
+    if (this.apocalypseHud) {
+      this.apocalypseHud.update();
+    }
 
     // Camera follows player
     // isRunning() already checks mortarHoldActive internally
@@ -1158,23 +1172,10 @@ export class GameLoop {
       this.lastSpeedBoostInput = false;
     }
     
-    // Handle mortar hold system (RB hold, LT preview, RT release)
+    // Handle mortar hold system (RB / Mouse2 hold-to-charge, RT / LMB to fire)
     // Allow mortar activation even while running - running will automatically stop when mortar is activated
     this._handleMortarHoldSystem(player, dt);
-    
-    // Legacy mortar input (right mouse click) - only if not using gamepad hold system
-    if (!this.mortarHoldActive) {
-      const mortarInput = this.inputManager.isMortarPressed();
-      if (mortarInput && !this.lastMortarInput) {
-        // Only handle mouse click if not holding RB
-        if (!this.inputManager.isMortarHoldPressed()) {
-          this._handleMortarInput(player);
-        }
-      }
-      this.lastMortarInput = mortarInput;
-    } else {
-      this.lastMortarInput = false;
-    }
+    this.lastMortarInput = this.inputManager.isMortarPressed();
     
     // Check projectile collisions
     this._handleProjectileCollisions(player);
@@ -1461,32 +1462,31 @@ export class GameLoop {
    * @private
    */
   _handleMortarHoldSystem(player, dt) {
-    const mortarHoldInput = this.inputManager.isMortarHoldPressed();
+    const inputMode = this.inputManager.getInputMode();
+    // In controller mode the hold button is RB; in keyboard mode it is Mouse2 (right click).
+    const mortarHoldInput = inputMode === 'controller'
+      ? this.inputManager.isMortarHoldPressed()
+      : this.inputManager.isMortarPressed();
     const leftTriggerInput = this.inputManager.isLeftTriggerPressed();
     const rightTriggerInput = this.inputManager.isRightTriggerPressed();
-    
-    // Handle RB toggle to enter/exit mortar hold mode
-    // Note: Mortar can be activated while running - running will automatically stop when mortar is activated
-    if (mortarHoldInput && !this.lastMortarHoldInput) {
-      // RB just pressed - toggle mortar hold mode
-      if (this.mortarHoldActive) {
-        // Already holding - drop the spell (exit hold mode)
-        this.mortarHoldActive = false;
-        this.inputManager.setMortarHoldActive(false);
-        this._removeMortarHoldVisual();
-        // Remove preview if active
-        if (this.mortarArcPreview) {
-          removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
-          this.mortarArcPreview = null;
-        }
-      } else {
-        // Not holding - enter mortar hold mode (works even while running)
-        this.mortarHoldActive = true;
-        this.inputManager.setMortarHoldActive(true);
-        this._createMortarHoldVisual(player);
-        // Reset cooldown when entering mortar hold mode (so canceling doesn't block shooting)
-        this.mortarReleaseCooldown = 0;
-      }
+    // Keyboard fire button: left mouse (uses inputState.shoot directly so we bypass the
+    // isShootPressed() guard that blocks shoot while mortarHoldActive).
+    const keyboardFireInput = inputMode === 'keyboard'
+      ? !!this.inputManager.inputState.shoot
+      : false;
+
+    // Hold-to-charge: press & hold the mortar button to enter hold mode (works even while running).
+    if (mortarHoldInput && !this.lastMortarHoldInput && !this.mortarHoldActive) {
+      this.mortarHoldActive = true;
+      this.inputManager.setMortarHoldActive(true);
+      this._createMortarHoldVisual(player);
+      // Reset cooldown when entering mortar hold mode (so canceling doesn't block shooting)
+      this.mortarReleaseCooldown = 0;
+    }
+
+    // Release the hold button without firing -> cancel hold.
+    if (!mortarHoldInput && this.lastMortarHoldInput && this.mortarHoldActive) {
+      this._cancelMortarHold();
     }
     
     // Update mortar hold visual position and animation if active
@@ -1522,54 +1522,50 @@ export class GameLoop {
       }
     }
     
-    // Handle preview - show when right joystick is used in mortar hold mode
-    const isRightJoystickPushed = this.inputManager.isRightJoystickPushed();
-    if (this.mortarHoldActive && isRightJoystickPushed) {
-      // Show preview while right joystick is used
+    // Show arc preview continuously while charging; remove it as soon as we are no longer holding.
+    if (this.mortarHoldActive) {
       this._updateMortarArcPreview(player);
-    } else {
-      // Hide preview when joystick is not being used
-      if (this.mortarArcPreview && (!isRightJoystickPushed || !this.mortarHoldActive)) {
-        removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
-        this.mortarArcPreview = null;
-      }
+    } else if (this.mortarArcPreview) {
+      removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
+      this.mortarArcPreview = null;
     }
-    
-    // Handle release (RT) - release mortar when RT is pressed while in mortar hold mode
-    // Only allow release if not on cooldown (RT should not drop the spell when on cooldown)
-    if (this.mortarHoldActive && rightTriggerInput && !this.lastRightTriggerInput) {
-      // Check cooldown status before allowing release
+
+    // Fire on press of RT (controller) or LMB (keyboard) while charging. Cooldown blocks the shot
+    // but leaves the hold active so the player can wait for it to come off cooldown.
+    // _handleShootingInput resets this.lastShootInput while in mortar hold, so we keep our own
+    // edge-detection state for the keyboard fire input.
+    const fireInput = inputMode === 'controller' ? rightTriggerInput : keyboardFireInput;
+    const lastFireInput = inputMode === 'controller'
+      ? this.lastRightTriggerInput
+      : (this._lastMortarFireInputKeyboard || false);
+    const fireJustPressed = fireInput && !lastFireInput;
+
+    if (this.mortarHoldActive && fireJustPressed) {
       const characterName = this.characterManager.getCharacterName();
       const playerId = 'local';
       const cooldownInfo = this.projectileManager.getMortarCooldownInfo(playerId, characterName);
-      const canShoot = cooldownInfo.canShoot;
-      
-      // Only release if not on cooldown
-      if (canShoot) {
-        
-        // RT just pressed - release mortar
+
+      if (cooldownInfo.canShoot) {
         this._handleMortarInput(player);
-        // Exit mortar hold mode after release
         this.mortarHoldActive = false;
         this.inputManager.setMortarHoldActive(false);
         this._removeMortarHoldVisual();
-        // Remove preview
         if (this.mortarArcPreview) {
           removeMortarArcPreview(this.mortarArcPreview, this.sceneManager.getScene());
           this.mortarArcPreview = null;
         }
-        // Set cooldown to prevent immediate bolt shooting (0.3 seconds)
+        // Prevent the same fire press from also triggering a bolt this frame / the next.
         this.mortarReleaseCooldown = 0.3;
-        // Reset lastRightTriggerInput to prevent immediate shooting after release
-        this.lastRightTriggerInput = true; // Set to true so shooting won't trigger immediately
+        this.lastRightTriggerInput = true;
+        this.lastShootInput = true;
       }
-      // If on cooldown, RT does nothing (spell stays held, can only be dropped with RB)
     }
-    
+
     // Update tracking variables
     this.lastMortarHoldInput = mortarHoldInput;
     this.lastLeftTriggerInput = leftTriggerInput;
     this.lastRightTriggerInput = rightTriggerInput;
+    this._lastMortarFireInputKeyboard = keyboardFireInput;
   }
   
   /**
@@ -1836,15 +1832,10 @@ export class GameLoop {
    * @private
    */
   _updateMortarArcPreview(player) {
-    // Only show preview when holding RB (controller) or right-clicking (keyboard)
-    const inputMode = this.inputManager.getInputMode();
-    const hasAimingInput = inputMode === 'controller' 
-      ? this.inputManager.isRightJoystickPushed() 
-      : this.inputManager.isMortarPressed(); // In keyboard mode, show preview when right-clicking
-    
-    if (!this.mortarHoldActive || !hasAimingInput) {
+    if (!this.mortarHoldActive) {
       return;
     }
+    const inputMode = this.inputManager.getInputMode();
     
     const now = performance.now();
     
@@ -1853,13 +1844,13 @@ export class GameLoop {
       return;
     }
     this._lastArcPreviewUpdate = now;
-    
+
     const playerPos = player.position;
     const characterName = this.characterManager.getCharacterName();
     const camera = this.sceneManager.getCamera();
-    
+
     let targetX, targetZ;
-    
+
     // In keyboard mode, use mouse position for aiming
     if (inputMode === 'keyboard') {
       // Convert mouse position to world coordinates using raycaster
@@ -1868,17 +1859,37 @@ export class GameLoop {
       const mouse = new THREE.Vector2();
       mouse.x = (mousePos.x / window.innerWidth) * 2 - 1;
       mouse.y = -(mousePos.y / window.innerHeight) * 2 + 1;
-      
+
       raycaster.setFromCamera(mouse, camera);
-      
+
       // Intersect with ground plane at y = 0
       const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
       const intersect = new THREE.Vector3();
       raycaster.ray.intersectPlane(plane, intersect);
-      
-      // Use mouse cursor position as target
-      targetX = intersect.x;
-      targetZ = intersect.z;
+
+      // Use mouse cursor position as target. If the cursor is essentially on the player
+      // (no meaningful aim direction), fall back to the character's facing direction so
+      // the arc preview still renders sensibly while holding the charge.
+      const dx = intersect.x - playerPos.x;
+      const dz = intersect.z - playerPos.z;
+      if (Math.sqrt(dx * dx + dz * dz) < 0.5) {
+        const lastFacing = this.characterManager.getLastFacing();
+        const cameraDir = new THREE.Vector3();
+        camera.getWorldDirection(cameraDir);
+        const cameraForward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+        const mortarStats = getMortarStats(characterName);
+        const defaultDistance = mortarStats.maxRange * 0.5;
+        if (lastFacing === 'back') {
+          targetX = playerPos.x + cameraForward.x * defaultDistance;
+          targetZ = playerPos.z + cameraForward.z * defaultDistance;
+        } else {
+          targetX = playerPos.x - cameraForward.x * defaultDistance;
+          targetZ = playerPos.z - cameraForward.z * defaultDistance;
+        }
+      } else {
+        targetX = intersect.x;
+        targetZ = intersect.z;
+      }
     } else {
       // In controller mode, use right joystick for aiming
       const rightJoystickDir = this.inputManager.getRightJoystickDirection();
@@ -2620,10 +2631,15 @@ export class GameLoop {
     const currentIdx = swapCycle.indexOf(currentChar);
     const newChar = swapCycle[(currentIdx + 1) % swapCycle.length] || 'lucy';
     
-    // Trigger fast smoke particle burst
+    // Trigger fast smoke particle burst tinted with the incoming character's color
     const player = this.characterManager.getPlayer();
     if (player && this.characterManager.particleManager) {
-      this.characterManager.particleManager.spawnCharacterSwapSmoke(player.position);
+      this.characterManager.particleManager.spawnCharacterSwapSmoke(
+        player.position,
+        undefined,
+        undefined,
+        newChar
+      );
     }
     
     // Reset the bullet pool / recharge timer *before* awaiting loadCharacter.

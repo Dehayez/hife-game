@@ -10,8 +10,9 @@
  */
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { getRunningSmokeConfig, getCharacterChangeSmokeConfig } from '../config/abilities/base/SmokeParticleConfig.js';
+import { getRunningSmokeConfig, getRunningSmokeConfigFor, getCharacterChangeSmokeConfig } from '../config/abilities/base/SmokeParticleConfig.js';
 import { getProjectileParticleConfig } from '../core/systems/abilities/functions/particles/ParticleConfigHelper.js';
+import { CHARACTER_COLORS } from '../config/abilities/CharacterColors.js';
 
 export class ParticleManager {
   /**
@@ -48,9 +49,9 @@ export class ParticleManager {
    * @param {number} particleCount - Number of particles to spawn (default: 20)
    * @param {number} duration - Duration to spread particles over in ms (default: 200)
    */
-  spawnCharacterSwapSmoke(position, particleCount = 20, duration = 200) {
+  spawnCharacterSwapSmoke(position, particleCount = 20, duration = 200, characterName = null) {
     if (!position) return;
-    
+
     const interval = duration / particleCount;
     // Reuse Vector3 to reduce allocations
     const pos = new THREE.Vector3();
@@ -61,7 +62,7 @@ export class ParticleManager {
           position.y,
           position.z + (Math.random() - 0.5) * 0.5
         );
-        this.spawnSmokeParticle(pos, true); // true = follow character
+        this.spawnSmokeParticle(pos, true, characterName); // true = follow character
       }, i * interval);
     }
   }
@@ -70,18 +71,28 @@ export class ParticleManager {
    * Spawn a smoke particle at position
    * @param {THREE.Vector3} position - Spawn position
    * @param {boolean} followCharacter - Whether particle should follow character position (for character changes)
+   * @param {string|null} characterName - For tinting (swap) and per-character running config
+   * @param {boolean} firstPerson - When true (local player only), use FPV-friendly tweaks
    */
-  spawnSmokeParticle(position, followCharacter = false) {
+  spawnSmokeParticle(position, followCharacter = false, characterName = null, firstPerson = false) {
     // Use different stats for character change vs running smoke
-    const stats = followCharacter ? getCharacterChangeSmokeConfig() : getRunningSmokeConfig();
-    
+    const stats = followCharacter
+      ? getCharacterChangeSmokeConfig()
+      : getRunningSmokeConfigFor(characterName, firstPerson);
+
     // Create smoke particle geometry and material
     const size = stats.minSize + Math.random() * (stats.maxSize - stats.minSize);
     const geometry = new THREE.PlaneGeometry(size, size);
-    
-    // Smoke color - grayish white with slight variation
+
+    // Smoke color: gray base, tinted toward character color on swap bursts
     const grayValue = stats.minGrayValue + Math.random() * (stats.maxGrayValue - stats.minGrayValue);
-    const smokeColor = new THREE.Color(grayValue, grayValue, grayValue);
+    let smokeColor = new THREE.Color(grayValue, grayValue, grayValue);
+    if (followCharacter && characterName && CHARACTER_COLORS[characterName]) {
+      // Blend ~70% toward the character color so the puff reads as their hue
+      // but still keeps the soft smoke feel.
+      const tint = new THREE.Color(CHARACTER_COLORS[characterName].hex);
+      smokeColor.lerp(tint, 0.7);
+    }
     
     const material = new THREE.MeshBasicMaterial({
       color: smokeColor,
@@ -141,8 +152,9 @@ export class ParticleManager {
     this.scene.add(particle);
     this.smokeParticles.push(particle);
 
-    // Remove oldest particles if we exceed max for the current particle type
-    const maxParticlesForType = followCharacter ? stats.maxParticles : this.maxParticles;
+    // Cap to whichever config drove this spawn. Per-character running configs
+    // tighten this further so heavier puff styles (herald) don't pile up.
+    const maxParticlesForType = stats.maxParticles || this.maxParticles;
     if (this.smokeParticles.length > maxParticlesForType) {
       const oldest = this.smokeParticles.shift();
       this.scene.remove(oldest);

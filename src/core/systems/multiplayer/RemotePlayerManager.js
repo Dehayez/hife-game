@@ -8,10 +8,13 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { loadCharacterAnimations, setCharacterAnimation, updateCharacterAnimation } from '../character/CharacterAnimation.js';
 import { getCharacterMovementStats } from '../../../config/character/CharacterStats.js';
-import { getRunningSmokeConfig } from '../../../config/abilities/base/SmokeParticleConfig.js';
+import { getRunningSmokeConfigFor } from '../../../config/abilities/base/SmokeParticleConfig.js';
 import { createSpriteAtPosition } from '../../../utils/SpriteUtils.js';
 import { HERALD_BLAST_ATTACK_CONFIG } from '../../../config/abilities/characters/herald/blast/AttackConfig.js';
 import { waitForAllAnimationsLoaded } from '../../../utils/TextureLoader.js';
+import { getCharacterColorHex } from '../../../config/abilities/CharacterColors.js';
+
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 export class RemotePlayerManager {
   /**
@@ -199,8 +202,20 @@ export class RemotePlayerManager {
       velocityZ: 0,
       isGrounded: true,
       isRunning: false,
+      isRolling: false,
       smokeSpawnTimer: 0,
-      lastUpdateTime: Date.now()
+      lastUpdateTime: Date.now(),
+      rollMesh: null,
+      rollRadius: Math.max(this.movementStats.playerSize * 0.75, this.movementStats.playerHeight * 0.4),
+      _rollTempAxis: new THREE.Vector3(),
+      _rollTempDir: new THREE.Vector3(),
+      _rollTempQuat: new THREE.Quaternion(),
+      _isRollVisible: false,
+      _lastFramePosition: {
+        x: initialX,
+        y: initialY,
+        z: initialZ
+      }
     });
 
       // Remove from spawning set now that spawn is complete
@@ -299,7 +314,12 @@ export class RemotePlayerManager {
     
     // Spawn smoke particles for swap animation (like local player does)
     if (this.particleManager) {
-      this.particleManager.spawnCharacterSwapSmoke(mesh.position);
+      this.particleManager.spawnCharacterSwapSmoke(
+        mesh.position,
+        undefined,
+        undefined,
+        characterName
+      );
     }
     
     // NOW set new texture and play spawn animation (seamless swap)
@@ -346,6 +366,11 @@ export class RemotePlayerManager {
         true
       );
       remotePlayer.currentAnimKey = currentAnimKey;
+    }
+    
+    // Update roll mesh appearance if it exists
+    if (remotePlayer.rollMesh) {
+      this._updateRollMeshAppearance(remotePlayer);
     }
     
     // Force render update
@@ -452,6 +477,10 @@ export class RemotePlayerManager {
       remotePlayer.isRunning = state.isRunning;
     }
 
+    if (state.isRolling !== undefined) {
+      remotePlayer.isRolling = state.isRolling;
+    }
+
     remotePlayer.lastUpdateTime = now;
   }
 
@@ -467,11 +496,158 @@ export class RemotePlayerManager {
       return;
     }
 
+    // Remove roll mesh if it exists
+    if (remotePlayer.rollMesh) {
+      this.scene.remove(remotePlayer.rollMesh);
+      remotePlayer.rollMesh.geometry.dispose();
+      remotePlayer.rollMesh.material.dispose();
+    }
+
     this.scene.remove(remotePlayer.mesh);
     remotePlayer.mesh.geometry.dispose();
     remotePlayer.mesh.material.dispose();
     this.remotePlayers.delete(playerId);
     this.spawningPlayers.delete(playerId);
+  }
+
+  /**
+   * Ensure rolling mesh exists for a remote player
+   * @param {Object} remotePlayer - Remote player data
+   * @private
+   */
+  _ensureRollingMesh(remotePlayer) {
+    if (!this.scene || !remotePlayer) return;
+    
+    if (!remotePlayer.rollMesh) {
+      const segments = 28;
+      const geometry = new THREE.SphereGeometry(remotePlayer.rollRadius, segments, segments);
+      const characterName = remotePlayer.mesh.userData?.characterName || 'lucy';
+      const material = this._createRollMaterial(getCharacterColorHex(characterName));
+      remotePlayer.rollMesh = new THREE.Mesh(geometry, material);
+      remotePlayer.rollMesh.castShadow = true;
+      remotePlayer.rollMesh.receiveShadow = true;
+      remotePlayer.rollMesh.visible = false;
+      this.scene.add(remotePlayer.rollMesh);
+    } else if (remotePlayer.rollMesh.parent !== this.scene) {
+      this.scene.add(remotePlayer.rollMesh);
+    }
+    
+    this._updateRollMeshAppearance(remotePlayer);
+  }
+
+  /**
+   * Create material for rolling mesh
+   * @param {number} colorHex - Color hex value
+   * @private
+   */
+  _createRollMaterial(colorHex) {
+    const color = new THREE.Color(colorHex);
+    const emissive = color.clone().multiplyScalar(0.2);
+    return new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.3,
+      roughness: 0.55,
+      emissive,
+      emissiveIntensity: 0.35
+    });
+  }
+
+  /**
+   * Update rolling mesh color to match current character
+   * @param {Object} remotePlayer - Remote player data
+   * @private
+   */
+  _updateRollMeshAppearance(remotePlayer) {
+    if (!remotePlayer.rollMesh || !remotePlayer.rollMesh.material) return;
+    
+    const characterName = remotePlayer.mesh.userData?.characterName || 'lucy';
+    const colorHex = getCharacterColorHex(characterName);
+    const color = new THREE.Color(colorHex);
+    remotePlayer.rollMesh.material.color.copy(color);
+    if (remotePlayer.rollMesh.material.emissive) {
+      const emissive = color.clone().multiplyScalar(0.2);
+      remotePlayer.rollMesh.material.emissive.copy(emissive);
+    }
+  }
+
+  /**
+   * Reset rolling visual to default (sprite visible, ball hidden)
+   * @param {Object} remotePlayer - Remote player data
+   * @private
+   */
+  _resetRollingVisual(remotePlayer) {
+    if (remotePlayer.mesh) {
+      remotePlayer.mesh.visible = true;
+      if (remotePlayer.mesh.userData) {
+        remotePlayer.mesh.userData.isRolling = false;
+      }
+    }
+    if (remotePlayer.rollMesh) {
+      remotePlayer.rollMesh.visible = false;
+      remotePlayer.rollMesh.quaternion.identity();
+    }
+    remotePlayer._isRollVisible = false;
+  }
+
+  /**
+   * Update rolling ball visibility and rotation for remote player
+   * @param {Object} remotePlayer - Remote player data
+   * @param {THREE.Vector3} velocity - Current frame movement delta
+   * @private
+   */
+  _updateRollingVisual(remotePlayer, velocity) {
+    if (!remotePlayer.rollMesh || !remotePlayer.mesh) return;
+    
+    const characterName = remotePlayer.mesh.userData?.characterName || 'lucy';
+    const shouldRoll = remotePlayer.isRolling &&
+                       characterName === 'herald';
+    
+    if (!shouldRoll) {
+      if (remotePlayer._isRollVisible) {
+        this._resetRollingVisual(remotePlayer);
+      }
+      return;
+    }
+    
+    // Ensure roll mesh exists
+    this._ensureRollingMesh(remotePlayer);
+    
+    if (!remotePlayer._isRollVisible) {
+      this._updateRollMeshAppearance(remotePlayer);
+      remotePlayer.mesh.visible = false;
+      if (remotePlayer.mesh.userData) {
+        remotePlayer.mesh.userData.isRolling = true;
+      }
+      remotePlayer.rollMesh.visible = true;
+      remotePlayer.rollMesh.quaternion.identity();
+      remotePlayer._isRollVisible = true;
+    }
+    
+    const playerHeight = this.movementStats.playerHeight;
+    const baseGroundY = remotePlayer.mesh.position.y - playerHeight * 0.5;
+    const rollCenterY = baseGroundY + remotePlayer.rollRadius;
+    remotePlayer.rollMesh.position.set(
+      remotePlayer.mesh.position.x,
+      rollCenterY,
+      remotePlayer.mesh.position.z
+    );
+    
+    const moveDistance = velocity.length();
+    if (moveDistance <= 1e-6) {
+      return;
+    }
+    
+    remotePlayer._rollTempDir.copy(velocity).normalize();
+    remotePlayer._rollTempAxis.crossVectors(remotePlayer._rollTempDir, WORLD_UP);
+    
+    if (remotePlayer._rollTempAxis.lengthSq() <= 1e-8) {
+      return;
+    }
+    
+    remotePlayer._rollTempAxis.normalize();
+    const angle = moveDistance / remotePlayer.rollRadius;
+    remotePlayer._rollTempQuat.setFromAxisAngle(remotePlayer._rollTempAxis, angle);
+    remotePlayer.rollMesh.quaternion.premultiply(remotePlayer._rollTempQuat);
   }
 
   /**
@@ -653,13 +829,37 @@ export class RemotePlayerManager {
         remotePlayer.isRunning || false // Use synced running state
       );
       
-      // Spawn smoke particles when running and grounded
+      // Update rolling visual (ball form for Herald)
+      // Calculate movement delta from position change for roll rotation
+      // Store previous frame position for velocity calculation
+      if (!remotePlayer._lastFramePosition) {
+        remotePlayer._lastFramePosition = {
+          x: mesh.position.x,
+          y: mesh.position.y,
+          z: mesh.position.z
+        };
+      }
+      const velocity = new THREE.Vector3(
+        mesh.position.x - remotePlayer._lastFramePosition.x,
+        0,
+        mesh.position.z - remotePlayer._lastFramePosition.z
+      );
+      remotePlayer._lastFramePosition.x = mesh.position.x;
+      remotePlayer._lastFramePosition.y = mesh.position.y;
+      remotePlayer._lastFramePosition.z = mesh.position.z;
+      this._updateRollingVisual(remotePlayer, velocity);
+      
+      // Spawn smoke particles when running and grounded. Use the remote's own
+      // character config so lucy stays wispy and herald stays fluffy from
+      // every viewpoint. FPV overlay is never applied here — the local camera
+      // isn't on the remote player.
       if (remotePlayer.isRunning && remotePlayer.isGrounded && this.particleManager) {
         remotePlayer.smokeSpawnTimer -= dt;
         if (remotePlayer.smokeSpawnTimer <= 0) {
-          const smokeConfig = getRunningSmokeConfig();
+          const characterName = mesh.userData?.characterName || null;
+          const smokeConfig = getRunningSmokeConfigFor(characterName, false);
           const smokeSpawnInterval = smokeConfig.spawnInterval;
-          this.particleManager.spawnSmokeParticle(mesh.position);
+          this.particleManager.spawnSmokeParticle(mesh.position, false, characterName, false);
           remotePlayer.smokeSpawnTimer = smokeSpawnInterval;
         }
       } else {
@@ -743,48 +943,81 @@ export class RemotePlayerManager {
           (child.userData.type === 'remote-player' || child.userData.type === 'player')) {
         // If it's not in our tracked meshes, it's orphaned
         if (!trackedMeshes.has(child)) {
-          // Check if mesh has no texture or invalid texture (might indicate failed spawn)
-          const hasNoTexture = !child.material || !child.material.map;
-          const hasInvalidTexture = child.material && child.material.map && 
-                                    (!child.material.map.image || 
-                                     !child.material.map.image.complete || 
-                                     child.material.map.image.naturalWidth === 0);
+          // Check if this is a 3D model (Group) or sprite (Mesh)
+          const is3DModel = child.isGroup || child.type === 'Group';
+          const isSprite = child.isMesh || child.type === 'Mesh';
           
-          // Remove orphaned remote player mesh (especially if it has no texture or invalid texture)
-          if (hasNoTexture || hasInvalidTexture || child.userData.type === 'remote-player') {
-            console.warn(`Removing orphaned player mesh ${child.userData.playerId || 'unknown'} - hasTexture: ${!hasNoTexture}, validTexture: ${!hasInvalidTexture}`);
-            this.scene.remove(child);
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-              if (child.material.map) child.material.map.dispose();
-              child.material.dispose();
+          if (is3DModel) {
+            // For 3D models, check if they have children meshes
+            const hasMeshes = child.children && child.children.some(c => c.isMesh);
+            if (!hasMeshes) {
+              console.warn(`Removing orphaned 3D player model ${child.userData.playerId || 'unknown'} - no meshes`);
+              this.scene.remove(child);
+              // Dispose 3D model recursively
+              child.traverse((obj) => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                  if (Array.isArray(obj.material)) {
+                    obj.material.forEach(mat => {
+                      if (mat.map) mat.map.dispose();
+                      mat.dispose();
+                    });
+                  } else {
+                    if (obj.material.map) obj.material.map.dispose();
+                    obj.material.dispose();
+                  }
+                }
+              });
+              removedCount++;
             }
-            removedCount++;
+          } else if (isSprite) {
+            // For sprites, check texture validity
+            const hasNoTexture = !child.material || !child.material.map;
+            const hasInvalidTexture = child.material && child.material.map && 
+                                      (!child.material.map.image || 
+                                       !child.material.map.image.complete || 
+                                       child.material.map.image.naturalWidth === 0);
+            
+            // Remove orphaned remote player mesh (especially if it has no texture or invalid texture)
+            if (hasNoTexture || hasInvalidTexture) {
+              console.warn(`Removing orphaned player sprite ${child.userData.playerId || 'unknown'} - hasTexture: ${!hasNoTexture}, validTexture: ${!hasInvalidTexture}`);
+              this.scene.remove(child);
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (child.material.map) child.material.map.dispose();
+                child.material.dispose();
+              }
+              removedCount++;
+            }
           }
         } else {
           // Check if tracked mesh has no texture (shouldn't happen, but clean up if it does)
-          const hasNoTexture = !child.material || !child.material.map;
-          const hasInvalidTexture = child.material && child.material.map && 
-                                    (!child.material.map.image || 
-                                     !child.material.map.image.complete || 
-                                     child.material.map.image.naturalWidth === 0);
-          
-          if (hasNoTexture || hasInvalidTexture) {
-            console.warn(`Removing tracked player mesh ${child.userData.playerId || 'unknown'} with invalid texture`);
-            // Find and remove from remotePlayers
-            for (const [playerId, remotePlayer] of this.remotePlayers) {
-              if (remotePlayer && remotePlayer.mesh === child) {
-                this.remotePlayers.delete(playerId);
-                break;
+          // Only check sprites, not 3D models
+          const isSprite = child.isMesh || child.type === 'Mesh';
+          if (isSprite) {
+            const hasNoTexture = !child.material || !child.material.map;
+            const hasInvalidTexture = child.material && child.material.map && 
+                                      (!child.material.map.image || 
+                                       !child.material.map.image.complete || 
+                                       child.material.map.image.naturalWidth === 0);
+            
+            if (hasNoTexture || hasInvalidTexture) {
+              console.warn(`Removing tracked player sprite ${child.userData.playerId || 'unknown'} with invalid texture`);
+              // Find and remove from remotePlayers
+              for (const [playerId, remotePlayer] of this.remotePlayers) {
+                if (remotePlayer && remotePlayer.mesh === child) {
+                  this.remotePlayers.delete(playerId);
+                  break;
+                }
               }
+              this.scene.remove(child);
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (child.material.map) child.material.map.dispose();
+                child.material.dispose();
+              }
+              removedCount++;
             }
-            this.scene.remove(child);
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-              if (child.material.map) child.material.map.dispose();
-              child.material.dispose();
-            }
-            removedCount++;
           }
         }
       }
