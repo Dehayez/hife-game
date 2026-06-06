@@ -9,6 +9,6 @@ export const LUCY_MORTAR_ATTACK_CONFIG = {
   splashRadius: 0.889,     // 88.9% of base (0.8 radius) - Smaller splash
   fireDuration: 0.857,      // 85.7% of base (1.5s) - Shorter fire duration
   shrinkDelay: 0.889,       // 88.9% of base (0.8s) - Faster shrink
-  size: 0.667               // 66.7% of base (0.12 radius) - Smaller mortar
+  size: 1.4                 // 140% of base (~0.25 radius) - Larger mortar ball
 };
 
