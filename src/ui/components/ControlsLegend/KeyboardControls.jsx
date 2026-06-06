@@ -1,104 +1,87 @@
 import React from 'react';
 import { LegendGroup, LegendSection, LegendKeys, LegendKey } from './subComponents.jsx';
 
-export function KeyboardControls({ isShootingMode, isApocalypseMode }) {
-  const arrowKeys = [
-    { key: 'up', label: '↑', className: 'ui__legend-key--up' },
-    { key: 'left', label: '←', className: 'ui__legend-key--left' },
-    { key: 'down', label: '↓', className: 'ui__legend-key--down' },
-    { key: 'right', label: '→', className: 'ui__legend-key--right' },
-  ];
+const ARROW_KEYS = [
+  { key: 'up', label: '↑', className: 'ui__legend-key--up' },
+  { key: 'left', label: '←', className: 'ui__legend-key--left' },
+  { key: 'down', label: '↓', className: 'ui__legend-key--down' },
+  { key: 'right', label: '→', className: 'ui__legend-key--right' },
+];
 
+export function KeyboardControls({ isShootingMode, isApocalypseMode }) {
   return (
     <>
-      <LegendSection>
-        <LegendGroup label="Move:">
+      <LegendSection title="Movement">
+        <LegendGroup label="Move">
           <LegendKeys variant="arrows">
-            {arrowKeys.map((keyData) => (
+            {ARROW_KEYS.map((keyData) => (
               <LegendKey key={keyData.key} className={keyData.className}>
                 {keyData.label}
               </LegendKey>
             ))}
           </LegendKeys>
         </LegendGroup>
-      </LegendSection>
 
-      <LegendSection>
-        <LegendGroup label="Sprint:">
+        <LegendGroup label="Sprint">
           <LegendKeys>
             <LegendKey className="ui__legend-key--shift" dangerouslySetInnerHTML={{ __html: '⇧ Shift' }} />
           </LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Jump:">
+        <LegendGroup label="Jump">
           <LegendKeys variant="jump">
             <LegendKey className="ui__legend-key--space">Space</LegendKey>
           </LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Fly:">
+        <LegendGroup label="Fly" hint="hold">
           <LegendKeys variant="jump">
             <LegendKey className="ui__legend-key--space">Space</LegendKey>
-            <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(hold)</span>
           </LegendKeys>
         </LegendGroup>
       </LegendSection>
 
       {isShootingMode && (
-        <LegendSection>
-          <div className="ui__legend-group" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border-light)' }}>
-            <span className="ui__legend-label" style={{ fontWeight: '600', opacity: '1' }}>
-              Shooting:
-            </span>
-          </div>
-
-          <LegendGroup label="Bolt:">
+        <LegendSection title="Combat">
+          <LegendGroup label="Bolt">
             <LegendKeys>
-              <LegendKey>🖱️ Left Click</LegendKey>
+              <LegendKey>🖱 Left Click</LegendKey>
             </LegendKeys>
           </LegendGroup>
 
-          <LegendGroup label="Mortar:">
+          <LegendGroup label="Mortar">
             <LegendKeys>
-              <LegendKey>🖱️ Right Click</LegendKey>
+              <LegendKey>🖱 Right Click</LegendKey>
             </LegendKeys>
           </LegendGroup>
 
-          <LegendGroup label="Speed (Herald):">
-            <LegendKey style={{ minWidth: 'auto', fontSize: '10px', opacity: '0.7' }}>
-              Cursor distance
-            </LegendKey>
+          <LegendGroup label="Speed (Herald)" hint="cursor distance">
+            <LegendKeys />
           </LegendGroup>
         </LegendSection>
       )}
 
       {isApocalypseMode && (
-        <LegendSection>
-          <div className="ui__legend-group" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border-light)' }}>
-            <span className="ui__legend-label" style={{ fontWeight: '600', opacity: '1' }}>
-              Survive:
-            </span>
-          </div>
-
-          <LegendGroup label="Dig:">
+        <LegendSection title="Survive">
+          <LegendGroup label="Dig">
             <LegendKeys><LegendKey className="ui__legend-key--char">G</LegendKey></LegendKeys>
           </LegendGroup>
-          <LegendGroup label="Raise:">
+          <LegendGroup label="Raise">
             <LegendKeys><LegendKey className="ui__legend-key--char">R</LegendKey></LegendKeys>
           </LegendGroup>
-          <LegendGroup label="Flatten:">
+          <LegendGroup label="Flatten">
             <LegendKeys><LegendKey className="ui__legend-key--char">T</LegendKey></LegendKeys>
           </LegendGroup>
-          <LegendGroup label="Plant Tree:">
+          <LegendGroup label="Plant Tree">
             <LegendKeys><LegendKey className="ui__legend-key--char">P</LegendKey></LegendKeys>
           </LegendGroup>
-          <LegendGroup label="Place Block:">
+          <LegendGroup label="Place Block">
             <LegendKeys><LegendKey className="ui__legend-key--char">B</LegendKey></LegendKeys>
           </LegendGroup>
-          <LegendGroup label="Chop/Break:">
+          <LegendGroup label="Chop / Break">
             <LegendKeys><LegendKey className="ui__legend-key--char">F</LegendKey></LegendKeys>
           </LegendGroup>
-          <LegendGroup label="Block Type:">
+          <LegendGroup label="Block Type">
             <LegendKeys>
               <LegendKey className="ui__legend-key--char">1</LegendKey>
               <LegendKey className="ui__legend-key--char">2</LegendKey>
@@ -108,57 +91,41 @@ export function KeyboardControls({ isShootingMode, isApocalypseMode }) {
         </LegendSection>
       )}
 
-      <LegendSection>
-        <LegendGroup label="Swap:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">C</LegendKey>
-          </LegendKeys>
+      <LegendSection title="Abilities">
+        <LegendGroup label="Swap">
+          <LegendKeys><LegendKey className="ui__legend-key--char">C</LegendKey></LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Heal:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">H</LegendKey>
-            <span style={{ fontSize: '13px', opacity: 0.9, marginLeft: '4px' }}>(Hold)</span>
-          </LegendKeys>
+        <LegendGroup label="Heal" hint="hold">
+          <LegendKeys><LegendKey className="ui__legend-key--char">H</LegendKey></LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Recharge:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">H</LegendKey>
-          </LegendKeys>
+        <LegendGroup label="Recharge">
+          <LegendKeys><LegendKey className="ui__legend-key--char">H</LegendKey></LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Melee:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">F</LegendKey>
-          </LegendKeys>
+        <LegendGroup label="Melee">
+          <LegendKeys><LegendKey className="ui__legend-key--char">F</LegendKey></LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Speed Boost:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">E</LegendKey>
-          </LegendKeys>
+        <LegendGroup label="Speed Boost">
+          <LegendKeys><LegendKey className="ui__legend-key--char">E</LegendKey></LegendKeys>
+        </LegendGroup>
+      </LegendSection>
+
+      <LegendSection title="System">
+        <LegendGroup label="View">
+          <LegendKeys><LegendKey className="ui__legend-key--char">V</LegendKey></LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="View:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">V</LegendKey>
-          </LegendKeys>
+        <LegendGroup label="Open Menu">
+          <LegendKeys><LegendKey className="ui__legend-key--char">Esc</LegendKey></LegendKeys>
         </LegendGroup>
 
-        <LegendGroup label="Open Menu:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">ESC</LegendKey>
-          </LegendKeys>
-        </LegendGroup>
-
-        <LegendGroup label="Scoreboard:">
-          <LegendKeys>
-            <LegendKey className="ui__legend-key--char">Tab</LegendKey>
-          </LegendKeys>
+        <LegendGroup label="Scoreboard">
+          <LegendKeys><LegendKey className="ui__legend-key--char">Tab</LegendKey></LegendKeys>
         </LegendGroup>
       </LegendSection>
     </>
   );
 }
-
