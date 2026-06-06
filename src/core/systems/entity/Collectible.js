@@ -66,7 +66,7 @@ export function createCollectible(scene, x, z, id) {
 }
 
 /**
- * Collect an item (removes glow light only)
+ * Collect an item
  * @param {THREE.Mesh} item - Item mesh
  * @param {Object} scene - THREE.js scene
  * @returns {boolean} True if item was collected
@@ -75,11 +75,12 @@ export function collectItem(item, scene) {
   if (item.userData.collected) return false;
   
   item.userData.collected = true;
-  
-  // Remove glow light immediately
+
+  // Keep light object in scene to avoid runtime light-count shader recompiles.
+  // We neutralize it visually instead of removing it during gameplay.
   if (item.userData.glowLight) {
-    scene.remove(item.userData.glowLight);
-    item.userData.glowLight = null;
+    item.userData.glowLight.intensity = 0;
+    item.userData.glowLight.distance = 0.01;
   }
   
   return true;

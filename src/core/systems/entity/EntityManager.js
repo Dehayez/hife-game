@@ -325,13 +325,13 @@ export class EntityManager {
       updateCollectibleAnimation(item, dt, null, currentTime);
     }
     
-    // Remove faded out items
+    // Finalize faded collectibles without removing scene lights mid-round.
+    // Removing point lights during gameplay can trigger shader recompiles and hitches.
     for (const item of itemsToRemove) {
-      this.scene.remove(item);
-      const index = this.collectibles.indexOf(item);
-      if (index > -1) {
-        this.collectibles.splice(index, 1);
-      }
+      item.userData.fadingOut = false;
+      item.visible = false;
+      item.scale.set(0.0001, 0.0001, 0.0001);
+      item.material.opacity = 0;
     }
 
     // Update hazards

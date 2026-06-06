@@ -7,6 +7,24 @@
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 import { getConfettiStats } from '../../../config/entity/EntityStats.js';
 
+let sharedConfettiTexture = null;
+
+function getSharedConfettiTexture() {
+  if (sharedConfettiTexture) {
+    return sharedConfettiTexture;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const context = canvas.getContext('2d');
+  context.fillStyle = 'rgba(255,255,255,1)';
+  context.fillRect(4, 2, 8, 12);
+
+  sharedConfettiTexture = new THREE.CanvasTexture(canvas);
+  return sharedConfettiTexture;
+}
+
 /**
  * Create a confetti burst effect
  * @param {Object} scene - THREE.js scene
@@ -62,23 +80,13 @@ export function createConfettiBurst(scene, x, y, z) {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   
-  // Create confetti texture (small square/rectangle shape)
-  const canvas = document.createElement('canvas');
-  canvas.width = 16;
-  canvas.height = 16;
-  const context = canvas.getContext('2d');
-  context.fillStyle = 'rgba(255,255,255,1)';
-  context.fillRect(4, 2, 8, 12); // Small rectangle for confetti shape
-  
-  const texture = new THREE.CanvasTexture(canvas);
-  
   const material = new THREE.PointsMaterial({
     size: stats.particleSize,
     vertexColors: true,
     transparent: true,
     opacity: 1.0,
     blending: THREE.NormalBlending,
-    map: texture,
+    map: getSharedConfettiTexture(),
     sizeAttenuation: true
   });
   
