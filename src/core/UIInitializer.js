@@ -21,6 +21,7 @@ import { initMinimap } from '../ui/components/Minimap/index.js';
 import { initInputModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
 import { getParam } from '../utils/UrlUtils.js';
 import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode, getSoundEffectsVolume, setSoundEffectsVolume, getBackgroundCinematicVolume, setBackgroundCinematicVolume, getVibrationIntensity, setVibrationIntensity, getControlsLegendVisible, setControlsLegendVisible } from '../utils/StorageUtils.js';
+import { VIEW_MODE, getCameraViewMode, setCameraViewMode } from '../config/camera/CameraViewMode.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 import { GAME_CONSTANTS } from '../config/global/GameConstants.js';
 
@@ -137,12 +138,19 @@ export function initializeUI(managers, config) {
       isMenuOpen = true;
       if (inputManager) {
         inputManager.setInputBlocked(true);
+        if (inputManager._releasePointerLock) {
+          inputManager._releasePointerLock();
+        }
       }
     },
     onMenuClose: () => {
       isMenuOpen = false;
       if (inputManager) {
         inputManager.setInputBlocked(false);
+        if (getCameraViewMode() === VIEW_MODE.FIRST_PERSON &&
+            inputManager._requestPointerLockIfAppropriate) {
+          inputManager._requestPointerLockIfAppropriate();
+        }
       }
     }
   });
@@ -525,6 +533,7 @@ function buildMenuStructure(gameMenu, mounts) {
     managers,
     updateControlsLegendVisibility
   } = mounts;
+  const inputManager = managers?.inputManager;
   
   // Game Mode Display Section
   const modeDisplaySection = gameMenu.addSection('settings', {
@@ -626,6 +635,58 @@ function buildMenuStructure(gameMenu, mounts) {
     }
   }
   
+  // Camera View Section
+  const viewSection = gameMenu.addSection('settings', {
+    title: 'View',
+    icon: MenuIcons.viewMode,
+    className: 'game-menu__section--view-mode'
+  });
+  if (viewSection) {
+    const viewContent = viewSection.querySelector('.game-menu__section-content');
+    if (viewContent) {
+      const viewControl = document.createElement('div');
+      viewControl.className = 'game-menu__control ui__control';
+
+      const viewLabel = document.createElement('label');
+      viewLabel.className = 'game-menu__label ui__label';
+      viewLabel.textContent = 'Camera View';
+      viewControl.appendChild(viewLabel);
+
+      const viewSelect = document.createElement('select');
+      viewSelect.className = 'game-menu__select ui__select';
+      viewSelect.tabIndex = 0;
+      const thirdOption = document.createElement('option');
+      thirdOption.value = VIEW_MODE.THIRD_PERSON;
+      thirdOption.textContent = 'Third-Person';
+      const firstOption = document.createElement('option');
+      firstOption.value = VIEW_MODE.FIRST_PERSON;
+      firstOption.textContent = 'First-Person';
+      viewSelect.appendChild(thirdOption);
+      viewSelect.appendChild(firstOption);
+      viewSelect.value = getCameraViewMode();
+      viewSelect.addEventListener('change', (e) => {
+        const next = e.target.value;
+        if (next === getCameraViewMode()) return;
+        if (inputManager && inputManager.toggleViewMode) {
+          inputManager.toggleViewMode();
+        } else {
+          setCameraViewMode(next);
+        }
+      });
+      viewControl.appendChild(viewSelect);
+      viewContent.appendChild(viewControl);
+
+      // Keep the dropdown in sync when the user toggles via hotkey / R3.
+      if (inputManager && inputManager.setOnViewModeChange) {
+        const existing = inputManager._fpvOnViewModeChange;
+        inputManager.setOnViewModeChange((mode) => {
+          if (existing) existing(mode);
+          if (viewSelect.value !== mode) viewSelect.value = mode;
+        });
+      }
+    }
+  }
+
   // Audio Settings Section
   const audioSettingsSection = gameMenu.addSection('settings', {
     title: 'Audio Settings',

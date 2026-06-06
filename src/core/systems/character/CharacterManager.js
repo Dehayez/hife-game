@@ -236,6 +236,7 @@ export class CharacterManager {
       this.player = sprite;
       if (currentParent) currentParent.add(this.player);
       else if (this.scene) this.scene.add(this.player);
+      this.reapplyLocalPlayerVisibility();
     }
 
     if (this.is3DMode) {
@@ -246,37 +247,22 @@ export class CharacterManager {
         }
         
         const model3D = await loadCharacterModel(name, onProgress);
-        
-        console.log(`[3D Model] Loaded model for ${name}:`, model3D);
-        console.log(`[3D Model] Model position:`, model3D.position);
-        console.log(`[3D Model] Model scale:`, model3D.scale);
-        console.log(`[3D Model] Model visible:`, model3D.visible);
-        console.log(`[3D Model] Model children count:`, model3D.children.length);
-        
-        // Configure the model
+
         configureCharacter3DModel(model3D, name);
-        
-        // Initialize rotation tracking with the base rotation
+
         this.currentRotationY = model3D.rotation.y;
-        
-        // Get current position and parent before replacing
+
         const currentPosition = this.player.position.clone();
         const currentParent = this.player.parent;
-        
-        console.log(`[3D Model] Current player position:`, currentPosition);
-        console.log(`[3D Model] Current parent:`, currentParent);
-        
-        // Remove old player mesh
+
         if (this.player.parent) {
           this.player.parent.remove(this.player);
         }
-        
-        // Replace with 3D model
+
         this.player = model3D;
         this.player.position.copy(currentPosition);
-        this.player.visible = true; // Ensure visibility
-        
-        // Copy userData
+        this.player.visible = this.shouldShowLocalPlayer();
+
         const healthStats = getCharacterHealthStats();
         this.player.userData = {
           type: 'player',
@@ -284,35 +270,28 @@ export class CharacterManager {
           health: this.characterData.health,
           maxHealth: healthStats.maxHealth
         };
-        
-        // Add to scene
+
         if (currentParent) {
           currentParent.add(this.player);
-          console.log(`[3D Model] Added to existing parent`);
         } else if (this.scene) {
           this.scene.add(this.player);
-          console.log(`[3D Model] Added to scene`);
         } else {
           console.warn(`[3D Model] No parent or scene to add model to!`);
         }
-        
-        // Ensure model is visible and check bounds
+
+        const childrenVisible = this.shouldShowLocalPlayer();
         model3D.traverse((child) => {
           if (child.isMesh) {
-            child.visible = true;
-            console.log(`[3D Model] Mesh found:`, child.name || 'unnamed', 'visible:', child.visible);
+            child.visible = childrenVisible;
           }
         });
-        
-        // Initialize animations for 3D (if available)
-        this.animations = null; // 3D models use their own animations
+
+        this.animations = null;
         this.currentAnimKey = 'idle';
-        
+
         if (onProgress) {
           onProgress(1, 1, `${name} 3D model loaded`);
         }
-        
-        console.log(`[3D Model] Model setup complete for ${name}`);
       } catch (error) {
         console.warn(`Failed to load 3D model for ${name}, falling back to sprites:`, error);
         // Fallback to sprite mode
@@ -541,6 +520,41 @@ export class CharacterManager {
   }
 
   /**
+   * Show or hide the local player mesh (used to hide it in first-person view
+   * so the camera doesn't clip the player's own model). The desired state is
+   * remembered and re-applied whenever the mesh is replaced (e.g., character
+   * swap, 3D model load).
+   * @param {boolean} visible
+   */
+  setLocalPlayerVisible(visible) {
+    this._localPlayerVisible = visible;
+    if (this.player) {
+      this.player.visible = visible;
+    }
+    if (this.rollMesh) {
+      this.rollMesh.visible = visible && this._isRollVisible;
+    }
+  }
+
+  /**
+   * Re-apply the last-known local-player visibility (call after any mesh swap).
+   */
+  reapplyLocalPlayerVisibility() {
+    if (this._localPlayerVisible === false && this.player) {
+      this.player.visible = false;
+    }
+  }
+
+  /**
+   * Returns true if the local player should currently be rendered.
+   * Used by code that would otherwise force-show the player mesh
+   * (animation swap, respawn, rolling reset).
+   */
+  shouldShowLocalPlayer() {
+    return this._localPlayerVisible !== false;
+  }
+
+  /**
    * Check if character is currently dying (fading out)
    * @returns {boolean} True if dying
    */
@@ -657,8 +671,8 @@ export class CharacterManager {
       this.player.userData.maxHealth = this.characterData.maxHealth;
     }
     
-    // Ensure player is visible
-    this.player.visible = true;
+    // Ensure player is visible (unless hidden for first-person view).
+    this.player.visible = this.shouldShowLocalPlayer();
     
     // Reset opacity and scale
     if (this.player.material) {
@@ -980,7 +994,7 @@ export class CharacterManager {
    */
   _resetRollingVisual() {
     if (this.player) {
-      this.player.visible = true;
+      this.player.visible = this.shouldShowLocalPlayer();
       // Clear rolling flag so animation system can manage visibility normally
       if (this.player.userData) {
         this.player.userData.isRolling = false;

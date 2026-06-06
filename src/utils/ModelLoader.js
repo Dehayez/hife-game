@@ -6,7 +6,7 @@
 
 import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
 
-// Lazy load GLTFLoader to handle import map resolution
+// Lazy load GLTFLoader - we'll create it manually to avoid import issues
 let loader = null;
 let loaderPromise = null;
 
@@ -16,15 +16,34 @@ async function getGLTFLoader() {
   
   loaderPromise = (async () => {
     try {
-      // Try import map path first (works in browser)
-      const loaderModule = await import('three/addons/loaders/GLTFLoader.js');
+      const importPath = 'three/addons/loaders/GLTFLoader.js';
+      const dynamicImport = new Function('path', 'return import(path)');
+      const loaderModule = await dynamicImport(importPath);
+
+      if (!loaderModule || !loaderModule.GLTFLoader) {
+        throw new Error('GLTFLoader not found in loaded module');
+      }
+
       loader = new loaderModule.GLTFLoader();
       return loader;
-    } catch (e) {
-      // Fallback: import directly from CDN
-      const loaderModule = await import('https://unpkg.com/three@0.160.1/examples/jsm/loaders/GLTFLoader.js');
-      loader = new loaderModule.GLTFLoader();
-      return loader;
+    } catch (error) {
+      console.error(`[ModelLoader] Failed to load GLTFLoader via import map:`, error);
+
+      try {
+        const cdnUrl = 'https://unpkg.com/three@0.160.1/examples/jsm/loaders/GLTFLoader.js';
+        const dynamicImport = new Function('url', 'return import(url)');
+        const loaderModule = await dynamicImport(cdnUrl);
+
+        if (!loaderModule || !loaderModule.GLTFLoader) {
+          throw new Error('GLTFLoader not found');
+        }
+
+        loader = new loaderModule.GLTFLoader();
+        return loader;
+      } catch (fallbackError) {
+        console.error(`[ModelLoader] Fallback also failed:`, fallbackError);
+        throw new Error(`Failed to load GLTFLoader. Import map error: ${error.message}. CDN error: ${fallbackError.message}`);
+      }
     }
   })();
   
@@ -39,24 +58,24 @@ const modelCache = new Map();
  * @returns {Promise<THREE.Group>} Promise that resolves to the loaded model group
  */
 export async function loadModel(path) {
-  // Check cache first
   if (modelCache.has(path)) {
     return Promise.resolve(modelCache.get(path).clone());
   }
 
   const gltfLoader = await getGLTFLoader();
-  
+
   return new Promise((resolve, reject) => {
     gltfLoader.load(
       path,
       (gltf) => {
-        // Cache the original model
         modelCache.set(path, gltf.scene);
-        // Return a clone so multiple instances can use the same model
         resolve(gltf.scene.clone());
       },
       undefined,
-      (err) => reject(err)
+      (err) => {
+        console.error(`[ModelLoader] Error loading model from ${path}:`, err);
+        reject(err);
+      }
     );
   });
 }
