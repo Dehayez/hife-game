@@ -1077,6 +1077,9 @@ export class GameLoop {
     if (this.apocalypseHud) {
       this.apocalypseHud.update();
     }
+    if (this.playerHealthBar) {
+      this.playerHealthBar.update();
+    }
 
     // Camera follows player
     // isRunning() already checks mortarHoldActive internally

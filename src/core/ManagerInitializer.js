@@ -15,6 +15,7 @@ import { TreeManager } from './systems/entity/TreeManager.js';
 import { BlockManager } from './systems/entity/BlockManager.js';
 import { ApocalypseSurvivalManager } from './systems/gamemode/ApocalypseSurvivalManager.js';
 import { ApocalypseHud } from '../ui/components/ApocalypseHud/index.js';
+import { PlayerHealthBar } from '../ui/components/PlayerHealthBar/index.js';
 import { CharacterManager } from './systems/character/CharacterManager.js';
 import { InputManager } from './systems/input/InputManager.js';
 import { CollisionManager } from './systems/collision/CollisionManager.js';
@@ -474,6 +475,11 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     }
   }
 
+  // Local player healthbar (bottom-left HUD). Polls CharacterManager each
+  // frame so it tracks both damage and healing across all modes.
+  const playerHealthBar = new PlayerHealthBar({ characterManager });
+  gameLoop.playerHealthBar = playerHealthBar;
+
   // Connect visual effects managers to game loop
   gameLoop.setScreenShakeManager(screenShakeManager);
   gameLoop.setDamageNumberManager(damageNumberManager);
@@ -533,7 +539,8 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
     apocalypseTerrain,
     terraformController: gameLoop.terraformController || null,
     treeManager: gameLoop.treeManager || null,
-    blockManager: gameLoop.blockManager || null
+    blockManager: gameLoop.blockManager || null,
+    playerHealthBar
   };
 }
 
