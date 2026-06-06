@@ -232,28 +232,58 @@
             </filter>
           </defs>
           <g class="loading-screen__crest-strokes" filter="url(#ls-chalk)">
-            <!-- Mace (left, pointing up-left) -->
+
+            <!-- TRIDENT: three prongs at top-left, long shaft to bottom-right pommel -->
             <g class="loading-screen__crest-mace">
-              <line x1="92" y1="68" x2="244" y2="288" />
-              <!-- Head -->
-              <path d="M 92 68 L 70 50 L 64 76 L 78 84 L 82 100 L 100 92 L 116 100 L 120 80 L 110 64 Z" />
-              <circle cx="93" cy="78" r="3" />
-              <!-- Pommel -->
-              <circle cx="248" cy="294" r="9" />
+              <!-- Long shaft (top-left → bottom-right) -->
+              <path d="M 122 96 Q 180 188 244 286" />
+              <!-- Center prong (tallest, with a small curl/flag at tip) -->
+              <path d="M 122 96 L 116 36" />
+              <path d="M 116 36 C 124 30, 130 36, 126 44 C 122 50, 116 48, 116 44" />
+              <!-- Left prong (curving up and out) -->
+              <path d="M 122 96 C 100 86, 84 64, 76 44" />
+              <path d="M 76 44 L 70 56 M 76 44 L 86 48" />
+              <!-- Right prong (mirror of left) -->
+              <path d="M 122 96 C 142 82, 158 64, 168 46" />
+              <path d="M 168 46 L 162 58 M 168 46 L 158 48" />
+              <!-- Ferrule: small band where prongs meet shaft -->
+              <path d="M 110 100 Q 122 92 134 100" />
+              <line x1="114" y1="106" x2="132" y2="98" />
+              <!-- Pommel ball at the bottom-right -->
+              <circle cx="246" cy="290" r="7" />
             </g>
-            <!-- Sword (right, pointing up-right) -->
+
+            <!-- CRYSTAL SWORD: big faceted gem-blade, tip top-right → grip bottom-left -->
             <g class="loading-screen__crest-sword">
-              <!-- Blade -->
-              <path d="M 272 56 L 256 96 L 244 144 L 232 192 L 218 220 L 230 226 L 244 200 L 258 154 L 270 110 L 280 72 Z" />
-              <!-- Blade center line -->
-              <line x1="266" y1="68" x2="226" y2="218" />
-              <!-- Cross guard -->
-              <line x1="200" y1="232" x2="262" y2="250" />
-              <!-- Grip -->
-              <line x1="218" y1="240" x2="116" y2="296" />
-              <!-- Pommel -->
-              <circle cx="112" cy="298" r="7" />
+              <!-- Outer blade silhouette: long faceted crystal -->
+              <path d="M 286 38
+                       L 296 86
+                       L 282 140
+                       L 256 188
+                       L 232 218
+                       L 214 222
+                       L 206 198
+                       L 218 152
+                       L 240 100
+                       L 266 60
+                       Z" />
+              <!-- Internal crystal facets — a few sharp straight cuts -->
+              <!-- Central spine running tip → grip -->
+              <path d="M 286 38 L 220 220" />
+              <!-- Right-side facet line -->
+              <path d="M 296 86 L 232 218" />
+              <!-- Left-side facet line -->
+              <path d="M 266 60 L 214 222" />
+              <!-- Grip: blade base flows into a thin shaft -->
+              <path d="M 218 222 Q 178 264 128 304" />
+              <path d="M 232 220 Q 192 262 142 302" />
+              <!-- Tiny grip-wrap rings -->
+              <line x1="184" y1="252" x2="194" y2="246" />
+              <line x1="170" y1="264" x2="180" y2="258" />
+              <!-- Pommel ball at the bottom-left -->
+              <circle cx="122" cy="308" r="8" />
             </g>
+
           </g>
         </svg>
 
