@@ -1,17 +1,25 @@
 import React from 'react';
 import { CONTROLLER_BUTTON_CONFIG } from '../XboxButton/helpers.js';
 
-export function LegendGroup({ label, children, className = '' }) {
+export function LegendGroup({ label, children, hint, className = '' }) {
   return (
     <div className={`ui__legend-group ${className}`}>
       <span className="ui__legend-label">{label}</span>
-      {children}
+      <div className="ui__legend-value">
+        {children}
+        {hint && <span className="ui__legend-hint">{hint}</span>}
+      </div>
     </div>
   );
 }
 
-export function LegendSection({ children, className = '' }) {
-  return <div className={`ui__legend-section ${className}`}>{children}</div>;
+export function LegendSection({ title, children, className = '' }) {
+  return (
+    <section className={`ui__legend-section ${className}`}>
+      {title && <h4 className="ui__legend-section-title">{title}</h4>}
+      <div className="ui__legend-section-body">{children}</div>
+    </section>
+  );
 }
 
 export function LegendKeys({ children, variant = 'run' }) {

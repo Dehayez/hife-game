@@ -25,6 +25,7 @@ import { updateCollectibleAnimation, updateCheckpointAnimation } from './EntityA
 import { checkPlayerCollision } from './CollisionDetector.js';
 import { getGeometryPool } from '../abilities/functions/utils/GeometryPool.js';
 import { generateRandomPositions, getAdjustedSpawnCount } from './Spawner.js';
+import { getCameraViewMode, VIEW_MODE } from '../../../config/camera/CameraViewMode.js';
 
 export class EntityManager {
   /**
@@ -33,10 +34,11 @@ export class EntityManager {
    * @param {number} arenaSize - Arena size
    * @param {Object} collisionManager - Collision manager for wall checks
    */
-  constructor(scene, arenaSize, collisionManager = null) {
+  constructor(scene, arenaSize, collisionManager = null, soundManager = null) {
     this.scene = scene;
     this.arenaSize = arenaSize;
     this.collisionManager = collisionManager;
+    this.soundManager = soundManager;
     this.collectibles = [];
     this.hazards = [];
     this.checkpoints = [];
@@ -51,6 +53,14 @@ export class EntityManager {
    */
   setCollisionManager(collisionManager) {
     this.collisionManager = collisionManager;
+  }
+
+  /**
+   * Set sound manager (can be set after construction)
+   * @param {Object} soundManager - Sound manager instance
+   */
+  setSoundManager(soundManager) {
+    this.soundManager = soundManager;
   }
 
   /**
@@ -119,14 +129,20 @@ export class EntityManager {
     
     const wasCollected = collectItem(item, this.scene);
     if (wasCollected) {
+      const firstPerson = getCameraViewMode() === VIEW_MODE.FIRST_PERSON;
       this.collectedIds.add(item.userData.id);
+
+      if (this.soundManager && typeof this.soundManager.playCollectiblePickup === 'function') {
+        this.soundManager.playCollectiblePickup(item.position, firstPerson);
+      }
       
       // Create confetti burst effect
       const confettiEffect = createConfettiBurst(
         this.scene,
         item.position.x,
         item.position.y,
-        item.position.z
+        item.position.z,
+        { firstPerson }
       );
       this.confettiEffects.push(confettiEffect);
       

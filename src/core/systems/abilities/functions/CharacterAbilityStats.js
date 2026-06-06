@@ -30,6 +30,9 @@ import { HERALD_MORTAR_ATTACK_CONFIG } from '../../../../config/abilities/charac
 import { HERALD_MELEE_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/melee/AttackConfig.js';
 import { HERALD_BLAST_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/blast/AttackConfig.js';
 import { HERALD_ROLL_ATTACK_CONFIG } from '../../../../config/abilities/characters/herald/roll/AttackConfig.js';
+import { BABY_HERALD_BOLT_ATTACK_CONFIG } from '../../../../config/abilities/characters/babyHerald/bolt/AttackConfig.js';
+import { BABY_HERALD_MORTAR_ATTACK_CONFIG } from '../../../../config/abilities/characters/babyHerald/mortar/AttackConfig.js';
+import { BABY_HERALD_MELEE_ATTACK_CONFIG } from '../../../../config/abilities/characters/babyHerald/melee/AttackConfig.js';
 
 /**
  * Deep merge function that applies multipliers or overrides
@@ -111,8 +114,10 @@ export function getCharacterStats(characterName) {
   // If still loading, compute on the fly
   if (characterName === 'lucy') {
     return createCharacterStats('lucy', LUCY_BOLT_ATTACK_CONFIG, LUCY_MORTAR_ATTACK_CONFIG, LUCY_MELEE_ATTACK_CONFIG);
-  } else if (characterName === 'herald' || characterName === 'babyHerald') {
-    return createCharacterStats(characterName, HERALD_BOLT_ATTACK_CONFIG, HERALD_MORTAR_ATTACK_CONFIG, HERALD_MELEE_ATTACK_CONFIG);
+  } else if (characterName === 'babyHerald') {
+    return createCharacterStats('babyHerald', BABY_HERALD_BOLT_ATTACK_CONFIG, BABY_HERALD_MORTAR_ATTACK_CONFIG, BABY_HERALD_MELEE_ATTACK_CONFIG);
+  } else if (characterName === 'herald') {
+    return createCharacterStats('herald', HERALD_BOLT_ATTACK_CONFIG, HERALD_MORTAR_ATTACK_CONFIG, HERALD_MELEE_ATTACK_CONFIG);
   }
   
   // Default to lucy

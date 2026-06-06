@@ -20,7 +20,7 @@ import { initConnectionStatus } from '../ui/components/ConnectionStatus/index.js
 import { initMinimap } from '../ui/components/Minimap/index.js';
 import { initInputModeSwitcher } from '../ui/adapters/reactAdapters.jsx';
 import { getParam } from '../utils/UrlUtils.js';
-import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode, getSoundEffectsVolume, setSoundEffectsVolume, getBackgroundCinematicVolume, setBackgroundCinematicVolume, getVibrationIntensity, setVibrationIntensity, getControlsLegendVisible, setControlsLegendVisible } from '../utils/StorageUtils.js';
+import { setLastCharacter, setLastGameMode, setLastInputMode, getLastInputMode, getSoundEffectsVolume, setSoundEffectsVolume, getBackgroundCinematicVolume, setBackgroundCinematicVolume, getVibrationIntensity, setVibrationIntensity } from '../utils/StorageUtils.js';
 import { VIEW_MODE, getCameraViewMode, setCameraViewMode } from '../config/camera/CameraViewMode.js';
 import { sendPlayerState } from './MultiplayerHelpers.js';
 import { GAME_CONSTANTS } from '../config/global/GameConstants.js';
@@ -63,7 +63,6 @@ export function initializeUI(managers, config) {
   const connectionStatusMount = document.getElementById('connection-status') || document.body;
   const minimapMount = document.getElementById('minimap') || document.body;
   const legendMount = document.getElementById('controls-legend') || document.body;
-  const legendWrapperMount = document.getElementById('controls-legend-wrapper') || document.body;
   const inputModeMount = document.getElementById('input-mode-switcher') || document.body;
   const modeDisplayMount = document.getElementById('game-mode-display') || document.body;
   const gameModeMount = document.getElementById('game-mode-switcher') || document.body;
@@ -205,41 +204,16 @@ export function initializeUI(managers, config) {
     characterSwitcher.setValue(characterName);
   });
   
-  // Initialize controls legend (render into wrapper for in-game display)
-  const controlsLegend = initControlsLegend({
-    mount: legendWrapperMount,
-    inputManager: inputManager,
-    gameModeManager: gameModeManager
-  });
-  
-  // Initialize controls legend for menu display (separate instance)
+  // Controls legend lives only inside the settings menu now. The HUD copy
+  // was distracting in gameplay and is gone; the menu instance is enough.
   const controlsLegendMenu = initControlsLegend({
     mount: legendMount,
     inputManager: inputManager,
     gameModeManager: gameModeManager
   });
-  
-  // Initialize controls legend visibility from storage
-  const controlsLegendVisible = getControlsLegendVisible();
-  const updateControlsLegendVisibility = (visible) => {
-    if (legendWrapperMount) {
-      if (visible) {
-        legendWrapperMount.classList.add('is-visible');
-      } else {
-        legendWrapperMount.classList.remove('is-visible');
-      }
-      setControlsLegendVisible(visible);
-    }
-  };
-  
-  // Set initial visibility
-  updateControlsLegendVisibility(controlsLegendVisible);
-  
-  // Update legends when game mode changes
+
+  // Update legend when game mode changes
   gameModeManager.setOnModeChangeCallback(() => {
-    if (controlsLegend) {
-      controlsLegend.update();
-    }
     if (controlsLegendMenu) {
       controlsLegendMenu.update();
     }
@@ -254,43 +228,31 @@ export function initializeUI(managers, config) {
       const success = inputManager.setInputMode(mode);
       if (success) {
         setLastInputMode(mode);
-        if (controlsLegend) {
-          controlsLegend.update();
-        }
+        controlsLegendMenu?.update();
       }
     }
   });
-  
+
   // Set initial controller availability
   inputModeSwitcher.setControllerAvailable(inputManager.isGamepadConnected());
-  
+
   // Set up callback for controller connection status changes
   inputManager.setOnControllerStatusChange((isConnected) => {
     inputModeSwitcher.setControllerAvailable(isConnected);
-    
+
     if (isConnected) {
       const success = inputManager.setInputMode('controller');
       if (success) {
         inputModeSwitcher.setValue('controller');
         setLastInputMode('controller');
-        if (controlsLegend) {
-          controlsLegend.update();
-        }
-        if (controlsLegendMenu) {
-          controlsLegendMenu.update();
-        }
+        controlsLegendMenu?.update();
       }
     } else {
       const currentMode = inputManager.getInputMode();
       if (currentMode === 'keyboard') {
         inputModeSwitcher.setValue('keyboard');
         setLastInputMode('keyboard');
-        if (controlsLegend) {
-          controlsLegend.update();
-        }
-        if (controlsLegendMenu) {
-          controlsLegendMenu.update();
-        }
+        controlsLegendMenu?.update();
       }
     }
   });
@@ -331,10 +293,8 @@ export function initializeUI(managers, config) {
       gameModeSwitcher.setValue(mode);
     }
     
-    if (controlsLegend) {
-      controlsLegend.update();
-    }
-    
+    controlsLegendMenu?.update();
+
     if (mode !== 'shooting' && projectileManager) {
       projectileManager.clearAll();
     }
@@ -462,14 +422,12 @@ export function initializeUI(managers, config) {
     learningFeedbackMount,
     gameMode,
     characterManager,
-    managers,
-    updateControlsLegendVisibility
+    managers
   });
-  
+
   const uiApi = {
     gameMenu,
     characterSwitcher,
-    controlsLegend,
     controlsLegendMenu,
     inputModeSwitcher,
     cooldownIndicator,
@@ -526,8 +484,7 @@ function buildMenuStructure(gameMenu, mounts) {
     learningFeedbackMount,
     gameMode,
     characterManager,
-    managers,
-    updateControlsLegendVisibility
+    managers
   } = mounts;
   const inputManager = managers?.inputManager;
   
@@ -573,7 +530,8 @@ function buildMenuStructure(gameMenu, mounts) {
     }
   }
   
-  // Controls Legend Section
+  // Controls Legend Section — the legend lives in settings only, so no
+  // in-game visibility toggle is needed.
   const legendSection = gameMenu.addSection('settings', {
     title: 'Controls',
     icon: MenuIcons.controls,
@@ -582,36 +540,6 @@ function buildMenuStructure(gameMenu, mounts) {
   if (legendSection && legendMount) {
     const legendContent = legendSection.querySelector('.game-menu__section-content');
     if (legendContent) {
-      // Add toggle for showing/hiding controls legend in-game
-      const toggleContainer = document.createElement('div');
-      toggleContainer.className = 'game-menu__control ui__control';
-      toggleContainer.style.marginTop = '10px';
-      
-      const toggleLabel = document.createElement('label');
-      toggleLabel.className = 'game-menu__label ui__label';
-      toggleLabel.textContent = 'Show Controls UI';
-      toggleLabel.style.marginRight = '10px';
-      toggleLabel.style.cursor = 'pointer';
-      toggleContainer.appendChild(toggleLabel);
-      
-      const toggleCheckbox = document.createElement('input');
-      toggleCheckbox.type = 'checkbox';
-      toggleCheckbox.checked = getControlsLegendVisible();
-      toggleCheckbox.style.cursor = 'pointer';
-      toggleCheckbox.style.width = '18px';
-      toggleCheckbox.style.height = '18px';
-      toggleCheckbox.tabIndex = 0; // Make focusable for controller navigation
-      toggleCheckbox.addEventListener('change', (e) => {
-        const visible = e.target.checked;
-        if (updateControlsLegendVisibility) {
-          updateControlsLegendVisibility(visible);
-        }
-      });
-      toggleContainer.appendChild(toggleCheckbox);
-      
-      legendContent.appendChild(toggleContainer);
-      
-      // Add the controls legend component for menu display
       legendContent.appendChild(legendMount);
       legendMount.style.display = 'block';
     }

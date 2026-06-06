@@ -46,16 +46,18 @@ export function startDeathFade(entity, entityData, characterName, particleManage
  */
 export function updateDeathFade(entity, entityData, dt, fadeDuration = DEATH_FADE_CONFIG.duration) {
   if (!entity || !entityData || !entityData.isDying) return false;
-  
+
   entityData.deathFadeTimer += dt;
   const progress = Math.min(entityData.deathFadeTimer / fadeDuration, 1.0);
-  
+
+  console.log(`[DeathFade] progress=${progress.toFixed(2)} scale-will-be=${(1.0 - progress * DEATH_FADE_CONFIG.scaleReduction).toFixed(2)}`);
+
   // Fade out entity opacity
   if (entity.material) {
     entity.material.opacity = 1.0 - progress;
     entity.material.transparent = true;
   }
-  
+
   // Also scale down slightly
   const scale = 1.0 - progress * DEATH_FADE_CONFIG.scaleReduction;
   entity.scale.set(scale, scale, scale);

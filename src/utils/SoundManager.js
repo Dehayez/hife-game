@@ -2219,6 +2219,73 @@ export class SoundManager {
   }
 
   /**
+   * Play collectible pickup sound.
+   * Falls back to a short procedural chime if no asset exists.
+   * @param {Object|THREE.Vector3} position - Optional world position
+   * @param {boolean} firstPerson - Whether camera is in first-person mode
+   */
+  playCollectiblePickup(position = null, firstPerson = false) {
+    if (!this.soundEnabled) return;
+    if (!isSoundEnabled('character', 'collectiblePickup')) return;
+    this.notifyAction('collectiblePickup', 0.4);
+
+    const path = getAudioPath('core', 'character', 'collectible_pickup');
+    this._playSoundWithFallback(path, () => {
+      this._playCollectiblePickupProcedural(position, firstPerson);
+    }, position);
+  }
+
+  /**
+   * Procedural collectible pickup sound.
+   * Tuned to be softer in first-person so it never feels harsh.
+   * @param {Object|THREE.Vector3} position - Optional world position
+   * @param {boolean} firstPerson - Whether camera is in first-person mode
+   */
+  _playCollectiblePickupProcedural(position = null, firstPerson = false) {
+    if (!this.soundEnabled) return;
+    if (!this._ensureAudioContext()) return;
+
+    const now = this.audioContext.currentTime;
+    const profileMultiplier = firstPerson ? 0.45 : 0.6;
+    const baseVolume = this.soundEffectsVolume * profileMultiplier;
+    const adjustedVolume = this._getAdjustedVolume(baseVolume, position);
+
+    // Main bright pickup ping.
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(firstPerson ? 760 : 700, now);
+    oscillator.frequency.exponentialRampToValueAtTime(firstPerson ? 1150 : 980, now + 0.07);
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(adjustedVolume, now + 0.006);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.12);
+
+    // Small sparkle overtone to make the pickup feel magical.
+    const sparkleOsc = this.audioContext.createOscillator();
+    const sparkleGain = this.audioContext.createGain();
+    sparkleOsc.connect(sparkleGain);
+    sparkleGain.connect(this.audioContext.destination);
+
+    sparkleOsc.type = 'sine';
+    sparkleOsc.frequency.setValueAtTime(firstPerson ? 1460 : 1320, now + 0.01);
+    sparkleOsc.frequency.exponentialRampToValueAtTime(firstPerson ? 1120 : 980, now + 0.08);
+
+    sparkleGain.gain.setValueAtTime(0, now);
+    sparkleGain.gain.linearRampToValueAtTime(adjustedVolume * 0.55, now + 0.01);
+    sparkleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+    sparkleOsc.start(now + 0.01);
+    sparkleOsc.stop(now + 0.11);
+  }
+
+  /**
    * Procedural take damage sound
    */
   _playTakeDamageProcedural() {

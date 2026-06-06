@@ -290,7 +290,6 @@ export function setupDebugUtilities(managers) {
       if (ui?.gameMenu) {
         ui.gameMenu.checkControllerType?.();
       }
-      ui?.controlsLegend?.update?.();
       ui?.controlsLegendMenu?.update?.();
 
       return controllerType;

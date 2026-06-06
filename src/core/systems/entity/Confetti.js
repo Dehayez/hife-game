@@ -33,13 +33,20 @@ function getSharedConfettiTexture() {
  * @param {number} z - Z position
  * @returns {Object} Confetti effect object
  */
-export function createConfettiBurst(scene, x, y, z) {
+export function createConfettiBurst(scene, x, y, z, options = {}) {
   const stats = getConfettiStats();
+  const firstPerson = !!options.firstPerson;
+  const particleCount = firstPerson
+    ? Math.max(8, Math.round(stats.particleCount * 0.45))
+    : stats.particleCount;
+  const particleSize = firstPerson ? stats.particleSize * 0.72 : stats.particleSize;
+  const lifetimeScale = firstPerson ? 0.7 : 1;
+  const verticalBoost = firstPerson ? 1.2 : 1;
   
   // Create confetti particles bursting outward from position
   const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(stats.particleCount * 3);
-  const colors = new Float32Array(stats.particleCount * 3);
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
   const velocities = [];
   const lifetimes = [];
   
@@ -49,7 +56,7 @@ export function createConfettiBurst(scene, x, y, z) {
   const g = ((color >> 8) & 0xff) / 255;
   const b = (color & 0xff) / 255;
   
-  for (let i = 0; i < stats.particleCount; i++) {
+  for (let i = 0; i < particleCount; i++) {
     const i3 = i * 3;
     
     // Start at position
@@ -64,7 +71,7 @@ export function createConfettiBurst(scene, x, y, z) {
     
     velocities.push({
       x: Math.cos(angle) * Math.cos(verticalAngle) * speed,
-      y: Math.sin(verticalAngle) * speed + 1,
+      y: Math.sin(verticalAngle) * speed + verticalBoost,
       z: Math.sin(angle) * Math.cos(verticalAngle) * speed
     });
     
@@ -81,13 +88,14 @@ export function createConfettiBurst(scene, x, y, z) {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   
   const material = new THREE.PointsMaterial({
-    size: stats.particleSize,
+    size: particleSize,
     vertexColors: true,
     transparent: true,
     opacity: 1.0,
     blending: THREE.NormalBlending,
     map: getSharedConfettiTexture(),
-    sizeAttenuation: true
+    sizeAttenuation: true,
+    depthWrite: false
   });
   
   const particles = new THREE.Points(geometry, material);
@@ -100,7 +108,7 @@ export function createConfettiBurst(scene, x, y, z) {
     velocities,
     lifetimes,
     initialColors: new Float32Array(colors),
-    maxLifetime: stats.minLifetime + Math.random() * (stats.maxLifetime - stats.minLifetime)
+    maxLifetime: (stats.minLifetime + Math.random() * (stats.maxLifetime - stats.minLifetime)) * lifetimeScale
   };
 }
 

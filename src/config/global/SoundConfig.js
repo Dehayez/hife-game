@@ -80,6 +80,7 @@ export const SOUND_CONFIG = {
     respawn: true,
     death: true,
     takeDamage: true,
+    collectiblePickup: true,
   },
 };
 

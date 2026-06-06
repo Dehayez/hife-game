@@ -22,9 +22,9 @@ export const CHARACTER_COLORS = {
     rgb: '245, 186, 11'      // RGB string for CSS rgba()
   },
   babyHerald: {
-    hex: 0xffd76b,           // Lighter gold for the baby variant
-    css: '#ffd76b',
-    rgb: '255, 215, 107'
+    hex: 0x2ecc71,           // Emerald green — small sprout, fresh life
+    css: '#2ecc71',
+    rgb: '46, 204, 113'
   }
 };
 

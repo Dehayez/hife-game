@@ -11,6 +11,93 @@ import { getCharacterModelPath } from '../config/character/CharacterRenderMode.j
 import { getCharacterMovementStats } from '../config/character/CharacterStats.js';
 
 /**
+ * Diagnostic watcher: snapshots the visibility + transform + animation state
+ * of a 3D character every second and logs any change. Stops automatically
+ * when the wrapper is removed from its scene (becomes orphaned).
+ *
+ * Enable/disable with `window.__hifeDisable3DWatcher = true`.
+ */
+function startCharacter3DWatcher(wrapper, inner, characterName) {
+  if (typeof window === 'undefined') return;
+  if (window.__hifeDisable3DWatcher) return;
+
+  let lastSnapshot = null;
+  let frameCount = 0;
+
+  const snapshot = () => {
+    const meshVis = [];
+    let skinnedCount = 0;
+    let visibleMeshCount = 0;
+    let hiddenMeshCount = 0;
+    inner.traverse(obj => {
+      if (obj.isMesh) {
+        if (obj.isSkinnedMesh) skinnedCount++;
+        if (obj.visible) visibleMeshCount++; else hiddenMeshCount++;
+        meshVis.push(`${obj.name || obj.type}:${obj.visible ? 'V' : 'H'}:fc=${obj.frustumCulled}`);
+      }
+    });
+
+    const mixer = wrapper.userData.animationMixer;
+    const currentAction = wrapper.userData.currentAction;
+    const oneShot = wrapper.userData.oneShot;
+
+    return {
+      wrapperVisible: wrapper.visible,
+      wrapperParent: wrapper.parent ? wrapper.parent.type : 'NONE',
+      wrapperParentInScene: !!(wrapper.parent && wrapper.parent.parent !== null || wrapper.parent?.type === 'Scene'),
+      wrapperPos: `${wrapper.position.x.toFixed(2)},${wrapper.position.y.toFixed(2)},${wrapper.position.z.toFixed(2)}`,
+      wrapperScale: `${wrapper.scale.x.toFixed(2)},${wrapper.scale.y.toFixed(2)},${wrapper.scale.z.toFixed(2)}`,
+      innerVisible: inner.visible,
+      innerScale: `${inner.scale.x.toFixed(2)},${inner.scale.y.toFixed(2)},${inner.scale.z.toFixed(2)}`,
+      visibleMeshCount,
+      hiddenMeshCount,
+      skinnedCount,
+      meshVis: meshVis.join(' | '),
+      mixerTime: mixer ? mixer.time.toFixed(2) : 'no-mixer',
+      currentClip: currentAction?.getClip?.()?.name || 'none',
+      currentActionWeight: currentAction ? currentAction.getEffectiveWeight().toFixed(2) : 'none',
+      currentActionEnabled: currentAction ? currentAction.enabled : 'none',
+      oneShotClip: oneShot?.getClip?.()?.name || 'none',
+    };
+  };
+
+  const tick = () => {
+    // Stop watching if the wrapper has been disposed / detached from any scene.
+    if (!wrapper.parent && frameCount > 2) {
+      console.log(`[Watcher:${characterName}] wrapper detached, stopping`);
+      return;
+    }
+
+    const next = snapshot();
+    frameCount++;
+
+    if (!lastSnapshot) {
+      console.log(`[Watcher:${characterName}] initial`, next);
+    } else {
+      const diff = {};
+      for (const key of Object.keys(next)) {
+        if (next[key] !== lastSnapshot[key]) {
+          diff[key] = `${lastSnapshot[key]}  →  ${next[key]}`;
+        }
+      }
+      if (Object.keys(diff).length > 0) {
+        console.log(`[Watcher:${characterName}] t=${frameCount}s changed`, diff);
+      }
+    }
+
+    // ALWAYS log if anything is hidden — that's the bug we're hunting.
+    if (next.wrapperVisible === false || next.innerVisible === false || next.hiddenMeshCount > 0) {
+      console.warn(`[Watcher:${characterName}] HIDDEN at t=${frameCount}s`, next);
+    }
+
+    lastSnapshot = next;
+    setTimeout(tick, 1000);
+  };
+
+  setTimeout(tick, 1000);
+}
+
+/**
  * Character 3D model configuration
  */
 const MODEL_CONFIG = {
@@ -40,7 +127,9 @@ const CHARACTER_MODEL_CONFIGS = {
   },
   babyHerald: {
     scale: 0.35,
-    animationSpeed: 1.0,
+    // Small frame reads faster — bump mixer speed so the walk/jump/attack
+    // clips feel twitchy and toddler-quick instead of papa-pace.
+    animationSpeed: 1.35,
     // Model already stands upright in source. Only a Y rotation is needed to
     // orient its gaze along the game's forward axis.
     baseRotationY: Math.PI
@@ -114,12 +203,11 @@ export async function loadCharacterModel(characterName, onProgress = null) {
         child.castShadow = MODEL_CONFIG.castShadow;
         child.receiveShadow = MODEL_CONFIG.receiveShadow;
         child.visible = true;
-        // Skinned meshes get frustum-culled based on their bind-pose bounding
-        // sphere, which can be off-screen even when the animated bones place
-        // the mesh well within view — causing the model to vanish mid-game.
-        if (child.isSkinnedMesh) {
-          child.frustumCulled = false;
-        }
+        // Any mesh inside a rigged character can drift outside its bind-pose
+        // bounding sphere once bones deform it (skinned) or its parent bone
+        // translates it (mesh-on-bone). Disable frustum culling outright so
+        // animated transforms never make the model vanish.
+        child.frustumCulled = false;
       }
     });
 
@@ -136,6 +224,13 @@ export async function loadCharacterModel(characterName, onProgress = null) {
     // not to a wrapper Group that has no bones.
     const animations = inner.animations || [];
     const mixer = animations.length > 0 ? new THREE.AnimationMixer(inner) : null;
+    if (mixer) {
+      const animationSpeed =
+        typeof config.animationSpeed === 'number'
+          ? config.animationSpeed
+          : MODEL_CONFIG.animationSpeed;
+      mixer.timeScale = animationSpeed;
+    }
     console.log(
       `[Character3DLoader] ${characterName} clips:`,
       animations.map(a => a.name),
@@ -150,6 +245,13 @@ export async function loadCharacterModel(characterName, onProgress = null) {
     wrapper.userData.characterName = characterName;
     wrapper.userData.inner = inner;
     wrapper.visible = true;
+
+    // Diagnostic watcher: every second, snapshot the wrapper + inner + mesh
+    // visibility state and log any change. When the model "disappears mid-game"
+    // the very next tick after the failure will show exactly which property
+    // flipped (and the stack of the call site can be found by searching for
+    // that property name).
+    startCharacter3DWatcher(wrapper, inner, characterName);
 
     if (onProgress) {
       onProgress(1, 1, `${characterName} 3D model loaded`);
