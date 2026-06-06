@@ -8,7 +8,7 @@
  * - ArenaConfig.js: Arena configurations
  */
 
-import { getArenaConfig, getAllArenas, isLargeArena } from '../../../config/arena/ArenaConfig.js';
+import { getArenaConfig, getAllArenas, isLargeArena, isApocalypseCottage } from '../../../config/arena/ArenaConfig.js';
 
 export class ArenaManager {
   /**
@@ -54,6 +54,14 @@ export class ArenaManager {
    */
   isLargeArena() {
     return isLargeArena(this.currentArena);
+  }
+
+  /**
+   * Check if current arena is the Apocalypse Cottage sandbox
+   * @returns {boolean} True if current arena is apocalypse-cottage
+   */
+  isApocalypseCottage() {
+    return isApocalypseCottage(this.currentArena);
   }
 }
 

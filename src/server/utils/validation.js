@@ -30,7 +30,8 @@ const RATE_LIMITS = {
   'projectile-create': { maxPerSecond: 5, windowMs: 1000 },
   'projectile-update': { maxPerSecond: 30, windowMs: 1000 },
   'player-damage': { maxPerSecond: 10, windowMs: 1000 },
-  'character-change': { maxPerSecond: 2, windowMs: 1000 }
+  'character-change': { maxPerSecond: 2, windowMs: 1000 },
+  'world-event': { maxPerSecond: 40, windowMs: 1000 }
 };
 
 // Valid character names

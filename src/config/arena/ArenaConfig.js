@@ -22,6 +22,12 @@ export const ARENA_CONFIG = {
     size: 40,
     description: 'A vast ancient forest for epic battles',
     image: '/assets/arenas/ancient grove.png'
+  },
+  'apocalypse-cottage': {
+    label: 'Hollow Cottage Vale (32x32)',
+    size: 32,
+    description: 'A pastel wasteland for cozy survivors',
+    image: '/assets/arenas/apocalypse-cottage.png'
   }
 };
 
@@ -53,5 +59,14 @@ export function getAllArenas() {
  */
 export function isLargeArena(arenaKey) {
   return arenaKey === 'large';
+}
+
+/**
+ * Check if arena is the Apocalypse Cottage survival sandbox
+ * @param {string} arenaKey - Arena key
+ * @returns {boolean} True if arena is the apocalypse-cottage sandbox
+ */
+export function isApocalypseCottage(arenaKey) {
+  return arenaKey === 'apocalypse-cottage';
 }
 

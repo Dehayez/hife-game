@@ -1,7 +1,7 @@
 import React from 'react';
 import { LegendGroup, LegendSection, LegendKeys, LegendKey, ControllerButton, ControllerStick } from './subComponents.jsx';
 
-export function ControllerControls({ isShootingMode, controllerType = 'xbox' }) {
+export function ControllerControls({ isShootingMode, isApocalypseMode, controllerType = 'xbox' }) {
   const resolvedType = controllerType === 'generic' ? 'xbox' : controllerType;
   const controllerLabel = resolvedType === 'playstation' ? 'PlayStation' : 'Xbox';
 

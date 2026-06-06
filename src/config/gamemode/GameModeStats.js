@@ -28,7 +28,12 @@ export const GAME_MODE_STATS = {
     isStarted: false,          // Whether mode has started
     health: 100,              // Current health
     kills: 0,                 // Number of kills
-    deaths: 0                 // Number of deaths
+    deaths: 0,                // Number of deaths
+    wood: 0,                  // Apocalypse Cottage resource
+    stone: 0,                 // Apocalypse Cottage resource
+    mushroom: 0,              // Apocalypse Cottage resource
+    comfort: 100,             // Apocalypse Cottage comfort meter
+    selectedBlockType: 'wood' // Apocalypse Cottage active block type
   },
   
   /**
@@ -51,6 +56,11 @@ export const GAME_MODE_STATS = {
     },
     timeTrial: {
       checkpoints: 5          // Number of checkpoints to spawn
+    },
+    apocalypseCottage: {
+      starterMushrooms: 6,    // Foraging spawn count
+      starterTrees: 3,        // Starter trees seeded near spawn
+      rimDeadTrees: 24        // Decorative rim silhouettes
     }
   }
 };
@@ -84,6 +94,8 @@ export function getSpawnCounts(modeKey) {
       return GAME_MODE_STATS.spawnCounts.survival;
     case 'time-trial':
       return GAME_MODE_STATS.spawnCounts.timeTrial;
+    case 'apocalypse-cottage':
+      return GAME_MODE_STATS.spawnCounts.apocalypseCottage;
     default:
       return null;
   }

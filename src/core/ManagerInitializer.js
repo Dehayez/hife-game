@@ -86,8 +86,9 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   inputManager.setOnViewModeChange((mode) => {
     characterManager.setLocalPlayerVisible(mode !== 'first-person');
   });
+  const soundManager = characterManager.getSoundManager();
 
-  const entityManager = new EntityManager(sceneManager.getScene(), sceneManager.getArenaSize(), collisionManager);
+  const entityManager = new EntityManager(sceneManager.getScene(), sceneManager.getArenaSize(), collisionManager, soundManager);
   const gameModeManager = new GameModeManager(entityManager, arenaName);
 
   // Connect managers
@@ -120,7 +121,6 @@ export function initializeManagers(canvas, arenaName, multiplayerCallbacks = {})
   botManager.setPlayer(characterManager.getPlayer());
   
   // Connect sound manager to projectile manager (for mortar explosion sounds)
-  const soundManager = characterManager.getSoundManager();
   if (soundManager) {
     projectileManager.setSoundManager(soundManager);
   }

@@ -183,17 +183,47 @@ export class CollisionManager {
    */
   getGroundHeight(x, z, playerSize) {
     const groundStats = getGroundStats();
-    
+
+    // Apocalypse Cottage terrain — defer to heightmap when registered.
+    let baseGround = groundStats.defaultHeight;
+    if (this._terrainHeightProvider) {
+      baseGround = this._terrainHeightProvider(x, z);
+    }
+
+    // Apocalypse Cottage blocks — stand on top of the stack at this cell.
+    if (this._blockTopProvider) {
+      const top = this._blockTopProvider(x, z);
+      if (top !== null && top !== undefined && top > baseGround) {
+        baseGround = top;
+      }
+    }
+
     // Check if position is on an obstacle (wall)
-    const nextPos = new THREE.Vector3(x, groundStats.defaultHeight, z);
+    const nextPos = new THREE.Vector3(x, baseGround, z);
     if (this.willCollide(nextPos, playerSize)) {
       // On obstacle - return obstacle height
       const wallStats = getWallStats();
       return wallStats.height;
     }
-    
-    // On base ground
-    return groundStats.defaultHeight;
+
+    return baseGround;
+  }
+
+  /**
+   * Provide a function (x, z) => groundY for terrain-driven modes.
+   * Pass null to clear and fall back to the flat default.
+   * @param {(x:number, z:number)=>number|null} fn
+   */
+  setTerrainHeightProvider(fn) {
+    this._terrainHeightProvider = typeof fn === 'function' ? fn : null;
+  }
+
+  /**
+   * Provide a function (x, z) => blockTopY or null when no block at (x,z).
+   * Used to make placed cubes act as standable ground.
+   */
+  setBlockTopProvider(fn) {
+    this._blockTopProvider = typeof fn === 'function' ? fn : null;
   }
 
   /**

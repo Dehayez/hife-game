@@ -40,6 +40,12 @@ export const GAME_MODE_CONFIG = {
     description: 'Invite players and battle with magical projectiles',
     enabled: true,
     image: '/assets/gamemodes/shooting.png'
+  },
+  'apocalypse-cottage': {
+    name: 'Apocalypse Cottage',
+    description: 'Survive the soft apocalypse — sculpt the land, grow groves, build a refuge',
+    enabled: true,
+    image: '/assets/gamemodes/apocalypse-cottage.png'
   }
 };
 

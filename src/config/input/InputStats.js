@@ -34,7 +34,17 @@ export const INPUT_STATS = {
     speedBoost: ['e', 'E', 'KeyE'],         // E - Speed Boost
 
     // Camera
-    toggleViewMode: ['v', 'V', 'KeyV']      // V - Toggle first/third-person view
+    toggleViewMode: ['v', 'V', 'KeyV'],     // V - Toggle first/third-person view
+
+    // Apocalypse Cottage terraform / build actions
+    dig: ['g', 'G', 'KeyG'],
+    raise: ['r', 'R', 'KeyR'],
+    flatten: ['t', 'T', 'KeyT'],
+    plantTree: ['p', 'P', 'KeyP'],
+    placeBlock: ['b', 'B', 'KeyB'],
+    selectBlock1: ['1', 'Digit1'],
+    selectBlock2: ['2', 'Digit2'],
+    selectBlock3: ['3', 'Digit3']
   }
 };
 

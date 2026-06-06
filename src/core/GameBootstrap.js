@@ -36,11 +36,15 @@ export function getInitialConfig() {
   
   const urlArena = getParam('arena', GAME_CONSTANTS.DEFAULT_ARENA);
   const urlRoom = getParam('room', null);
-  
+
+  // Apocalypse Cottage is bound to its own arena — force the pairing so a
+  // saved mode or a `?mode=apocalypse-cottage` URL always boots the sandbox.
+  const arenaName = gameMode === 'apocalypse-cottage' ? 'apocalypse-cottage' : urlArena;
+
   return {
     characterName,
     gameMode,
-    arenaName: urlArena,
+    arenaName,
     roomCode: urlRoom
   };
 }

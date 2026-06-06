@@ -9,7 +9,8 @@ export function getArenaImage(arenaKey) {
   // Map arena keys to image filenames
   const imageMap = {
     'standard': '/assets/arenas/forest-plaza.png',
-    'large': '/assets/arenas/ancient grove.png'
+    'large': '/assets/arenas/ancient grove.png',
+    'apocalypse-cottage': '/assets/arenas/apocalypse-cottage.png'
   };
   
   return imageMap[arenaKey] || null;

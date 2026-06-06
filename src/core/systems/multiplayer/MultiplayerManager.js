@@ -353,6 +353,14 @@ export class MultiplayerManager {
       }
     });
 
+    // Apocalypse Cottage — terrain / tree / block events broadcast by peers
+    this.socket.on('world-event', (data) => {
+      if (!data || data.playerId === this.localPlayerId) return;
+      if (this.onDataReceived) {
+        this.onDataReceived(data.playerId, { type: 'world-event', ...data });
+      }
+    });
+
     // Handle host transfer
     this.socket.on('host-changed', (data) => {
       if (data.roomCode !== this.roomCode) return;
@@ -420,6 +428,11 @@ export class MultiplayerManager {
             arena: gameState.arena,
             gameMode: gameState.gameMode
           });
+          if (this._onRoomJoinedListeners) {
+            this._onRoomJoinedListeners.forEach(fn => {
+              try { fn(this.roomCode); } catch (e) { console.warn('onRoomJoined listener error:', e); }
+            });
+          }
           resolve(response.roomCode);
         } else {
           reject(new Error(response.error || 'Failed to create room'));
@@ -532,12 +545,26 @@ export class MultiplayerManager {
             });
           }
           
+          if (this._onRoomJoinedListeners) {
+            this._onRoomJoinedListeners.forEach(fn => {
+              try { fn(this.roomCode); } catch (e) { console.warn('onRoomJoined listener error:', e); }
+            });
+          }
           resolve(response);
         } else {
           reject(new Error(response.error || 'Failed to join room'));
         }
       });
     });
+  }
+
+  /**
+   * Subscribe to room-join completion. Fires after both joinRoom and createRoom
+   * succeed. Useful for fetching one-shot snapshots after entering a room.
+   */
+  setOnRoomJoined(fn) {
+    if (!this._onRoomJoinedListeners) this._onRoomJoinedListeners = [];
+    this._onRoomJoinedListeners.push(fn);
   }
 
   /**
@@ -614,6 +641,39 @@ export class MultiplayerManager {
     if (this.roomCode && this.socket) {
       this.socket.emit('player-damage', damageData);
     }
+  }
+
+  /**
+   * Send an Apocalypse Cottage world event (terrain / tree / block).
+   * @param {string} type - one of: terrain, tree-plant, tree-stage, tree-chop, block-place, block-remove
+   * @param {Object} payload - event-specific data
+   */
+  sendWorldEvent(type, payload) {
+    if (this.roomCode && this.socket && this.socket.connected) {
+      this.socket.emit('world-event', { type, ...payload });
+    }
+  }
+
+  /**
+   * Request the room's current Apocalypse Cottage world snapshot from the
+   * server. Resolves with { terrain: [...], trees: [...], blocks: [...] }.
+   */
+  requestWorldSnapshot() {
+    return new Promise((resolve) => {
+      if (!this.roomCode || !this.socket || !this.socket.connected) {
+        resolve({ terrain: [], trees: [], blocks: [] });
+        return;
+      }
+      let done = false;
+      const finish = (data) => {
+        if (done) return;
+        done = true;
+        resolve(data || { terrain: [], trees: [], blocks: [] });
+      };
+      this.socket.emit('request-world-snapshot', finish);
+      // Safety timeout in case the server is older / event not registered.
+      setTimeout(() => finish(null), 2000);
+    });
   }
 
   /**

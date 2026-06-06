@@ -30,14 +30,15 @@ export function ControlsLegend({ inputManager, gameModeManager }) {
   }, [inputManager, gameModeManager]);
 
   const isShootingMode = gameMode === 'shooting';
+  const isApocalypseMode = gameMode === 'apocalypse-cottage';
 
   return (
     <div className="ui__legend-panel">
       <div className="ui__legend-content">
         {inputMode === 'controller' ? (
-          <ControllerControls isShootingMode={isShootingMode} controllerType={controllerType} />
+          <ControllerControls isShootingMode={isShootingMode} isApocalypseMode={isApocalypseMode} controllerType={controllerType} />
         ) : (
-          <KeyboardControls isShootingMode={isShootingMode} />
+          <KeyboardControls isShootingMode={isShootingMode} isApocalypseMode={isApocalypseMode} />
         )}
       </div>
     </div>

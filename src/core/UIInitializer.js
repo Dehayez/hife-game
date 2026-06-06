@@ -310,7 +310,19 @@ export function initializeUI(managers, config) {
     if (gameModeManager.getMode() === mode) {
       return; // Already in this mode
     }
-    
+
+    // Apocalypse Cottage requires its own arena. If the user picks the mode
+    // while standing in any other arena, reload with both URL params set so
+    // the sandbox boots correctly.
+    if (mode === 'apocalypse-cottage' && arenaManager.getCurrentArena() !== 'apocalypse-cottage') {
+      setLastGameMode(mode);
+      const url = new URL(window.location);
+      url.searchParams.set('mode', mode);
+      url.searchParams.set('arena', 'apocalypse-cottage');
+      window.location.href = url.toString();
+      return;
+    }
+
     gameModeManager.setMode(mode);
     setLastGameMode(mode);
     

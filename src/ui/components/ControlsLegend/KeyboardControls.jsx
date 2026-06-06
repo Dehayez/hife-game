@@ -1,7 +1,7 @@
 import React from 'react';
 import { LegendGroup, LegendSection, LegendKeys, LegendKey } from './subComponents.jsx';
 
-export function KeyboardControls({ isShootingMode }) {
+export function KeyboardControls({ isShootingMode, isApocalypseMode }) {
   const arrowKeys = [
     { key: 'up', label: '↑', className: 'ui__legend-key--up' },
     { key: 'left', label: '←', className: 'ui__legend-key--left' },
@@ -68,6 +68,42 @@ export function KeyboardControls({ isShootingMode }) {
             <LegendKey style={{ minWidth: 'auto', fontSize: '10px', opacity: '0.7' }}>
               Cursor distance
             </LegendKey>
+          </LegendGroup>
+        </LegendSection>
+      )}
+
+      {isApocalypseMode && (
+        <LegendSection>
+          <div className="ui__legend-group" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border-light)' }}>
+            <span className="ui__legend-label" style={{ fontWeight: '600', opacity: '1' }}>
+              Survive:
+            </span>
+          </div>
+
+          <LegendGroup label="Dig:">
+            <LegendKeys><LegendKey className="ui__legend-key--char">G</LegendKey></LegendKeys>
+          </LegendGroup>
+          <LegendGroup label="Raise:">
+            <LegendKeys><LegendKey className="ui__legend-key--char">R</LegendKey></LegendKeys>
+          </LegendGroup>
+          <LegendGroup label="Flatten:">
+            <LegendKeys><LegendKey className="ui__legend-key--char">T</LegendKey></LegendKeys>
+          </LegendGroup>
+          <LegendGroup label="Plant Tree:">
+            <LegendKeys><LegendKey className="ui__legend-key--char">P</LegendKey></LegendKeys>
+          </LegendGroup>
+          <LegendGroup label="Place Block:">
+            <LegendKeys><LegendKey className="ui__legend-key--char">B</LegendKey></LegendKeys>
+          </LegendGroup>
+          <LegendGroup label="Chop/Break:">
+            <LegendKeys><LegendKey className="ui__legend-key--char">F</LegendKey></LegendKeys>
+          </LegendGroup>
+          <LegendGroup label="Block Type:">
+            <LegendKeys>
+              <LegendKey className="ui__legend-key--char">1</LegendKey>
+              <LegendKey className="ui__legend-key--char">2</LegendKey>
+              <LegendKey className="ui__legend-key--char">3</LegendKey>
+            </LegendKeys>
           </LegendGroup>
         </LegendSection>
       )}

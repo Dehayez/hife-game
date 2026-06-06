@@ -9,6 +9,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { handleCreateRoom, handleJoinRoom, handleLeaveRoom, handleListRooms, handleUpdateRoom } from './handlers/roomHandler.js';
 import { handlePlayerState, handleProjectileCreate, handleProjectileUpdate, handlePlayerDamage, handleCharacterChange, handleRequestExistingPlayers, rateLimiter } from './handlers/playerHandler.js';
+import { handleWorldEvent, buildWorldSnapshot, clearRoomWorld } from './handlers/worldHandler.js';
 
 const PORT = process.env.PORT || 3001;
 
@@ -100,6 +101,24 @@ io.on('connection', (socket) => {
   // Request existing players in room
   socket.on('request-existing-players', () => {
     handleRequestExistingPlayers(socket, rooms, players);
+  });
+
+  // Apocalypse Cottage world events (terrain / trees / blocks)
+  socket.on('world-event', (evt) => {
+    handleWorldEvent(socket, players, evt);
+  });
+
+  // Apocalypse Cottage joiner snapshot — server replies with the room's
+  // current authoritative world state so the new player sees existing builds.
+  socket.on('request-world-snapshot', (ack) => {
+    const player = players.get(socket.id);
+    if (!player || !player.roomCode) {
+      if (typeof ack === 'function') ack({ terrain: [], trees: [], blocks: [] });
+      return;
+    }
+    if (typeof ack === 'function') {
+      ack(buildWorldSnapshot(player.roomCode));
+    }
   });
 
   // List available rooms
